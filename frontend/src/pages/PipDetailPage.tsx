@@ -1,9 +1,12 @@
-import { useRef, useState } from 'react'
-import { useLocation, useParams, Link } from 'react-router-dom'
+import { useEffect, useMemo, useState } from 'react'
+import { useLocation, useNavigate, useParams, Link } from 'react-router-dom'
 import {
   useGetPipByIdQuery,
-  useUpdateProgressMutation,
-  useScheduleMeetingMutation,
+  useGetPipOneOnOneMeetingsQuery,
+  useIncreaseObjectiveHoursMutation,
+  useStartObjectiveSessionMutation,
+  useEndObjectiveSessionMutation,
+  useEndActivePipSessionsMutation,
   useClosePipMutation,
   useManualClosePipMutation,
   useEmployeeSignMutation,
@@ -13,7 +16,7 @@ import {
   useReviewPipMutation,
   useGetTrainingHistoryQuery,
 } from '../features/pip/pipApi'
-import type { TrainingRecord } from '../features/pip/pipApi'
+import type { PipObjective, TrainingRecord } from '../features/pip/pipApi'
 import { useSelector } from 'react-redux'
 import type { RootState } from '../app/store'
 import { formatDate, formatDateTime } from '../utils/dateUtils'
@@ -59,38 +62,15 @@ const toDisplayDateFromIso = (value: string) => {
   return `${day}/${month}/${year}`
 }
 
-const DISPLAY_DATE_TIME_PATTERN = /^(\d{2})\/(\d{2})\/(\d{4})\s+(\d{2}):(\d{2})$/
-
-const toLocalDateTimeValue = (value: string) => {
-  const match = value.match(DISPLAY_DATE_TIME_PATTERN)
-  if (!match) return ''
-  const [, day, month, year, hour, minute] = match
-  const parsed = new Date(Number(year), Number(month) - 1, Number(day), Number(hour), Number(minute))
-  if (
-    parsed.getFullYear() !== Number(year)
-    || parsed.getMonth() !== Number(month) - 1
-    || parsed.getDate() !== Number(day)
-    || parsed.getHours() !== Number(hour)
-    || parsed.getMinutes() !== Number(minute)
-  ) return ''
-  return `${year}-${month}-${day}T${hour}:${minute}`
-}
-
-const toDisplayDateTimeFromLocal = (value: string) => {
-  if (!value) return ''
-  const [datePart, timePart] = value.split('T')
-  if (!datePart || !timePart) return ''
-  const [year, month, day] = datePart.split('-')
-  const [hour, minute] = timePart.split(':')
-  if (!year || !month || !day || !hour || !minute) return ''
-  return `${day}/${month}/${year} ${hour}:${minute}`
-}
-
 export default function PipDetailPage() {
   const { id } = useParams<{ id: string }>()
   const pipId = parseInt(id!)
   const location = useLocation()
+  const navigate = useNavigate()
   const { data: pip, isLoading } = useGetPipByIdQuery(pipId)
+  const { data: oneOnOnePipMeetings = [], isLoading: isPipMeetingsLoading } = useGetPipOneOnOneMeetingsQuery(pipId, {
+    refetchOnMountOrArgChange: true,
+  })
   const { user } = useSelector((state: RootState) => state.auth)
   const employeeRecordId = pip?.employee?.id
   const { data: trainingHistory, isLoading: isTrainingHistoryLoading } = useGetTrainingHistoryQuery(
@@ -103,14 +83,8 @@ export default function PipDetailPage() {
     open: false,
     objectiveId: null,
   })
-  const [updateValue, setUpdateValue] = useState({ percentage: 0, completedHours: 0, feedback: '' })
+  const [updateValue, setUpdateValue] = useState({ additionalHours: 0, note: '' })
   const [trainingHistoryFilter, setTrainingHistoryFilter] = useState<'IN_PROGRESS' | 'COMPLETED' | 'NOT_STARTED' | 'ALL'>('IN_PROGRESS')
-
-  const [showMeetingModal, setShowMeetingModal] = useState(false)
-  const [startMeetingTime, setStartMeetingTime] = useState('')
-  const [endMeetingTime, setEndMeetingTime] = useState('')
-  const startMeetingPickerRef = useRef<HTMLInputElement | null>(null)
-  const endMeetingPickerRef = useRef<HTMLInputElement | null>(null)
 
   const [showCloseModal, setShowCloseModal] = useState(false)
   const [closeData, setCloseData] = useState({ finalOutcome: '', closingRemarks: '' })
@@ -127,15 +101,7 @@ export default function PipDetailPage() {
   const [reviewReasonType, setReviewReasonType] = useState('Policy Not Met')
   const [reviewCustomReason, setReviewCustomReason] = useState('')
   const [actionError, setActionError] = useState<string | null>(null)
-
-  const openDateTimePicker = (input: HTMLInputElement | null) => {
-    if (!input) return
-    if (typeof input.showPicker === 'function') {
-      input.showPicker()
-    } else {
-      input.click()
-    }
-  }
+  const [timerNow, setTimerNow] = useState(() => Date.now())
 
   const userRole = user?.role?.toUpperCase().replace(/\s+/g, '_') || ''
   const isManager = userRole === 'DEPARTMENT_HEAD' || userRole === 'TEAM_HEAD' || userRole === 'MANAGER'
@@ -148,8 +114,113 @@ export default function PipDetailPage() {
   const defaultSignature = defaultSigResponse?.data ?? null
   const hasDefaultSignature = Boolean(defaultSignature?.signatureData)
 
-  const [updateProgress] = useUpdateProgressMutation()
-  const [scheduleMeeting] = useScheduleMeetingMutation()
+  const [increaseObjectiveHours] = useIncreaseObjectiveHoursMutation()
+  const [startObjectiveSession] = useStartObjectiveSessionMutation()
+  const [endObjectiveSession] = useEndObjectiveSessionMutation()
+  const [endActivePipSessions] = useEndActivePipSessionsMutation()
+
+  const selectedObjective = pip?.objectives.find((objective) => objective.id === showUpdateModal.objectiveId)
+  const hasActivePipTimer = Boolean(isEmployee && pip?.objectives.some((objective) => objective.timerRunning))
+
+  useEffect(() => {
+    if (!hasActivePipTimer) return
+
+    const endActiveSessions = () => {
+      const token = localStorage.getItem('epms_token') || sessionStorage.getItem('epms_token')
+      if (!token) return
+      void fetch('/api/pips/sessions/end-active', {
+        method: 'POST',
+        keepalive: true,
+        headers: {
+          Authorization: `Bearer ${token}`,
+          'Content-Type': 'application/json',
+        },
+      }).catch(() => undefined)
+    }
+
+    window.addEventListener('pagehide', endActiveSessions)
+    window.addEventListener('beforeunload', endActiveSessions)
+
+    return () => {
+      window.removeEventListener('pagehide', endActiveSessions)
+      window.removeEventListener('beforeunload', endActiveSessions)
+      void endActivePipSessions().catch(() => undefined)
+    }
+  }, [endActivePipSessions, hasActivePipTimer])
+
+  useEffect(() => {
+    if (!hasActivePipTimer) return
+    const intervalId = window.setInterval(() => setTimerNow(Date.now()), 1000)
+    return () => window.clearInterval(intervalId)
+  }, [hasActivePipTimer])
+
+  const formatHours = (value: number) => {
+    if (!Number.isFinite(value)) return '0'
+    return value.toFixed(2).replace(/\.?0+$/, '')
+  }
+
+  const formatLiveTimer = (milliseconds: number) => {
+    const totalSeconds = Math.max(0, Math.floor(milliseconds / 1000))
+    const hours = Math.floor(totalSeconds / 3600)
+    const minutes = Math.floor((totalSeconds % 3600) / 60)
+    const seconds = totalSeconds % 60
+    if (hours > 0) {
+      return `${String(hours).padStart(2, '0')}:${String(minutes).padStart(2, '0')}:${String(seconds).padStart(2, '0')}`
+    }
+    return `${String(minutes).padStart(2, '0')}:${String(seconds).padStart(2, '0')}`
+  }
+
+  const getActualMeetingDuration = (start?: string, end?: string) => {
+    if (!start || !end) return 'Actual duration: -'
+    const startTime = new Date(start).getTime()
+    const endTime = new Date(end).getTime()
+    if (!Number.isFinite(startTime) || !Number.isFinite(endTime) || endTime < startTime) return 'Actual duration: -'
+    const totalMinutes = Math.max(1, Math.round((endTime - startTime) / 60000))
+    const hours = Math.floor(totalMinutes / 60)
+    const minutes = totalMinutes % 60
+    if (hours > 0 && minutes > 0) return `Actual duration: ${hours}h ${minutes}m`
+    if (hours > 0) return `Actual duration: ${hours}h`
+    return `Actual duration: ${minutes}m`
+  }
+
+  const getObjectiveRuntimeMetrics = (objective: PipObjective) => {
+    const totalHours = Number(objective.totalHours ?? 0)
+    const savedCompletedHours = Number(objective.completedHours ?? 0)
+    const sessionStartedAt = objective.activeSessionStart ? Date.parse(objective.activeSessionStart) : NaN
+    const elapsedHours =
+      objective.timerRunning && Number.isFinite(sessionStartedAt)
+        ? Math.max(0, (timerNow - sessionStartedAt) / 3600000)
+        : 0
+    const completedHours = totalHours > 0
+      ? Math.min(totalHours, savedCompletedHours + elapsedHours)
+      : savedCompletedHours + elapsedHours
+    const remainingHours = Math.max(0, totalHours - completedHours)
+    const progressPercentage = totalHours > 0
+      ? Math.min(100, Math.round((completedHours / totalHours) * 100))
+      : 0
+
+    return {
+      totalHours,
+      completedHours,
+      remainingHours,
+      progressPercentage,
+      elapsedMilliseconds: elapsedHours * 3600000,
+    }
+  }
+
+  const mergedMeetingNotes = useMemo(() => {
+    const notes = oneOnOnePipMeetings.flatMap((meeting) => {
+      const typedNotes = meeting.notes.map((note) => ({
+        id: `meeting-note-${note.id}`,
+        noteType: note.noteType === 'MANAGER_NOTE' ? 'Meeting Note - Manager' : 'Meeting Note - Employee',
+        authorName: note.authorName || 'Unknown author',
+        createdAt: note.createdDate,
+        content: note.content,
+      }))
+      return typedNotes
+    })
+    return notes
+  }, [oneOnOnePipMeetings])
   const [closePip] = useClosePipMutation()
   const [manualClosePip, { isLoading: isManualClosing }] = useManualClosePipMutation()
   const [employeeSign, { isLoading: isSigningEmployee }] = useEmployeeSignMutation()
@@ -234,30 +305,6 @@ export default function PipDetailPage() {
     }
     return (status || '').toUpperCase() === 'COMPLETED' ? '100%' : '-'
   }
-  const getLocalDateString = (dateString?: string | Date) => {
-    if (!dateString) return undefined;
-    const d = new Date(dateString);
-    if (isNaN(d.getTime())) return undefined;
-    const year = d.getFullYear();
-    const month = String(d.getMonth() + 1).padStart(2, '0');
-    const day = String(d.getDate()).padStart(2, '0');
-    return `${year}-${month}-${day}`;
-  };
-
-  const minMeetingDate = pip?.startDate ? getLocalDateString(pip.startDate) : getLocalDateString(new Date());
-  const applicableEndDate = pip?.extendedEndDate ? pip.extendedEndDate : (pip?.originalEndDate || pip?.endDate);
-  const maxMeetingDate = applicableEndDate ? getLocalDateString(applicableEndDate) : undefined;
-  const minMeetingDateTime = minMeetingDate ? `${minMeetingDate}T00:00` : undefined
-  const maxMeetingDateTime = maxMeetingDate ? `${maxMeetingDate}T23:59` : undefined
-  const scheduledMeetingHours = (() => {
-    const startValue = toLocalDateTimeValue(startMeetingTime)
-    const endValue = toLocalDateTimeValue(endMeetingTime)
-    if (!startValue || !endValue) return null
-    const minutes = (new Date(endValue).getTime() - new Date(startValue).getTime()) / 60000
-    if (!Number.isFinite(minutes) || minutes <= 0) return null
-    return Math.round((minutes / 60) * 100) / 100
-  })()
-
   const isDirectManager = Boolean(
     isManager &&
     pip &&
@@ -268,6 +315,7 @@ export default function PipDetailPage() {
     )
   )
   const routeBase = isAudit ? '/audit/pip-monitoring' : isAdmin ? '/hr/pip-monitoring' : isEmployee ? '/employee/pip' : '/manager/pip'
+  const meetingRouteBase = isAudit ? '/audit' : isAdmin ? '/hr' : isEmployee ? '/employee' : '/manager'
 
   if (isLoading || !pip) return <div className="p-8">Loading PIP details...</div>
 
@@ -296,73 +344,66 @@ export default function PipDetailPage() {
     && Boolean(pip.employeeSignatureDate)
     && Boolean(pip.managerSignatureDate)
   const canAddCommunicationNote = pip.status === 'ACTIVE' && (isEmployee || isDirectManager)
+  const goToPipMeetingScheduler = () => {
+    const employeeRecordId = pip.employee.employee?.id
+    const employeeName = pip.employee.employee?.employeeName
+    const description = [
+      `[PIP_ID:${pip.id}]`,
+      `PIP #${pip.id} follow-up discussion for ${employeeName || 'employee'}.`,
+    ].join('\n')
+    const params = new URLSearchParams({
+      action: 'schedule',
+      meetingTitle: 'PIP follow up meeting',
+      meetingDescription: description,
+    })
+    if (employeeRecordId != null) params.set('employeeId', String(employeeRecordId))
+    if (employeeName) params.set('employeeName', employeeName)
+    navigate(`/manager/meetings?${params.toString()}`)
+  }
   const shouldShowSignatureSummary = Boolean(
     pip.finalOutcome
     || pip.employeeSignatureDate
     || pip.managerSignatureDate
     || pip.status === 'AUTO_CLOSED'
   )
-
   const handleUpdateProgress = async () => {
     if (showUpdateModal.objectiveId) {
-      const objective = pip.objectives.find((o) => o.id === showUpdateModal.objectiveId)
-      const latestPercentage = objective?.progressPercentage ?? 0
-
-      if (updateValue.percentage < latestPercentage) {
-        setActionError(`New percentage cannot be less than the current percentage (${latestPercentage}%).`)
+      if (updateValue.additionalHours <= 0) {
+        setActionError('Additional hours must be greater than 0.')
         return
       }
-      if (updateValue.completedHours < pip.completedHours) {
-        setActionError(`Total completed hours cannot be less than the current total (${pip.completedHours}).`)
-        return
-      }
-      if (updateValue.completedHours > pip.totalHours) {
-        setActionError(`Total completed hours cannot exceed the target total (${pip.totalHours}).`)
+      if (!updateValue.note.trim()) {
+        setActionError('A note is required when increasing PIP hours.')
         return
       }
 
       try {
         setActionError(null)
-        await updateProgress({
+        await increaseObjectiveHours({
           objectiveId: showUpdateModal.objectiveId,
-          progressPercentage: updateValue.percentage,
-          completedHours: updateValue.completedHours,
-          feedback: updateValue.feedback,
+          additionalHours: updateValue.additionalHours,
+          note: updateValue.note,
         }).unwrap()
         setShowUpdateModal({ open: false, objectiveId: null })
-        setUpdateValue({ percentage: 0, completedHours: 0, feedback: '' })
+        setUpdateValue({ additionalHours: 0, note: '' })
       } catch (error) {
-        console.error('[PIP Detail] Update progress failed:', error)
-        setActionError(getActionErrorMessage(error, 'Failed to update progress.'))
+        console.error('[PIP Detail] Increase objective hours failed:', error)
+        setActionError(getActionErrorMessage(error, 'Failed to increase objective hours.'))
       }
     }
   }
 
-  const handleScheduleMeeting = async () => {
-    const startMeetingTimeValue = toLocalDateTimeValue(startMeetingTime)
-    const endMeetingTimeValue = toLocalDateTimeValue(endMeetingTime)
-    if (!startMeetingTime.trim() || !endMeetingTime.trim()) {
-      setActionError('Start meeting time and end meeting time are required.')
-      return
-    }
-    if (!startMeetingTimeValue || !endMeetingTimeValue) {
-      setActionError('Meeting date and time must be in dd/mm/yyyy HH:mm format.')
-      return
-    }
-    if (new Date(endMeetingTimeValue).getTime() <= new Date(startMeetingTimeValue).getTime()) {
-      setActionError('End meeting time must be after start meeting time.')
-      return
-    }
-
+  const handleToggleObjectiveTimer = async (objectiveId: number, isRunning?: boolean) => {
     try {
       setActionError(null)
-      await scheduleMeeting({ pipId, startMeetingTime: startMeetingTimeValue, endMeetingTime: endMeetingTimeValue }).unwrap()
-      setShowMeetingModal(false)
-      setStartMeetingTime('')
-      setEndMeetingTime('')
+      if (isRunning) {
+        await endObjectiveSession(objectiveId).unwrap()
+      } else {
+        await startObjectiveSession(objectiveId).unwrap()
+      }
     } catch (error) {
-      console.error('[PIP Detail] Schedule meeting failed:', error)
-      setActionError(getActionErrorMessage(error, 'Failed to schedule meeting.'))
+      console.error('[PIP Detail] Toggle objective timer failed:', error)
+      setActionError(getActionErrorMessage(error, 'Failed to update PIP timer.'))
     }
   }
 
@@ -529,7 +570,7 @@ export default function PipDetailPage() {
           {isDirectManager && pip.status === 'ACTIVE' && (
             <>
               <button
-                onClick={() => setShowMeetingModal(true)}
+                onClick={goToPipMeetingScheduler}
                 className="flex items-center gap-2 rounded-lg border border-slate-200 bg-white px-4 py-2 text-sm font-medium text-slate-700 hover:bg-slate-50"
               >
                 <i className="bi bi-calendar-event" /> Schedule Meeting
@@ -611,8 +652,26 @@ export default function PipDetailPage() {
           <section className="rounded-xl border border-slate-200 bg-white p-6 shadow-sm">
             <h2 className="mb-6 text-lg font-bold text-slate-900">Improvement Objectives</h2>
             <div className="space-y-8">
-              {pip.objectives.map((obj) => (
+              {pip.objectives.map((obj) => {
+                const metrics = getObjectiveRuntimeMetrics(obj)
+                return (
                 <div key={obj.id} className="space-y-3">
+                  {isEmployee && pip.status === 'ACTIVE' && (
+                    <div className="flex flex-wrap items-center gap-3">
+                      <button
+                        type="button"
+                        onClick={() => void handleToggleObjectiveTimer(obj.id, obj.timerRunning)}
+                        className={`rounded-lg px-4 py-2 text-sm font-semibold text-white ${obj.timerRunning ? 'bg-red-600 hover:bg-red-700' : 'bg-[#2463eb] hover:bg-[#1d4ed8]'}`}
+                      >
+                        {obj.timerRunning ? 'End PIP' : 'Start PIP'}
+                      </button>
+                      {obj.timerRunning && (
+                        <span className="rounded-lg border border-blue-100 bg-blue-50 px-3 py-2 font-mono text-sm font-bold text-blue-700">
+                          {formatLiveTimer(metrics.elapsedMilliseconds)}
+                        </span>
+                      )}
+                    </div>
+                  )}
                   <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
                     <span className="min-w-0 break-words font-medium text-slate-800">{obj.description}</span>
                     {isDirectManager && pip.status === 'ACTIVE' && (
@@ -620,30 +679,36 @@ export default function PipDetailPage() {
                         onClick={() => {
                           setShowUpdateModal({ open: true, objectiveId: obj.id })
                           setUpdateValue({
-                            percentage: obj.progressPercentage,
-                            completedHours: pip.completedHours,
-                            feedback: ''
+                            additionalHours: 0,
+                            note: ''
                           })
                         }}
                         className="shrink-0 text-sm font-semibold text-[#2463eb] hover:text-[#1e40af]"
                       >
-                        Update
+                        Increase Hours
                       </button>
                     )}
+                  </div>
+                  <div className="grid grid-cols-2 gap-3 rounded-lg bg-slate-50 p-3 text-xs text-slate-600 sm:grid-cols-4">
+                    <div><span className="block font-bold text-slate-900">{formatHours(metrics.totalHours)}</span>Total Hours</div>
+                    <div><span className="block font-bold text-slate-900">{formatHours(metrics.completedHours)}</span>Completed</div>
+                    <div><span className="block font-bold text-slate-900">{formatHours(metrics.remainingHours)}</span>Remaining</div>
+                    <div><span className="block font-bold text-slate-900">{metrics.progressPercentage}%</span>Progress</div>
                   </div>
                   <div className="flex items-center gap-4">
                     <div className="h-2 w-full rounded-full bg-slate-100">
                       <div
-                        className={`h-full rounded-full transition-all duration-500 ${obj.progressPercentage === 100 ? 'bg-green-500' : 'bg-[#2463eb]'}`}
-                        style={{ width: `${obj.progressPercentage}%` }}
+                        className={`h-full rounded-full transition-all duration-500 ${metrics.progressPercentage === 100 ? 'bg-green-500' : 'bg-[#2463eb]'}`}
+                        style={{ width: `${metrics.progressPercentage}%` }}
                       />
                     </div>
-                    <span className={`min-w-[40px] text-sm font-bold ${obj.progressPercentage === 100 ? 'text-green-600' : 'text-slate-700'}`}>
-                      {obj.progressPercentage}%
+                    <span className={`min-w-[40px] text-sm font-bold ${metrics.progressPercentage === 100 ? 'text-green-600' : 'text-slate-700'}`}>
+                      {metrics.progressPercentage}%
                     </span>
                   </div>
                 </div>
-              ))}
+                )
+              })}
             </div>
           </section>
 
@@ -670,31 +735,54 @@ export default function PipDetailPage() {
           {/* Follow-up Meetings Section */}
           <section className="rounded-xl border border-slate-200 bg-white p-6 shadow-sm">
             <h2 className="mb-6 text-lg font-bold text-slate-900">Follow-Up Meetings</h2>
-            <div className="max-h-[360px] overflow-auto pr-1">
-              <div className="min-w-[520px] space-y-4">
-                {pip.followUpMeetings?.map((m) => (
-                  <div key={m.id} className="flex items-center justify-between rounded-lg border border-slate-100 bg-slate-50 p-4">
-                    <div className="flex items-center gap-4">
-                      <div className="flex h-10 w-10 items-center justify-center rounded-full bg-[#dbeafe] text-[#2463eb]">
-                        <i className="bi bi-calendar-check" />
-                      </div>
-                      <div>
-                        <p className="font-semibold text-slate-800">
-                          {formatDateTime(m.startMeetingTime || m.meetingTime)} - {m.endMeetingTime ? formatDateTime(m.endMeetingTime) : 'No end time'}
-                        </p>
-                        <p className="text-xs text-slate-500">
-                          {m.status}
-                          {m.totalHours != null && ` | Total: ${m.totalHours} hours`}
-                        </p>
-                      </div>
+            <div className="h-[420px] space-y-4 overflow-y-auto rounded-lg border border-slate-100 bg-slate-50/60 p-4 pr-2">
+              {isPipMeetingsLoading && (
+                <p className="py-4 text-center text-slate-500">Loading meetings...</p>
+              )}
+              {!isPipMeetingsLoading && oneOnOnePipMeetings.map((m) => (
+                <div key={`one-on-one-${m.id}`} className="flex flex-col gap-3 rounded-lg border border-slate-100 bg-slate-50 p-4 sm:flex-row sm:items-center sm:justify-between">
+                  <div className="flex items-center gap-4">
+                    <div className="flex h-10 w-10 items-center justify-center rounded-full bg-[#dbeafe] text-[#2463eb]">
+                      <i className="bi bi-calendar-check" />
                     </div>
-                    {m.reminderSent && <span className="text-xs text-green-600 font-medium"><i className="bi bi-bell-fill" /> Reminder sent</span>}
+                    <div>
+                      <p className="font-semibold text-slate-800">
+                        {formatDateTime(m.scheduledTime)}
+                      </p>
+                      <p className="text-xs text-slate-500">
+                        One-on-one meeting | {m.status} | {getActualMeetingDuration(m.actualStartTime, m.actualEndTime)}
+                      </p>
+                    </div>
                   </div>
-                ))}
-                {(!pip.followUpMeetings || pip.followUpMeetings.length === 0) && (
-                  <p className="py-4 text-center text-slate-500">No meetings scheduled yet.</p>
-                )}
-              </div>
+                  <Link
+                    to={`${meetingRouteBase}/meetings/${m.id}`}
+                    className="text-sm font-semibold text-[#2463eb] hover:text-[#1d4ed8]"
+                  >
+                    View meeting
+                  </Link>
+                </div>
+              ))}
+              {!isPipMeetingsLoading && pip.followUpMeetings?.map((m) => (
+                <div key={`pip-${m.id}`} className="flex items-center justify-between rounded-lg border border-slate-100 bg-slate-50 p-4">
+                  <div className="flex items-center gap-4">
+                    <div className="flex h-10 w-10 items-center justify-center rounded-full bg-[#dbeafe] text-[#2463eb]">
+                      <i className="bi bi-calendar-check" />
+                    </div>
+                    <div>
+                      <p className="font-semibold text-slate-800">
+                        {formatDateTime(m.startMeetingTime || m.meetingTime)} - {m.endMeetingTime ? formatDateTime(m.endMeetingTime) : 'No end time'}
+                      </p>
+                      <p className="text-xs text-slate-500">
+                        {m.status}
+                      </p>
+                    </div>
+                  </div>
+                  {m.reminderSent && <span className="text-xs text-green-600 font-medium"><i className="bi bi-bell-fill" /> Reminder sent</span>}
+                </div>
+              ))}
+              {!isPipMeetingsLoading && oneOnOnePipMeetings.length === 0 && (!pip.followUpMeetings || pip.followUpMeetings.length === 0) && (
+                <p className="py-4 text-center text-slate-500">No meetings scheduled yet.</p>
+              )}
             </div>
           </section>
 
@@ -705,6 +793,7 @@ export default function PipDetailPage() {
             currentUserId={user?.id}
             isHr={isAdmin}
             followUpMeetings={pip.followUpMeetings}
+            meetingNotes={mergedMeetingNotes}
             onError={setActionError}
           />
 
@@ -926,140 +1015,46 @@ export default function PipDetailPage() {
       {showUpdateModal.open && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4">
           <div className="w-full max-w-md rounded-xl bg-white p-6 shadow-xl">
-            <h3 className="mb-4 text-lg font-bold">Update Progress</h3>
+            <h3 className="mb-4 text-lg font-bold">Increase Objective Hours</h3>
             <div className="space-y-4">
               <div>
-                <label className="block text-sm font-medium text-slate-700">Latest Percentage</label>
+                <label className="block text-sm font-medium text-slate-700">Current Total Hours</label>
                 <div className="mt-1 rounded-lg border border-slate-200 bg-slate-50 px-4 py-2 text-sm font-bold text-slate-700">
-                  {pip.objectives.find((objective) => objective.id === showUpdateModal.objectiveId)?.progressPercentage ?? 0}%
+                  {selectedObjective?.totalHours ?? 0} hours
                 </div>
               </div>
               <div>
-                <label className="block text-sm font-medium text-slate-700">New Percentage</label>
-                <div className="mt-1 flex items-center gap-4">
-                  <input
-                    type="range"
-                    min={pip.objectives.find((objective) => objective.id === showUpdateModal.objectiveId)?.progressPercentage ?? 0}
-                    max="100"
-                    className="h-2 w-full cursor-pointer appearance-none rounded-lg bg-slate-200"
-                    value={updateValue.percentage}
-                    onChange={(e) => setUpdateValue({ ...updateValue, percentage: parseInt(e.target.value) })}
-                  />
-                  <span className="text-sm font-bold text-[#2463eb]">{updateValue.percentage}%</span>
-                </div>
-              </div>
-              <div>
-                <label className="block text-sm font-medium text-slate-700">Total Completed Hours</label>
+                <label className="block text-sm font-medium text-slate-700">Additional Hours</label>
                 <input
                   type="number"
-                  min={pip.completedHours}
-                  max={pip.totalHours}
+                  min="0.25"
+                  step="0.25"
                   className="mt-1 block w-full rounded-lg border border-slate-300 px-4 py-2 text-sm focus:border-[#2463eb] focus:outline-none"
-                  value={updateValue.completedHours}
-                  onChange={(e) => setUpdateValue({ ...updateValue, completedHours: parseInt(e.target.value) })}
+                  value={updateValue.additionalHours || ''}
+                  onChange={(e) => setUpdateValue({ ...updateValue, additionalHours: Number(e.target.value) })}
                 />
-                <p className="text-[10px] text-slate-400 mt-1">Target: {pip.totalHours} hours</p>
+                <p className="mt-1 text-[10px] text-slate-400">Managers can only increase objective hours.</p>
               </div>
               <div>
-                <label className="block text-sm font-medium text-slate-700">Feedback / Notes</label>
+                <label className="block text-sm font-medium text-slate-700">Required Note</label>
                 <textarea
                   className="mt-1 block w-full rounded-lg border border-slate-300 p-3 text-sm focus:border-[#2463eb] focus:outline-none"
                   rows={3}
-                  placeholder="Describe progress made..."
-                  value={updateValue.feedback}
-                  onChange={(e) => setUpdateValue({ ...updateValue, feedback: e.target.value })}
+                  placeholder="Explain why these hours are being increased..."
+                  value={updateValue.note}
+                  onChange={(e) => setUpdateValue({ ...updateValue, note: e.target.value })}
                 />
               </div>
             </div>
             <div className="mt-6 flex justify-end gap-3">
               <button onClick={() => setShowUpdateModal({ open: false, objectiveId: null })} className="px-4 py-2 text-sm font-medium text-slate-600">Cancel</button>
-              <button onClick={handleUpdateProgress} className="rounded-lg bg-[#2463eb] px-4 py-2 text-sm font-medium text-white hover:bg-[#1d4ed8]">Save Update</button>
-            </div>
-          </div>
-        </div>
-      )}
-
-      {showMeetingModal && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4">
-          <div className="w-full max-w-md rounded-xl bg-white p-6 shadow-xl">
-            <h3 className="mb-4 text-lg font-bold">Schedule Follow-Up Meeting</h3>
-            <div className="space-y-4">
-              <div>
-                <label className="block text-sm font-medium text-slate-700">Start Meeting Time</label>
-                <div className="relative mt-1">
-                  <input
-                    type="text"
-                    required
-                    placeholder="dd/mm/yyyy HH:mm"
-                    inputMode="numeric"
-                    className="block w-full rounded-lg border border-slate-300 px-4 py-2 pr-11 focus:border-[#2463eb] focus:outline-none"
-                    value={startMeetingTime}
-                    onChange={(e) => setStartMeetingTime(e.target.value)}
-                  />
-                  <button
-                    type="button"
-                    onClick={() => openDateTimePicker(startMeetingPickerRef.current)}
-                    className="absolute inset-y-0 right-0 flex w-11 items-center justify-center text-slate-400 hover:text-[#2463eb]"
-                    aria-label="Choose start meeting date and time"
-                  >
-                    <i className="bi bi-calendar3" />
-                    <input
-                      ref={startMeetingPickerRef}
-                      type="datetime-local"
-                      min={minMeetingDateTime}
-                      max={maxMeetingDateTime}
-                      value={toLocalDateTimeValue(startMeetingTime)}
-                      onChange={(e) => setStartMeetingTime(toDisplayDateTimeFromLocal(e.target.value))}
-                      className="pointer-events-none absolute h-px w-px opacity-0"
-                      tabIndex={-1}
-                      aria-hidden="true"
-                    />
-                  </button>
-                </div>
-              </div>
-              <div>
-                <label className="block text-sm font-medium text-slate-700">End Meeting Time</label>
-                <div className="relative mt-1">
-                  <input
-                    type="text"
-                    required
-                    placeholder="dd/mm/yyyy HH:mm"
-                    inputMode="numeric"
-                    className="block w-full rounded-lg border border-slate-300 px-4 py-2 pr-11 focus:border-[#2463eb] focus:outline-none"
-                    value={endMeetingTime}
-                    onChange={(e) => setEndMeetingTime(e.target.value)}
-                  />
-                  <button
-                    type="button"
-                    onClick={() => openDateTimePicker(endMeetingPickerRef.current)}
-                    className="absolute inset-y-0 right-0 flex w-11 items-center justify-center text-slate-400 hover:text-[#2463eb]"
-                    aria-label="Choose end meeting date and time"
-                  >
-                    <i className="bi bi-calendar3" />
-                    <input
-                      ref={endMeetingPickerRef}
-                      type="datetime-local"
-                      min={toLocalDateTimeValue(startMeetingTime) || minMeetingDateTime}
-                      max={maxMeetingDateTime}
-                      value={toLocalDateTimeValue(endMeetingTime)}
-                      onChange={(e) => setEndMeetingTime(toDisplayDateTimeFromLocal(e.target.value))}
-                      className="pointer-events-none absolute h-px w-px opacity-0"
-                      tabIndex={-1}
-                      aria-hidden="true"
-                    />
-                  </button>
-                </div>
-              </div>
-              <div>
-                <label className="block text-sm font-medium text-slate-700">Total Hours</label>
-                <div className="mt-1 rounded-lg border border-slate-200 bg-slate-50 px-4 py-2 text-sm font-bold text-slate-700">
-                  {scheduledMeetingHours == null ? '-' : `${scheduledMeetingHours} hours`}
-                </div>
-              </div>
-            </div>
-            <div className="mt-6 flex justify-end gap-3">
-              <button onClick={() => setShowMeetingModal(false)} className="px-4 py-2 text-sm font-medium text-slate-600">Cancel</button>
-              <button onClick={handleScheduleMeeting} className="rounded-lg bg-[#2463eb] px-4 py-2 text-sm font-medium text-white hover:bg-[#1d4ed8]">Schedule</button>
+              <button
+                onClick={handleUpdateProgress}
+                disabled={updateValue.additionalHours <= 0 || !updateValue.note.trim()}
+                className="rounded-lg bg-[#2463eb] px-4 py-2 text-sm font-medium text-white hover:bg-[#1d4ed8] disabled:cursor-not-allowed disabled:bg-slate-300"
+              >
+                Increase Hours
+              </button>
             </div>
           </div>
         </div>

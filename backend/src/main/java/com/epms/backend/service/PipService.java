@@ -4,6 +4,7 @@ import com.epms.backend.StaffTypes;
 import com.epms.backend.dto.pip.PipCreateRequest;
 import com.epms.backend.dto.pip.EligibleEmployeeDTO;
 import com.epms.backend.dto.pip.ProgressUpdateRequest;
+import com.epms.backend.dto.pip.PipObjectiveHoursIncreaseRequest;
 import com.epms.backend.dto.pip.MeetingScheduleRequest;
 import com.epms.backend.dto.pip.PipCloseRequest;
 import com.epms.backend.dto.pip.PipReopenRequest;
@@ -165,6 +166,8 @@ public class PipService {
 
         BigDecimal objectiveWeight = BigDecimal.valueOf(100)
                 .divide(BigDecimal.valueOf(request.getObjectives().size()), 2, RoundingMode.HALF_UP);
+        BigDecimal objectiveHours = BigDecimal.valueOf(request.getTotalHours())
+                .divide(BigDecimal.valueOf(request.getObjectives().size()), 2, RoundingMode.HALF_UP);
 
         List<PipObjective> objectives = request.getObjectives().stream().map(desc -> {
             PipObjective obj = new PipObjective();
@@ -172,7 +175,9 @@ public class PipService {
             obj.setPip(pip);
             obj.setDueDate(request.getEndDate() != null ? request.getEndDate() : LocalDate.now());
             obj.setWeightPercentage(objectiveWeight);
-            obj.setProgressPercentage(0);
+            obj.setTargetValue(objectiveHours);
+            obj.setCurrentValue(BigDecimal.ZERO);
+            obj.setStatus("Not_Started");
             return obj;
         }).toList();
 
@@ -434,55 +439,102 @@ public class PipService {
 
     @Transactional
     public PipObjective updateObjectiveProgress(Long objectiveId, ProgressUpdateRequest request, User updatedBy) {
+        throw new RuntimeException("Manual progress editing is no longer supported. Increase objective hours or use employee PIP timer sessions instead.");
+    }
+
+    @Transactional
+    public PipObjective increaseObjectiveHours(Long objectiveId, PipObjectiveHoursIncreaseRequest request, User actor) {
         PipObjective objective = objectiveRepository.findById(objectiveId)
                 .orElseThrow(() -> new RuntimeException("Objective not found"));
         Pip pip = objective.getPip();
-        authorizeManagerAction(pip, updatedBy);
-
-        if (!STATUS_ACTIVE.equals(normalizeStatus(pip.getStatus()))
-                && !"REOPENED".equals(normalizeStatus(pip.getStatus()))) {
-            throw new RuntimeException("Cannot update progress on a closed PIP");
+        authorizeManagerAction(pip, actor);
+        ensureActivePip(pip, "Cannot increase hours on a closed PIP");
+        if (request.getAdditionalHours() == null || request.getAdditionalHours().compareTo(BigDecimal.ZERO) <= 0) {
+            throw new RuntimeException("Additional hours must be greater than 0");
+        }
+        if (request.getNote() == null || request.getNote().trim().isEmpty()) {
+            throw new RuntimeException("A note is required when increasing PIP hours");
         }
 
-        if (request.getProgressPercentage() != null && request.getProgressPercentage() < (objective.getProgressPercentage() == null ? 0 : objective.getProgressPercentage())) {
-            throw new RuntimeException("New percentage cannot be less than the current percentage (" + objective.getProgressPercentage() + "%).");
-        }
-        if (request.getCompletedHours() != null) {
-            int currentCompleted = pip.getCompletedHours() == null ? 0 : pip.getCompletedHours();
-            if (request.getCompletedHours() < currentCompleted) {
-                throw new RuntimeException("Total completed hours cannot be less than the current total (" + currentCompleted + ").");
-            }
-            if (pip.getTotalHours() != null && request.getCompletedHours() > pip.getTotalHours()) {
-                throw new RuntimeException("Total completed hours cannot exceed the target total (" + pip.getTotalHours() + ").");
-            }
-        }
+        objective.setTargetValue(safeDecimal(objective.getTargetValue()).add(request.getAdditionalHours()));
+        objective.setUpdatedDate(Instant.now());
+        pip.setTotalHours(calculateTotalObjectiveHours(pip).intValue());
+        recalculatePipHoursAndProgress(pip);
 
         PipProgressUpdate update = new PipProgressUpdate();
         update.setPip(pip);
         update.setObjective(objective);
         update.setPreviousPercentage(objective.getProgressPercentage());
-        update.setNewPercentage(request.getProgressPercentage());
-        update.setFeedback(request.getFeedback());
-        update.setUpdatedBy(updatedBy.getEmployee());
+        update.setNewPercentage(objective.getProgressPercentage());
+        update.setFeedback(request.getNote().trim());
+        update.setUpdatedBy(actor.getEmployee());
         update.setUpdateDate(LocalDate.now());
         update.setCreatedDate(Instant.now());
-        update.setCompletedHours(request.getCompletedHours());
-
-        objective.setProgressPercentage(request.getProgressPercentage());
-
-        // Use manual hours if provided, otherwise updatePipProgress will calculate it
-        if (request.getCompletedHours() != null) {
-            pip.setCompletedHours(request.getCompletedHours());
-        }
-        pip.setUpdatedDate(Instant.now());
-        updatePipProgress(pip);
-
+        update.setCompletedHours(null);
         progressUpdateRepository.save(update);
+
         pipRepository.save(pip);
-        PipObjective savedObjective = objectiveRepository.save(objective);
-        syncTrainingRecord(pip, savedObjective, request.getFeedback());
-        notifyPipRelatedUsers(pip, updatedBy, "Progress updated");
-        return savedObjective;
+        notifyPipRelatedUsers(pip, actor, "PIP objective hours increased");
+        return objectiveRepository.save(objective);
+    }
+
+    @Transactional
+    public PipObjective startObjectiveSession(Long objectiveId, User actor) {
+        PipObjective objective = objectiveRepository.findById(objectiveId)
+                .orElseThrow(() -> new RuntimeException("Objective not found"));
+        Pip pip = objective.getPip();
+        authorizeEmployeeAction(pip, actor);
+        ensureActivePip(pip, "Cannot start a timer on a closed PIP");
+        if (objective.getActiveSessionStart() != null) {
+            throw new RuntimeException("This objective already has an active PIP timer");
+        }
+        if (objectiveRepository.existsByPip_Employee_IdAndActiveSessionStartIsNotNull(pip.getEmployee().getId())) {
+            throw new RuntimeException("Please end the active PIP timer before starting another objective");
+        }
+        if (objective.getRemainingHours().compareTo(BigDecimal.ZERO) <= 0) {
+            throw new RuntimeException("This objective is already completed");
+        }
+        objective.setActiveSessionStart(Instant.now());
+        objective.setStatus("In_Progress");
+        objective.setUpdatedDate(Instant.now());
+        return objectiveRepository.save(objective);
+    }
+
+    @Transactional
+    public PipObjective endObjectiveSession(Long objectiveId, User actor) {
+        PipObjective objective = objectiveRepository.findById(objectiveId)
+                .orElseThrow(() -> new RuntimeException("Objective not found"));
+        authorizeEmployeeAction(objective.getPip(), actor);
+        endObjectiveSessionInternal(objective, Instant.now(), actor.getEmployee(), "PIP session ended");
+        return objectiveRepository.save(objective);
+    }
+
+    @Transactional
+    public void endActiveEmployeeSessions(User actor) {
+        if (actor.getEmployee() == null) return;
+        List<Pip> pips = pipRepository.findByEmployee(actor.getEmployee());
+        Instant endedAt = Instant.now();
+        for (Pip pip : pips) {
+            if (pip.getObjectives() == null) continue;
+            for (PipObjective objective : pip.getObjectives()) {
+                if (objective.getActiveSessionStart() != null) {
+                    endObjectiveSessionInternal(objective, endedAt, actor.getEmployee(), "PIP session auto-ended");
+                    objectiveRepository.save(objective);
+                }
+            }
+        }
+    }
+
+    @Scheduled(fixedRate = 300000)
+    @Transactional
+    public void recoverStaleObjectiveSessions() {
+        Instant cutoff = Instant.now().minus(8, ChronoUnit.HOURS);
+        List<PipObjective> staleObjectives = objectiveRepository.findByActiveSessionStartBefore(cutoff);
+        for (PipObjective objective : staleObjectives) {
+            Employee employee = objective.getPip() == null ? null : objective.getPip().getEmployee();
+            endObjectiveSessionInternal(objective, Instant.now(), employee, "PIP session recovered after inactivity");
+            objectiveRepository.save(objective);
+        }
     }
 
     @Transactional
@@ -900,6 +952,119 @@ public class PipService {
         }
     }
 
+    private void recalculatePipHoursAndProgress(Pip pip) {
+        BigDecimal total = calculateTotalObjectiveHours(pip);
+        BigDecimal completed = calculateCompletedObjectiveHours(pip);
+        BigDecimal progress = BigDecimal.ZERO;
+        if (total.compareTo(BigDecimal.ZERO) > 0) {
+            progress = completed.multiply(BigDecimal.valueOf(100))
+                    .divide(total, 2, RoundingMode.HALF_UP);
+        }
+        if (progress.compareTo(BigDecimal.valueOf(100)) > 0) {
+            progress = BigDecimal.valueOf(100);
+        }
+        pip.setTotalHours(total.setScale(0, RoundingMode.CEILING).intValue());
+        pip.setCompletedHours(completed.setScale(0, RoundingMode.FLOOR).intValue());
+        pip.setOverallProgressPercentage(progress);
+        pip.setUpdatedDate(Instant.now());
+    }
+
+    private BigDecimal calculateTotalObjectiveHours(Pip pip) {
+        if (pip.getObjectives() == null) return BigDecimal.ZERO;
+        return pip.getObjectives().stream()
+                .map(objective -> safeDecimal(objective.getTargetValue()))
+                .reduce(BigDecimal.ZERO, BigDecimal::add);
+    }
+
+    private BigDecimal calculateCompletedObjectiveHours(Pip pip) {
+        if (pip.getObjectives() == null) return BigDecimal.ZERO;
+        return pip.getObjectives().stream()
+                .map(objective -> safeDecimal(objective.getCurrentValue()).min(safeDecimal(objective.getTargetValue())))
+                .reduce(BigDecimal.ZERO, BigDecimal::add);
+    }
+
+    private BigDecimal safeDecimal(BigDecimal value) {
+        return value == null ? BigDecimal.ZERO : value;
+    }
+
+    private void endObjectiveSessionInternal(PipObjective objective, Instant endedAt, Employee updatedBy, String note) {
+        Instant startedAt = objective.getActiveSessionStart();
+        if (startedAt == null) {
+            throw new RuntimeException("No active PIP timer found for this objective");
+        }
+        long seconds = Math.max(0, ChronoUnit.SECONDS.between(startedAt, endedAt));
+        BigDecimal elapsedHours = BigDecimal.valueOf(seconds)
+                .divide(BigDecimal.valueOf(3600), 4, RoundingMode.HALF_UP);
+        BigDecimal total = safeDecimal(objective.getTargetValue());
+        BigDecimal completed = safeDecimal(objective.getCurrentValue()).add(elapsedHours).min(total);
+        int previousPercentage = objective.getProgressPercentage() == null ? 0 : objective.getProgressPercentage();
+
+        objective.setCurrentValue(completed);
+        objective.setActiveSessionStart(null);
+        objective.setStatus(objective.getRemainingHours().compareTo(BigDecimal.ZERO) <= 0
+                ? "Achieved"
+                : completed.compareTo(BigDecimal.ZERO) > 0 ? "In_Progress" : "Not_Started");
+        objective.setUpdatedDate(endedAt);
+
+        Pip pip = objective.getPip();
+        recalculatePipHoursAndProgress(pip);
+
+        PipProgressUpdate update = new PipProgressUpdate();
+        update.setPip(pip);
+        update.setObjective(objective);
+        update.setPreviousPercentage(previousPercentage);
+        update.setNewPercentage(objective.getProgressPercentage());
+        update.setFeedback(note + " (" + elapsedHours.setScale(2, RoundingMode.HALF_UP) + " hours)");
+        update.setUpdatedBy(updatedBy);
+        update.setUpdateDate(LocalDate.now());
+        update.setCreatedDate(endedAt);
+        update.setCompletedHours(elapsedHours.setScale(0, RoundingMode.FLOOR).intValue());
+        progressUpdateRepository.save(update);
+        pipRepository.save(pip);
+        sendPipTimerStoppedNotification(objective, seconds, endedAt);
+    }
+
+    private void sendPipTimerStoppedNotification(PipObjective objective, long trackedSeconds, Instant endedAt) {
+        Pip pip = objective.getPip();
+        if (pip == null || pip.getEmployee() == null) {
+            return;
+        }
+        String employeeName = pip.getEmployee().getEmployeeName() == null
+                ? "Unknown employee"
+                : pip.getEmployee().getEmployeeName();
+        String objectiveName = objective.getDescription() == null || objective.getDescription().isBlank()
+                ? "PIP objective"
+                : objective.getDescription().trim();
+        String duration = formatTrackedTimerDuration(trackedSeconds);
+        String completedAt = DateTimeFormatter.ofPattern("dd MMM yyyy hh:mm a", Locale.ENGLISH)
+                .withZone(ZoneId.systemDefault())
+                .format(endedAt);
+        String message = String.format(
+                "%s did %s PIP for %s. Completed at %s.",
+                employeeName,
+                objectiveName,
+                duration,
+                completedAt);
+
+        Set<User> recipients = new LinkedHashSet<>();
+        if (pip.getEmployee().getUserAccount() != null) {
+            recipients.add(pip.getEmployee().getUserAccount());
+        }
+        if (pip.getManager() != null && pip.getManager().getUserAccount() != null) {
+            recipients.add(pip.getManager().getUserAccount());
+        }
+        recipients.stream()
+                .filter(user -> user != null && user.isActive())
+                .forEach(user -> notificationService.send(user, "PIP Timer Completed", message, "PIP", pip.getId()));
+    }
+
+    private String formatTrackedTimerDuration(long trackedSeconds) {
+        long totalMinutes = trackedSeconds <= 0 ? 0 : Math.max(1, Math.round(trackedSeconds / 60.0));
+        long hours = totalMinutes / 60;
+        long minutes = totalMinutes % 60;
+        return String.format("%02d:%02d", hours, minutes);
+    }
+
     private Employee requireManagerEmployee(User actor) {
         if (actor.getEmployee() == null) {
             throw new RuntimeException("The current account is not linked to an employee record");
@@ -964,6 +1129,19 @@ public class PipService {
     private void authorizeManagerAction(Pip pip, User actor) {
         if (!isDirectManager(pip, actor)) {
             throw new RuntimeException("Only the assigned manager can perform this action");
+        }
+    }
+
+    private void authorizeEmployeeAction(Pip pip, User actor) {
+        if (!isPipEmployee(pip, actor)) {
+            throw new RuntimeException("Only the assigned employee can perform this action");
+        }
+    }
+
+    private void ensureActivePip(Pip pip, String message) {
+        String status = normalizeStatus(pip.getStatus());
+        if (!STATUS_ACTIVE.equals(status) && !"REOPENED".equals(status)) {
+            throw new RuntimeException(message);
         }
     }
 

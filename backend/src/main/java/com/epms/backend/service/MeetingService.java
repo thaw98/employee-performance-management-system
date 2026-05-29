@@ -5,6 +5,7 @@ import com.epms.backend.entity.*;
 import com.epms.backend.repository.EmployeeRepository;
 import com.epms.backend.repository.MeetingNoteRepository;
 import com.epms.backend.repository.MeetingRepository;
+import com.epms.backend.repository.PipCommunicationNoteRepository;
 import com.epms.backend.repository.UserRepository;
 import lombok.RequiredArgsConstructor;
 import jakarta.persistence.criteria.Predicate;
@@ -25,6 +26,9 @@ import java.util.ArrayList;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Set;
+import java.util.UUID;
+import java.util.regex.Matcher;
+import java.util.regex.Pattern;
 import java.util.stream.Collectors;
 
 @Service
@@ -33,6 +37,7 @@ public class MeetingService {
 
     private final MeetingRepository meetingRepository;
     private final MeetingNoteRepository meetingNoteRepository;
+    private final PipCommunicationNoteRepository pipCommunicationNoteRepository;
     private final EmployeeRepository employeeRepository;
     private final UserRepository userRepository;
     private final NotificationService notificationService;
@@ -44,6 +49,9 @@ public class MeetingService {
         }
         Employee manager = employeeRepository.findById(managerId)
                 .orElseThrow(() -> new RuntimeException("Manager not found"));
+        if (Boolean.TRUE.equals(request.departmentMeeting())) {
+            return scheduleDepartmentMeeting(manager, request);
+        }
         Employee employee = employeeRepository.findById(request.employeeId())
                 .orElseThrow(() -> new RuntimeException("Employee not found"));
         boolean isHrScheduler = isHrEmployee(manager);
@@ -85,14 +93,123 @@ public class MeetingService {
         meeting.setStatus(MeetingStatus.PENDING);
 
         meeting = meetingRepository.save(meeting);
+        copyPipNotesToMeetingIfNeeded(meeting, request.description());
 
         notificationService.send(
                 employee.getUserAccount(),
                 "New Meeting Scheduled",
-                "Manager " + manager.getEmployeeName() + " scheduled a meeting: " + meeting.getTitle(),
+                "Manager " + manager.getEmployeeName() + " scheduled a meeting: " + meeting.getTitle()
+                        + " at " + formatNotificationTime(meeting.getScheduledTime()),
                 "MEETING");
 
         return mapToResponse(meeting);
+    }
+
+    private MeetingResponse scheduleDepartmentMeeting(Employee manager, MeetingRequest request) {
+        if (manager.getDepartment() == null) {
+            throw new RuntimeException("Manager must belong to a department to create a department meeting");
+        }
+        Long departmentId = request.departmentId() != null ? request.departmentId() : manager.getDepartment().getId();
+        if (!manager.getDepartment().getId().equals(departmentId) && !isHrEmployee(manager)) {
+            throw new RuntimeException("Managers can only create department meetings for their own department");
+        }
+
+        List<Employee> invitees = employeeRepository.findByDepartmentId(departmentId).stream()
+                .filter(e -> !e.getId().equals(manager.getId()))
+                .filter(e -> e.getEmploymentStatus() == EmployeeStatus.ACTIVE)
+                .filter(e -> e.getUserAccount() != null && e.getUserAccount().isActive())
+                .collect(Collectors.toList());
+        if (invitees.isEmpty()) {
+            throw new RuntimeException("No active employees found in this department");
+        }
+
+        String groupKey = "DEPT-" + UUID.randomUUID();
+        Meeting firstMeeting = null;
+        for (Employee employee : invitees) {
+            Meeting meeting = new Meeting();
+            meeting.setManager(manager);
+            meeting.setEmployee(employee);
+            meeting.setTitle(request.title());
+            meeting.setDescription(request.description());
+            meeting.setScheduledTime(request.scheduledTime());
+            meeting.setDurationMinutes(request.durationMinutes());
+            meeting.setStatus(MeetingStatus.PENDING);
+            meeting.setMeetingScope("DEPARTMENT");
+            meeting.setMeetingGroupKey(groupKey);
+            meeting.setDepartmentId(departmentId);
+            meeting = meetingRepository.save(meeting);
+            if (firstMeeting == null) {
+                firstMeeting = meeting;
+            }
+            notificationService.send(
+                    employee.getUserAccount(),
+                    "Department Meeting Invitation",
+                    "Manager " + manager.getEmployeeName() + " invited you to department meeting '"
+                            + meeting.getTitle() + "' at " + formatNotificationTime(meeting.getScheduledTime()),
+                    "MEETING");
+        }
+
+        return mapToResponse(firstMeeting);
+    }
+
+    private void copyPipNotesToMeetingIfNeeded(Meeting meeting, String description) {
+        Long pipId = extractPipId(description);
+        if (pipId == null) return;
+
+        List<PipCommunicationNote> pipNotes = pipCommunicationNoteRepository.findByPip_IdOrderByCreatedDateDesc(pipId);
+        for (int i = pipNotes.size() - 1; i >= 0; i--) {
+            PipCommunicationNote pipNote = pipNotes.get(i);
+            User authorUser = pipNote.getAuthor();
+            Employee author = authorUser != null ? authorUser.getEmployee() : null;
+            if (author == null || pipNote.getContent() == null || pipNote.getContent().isBlank()) continue;
+
+            MeetingNote meetingNote = new MeetingNote();
+            meetingNote.setMeeting(meeting);
+            meetingNote.setAuthor(author);
+            meetingNote.setNoteType(author.getId().equals(meeting.getManager().getId())
+                    ? MeetingNoteType.MANAGER_NOTE
+                    : MeetingNoteType.EMPLOYEE_NOTE);
+            meetingNote.setContent(pipNote.getContent());
+            meetingNote.setCreatedDate(pipNote.getCreatedDate() != null ? pipNote.getCreatedDate() : Instant.now());
+            meetingNoteRepository.save(meetingNote);
+        }
+    }
+
+    private Long extractPipId(String description) {
+        if (description == null || description.isBlank()) return null;
+        Matcher tagged = Pattern.compile("\\[PIP_ID:(\\d+)]").matcher(description);
+        if (tagged.find()) return Long.parseLong(tagged.group(1));
+        Matcher labeled = Pattern.compile("PIP\\s+#(\\d+)", Pattern.CASE_INSENSITIVE).matcher(description);
+        return labeled.find() ? Long.parseLong(labeled.group(1)) : null;
+    }
+
+    @Transactional(readOnly = true)
+    public List<PipFollowUpMeetingResponse> getPipFollowUpMeetings(Long pipId, Long userId) {
+        String pipTag = "[PIP_ID:%d]".formatted(pipId);
+        String pipLabel = "PIP #%d".formatted(pipId);
+        String title = "PIP follow up meeting";
+
+        Specification<Meeting> spec = (root, query, cb) -> {
+            List<Predicate> predicates = new ArrayList<>();
+            predicates.add(cb.or(
+                    cb.equal(root.get("manager").get("userAccount").get("id"), userId),
+                    cb.equal(root.get("employee").get("userAccount").get("id"), userId)));
+            predicates.add(cb.or(
+                    cb.like(cb.lower(root.get("description")), "%" + pipTag.toLowerCase() + "%"),
+                    cb.and(
+                            cb.equal(cb.lower(root.get("title")), title.toLowerCase()),
+                            cb.like(cb.lower(root.get("description")), "%" + pipLabel.toLowerCase() + "%"))));
+            return cb.and(predicates.toArray(new Predicate[0]));
+        };
+
+        return meetingRepository.findAll(spec, org.springframework.data.domain.Sort.by("scheduledTime").descending())
+                .stream()
+                .map(meeting -> new PipFollowUpMeetingResponse(
+                        mapToResponse(meeting),
+                        meetingNoteRepository.findByMeetingIdOrderByCreatedDateAsc(meeting.getId()).stream()
+                                .map(this::mapToNoteResponse)
+                                .collect(Collectors.toList())))
+                .collect(Collectors.toList());
     }
 
     @Transactional
@@ -280,7 +397,30 @@ public class MeetingService {
         notificationService.send(
                 meeting.getManager().getUserAccount(),
                 "Meeting Accepted",
-                meeting.getEmployee().getEmployeeName() + " accepted the meeting: " + meeting.getTitle(),
+                meeting.getEmployee().getEmployeeName() + " accepted the meeting '" + meeting.getTitle()
+                        + "' at " + formatNotificationTime(Instant.now()),
+                "MEETING");
+
+        return mapToResponse(meeting);
+    }
+
+    @Transactional
+    public MeetingResponse declineMeeting(Long id, Long employeeUserId) {
+        Meeting meeting = meetingRepository.findById(id)
+                .orElseThrow(() -> new RuntimeException("Meeting not found"));
+        if (!meeting.getEmployee().getUserAccount().getId().equals(employeeUserId)) {
+            throw new RuntimeException("Only the invited employee can decline the meeting");
+        }
+        meeting.setStatus(MeetingStatus.DECLINED);
+        meeting.setRescheduleReason(null);
+        meeting.setProposedTime(null);
+        meeting = meetingRepository.save(meeting);
+
+        notificationService.send(
+                meeting.getManager().getUserAccount(),
+                "Meeting Declined",
+                meeting.getEmployee().getEmployeeName() + " declined the meeting '" + meeting.getTitle()
+                        + "' at " + formatNotificationTime(Instant.now()),
                 "MEETING");
 
         return mapToResponse(meeting);
@@ -298,6 +438,10 @@ public class MeetingService {
         
         Meeting meeting = meetingRepository.findById(id)
                 .orElseThrow(() -> new RuntimeException("Meeting not found with ID: " + id));
+
+        if (isTeamMeeting(meeting)) {
+            throw new RuntimeException("Department meetings cannot be rescheduled by employees");
+        }
 
         if (meeting.getStatus() == MeetingStatus.COMPLETED || meeting.getStatus() == MeetingStatus.CANCELLED) {
             throw new RuntimeException("Cannot reschedule a " + meeting.getStatus().toString().toLowerCase() + " meeting");
@@ -476,6 +620,7 @@ public class MeetingService {
         Meeting meeting = meetingRepository.findById(id)
                 .orElseThrow(() -> new RuntimeException("Meeting not found"));
         verifyParticipant(meeting, userId);
+        MeetingStatus previousStatus = meeting.getStatus();
 
         if (status == MeetingStatus.ONGOING) {
             Instant now = Instant.now();
@@ -488,6 +633,18 @@ public class MeetingService {
 
         meeting.setStatus(status);
         meeting = meetingRepository.save(meeting);
+        if (status == MeetingStatus.ONGOING && previousStatus != MeetingStatus.ONGOING) {
+            notificationService.send(
+                    meeting.getManager().getUserAccount(),
+                    "Meeting Started",
+                    "The scheduled meeting with " + meeting.getEmployee().getEmployeeName() + " has started.",
+                    "MEETING");
+            notificationService.send(
+                    meeting.getEmployee().getUserAccount(),
+                    "Meeting Started",
+                    "The scheduled meeting with Manager " + meeting.getManager().getEmployeeName() + " has started.",
+                    "MEETING");
+        }
         return mapToResponse(meeting);
     }
 
@@ -528,7 +685,9 @@ public class MeetingService {
                 .map(User::getEmployee)
                 .orElseThrow(() -> new RuntimeException("Author employee not found"));
 
-        MeetingNoteType noteType = author.getId().equals(meeting.getManager().getId())
+        MeetingNoteType noteType = isTeamMeeting(meeting)
+                ? MeetingNoteType.TEAM_NOTE
+                : author.getId().equals(meeting.getManager().getId())
                 ? MeetingNoteType.MANAGER_NOTE
                 : MeetingNoteType.EMPLOYEE_NOTE;
 
@@ -539,6 +698,7 @@ public class MeetingService {
         note.setContent(request.content());
 
         note = meetingNoteRepository.save(note);
+        notifyMeetingNoteMembers(meeting, author);
         return mapToNoteResponse(note);
     }
 
@@ -548,7 +708,11 @@ public class MeetingService {
                 .orElseThrow(() -> new RuntimeException("Meeting not found"));
         verifyParticipantOrHrOrAudit(meeting, userId);
 
-        return meetingNoteRepository.findByMeetingIdOrderByCreatedDateAsc(meetingId)
+        List<MeetingNote> notes = isTeamMeeting(meeting) && meeting.getMeetingGroupKey() != null
+                ? meetingNoteRepository.findByMeeting_MeetingGroupKeyOrderByCreatedDateAsc(meeting.getMeetingGroupKey())
+                : meetingNoteRepository.findByMeetingIdOrderByCreatedDateAsc(meetingId);
+
+        return notes
                 .stream()
                 .map(this::mapToNoteResponse)
                 .collect(Collectors.toList());
@@ -614,6 +778,14 @@ public class MeetingService {
     }
 
     private void verifyParticipant(Meeting meeting, Long userId) {
+        if (isTeamMeeting(meeting) && meeting.getMeetingGroupKey() != null) {
+            boolean participant = meetingRepository.findByMeetingGroupKey(meeting.getMeetingGroupKey()).stream()
+                    .anyMatch(m -> m.getManager().getUserAccount().getId().equals(userId)
+                            || m.getEmployee().getUserAccount().getId().equals(userId));
+            if (participant) {
+                return;
+            }
+        }
         Long managerUserId = meeting.getManager().getUserAccount().getId();
         Long employeeUserId = meeting.getEmployee().getUserAccount().getId();
         if (!managerUserId.equals(userId) && !employeeUserId.equals(userId)) {
@@ -724,6 +896,18 @@ public class MeetingService {
     }
 
     private MeetingResponse mapToResponse(Meeting meeting) {
+        boolean teamMeeting = isTeamMeeting(meeting);
+        String groupKey = meeting.getMeetingGroupKey();
+        Integer total = null;
+        Integer accepted = null;
+        Integer declined = null;
+        Integer pending = null;
+        if (teamMeeting && groupKey != null) {
+            total = Math.toIntExact(meetingRepository.countByMeetingGroupKey(groupKey));
+            accepted = Math.toIntExact(meetingRepository.countByMeetingGroupKeyAndStatus(groupKey, MeetingStatus.ACCEPTED));
+            declined = Math.toIntExact(meetingRepository.countByMeetingGroupKeyAndStatus(groupKey, MeetingStatus.DECLINED));
+            pending = Math.toIntExact(meetingRepository.countByMeetingGroupKeyAndStatus(groupKey, MeetingStatus.PENDING));
+        }
         return new MeetingResponse(
                 meeting.getId(),
                 meeting.getManager().getId(),
@@ -744,8 +928,43 @@ public class MeetingService {
                 meeting.getActualStartTime(),
                 meeting.getActualEndTime(),
                 meeting.getSummaryNotes(),
-                meeting.getCreatedDate()
+                meeting.getCreatedDate(),
+                meeting.getMeetingScope(),
+                meeting.getMeetingGroupKey(),
+                total,
+                accepted,
+                declined,
+                pending
         );
+    }
+
+    private boolean isTeamMeeting(Meeting meeting) {
+        return meeting != null && meeting.getMeetingScope() != null
+                && !"ONE_ON_ONE".equalsIgnoreCase(meeting.getMeetingScope());
+    }
+
+    private void notifyMeetingNoteMembers(Meeting meeting, Employee author) {
+        if (!isTeamMeeting(meeting) || meeting.getMeetingGroupKey() == null) {
+            return;
+        }
+        String message = author.getEmployeeName() + " added a Team Meeting Notes message for '"
+                + meeting.getTitle() + "' at " + formatNotificationTime(Instant.now());
+        Set<Long> notifiedUsers = new HashSet<>();
+        for (Meeting invite : meetingRepository.findByMeetingGroupKey(meeting.getMeetingGroupKey())) {
+            User managerUser = invite.getManager().getUserAccount();
+            User employeeUser = invite.getEmployee().getUserAccount();
+            if (managerUser != null && !managerUser.getEmployee().getId().equals(author.getId()) && notifiedUsers.add(managerUser.getId())) {
+                notificationService.send(managerUser, "New Team Meeting Note", message, "MEETING");
+            }
+            if (employeeUser != null && !employeeUser.getEmployee().getId().equals(author.getId()) && notifiedUsers.add(employeeUser.getId())) {
+                notificationService.send(employeeUser, "New Team Meeting Note", message, "MEETING");
+            }
+        }
+    }
+
+    private String formatNotificationTime(Instant instant) {
+        return instant == null ? "N/A" : instant.atZone(ZoneId.systemDefault())
+                .format(DateTimeFormatter.ofPattern("dd MMM yyyy HH:mm"));
     }
 
     private MeetingNoteResponse mapToNoteResponse(MeetingNote note) {

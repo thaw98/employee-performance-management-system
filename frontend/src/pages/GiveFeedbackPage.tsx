@@ -450,26 +450,27 @@ export function GiveFeedbackPage() {
 
     return (
         <div className="max-w-6xl mx-auto p-4 space-y-8 animate-in fade-in duration-500">
-            {/* Limit Progress Indicator */}
-            <div className="bg-white px-8 py-4 rounded-3xl border border-slate-100 shadow-sm flex items-center justify-between">
-                <div className="flex items-center gap-3">
-                    <div className={`w-3 h-3 rounded-full ${isLimitReached ? 'bg-red-500' : 'bg-blue-500 animate-pulse'}`} />
-                    <span className="text-xs font-black uppercase text-slate-500 tracking-widest">
-                        {role} Feedback Progress:
-                    </span>
-                </div>
-                <div className="flex items-center gap-4">
-                    <div className="text-xs font-black text-slate-800 tracking-widest">
-                        {roleFeedbackCount} / {roleFeedbackLimit} COMPLETED
+            {role !== 'SELF' && (
+                <div className="bg-white px-8 py-4 rounded-3xl border border-slate-100 shadow-sm flex items-center justify-between">
+                    <div className="flex items-center gap-3">
+                        <div className={`w-3 h-3 rounded-full ${isLimitReached ? 'bg-red-500' : 'bg-blue-500 animate-pulse'}`} />
+                        <span className="text-xs font-black uppercase text-slate-500 tracking-widest">
+                            {role} Feedback Progress:
+                        </span>
                     </div>
-                    <div className="w-32 h-2 bg-slate-100 rounded-full overflow-hidden border border-slate-200/50">
-                        <div 
-                            className={`h-full transition-all duration-1000 ${isLimitReached ? 'bg-red-500' : 'bg-blue-600'}`}
-                            style={{ width: `${(roleFeedbackCount / roleFeedbackLimit) * 100}%` }}
-                        />
+                    <div className="flex items-center gap-4">
+                        <div className="text-xs font-black text-slate-800 tracking-widest">
+                            {roleFeedbackCount} / {roleFeedbackLimit} COMPLETED
+                        </div>
+                        <div className="w-32 h-2 bg-slate-100 rounded-full overflow-hidden border border-slate-200/50">
+                            <div
+                                className={`h-full transition-all duration-1000 ${isLimitReached ? 'bg-red-500' : 'bg-blue-600'}`}
+                                style={{ width: `${(roleFeedbackCount / roleFeedbackLimit) * 100}%` }}
+                            />
+                        </div>
                     </div>
                 </div>
-            </div>
+            )}
             <div className="bg-amber-50 border border-amber-200 rounded-3xl px-8 py-5 flex flex-col md:flex-row md:items-center justify-between gap-4">
                 <div className="flex items-center gap-3">
                     <div className="w-11 h-11 rounded-2xl bg-white text-amber-600 flex items-center justify-center shadow-sm">

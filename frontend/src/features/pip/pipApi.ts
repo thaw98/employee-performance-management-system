@@ -5,6 +5,12 @@ export interface PipObjective {
   description: string
   progressPercentage: number
   updatedAt: string
+  totalHours?: number
+  completedHours?: number
+  remainingHours?: number
+  timerRunning?: boolean
+  activeSessionStart?: string
+  status?: string
 }
 
 export interface FollowUpMeeting {
@@ -16,6 +22,33 @@ export interface FollowUpMeeting {
   totalHours?: number
   status: string
   reminderSent: boolean
+}
+
+export interface OneOnOneMeetingNote {
+  id: number
+  meetingId: number
+  authorId: number
+  authorName: string
+  noteType: 'MANAGER_NOTE' | 'EMPLOYEE_NOTE'
+  content: string
+  createdDate: string
+}
+
+export interface OneOnOnePipMeeting {
+  id: number
+  managerId: number
+  managerName: string
+  employeeId: number
+  employeeName: string
+  title: string
+  description?: string
+  scheduledTime: string
+  durationMinutes: number
+  status: string
+  actualStartTime?: string
+  actualEndTime?: string
+  summaryNotes?: string
+  notes: OneOnOneMeetingNote[]
 }
 
 export interface User {
@@ -294,6 +327,12 @@ const normalizeObjective = (objective: unknown): PipObjective => {
     description: getString(source.description),
     progressPercentage: getNumber(source.progressPercentage),
     updatedAt: getString(source.updatedAt ?? source.updatedDate),
+    totalHours: getNumber(source.totalHours ?? source.targetValue),
+    completedHours: getNumber(source.completedHours ?? source.currentValue),
+    remainingHours: getNumber(source.remainingHours),
+    timerRunning: Boolean(source.timerRunning ?? source.activeSessionStart),
+    activeSessionStart: getOptionalString(source.activeSessionStart),
+    status: getOptionalString(source.status),
   }
 }
 
@@ -309,6 +348,41 @@ const normalizeMeeting = (meeting: unknown): FollowUpMeeting => {
     totalHours: source.totalHours == null ? undefined : getNumber(source.totalHours),
     status: getString(source.status),
     reminderSent: Boolean(source.reminderSent),
+  }
+}
+
+const normalizeOneOnOneMeetingNote = (note: unknown): OneOnOneMeetingNote => {
+  const source = isRecord(note) ? note : {}
+  const noteType = getString(source.noteType).trim().toUpperCase()
+  return {
+    id: getNumber(source.id),
+    meetingId: getNumber(source.meetingId),
+    authorId: getNumber(source.authorId),
+    authorName: getString(source.authorName, 'N/A'),
+    noteType: noteType === 'EMPLOYEE_NOTE' ? 'EMPLOYEE_NOTE' : 'MANAGER_NOTE',
+    content: getString(source.content),
+    createdDate: getString(source.createdDate),
+  }
+}
+
+const normalizeOneOnOnePipMeeting = (entry: unknown): OneOnOnePipMeeting => {
+  const source = isRecord(entry) ? entry : {}
+  const meeting = getRecord(source, 'meeting') ?? source
+  return {
+    id: getNumber(meeting.id),
+    managerId: getNumber(meeting.managerId),
+    managerName: getString(meeting.managerName, 'N/A'),
+    employeeId: getNumber(meeting.employeeId),
+    employeeName: getString(meeting.employeeName, 'N/A'),
+    title: getString(meeting.title),
+    description: getOptionalString(meeting.description),
+    scheduledTime: getString(meeting.scheduledTime),
+    durationMinutes: getNumber(meeting.durationMinutes),
+    status: getString(meeting.status),
+    actualStartTime: getOptionalString(meeting.actualStartTime),
+    actualEndTime: getOptionalString(meeting.actualEndTime),
+    summaryNotes: getOptionalString(meeting.summaryNotes),
+    notes: getArray(source.notes).map(normalizeOneOnOneMeetingNote),
   }
 }
 
@@ -513,6 +587,11 @@ export const pipApi = baseApi.injectEndpoints({
       providesTags: (_result, _error, id) => [{ type: 'PIP', id }],
       transformResponse: (response: unknown) => normalizePip(getResponseData(response)),
     }),
+    getPipOneOnOneMeetings: builder.query<OneOnOnePipMeeting[], number>({
+      query: (pipId) => `/meetings/pip-follow-ups/${pipId}`,
+      providesTags: (_result, _error, pipId) => [{ type: 'PIP', id: pipId }],
+      transformResponse: (response: unknown) => getArray(getResponseData(response)).map(normalizeOneOnOnePipMeeting),
+    }),
     getPipNotes: builder.query<PipNotesPage, { pipId: number; noteType?: 'COMMUNICATION' | 'FOLLOWUP'; page?: number; size?: number }>({
       query: ({ pipId, ...params }) => ({
         url: `/pips/${pipId}/notes`,
@@ -568,6 +647,35 @@ export const pipApi = baseApi.injectEndpoints({
         url: `/pips/objectives/${objectiveId}/progress`,
         method: 'PUT',
         body,
+      }),
+      invalidatesTags: () => ['PIP'],
+    }),
+    increaseObjectiveHours: builder.mutation<PipObjective, { objectiveId: number; additionalHours: number; note: string }>({
+      query: ({ objectiveId, ...body }) => ({
+        url: `/pips/objectives/${objectiveId}/hours`,
+        method: 'PUT',
+        body,
+      }),
+      invalidatesTags: () => ['PIP'],
+    }),
+    startObjectiveSession: builder.mutation<PipObjective, number>({
+      query: (objectiveId) => ({
+        url: `/pips/objectives/${objectiveId}/sessions/start`,
+        method: 'POST',
+      }),
+      invalidatesTags: () => ['PIP'],
+    }),
+    endObjectiveSession: builder.mutation<PipObjective, number>({
+      query: (objectiveId) => ({
+        url: `/pips/objectives/${objectiveId}/sessions/end`,
+        method: 'POST',
+      }),
+      invalidatesTags: () => ['PIP'],
+    }),
+    endActivePipSessions: builder.mutation<void, void>({
+      query: () => ({
+        url: '/pips/sessions/end-active',
+        method: 'POST',
       }),
       invalidatesTags: () => ['PIP'],
     }),
@@ -685,6 +793,7 @@ export const pipApi = baseApi.injectEndpoints({
 export const {
   useGetPipsQuery,
   useGetPipByIdQuery,
+  useGetPipOneOnOneMeetingsQuery,
   useGetPipNotesQuery,
   useAddPipNoteMutation,
   useGetAllPipNotesQuery,
@@ -692,6 +801,10 @@ export const {
   useUpdatePipNoteMutation,
   useCreatePipMutation,
   useUpdateProgressMutation,
+  useIncreaseObjectiveHoursMutation,
+  useStartObjectiveSessionMutation,
+  useEndObjectiveSessionMutation,
+  useEndActivePipSessionsMutation,
   useScheduleMeetingMutation,
   useClosePipMutation,
   useManualClosePipMutation,

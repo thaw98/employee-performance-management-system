@@ -66,6 +66,9 @@ public class PipObjective {
     @Column(name = "updated_date")
     private Instant updatedDate;
 
+    @Column(name = "active_session_start")
+    private Instant activeSessionStart;
+
     public String getDescription() {
         return objectiveDescription;
     }
@@ -79,15 +82,30 @@ public class PipObjective {
         if (targetValue == null || BigDecimal.ZERO.compareTo(targetValue) == 0 || currentValue == null) {
             return 0;
         }
-        return currentValue.multiply(BigDecimal.valueOf(100))
+        int value = currentValue.multiply(BigDecimal.valueOf(100))
                 .divide(targetValue, 0, RoundingMode.HALF_UP)
                 .intValue();
+        return Math.max(0, Math.min(100, value));
     }
 
-    public void setProgressPercentage(Integer progressPercentage) {
-        int value = progressPercentage == null ? 0 : Math.max(0, Math.min(100, progressPercentage));
-        this.targetValue = BigDecimal.valueOf(100);
-        this.currentValue = BigDecimal.valueOf(value);
-        this.status = value >= 100 ? "Achieved" : (value > 0 ? "In_Progress" : "Not_Started");
+    @Transient
+    public BigDecimal getTotalHours() {
+        return targetValue == null ? BigDecimal.ZERO : targetValue;
+    }
+
+    @Transient
+    public BigDecimal getCompletedHours() {
+        return currentValue == null ? BigDecimal.ZERO : currentValue;
+    }
+
+    @Transient
+    public BigDecimal getRemainingHours() {
+        BigDecimal remaining = getTotalHours().subtract(getCompletedHours());
+        return remaining.compareTo(BigDecimal.ZERO) < 0 ? BigDecimal.ZERO : remaining;
+    }
+
+    @Transient
+    public Boolean getTimerRunning() {
+        return activeSessionStart != null;
     }
 }

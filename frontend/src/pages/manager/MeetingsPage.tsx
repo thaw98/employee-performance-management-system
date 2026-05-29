@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useMemo } from 'react';
+import React, { useRef, useState, useEffect, useMemo } from 'react';
 import axios from '../../app/axiosInstance';
 import { toast } from 'react-hot-toast';
 import {
@@ -13,6 +13,33 @@ const isHrEmployeeOption = (employee: any) => {
         .filter(Boolean)
         .join(' ');
     return /(^|\W)(hr|human resources?)(\W|$)/i.test(searchableText);
+};
+
+const DISPLAY_DATE_TIME_PATTERN = /^(\d{2})\/(\d{2})\/(\d{4})\s+(\d{2}):(\d{2})$/;
+
+const toLocalDateTimeValue = (value: string) => {
+    const match = value.match(DISPLAY_DATE_TIME_PATTERN);
+    if (!match) return '';
+    const [, day, month, year, hour, minute] = match;
+    const parsed = new Date(Number(year), Number(month) - 1, Number(day), Number(hour), Number(minute));
+    if (
+        parsed.getFullYear() !== Number(year)
+        || parsed.getMonth() !== Number(month) - 1
+        || parsed.getDate() !== Number(day)
+        || parsed.getHours() !== Number(hour)
+        || parsed.getMinutes() !== Number(minute)
+    ) return '';
+    return `${year}-${month}-${day}T${hour}:${minute}`;
+};
+
+const toDisplayDateTimeFromLocal = (value: string) => {
+    if (!value) return '';
+    const [datePart, timePart] = value.split('T');
+    if (!datePart || !timePart) return '';
+    const [year, month, day] = datePart.split('-');
+    const [hour, minute] = timePart.split(':');
+    if (!year || !month || !day || !hour || !minute) return '';
+    return `${day}/${month}/${year} ${hour}:${minute}`;
 };
 
 export function MeetingsPage() {
@@ -35,6 +62,7 @@ export function MeetingsPage() {
         setSearchParams(nextParams);
     };
     const navigate = useNavigate();
+    const meetingsPagePath = isHrView ? '/hr/meetings' : '/manager/meetings';
 
     const formatDate = (dateString: string) => {
         if (!dateString) return 'N/A';
@@ -74,9 +102,12 @@ export function MeetingsPage() {
 
     // Form state
     const [employeeId, setEmployeeId] = useState('');
+    const [selectedScheduleDept, setSelectedScheduleDept] = useState('');
+    const [departmentMeeting, setDepartmentMeeting] = useState(false);
     const [title, setTitle] = useState('');
     const [description, setDescription] = useState('');
     const [scheduledTime, setScheduledTime] = useState('');
+    const schedulePickerRef = useRef<HTMLInputElement | null>(null);
     const [durationMinutes, setDurationMinutes] = useState(45);
     const selectableEmployees = useMemo(
         () => (isFaqHrMeeting ? eligibleEmployees.filter(isHrEmployeeOption) : eligibleEmployees),
@@ -85,6 +116,11 @@ export function MeetingsPage() {
 
     const now = new Date();
     const minDateTime = new Date(now.getTime() - now.getTimezoneOffset() * 60000).toISOString().slice(0, 16);
+    const openDateTimePicker = (input: HTMLInputElement | null) => {
+        if (!input) return;
+        if (typeof input.showPicker === 'function') input.showPicker();
+        else input.click();
+    };
 
     // Reschedule state
     const [isRescheduleModalOpen, setIsRescheduleModalOpen] = useState(false);
@@ -110,11 +146,15 @@ export function MeetingsPage() {
     useEffect(() => {
         const requestedEmployeeId = searchParams.get('employeeId');
         const requestedEmployeeName = searchParams.get('employeeName');
+        const requestedTitle = searchParams.get('meetingTitle');
         const requestedDescription = searchParams.get('meetingDescription');
         const requestedAction = searchParams.get('action');
+        if (requestedTitle) {
+            setTitle(requestedTitle);
+        }
         if (requestedDescription) {
             setDescription(requestedDescription);
-            setTitle(requestedDescription);
+            if (!requestedTitle) setTitle(requestedDescription);
         }
         if (isFaqHrMeeting && !requestedDescription && !title) {
             setTitle('FAQ clarification with HR');
@@ -136,7 +176,7 @@ export function MeetingsPage() {
             if (isHistoryOnlyView) {
                 statuses = subStatus === 'ALL' ? 'COMPLETED,CANCELLED' : subStatus;
             } else {
-                if (activeTab === 'UPCOMING') statuses = 'PENDING,ACCEPTED,RESCHEDULE_REQUESTED,RESCHEDULE_MGR,CANCEL_REQUESTED';
+                if (activeTab === 'UPCOMING') statuses = 'PENDING,ACCEPTED,RESCHEDULE_REQUESTED,RESCHEDULE_MGR,CANCEL_REQUESTED,DECLINED';
                 if (activeTab === 'ONGOING') statuses = 'ONGOING';
                 if (activeTab === 'COMPLETED') {
                     if (subStatus === 'ALL') statuses = 'COMPLETED,CANCELLED';
@@ -182,7 +222,11 @@ export function MeetingsPage() {
             }
 
             const resp = await axios.get(url);
-            setMeetings((resp.data.data.content || []).map((meeting: any) => ({ ...meeting, perspective: 'manager' })));
+            const rows = (resp.data.data.content || []).map((meeting: any) => ({ ...meeting, perspective: 'manager' }));
+            setMeetings(Array.from(new Map(rows.map((meeting: any) => [
+                meeting.meetingScope === 'DEPARTMENT' && meeting.meetingGroupKey ? meeting.meetingGroupKey : meeting.id,
+                meeting,
+            ])).values()));
             setTotalPages(resp.data.data.totalPages || 0);
         } catch (err: any) {
             const errorMsg = err.response?.data?.message || 'Failed to load meetings';
@@ -228,23 +272,41 @@ export function MeetingsPage() {
     const closeScheduleModal = () => {
         const nextParams = new URLSearchParams(searchParams);
         nextParams.delete('action');
+        nextParams.delete('employeeId');
+        nextParams.delete('employeeName');
+        nextParams.delete('meetingTitle');
+        nextParams.delete('meetingDescription');
         setSearchParams(nextParams);
         setIsModalOpen(false);
     };
 
     const handleSchedule = async (e: React.FormEvent) => {
         e.preventDefault();
+        const scheduledTimeValue = toLocalDateTimeValue(scheduledTime);
+        if (!scheduledTimeValue) {
+            toast.error('Date & Time must be in dd/mm/yyyy HH:mm format');
+            return;
+        }
         try {
             const payload = {
-                employeeId: parseInt(employeeId),
+                employeeId: departmentMeeting ? undefined : parseInt(employeeId),
+                departmentId: departmentMeeting ? parseInt(selectedScheduleDept) : undefined,
+                departmentMeeting,
                 title,
                 description,
-                scheduledTime: new Date(scheduledTime).toISOString(),
+                scheduledTime: new Date(scheduledTimeValue).toISOString(),
                 durationMinutes
             };
             await axios.post('/meetings', payload);
             toast.success('Meeting scheduled successfully');
-            closeScheduleModal();
+            setIsModalOpen(false);
+            setEmployeeId('');
+            setDepartmentMeeting(false);
+            setTitle('');
+            setDescription('');
+            setScheduledTime('');
+            setDurationMinutes(45);
+            navigate(meetingsPagePath, { replace: true });
             fetchMeetings();
         } catch (err: any) {
             toast.error(err.response?.data?.message || 'Failed to schedule meeting');
@@ -281,6 +343,16 @@ export function MeetingsPage() {
             fetchMeetings();
         } catch (err: any) {
             toast.error(err.response?.data?.message || 'Failed to accept meeting');
+        }
+    };
+
+    const handleDecline = async (id: number) => {
+        try {
+            await axios.put(`/meetings/${id}/decline`);
+            toast.success('Meeting declined');
+            fetchMeetings();
+        } catch (err: any) {
+            toast.error(err.response?.data?.message || 'Failed to decline meeting');
         }
     };
 
@@ -500,6 +572,7 @@ export function MeetingsPage() {
                         (!isHrView && !isAuditView && (m.status === 'COMPLETED' || m.status === 'CANCELLED'));
                     const detailPath = isAuditView ? `/audit/meetings/${m.id}` : isHrView ? `/hr/meetings/${m.id}` : `/manager/meetings/${m.id}`;
                     const isInvitedMeeting = isHrView && m.perspective === 'employee';
+                    const isDepartmentMeeting = m.meetingScope === 'DEPARTMENT';
 
                     return (
                     <div 
@@ -520,8 +593,8 @@ export function MeetingsPage() {
                             <div className="space-y-2 mb-6">
                                 <div className="flex items-center gap-2 text-sm text-slate-600">
                                     <User size={14} className="text-slate-400" />
-                                    <span className="font-semibold">{m.employeeName}</span>
-                                    {m.departmentName && <span className="text-xs text-slate-400">({m.departmentName})</span>}
+                                    <span className="font-semibold">{isDepartmentMeeting ? `Participants: ${m.departmentName || 'Department'}` : m.employeeName}</span>
+                                    {!isDepartmentMeeting && m.departmentName && <span className="text-xs text-slate-400">({m.departmentName})</span>}
                                 </div>
                                 <div className="flex items-center gap-2 text-sm text-slate-600">
                                     <Calendar size={14} className="text-slate-400" />
@@ -531,6 +604,12 @@ export function MeetingsPage() {
                                     <Clock size={14} className="text-slate-400" />
                                     <span>{getDuration(m)} {m.status === 'COMPLETED' ? '(Actual)' : 'minutes'}</span>
                                 </div>
+                                {isDepartmentMeeting && (
+                                    <div className="rounded-xl border border-blue-100 bg-blue-50 p-3 text-xs font-bold text-blue-800">
+                                        <div>Total invited: {m.totalInvitedMembers ?? 0}</div>
+                                        <div>Accepted: {m.acceptedMembers ?? 0} | Declined: {m.declinedMembers ?? 0} | Pending: {m.pendingMembers ?? 0}</div>
+                                    </div>
+                                )}
                             </div>
                         </div>
 
@@ -539,10 +618,14 @@ export function MeetingsPage() {
                                 {isInvitedMeeting && m.status === 'PENDING' && (
                                     <div className="bg-emerald-50 p-4 rounded-xl border border-emerald-100">
                                         <p className="text-xs font-bold text-emerald-800 uppercase mb-1">Meeting Invitation</p>
-                                        <p className="text-xs text-emerald-700 mb-3">Accept the meeting or propose another time.</p>
+                                        <p className="text-xs text-emerald-700 mb-3">{isDepartmentMeeting ? 'Accept or decline this department meeting.' : 'Accept the meeting or propose another time.'}</p>
                                         <div className="flex gap-2">
                                             <button onClick={(e) => { e.stopPropagation(); handleAccept(m.id); }} className="flex-1 bg-emerald-600 text-white py-2 rounded-lg text-xs font-bold hover:bg-emerald-700 transition-colors">Accept</button>
-                                            <button onClick={(e) => { e.stopPropagation(); openRescheduleModal(m); }} className="flex-1 bg-white border border-emerald-200 text-emerald-700 py-2 rounded-lg text-xs font-bold hover:bg-emerald-50 transition-colors">Reschedule</button>
+                                            {isDepartmentMeeting ? (
+                                                <button onClick={(e) => { e.stopPropagation(); handleDecline(m.id); }} className="flex-1 bg-white border border-rose-200 text-rose-700 py-2 rounded-lg text-xs font-bold hover:bg-rose-50 transition-colors">Decline</button>
+                                            ) : (
+                                                <button onClick={(e) => { e.stopPropagation(); openRescheduleModal(m); }} className="flex-1 bg-white border border-emerald-200 text-emerald-700 py-2 rounded-lg text-xs font-bold hover:bg-emerald-50 transition-colors">Reschedule</button>
+                                            )}
                                         </div>
                                     </div>
                                 )}
@@ -668,16 +751,53 @@ export function MeetingsPage() {
                             </button>
                         </div>
                         <form onSubmit={handleSchedule} className="p-6 space-y-5">
-                            <div>
-                                <label className="block text-xs font-black text-slate-500 uppercase tracking-wider mb-2">Select Employee</label>
-                                <select 
-                                    required
+                            {!isFaqHrMeeting && (
+                                <div className="grid grid-cols-2 gap-2 rounded-xl bg-slate-100 p-1">
+                                    <button
+                                        type="button"
+                                        onClick={() => setDepartmentMeeting(false)}
+                                        className={`rounded-lg px-3 py-2 text-xs font-black uppercase ${!departmentMeeting ? 'bg-white text-slate-800 shadow-sm' : 'text-slate-500'}`}
+                                    >
+                                        One-on-One
+                                    </button>
+                                    <button
+                                        type="button"
+                                        onClick={() => {
+                                            setDepartmentMeeting(true);
+                                            setEmployeeId('');
+                                        }}
+                                        className={`rounded-lg px-3 py-2 text-xs font-black uppercase ${departmentMeeting ? 'bg-white text-slate-800 shadow-sm' : 'text-slate-500'}`}
+                                    >
+                                        Department
+                                    </button>
+                                </div>
+                            )}
+                            {departmentMeeting ? (
+                                <div>
+                                    <label className="block text-xs font-black text-slate-500 uppercase tracking-wider mb-2">Select Department</label>
+                                    <select 
+                                        required
+                                        value={selectedScheduleDept}
+                                        onChange={(e) => setSelectedScheduleDept(e.target.value)}
+                                        className="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-3 text-sm font-semibold focus:border-[#2463eb] focus:ring-1 focus:ring-[#dbeafe] outline-none transition-all"
+                                    >
+                                        <option value="">Select a department...</option>
+                                        {departments.map((dept: any) => (
+                                            <option key={dept.id} value={dept.id}>{dept.name}</option>
+                                        ))}
+                                    </select>
+                                </div>
+                            ) : (
+                                <div>
+                                    <label className="block text-xs font-black text-slate-500 uppercase tracking-wider mb-2">Select Employee</label>
+                                    <select 
+                                        required
                                     value={employeeId}
                                     onChange={(e) => setEmployeeId(e.target.value)}
-                                    className="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-3 text-sm font-semibold focus:border-[#2463eb] focus:ring-1 focus:ring-[#dbeafe] outline-none transition-all"
+                                    className="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-3 text-sm font-semibold focus:border-[#2463eb] focus:ring-1 focus:ring-[#dbeafe] outline-none transition-all disabled:cursor-not-allowed disabled:text-slate-400"
                                 >
                                     <option value="">
-                                        {isFaqHrMeeting ? 'Select HR employee...' : 'Select a subordinate...'}
+                                        {departmentMeeting ? 'All active employees in your department' : isFaqHrMeeting ? 'Select HR employee...' : 'Select a subordinate...'}
                                     </option>
                                     {selectableEmployees.length === 0 && (
                                         <option value="" disabled>
@@ -688,7 +808,8 @@ export function MeetingsPage() {
                                         <option key={emp.id} value={emp.id}>{emp.name} ({emp.position})</option>
                                     ))}
                                 </select>
-                            </div>
+                                </div>
+                            )}
                             <div>
                                 <label className="block text-xs font-black text-slate-500 uppercase tracking-wider mb-2">Meeting Title</label>
                                 <input 
@@ -702,14 +823,35 @@ export function MeetingsPage() {
                             </div>
                             <div>
                                 <label className="block text-xs font-black text-slate-500 uppercase tracking-wider mb-2">Date & Time</label>
-                                <input 
-                                    required
-                                    type="datetime-local"
-                                    min={minDateTime}
-                                    value={scheduledTime}
-                                    onChange={(e) => setScheduledTime(e.target.value)}
-                                    className="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-3 text-sm font-semibold focus:border-[#2463eb] focus:ring-1 focus:ring-[#dbeafe] outline-none transition-all"
-                                />
+                                <div className="relative">
+                                    <input
+                                        required
+                                        type="text"
+                                        placeholder="dd/mm/yyyy HH:mm"
+                                        inputMode="numeric"
+                                        value={scheduledTime}
+                                        onChange={(e) => setScheduledTime(e.target.value)}
+                                        className="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-3 pr-12 text-sm font-semibold focus:border-[#2463eb] focus:ring-1 focus:ring-[#dbeafe] outline-none transition-all"
+                                    />
+                                    <button
+                                        type="button"
+                                        onClick={() => openDateTimePicker(schedulePickerRef.current)}
+                                        className="absolute inset-y-0 right-0 flex w-12 items-center justify-center text-slate-400 hover:text-[#2463eb]"
+                                        aria-label="Choose meeting date and time"
+                                    >
+                                        <Calendar size={18} />
+                                        <input
+                                            ref={schedulePickerRef}
+                                            type="datetime-local"
+                                            min={minDateTime}
+                                            value={toLocalDateTimeValue(scheduledTime)}
+                                            onChange={(e) => setScheduledTime(toDisplayDateTimeFromLocal(e.target.value))}
+                                            className="pointer-events-none absolute h-px w-px opacity-0"
+                                            tabIndex={-1}
+                                            aria-hidden="true"
+                                        />
+                                    </button>
+                                </div>
                             </div>
                             <div className="grid grid-cols-2 gap-4">
                                 <div>

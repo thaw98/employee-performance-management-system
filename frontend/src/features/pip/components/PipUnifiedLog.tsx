@@ -54,7 +54,11 @@ export default function PipUnifiedLog({ pipId }: PipUnifiedLogProps) {
         ) : (
           <div className="relative min-w-[620px] space-y-8 before:absolute before:inset-0 before:ml-5 before:h-full before:w-0.5 before:bg-slate-100">
             {updates.map((update, index) => (
-              <LogEntry key={update.id} update={update} isLatest={index === 0} />
+              <LogEntry 
+                key={update.id} 
+                update={update} 
+                isLatest={index === 0} 
+              />
             ))}
           </div>
         )}
@@ -113,12 +117,6 @@ function LogEntry({ update, isLatest }: { update: PipProgressUpdate; isLatest?: 
             ></div>
           </div>
 
-          {update.completedHours !== undefined && update.completedHours !== null && (
-            <div className="flex items-center gap-1.5 rounded-lg bg-indigo-50 px-3 py-1.5 border border-indigo-100 text-indigo-700">
-              <i className="bi bi-clock-history text-[10px]"></i>
-              <span className="text-xs font-bold">{update.completedHours} hrs</span>
-            </div>
-          )}
         </div>
 
         {update.feedback && (

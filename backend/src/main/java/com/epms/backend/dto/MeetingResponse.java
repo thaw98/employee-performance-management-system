@@ -23,5 +23,11 @@ public record MeetingResponse(
     Instant actualStartTime,
     Instant actualEndTime,
     String summaryNotes,
-    Instant createdDate
+    Instant createdDate,
+    String meetingScope,
+    String meetingGroupKey,
+    Integer totalInvitedMembers,
+    Integer acceptedMembers,
+    Integer declinedMembers,
+    Integer pendingMembers
 ) {}

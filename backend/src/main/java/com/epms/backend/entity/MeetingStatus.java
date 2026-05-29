@@ -6,6 +6,7 @@ public enum MeetingStatus {
     RESCHEDULE_REQUESTED,
     RESCHEDULE_MGR,
     CANCEL_REQUESTED,
+    DECLINED,
     ONGOING,
     COMPLETED,
     CANCELLED

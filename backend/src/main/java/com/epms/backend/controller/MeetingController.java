@@ -237,6 +237,17 @@ public class MeetingController {
         }
     }
 
+    @GetMapping("/pip-follow-ups/{pipId}")
+    public ResponseEntity<ApiResponse<List<PipFollowUpMeetingResponse>>> getPipFollowUpMeetings(@PathVariable Long pipId) {
+        try {
+            User user = getCurrentUser();
+            List<PipFollowUpMeetingResponse> response = meetingService.getPipFollowUpMeetings(pipId, user.getId());
+            return ResponseEntity.ok(new ApiResponse<>(true, "PIP follow-up meetings fetched", response));
+        } catch (Exception e) {
+            return ResponseEntity.badRequest().body(new ApiResponse<>(false, e.getMessage(), null));
+        }
+    }
+
     @GetMapping("/{id}")
     public ResponseEntity<ApiResponse<MeetingResponse>> getMeetingDetails(@PathVariable Long id) {
         try {
@@ -254,6 +265,17 @@ public class MeetingController {
             User user = getCurrentUser();
             MeetingResponse response = meetingService.acceptMeeting(id, user.getId());
             return ResponseEntity.ok(new ApiResponse<>(true, "Meeting accepted", response));
+        } catch (Exception e) {
+            return ResponseEntity.badRequest().body(new ApiResponse<>(false, e.getMessage(), null));
+        }
+    }
+
+    @PutMapping("/{id}/decline")
+    public ResponseEntity<ApiResponse<MeetingResponse>> declineMeeting(@PathVariable Long id) {
+        try {
+            User user = getCurrentUser();
+            MeetingResponse response = meetingService.declineMeeting(id, user.getId());
+            return ResponseEntity.ok(new ApiResponse<>(true, "Meeting declined", response));
         } catch (Exception e) {
             return ResponseEntity.badRequest().body(new ApiResponse<>(false, e.getMessage(), null));
         }
