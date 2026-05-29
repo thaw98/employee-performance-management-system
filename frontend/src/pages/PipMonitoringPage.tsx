@@ -10,6 +10,7 @@ import { useEffect, useState, useMemo } from 'react'
 import type { RootState } from '../app/store'
 import { useGetDepartmentsQuery, useGetDepartmentPositionsQuery } from '../features/hrCreateEmployee/hrEmployeeAccountApi'
 import PipUnifiedLog from '../features/pip/components/PipUnifiedLog'
+import { PipCreateForm } from './PipCreatePage'
 import { addPdfFooterBranding, addPdfHeaderBranding, addPdfHeaderLogo, loadPdfLogo } from '../utils/pdfBranding'
 
 const STATUS_COLORS: Record<string, string> = {
@@ -107,9 +108,33 @@ const groupTrainingRecordsByPip = (records: TrainingRecord[]) => Object.values(
 
 const formatDateValue = (value?: string) => {
   if (!value) return ''
+  if (/^\d{2}\/\d{2}\/\d{4}$/.test(value)) return value
   const date = new Date(value.includes('T') ? value : `${value}T00:00:00`)
   if (Number.isNaN(date.getTime())) return value
   return date.toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' })
+}
+
+const DISPLAY_DATE_PATTERN = /^\d{2}\/\d{2}\/\d{4}$/
+
+const parseDisplayDate = (value: string) => {
+  if (!DISPLAY_DATE_PATTERN.test(value)) return null
+  const [day, month, year] = value.split('/').map(Number)
+  const parsed = new Date(year, month - 1, day)
+  if (parsed.getFullYear() !== year || parsed.getMonth() !== month - 1 || parsed.getDate() !== day) return null
+  return parsed
+}
+
+const toIsoDate = (value: string) => {
+  const parsed = parseDisplayDate(value)
+  if (!parsed) return ''
+  return `${parsed.getFullYear()}-${String(parsed.getMonth() + 1).padStart(2, '0')}-${String(parsed.getDate()).padStart(2, '0')}`
+}
+
+const toDisplayDateFromIso = (value: string) => {
+  if (!value) return ''
+  const [year, month, day] = value.split('-')
+  if (!year || !month || !day) return ''
+  return `${day}/${month}/${year}`
 }
 
 const formatDateTimeValue = (value?: string) => {
@@ -179,7 +204,13 @@ const getDateRangeLabel = (startDate: string, endDate: string) => {
   return 'All dates'
 }
 
-const isInvalidDateRange = (startDate: string, endDate: string) => Boolean(startDate && endDate && startDate > endDate)
+const isInvalidDateRange = (startDate: string, endDate: string) => {
+  if (!startDate || !endDate) return false
+  const start = parseDisplayDate(startDate)
+  const end = parseDisplayDate(endDate)
+  if (!start || !end) return false
+  return end < start
+}
 
 const FILTER_LABEL_CLASS =
   'mb-2 block min-h-[2rem] text-xs font-bold uppercase leading-tight tracking-wider text-slate-500'
@@ -334,17 +365,20 @@ export default function PipMonitoringPage() {
   const [currentPage, setCurrentPage] = useState(1)
   const [rowsPerPage, setRowsPerPage] = useState(10)
   const [logViewerPipId, setLogViewerPipId] = useState<number | null>(null)
+  const [isCreateModalOpen, setIsCreateModalOpen] = useState(false)
   const departmentFilter = canViewAllPips ? filterDept : undefined
   const invalidDateRange = isInvalidDateRange(startDate, endDate)
+  const startDateIso = toIsoDate(startDate)
+  const endDateIso = toIsoDate(endDate)
 
-  const { data: pips, isLoading, isError, error } = useGetPipsQuery(invalidDateRange ? skipToken : {
+  const { data: pips, isLoading, isError, error, refetch } = useGetPipsQuery(invalidDateRange ? skipToken : {
     departmentId: departmentFilter,
     positionId: filterPos,
     pipId: selectedPipId,
     employeeName: searchName,
     status: filterStatus || undefined,
-    startDate: startDate || undefined,
-    endDate: endDate || undefined,
+    startDate: startDateIso || undefined,
+    endDate: endDateIso || undefined,
   })
   const { data: departmentPips } = useGetPipsQuery(
     canViewAllPips && typeof departmentFilter === 'number'
@@ -654,16 +688,46 @@ export default function PipMonitoringPage() {
             </>
           )}
           {canCreate && (
-            <Link
-              to="create"
+            <button
+              type="button"
+              onClick={() => setIsCreateModalOpen(true)}
               className="flex flex-1 items-center justify-center gap-2 rounded-xl bg-blue-600 px-6 py-3 text-sm font-bold text-white shadow-lg shadow-blue-200 transition-all hover:bg-blue-700 hover:scale-105 active:scale-95 sm:flex-none"
             >
               <i className="bi bi-plus-lg" />
               Create PIP
-            </Link>
+            </button>
           )}
         </div>
       </div>
+
+      {isCreateModalOpen && (
+        <div className="fixed inset-0 z-50 flex items-start justify-center overflow-y-auto bg-slate-950/50 p-4 pt-8 backdrop-blur-sm sm:pt-12">
+          <div className="w-full max-w-3xl rounded-2xl bg-white p-6 shadow-2xl">
+            <div className="mb-6 flex items-start justify-between gap-4">
+              <div>
+                <h2 className="text-2xl font-bold text-slate-900">Create New PIP</h2>
+                <p className="mt-1 text-sm text-slate-500">Create a respectful, measurable Performance Improvement Plan.</p>
+              </div>
+              <button
+                type="button"
+                onClick={() => setIsCreateModalOpen(false)}
+                className="rounded-lg p-2 text-slate-400 hover:bg-slate-100 hover:text-slate-700"
+                aria-label="Close create PIP"
+              >
+                <i className="bi bi-x-lg" />
+              </button>
+            </div>
+            <PipCreateForm
+              embedded
+              onCancel={() => setIsCreateModalOpen(false)}
+              onCreated={() => {
+                setIsCreateModalOpen(false)
+                if (!invalidDateRange) void refetch()
+              }}
+            />
+          </div>
+        </div>
+      )}
 
       {exportError && (
         <div className="mb-6 rounded-xl border border-red-200 bg-red-50 p-4 text-sm font-semibold text-red-700">
@@ -769,23 +833,51 @@ export default function PipMonitoringPage() {
           {/* Start Date */}
           <div className="min-w-0">
             <label className={FILTER_LABEL_CLASS}>Start Date</label>
-            <input
-              type="date"
-              value={startDate}
-              onChange={(e) => setStartDate(e.target.value)}
-              className={FILTER_CONTROL_CLASS}
-            />
+            <div className="relative">
+              <input
+                type="text"
+                value={startDate}
+                onChange={(e) => setStartDate(e.target.value)}
+                placeholder="dd/mm/yyyy"
+                inputMode="numeric"
+                className={`${FILTER_CONTROL_CLASS} pr-11`}
+              />
+              <label className="absolute inset-y-0 right-0 flex w-11 cursor-pointer items-center justify-center text-slate-400 hover:text-blue-600">
+                <i className="bi bi-calendar3" />
+                <input
+                  type="date"
+                  value={toIsoDate(startDate)}
+                  onChange={(e) => setStartDate(toDisplayDateFromIso(e.target.value))}
+                  className="absolute inset-0 h-full w-full cursor-pointer opacity-0"
+                  aria-label="Choose filter start date"
+                />
+              </label>
+            </div>
           </div>
 
           {/* End Date */}
           <div className="min-w-0">
             <label className={FILTER_LABEL_CLASS}>End Date</label>
-            <input
-              type="date"
-              value={endDate}
-              onChange={(e) => setEndDate(e.target.value)}
-              className={FILTER_CONTROL_CLASS}
-            />
+            <div className="relative">
+              <input
+                type="text"
+                value={endDate}
+                onChange={(e) => setEndDate(e.target.value)}
+                placeholder="dd/mm/yyyy"
+                inputMode="numeric"
+                className={`${FILTER_CONTROL_CLASS} pr-11`}
+              />
+              <label className="absolute inset-y-0 right-0 flex w-11 cursor-pointer items-center justify-center text-slate-400 hover:text-blue-600">
+                <i className="bi bi-calendar3" />
+                <input
+                  type="date"
+                  value={toIsoDate(endDate)}
+                  onChange={(e) => setEndDate(toDisplayDateFromIso(e.target.value))}
+                  className="absolute inset-0 h-full w-full cursor-pointer opacity-0"
+                  aria-label="Choose filter end date"
+                />
+              </label>
+            </div>
           </div>
 
           {(canViewAllPips || isManager) && (

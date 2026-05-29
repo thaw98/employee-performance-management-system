@@ -49,9 +49,10 @@ export function PipCommunicationNotes({
     COMMUNICATION: INITIAL_SIZE,
     FOLLOWUP: INITIAL_SIZE,
   })
-  const [showModal, setShowModal] = useState(false)
-  const [content, setContent] = useState('')
-  const [selectedNoteType, setSelectedNoteType] = useState<PipNoteType>('COMMUNICATION')
+  const [draftContents, setDraftContents] = useState<Record<PipNoteType, string>>({
+    COMMUNICATION: '',
+    FOLLOWUP: '',
+  })
   const [editingNoteId, setEditingNoteId] = useState<number | null>(null)
   const [editingContent, setEditingContent] = useState('')
 
@@ -91,30 +92,20 @@ export function PipCommunicationNotes({
     })
   }, [followUpMeetings])
 
-  const openAddModal = (noteType: PipNoteType) => {
-    if (noteType === 'FOLLOWUP' && !isFollowUpWindowOpen) {
-      onError?.('Follow-up notes can only be added during a scheduled follow-up meeting time.')
-      return
-    }
-    setSelectedNoteType(noteType)
-    setShowModal(true)
-  }
-
-  const handleAdd = async () => {
-    const trimmedContent = content.trim()
+  const handleAdd = async (noteType: PipNoteType) => {
+    const trimmedContent = draftContents[noteType].trim()
     if (!trimmedContent) {
       onError?.('Note content is required.')
       return
     }
-    if (selectedNoteType === 'FOLLOWUP' && !isFollowUpWindowOpen) {
+    if (noteType === 'FOLLOWUP' && !isFollowUpWindowOpen) {
       onError?.('Follow-up notes can only be added during a scheduled follow-up meeting time.')
       return
     }
 
     try {
-      await addPipNote({ pipId, content: trimmedContent, noteType: selectedNoteType }).unwrap()
-      setContent('')
-      setShowModal(false)
+      await addPipNote({ pipId, content: trimmedContent, noteType }).unwrap()
+      setDraftContents((drafts) => ({ ...drafts, [noteType]: '' }))
     } catch (error: any) {
       onError?.(error?.data?.message || error?.error || 'Failed to add note.')
     }
@@ -171,31 +162,10 @@ export function PipCommunicationNotes({
             {!isFollowUpWindowOpen && ' - follow-up notes open only during scheduled meeting time'}
           </p>
         </div>
-        {canAdd && (
-          <div className="flex flex-wrap gap-2">
-            <button
-              type="button"
-              onClick={() => openAddModal('COMMUNICATION')}
-              className="inline-flex items-center justify-center gap-2 rounded-lg bg-[#2463eb] px-4 py-2 text-sm font-semibold text-white hover:bg-[#1d4ed8]"
-            >
-              <i className="bi bi-plus-lg" />
-              Add Note
-            </button>
-            <button
-              type="button"
-              onClick={() => openAddModal('FOLLOWUP')}
-              disabled={!isFollowUpWindowOpen}
-              className="inline-flex items-center justify-center gap-2 rounded-lg border border-emerald-200 bg-emerald-50 px-4 py-2 text-sm font-semibold text-emerald-700 hover:bg-emerald-100 disabled:cursor-not-allowed disabled:border-slate-200 disabled:bg-slate-100 disabled:text-slate-400"
-            >
-              <i className="bi bi-clock-history" />
-              Add Follow-up Note
-            </button>
-          </div>
-        )}
       </div>
 
-      <div className="overflow-auto">
-        <div className="grid min-w-[760px] grid-cols-1 gap-6 xl:grid-cols-2">
+      <div>
+        <div className="grid grid-cols-1 gap-6 xl:grid-cols-2">
           {NOTE_SECTIONS.map((section) => {
             const page = notePages[section.type]
             const notes = page?.content ?? []
@@ -203,7 +173,7 @@ export function PipCommunicationNotes({
             const totalElements = page?.totalElements ?? 0
             const visibleSize = visibleSizes[section.type]
             return (
-              <div key={section.type} className="max-h-[640px] overflow-auto rounded-lg border border-slate-100 bg-slate-50/60 p-4">
+              <div key={section.type} className="rounded-lg border border-slate-100 bg-slate-50/60 p-4">
                 <div className="mb-4 flex items-center justify-between gap-3">
                   <div>
                     <h3 className="text-sm font-bold text-slate-900">
@@ -293,6 +263,35 @@ export function PipCommunicationNotes({
                   </div>
                 )}
 
+                {canAdd && (
+                  <form
+                    className="mt-4"
+                    onSubmit={(event) => {
+                      event.preventDefault()
+                      void handleAdd(section.type)
+                    }}
+                  >
+                    <div className="relative">
+                      <textarea
+                        rows={4}
+                        value={draftContents[section.type]}
+                        onChange={(event) => setDraftContents((drafts) => ({ ...drafts, [section.type]: event.target.value }))}
+                        disabled={section.type === 'FOLLOWUP' && !isFollowUpWindowOpen}
+                        className="block w-full resize-none rounded-lg border border-slate-300 bg-white p-3 pr-12 text-sm text-slate-800 focus:border-[#2463eb] focus:outline-none disabled:cursor-not-allowed disabled:bg-slate-100 disabled:text-slate-400"
+                        placeholder={section.type === 'FOLLOWUP' ? 'Add a follow-up note...' : 'Add a PIP note...'}
+                      />
+                      <button
+                        type="submit"
+                        disabled={isAdding || !draftContents[section.type].trim() || (section.type === 'FOLLOWUP' && !isFollowUpWindowOpen)}
+                        className="absolute bottom-3 right-3 flex h-8 w-8 items-center justify-center rounded-lg bg-[#2463eb] text-white hover:bg-[#1d4ed8] disabled:cursor-not-allowed disabled:bg-[#93c5fd]"
+                        aria-label={`Save ${section.label.toLowerCase()} note`}
+                      >
+                        <i className="bi bi-send" />
+                      </button>
+                    </div>
+                  </form>
+                )}
+
                 {!isLoading && notes.length > 0 && (page?.hasNext || visibleSize > INITIAL_SIZE) && (
                   <div className="mt-4 flex justify-center gap-2">
                     {page?.hasNext && (
@@ -320,54 +319,6 @@ export function PipCommunicationNotes({
           })}
         </div>
       </div>
-
-      {showModal && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4">
-          <div className="w-full max-w-lg rounded-xl bg-white p-6 shadow-xl">
-            <h3 className="mb-4 text-lg font-bold text-slate-900">Add PIP Note</h3>
-            <div className="mb-4 inline-flex rounded-lg border border-slate-200 bg-slate-50 p-1">
-              {NOTE_SECTIONS.map((section) => (
-                <button
-                  key={section.type}
-                  type="button"
-                  disabled={section.type === 'FOLLOWUP' && !isFollowUpWindowOpen}
-                  onClick={() => setSelectedNoteType(section.type)}
-                  className={`rounded-md px-3 py-1.5 text-xs font-semibold disabled:cursor-not-allowed disabled:text-slate-300 ${selectedNoteType === section.type ? 'bg-white text-[#1d4ed8] shadow-sm' : 'text-slate-500 hover:text-slate-800'}`}
-                >
-                  {section.label}
-                </button>
-              ))}
-            </div>
-            <textarea
-              rows={6}
-              value={content}
-              onChange={(event) => setContent(event.target.value)}
-              className="block w-full rounded-lg border border-slate-300 p-3 text-sm text-slate-800 focus:border-[#2463eb] focus:outline-none"
-              placeholder="Write the PIP note..."
-            />
-            <div className="mt-6 flex justify-end gap-3">
-              <button
-                type="button"
-                onClick={() => {
-                  setShowModal(false)
-                  setContent('')
-                }}
-                className="px-4 py-2 text-sm font-medium text-slate-600"
-              >
-                Cancel
-              </button>
-              <button
-                type="button"
-                onClick={handleAdd}
-                disabled={isAdding || !content.trim()}
-                className="rounded-lg bg-[#2463eb] px-4 py-2 text-sm font-medium text-white hover:bg-[#1d4ed8] disabled:cursor-not-allowed disabled:bg-[#93c5fd]"
-              >
-                {isAdding ? 'Saving...' : 'Save Note'}
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
     </section>
   )
 }

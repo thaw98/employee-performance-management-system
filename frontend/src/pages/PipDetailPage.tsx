@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useRef, useState } from 'react'
 import { useLocation, useParams, Link } from 'react-router-dom'
 import {
   useGetPipByIdQuery,
@@ -36,6 +36,56 @@ const getActionErrorMessage = (error: unknown, fallback: string) => {
   return fallback
 }
 
+const DISPLAY_DATE_PATTERN = /^\d{2}\/\d{2}\/\d{4}$/
+
+const parseDisplayDate = (value: string) => {
+  if (!DISPLAY_DATE_PATTERN.test(value)) return null
+  const [day, month, year] = value.split('/').map(Number)
+  const parsed = new Date(year, month - 1, day)
+  if (parsed.getFullYear() !== year || parsed.getMonth() !== month - 1 || parsed.getDate() !== day) return null
+  return parsed
+}
+
+const toIsoDate = (value: string) => {
+  const parsed = parseDisplayDate(value)
+  if (!parsed) return ''
+  return `${parsed.getFullYear()}-${String(parsed.getMonth() + 1).padStart(2, '0')}-${String(parsed.getDate()).padStart(2, '0')}`
+}
+
+const toDisplayDateFromIso = (value: string) => {
+  if (!value) return ''
+  const [year, month, day] = value.split('-')
+  if (!year || !month || !day) return ''
+  return `${day}/${month}/${year}`
+}
+
+const DISPLAY_DATE_TIME_PATTERN = /^(\d{2})\/(\d{2})\/(\d{4})\s+(\d{2}):(\d{2})$/
+
+const toLocalDateTimeValue = (value: string) => {
+  const match = value.match(DISPLAY_DATE_TIME_PATTERN)
+  if (!match) return ''
+  const [, day, month, year, hour, minute] = match
+  const parsed = new Date(Number(year), Number(month) - 1, Number(day), Number(hour), Number(minute))
+  if (
+    parsed.getFullYear() !== Number(year)
+    || parsed.getMonth() !== Number(month) - 1
+    || parsed.getDate() !== Number(day)
+    || parsed.getHours() !== Number(hour)
+    || parsed.getMinutes() !== Number(minute)
+  ) return ''
+  return `${year}-${month}-${day}T${hour}:${minute}`
+}
+
+const toDisplayDateTimeFromLocal = (value: string) => {
+  if (!value) return ''
+  const [datePart, timePart] = value.split('T')
+  if (!datePart || !timePart) return ''
+  const [year, month, day] = datePart.split('-')
+  const [hour, minute] = timePart.split(':')
+  if (!year || !month || !day || !hour || !minute) return ''
+  return `${day}/${month}/${year} ${hour}:${minute}`
+}
+
 export default function PipDetailPage() {
   const { id } = useParams<{ id: string }>()
   const pipId = parseInt(id!)
@@ -59,6 +109,8 @@ export default function PipDetailPage() {
   const [showMeetingModal, setShowMeetingModal] = useState(false)
   const [startMeetingTime, setStartMeetingTime] = useState('')
   const [endMeetingTime, setEndMeetingTime] = useState('')
+  const startMeetingPickerRef = useRef<HTMLInputElement | null>(null)
+  const endMeetingPickerRef = useRef<HTMLInputElement | null>(null)
 
   const [showCloseModal, setShowCloseModal] = useState(false)
   const [closeData, setCloseData] = useState({ finalOutcome: '', closingRemarks: '' })
@@ -75,6 +127,15 @@ export default function PipDetailPage() {
   const [reviewReasonType, setReviewReasonType] = useState('Policy Not Met')
   const [reviewCustomReason, setReviewCustomReason] = useState('')
   const [actionError, setActionError] = useState<string | null>(null)
+
+  const openDateTimePicker = (input: HTMLInputElement | null) => {
+    if (!input) return
+    if (typeof input.showPicker === 'function') {
+      input.showPicker()
+    } else {
+      input.click()
+    }
+  }
 
   const userRole = user?.role?.toUpperCase().replace(/\s+/g, '_') || ''
   const isManager = userRole === 'DEPARTMENT_HEAD' || userRole === 'TEAM_HEAD' || userRole === 'MANAGER'
@@ -189,8 +250,10 @@ export default function PipDetailPage() {
   const minMeetingDateTime = minMeetingDate ? `${minMeetingDate}T00:00` : undefined
   const maxMeetingDateTime = maxMeetingDate ? `${maxMeetingDate}T23:59` : undefined
   const scheduledMeetingHours = (() => {
-    if (!startMeetingTime || !endMeetingTime) return null
-    const minutes = (new Date(endMeetingTime).getTime() - new Date(startMeetingTime).getTime()) / 60000
+    const startValue = toLocalDateTimeValue(startMeetingTime)
+    const endValue = toLocalDateTimeValue(endMeetingTime)
+    if (!startValue || !endValue) return null
+    const minutes = (new Date(endValue).getTime() - new Date(startValue).getTime()) / 60000
     if (!Number.isFinite(minutes) || minutes <= 0) return null
     return Math.round((minutes / 60) * 100) / 100
   })()
@@ -276,18 +339,24 @@ export default function PipDetailPage() {
   }
 
   const handleScheduleMeeting = async () => {
-    if (!startMeetingTime || !endMeetingTime) {
+    const startMeetingTimeValue = toLocalDateTimeValue(startMeetingTime)
+    const endMeetingTimeValue = toLocalDateTimeValue(endMeetingTime)
+    if (!startMeetingTime.trim() || !endMeetingTime.trim()) {
       setActionError('Start meeting time and end meeting time are required.')
       return
     }
-    if (new Date(endMeetingTime).getTime() <= new Date(startMeetingTime).getTime()) {
+    if (!startMeetingTimeValue || !endMeetingTimeValue) {
+      setActionError('Meeting date and time must be in dd/mm/yyyy HH:mm format.')
+      return
+    }
+    if (new Date(endMeetingTimeValue).getTime() <= new Date(startMeetingTimeValue).getTime()) {
       setActionError('End meeting time must be after start meeting time.')
       return
     }
 
     try {
       setActionError(null)
-      await scheduleMeeting({ pipId, startMeetingTime, endMeetingTime }).unwrap()
+      await scheduleMeeting({ pipId, startMeetingTime: startMeetingTimeValue, endMeetingTime: endMeetingTimeValue }).unwrap()
       setShowMeetingModal(false)
       setStartMeetingTime('')
       setEndMeetingTime('')
@@ -393,13 +462,18 @@ export default function PipDetailPage() {
   }
 
   const handleApproveReopen = async () => {
-    if (!extendedEndDate) {
+    const extendedEndDateIso = toIsoDate(extendedEndDate)
+    if (!extendedEndDate.trim()) {
       setActionError('Extended end date is required.')
+      return
+    }
+    if (!extendedEndDateIso) {
+      setActionError('Extended end date must be in dd/mm/yyyy format.')
       return
     }
     try {
       setActionError(null)
-      await reviewPip({ pipId, action: 'CONFIRMED', extendedEndDate }).unwrap()
+      await reviewPip({ pipId, action: 'CONFIRMED', extendedEndDate: extendedEndDateIso }).unwrap()
       setShowApproveReopenModal(false)
       setExtendedEndDate('')
     } catch (error) {
@@ -534,13 +608,13 @@ export default function PipDetailPage() {
       <div className="grid grid-cols-1 gap-8 lg:grid-cols-3">
         {/* Objectives Section */}
         <div className="lg:col-span-2 space-y-8">
-          <section className="max-h-[520px] overflow-auto rounded-xl border border-slate-200 bg-white p-6 shadow-sm">
+          <section className="rounded-xl border border-slate-200 bg-white p-6 shadow-sm">
             <h2 className="mb-6 text-lg font-bold text-slate-900">Improvement Objectives</h2>
-            <div className="min-w-[760px] space-y-8">
+            <div className="space-y-8">
               {pip.objectives.map((obj) => (
                 <div key={obj.id} className="space-y-3">
-                  <div className="flex items-center justify-between">
-                    <span className="font-medium text-slate-800">{obj.description}</span>
+                  <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
+                    <span className="min-w-0 break-words font-medium text-slate-800">{obj.description}</span>
                     {isDirectManager && pip.status === 'ACTIVE' && (
                       <button
                         onClick={() => {
@@ -551,7 +625,7 @@ export default function PipDetailPage() {
                             feedback: ''
                           })
                         }}
-                        className="text-sm font-semibold text-[#2463eb] hover:text-[#1e40af]"
+                        className="shrink-0 text-sm font-semibold text-[#2463eb] hover:text-[#1e40af]"
                       >
                         Update
                       </button>
@@ -716,7 +790,7 @@ export default function PipDetailPage() {
         </div>
 
         {/* Sidebar Info Section */}
-        <div className="space-y-8">
+        <div className="space-y-8 lg:sticky lg:top-6 lg:self-start">
           <section className="rounded-xl border border-slate-200 bg-white p-6 shadow-sm">
             <h2 className="mb-4 text-sm font-bold uppercase tracking-wider text-slate-400">PIP Summary</h2>
             <div className="space-y-4">
@@ -912,27 +986,69 @@ export default function PipDetailPage() {
             <div className="space-y-4">
               <div>
                 <label className="block text-sm font-medium text-slate-700">Start Meeting Time</label>
-                <input
-                  type="datetime-local"
-                  required
-                  min={minMeetingDateTime}
-                  max={maxMeetingDateTime}
-                  className="mt-1 block w-full rounded-lg border border-slate-300 px-4 py-2 focus:border-[#2463eb] focus:outline-none"
-                  value={startMeetingTime}
-                  onChange={(e) => setStartMeetingTime(e.target.value)}
-                />
+                <div className="relative mt-1">
+                  <input
+                    type="text"
+                    required
+                    placeholder="dd/mm/yyyy HH:mm"
+                    inputMode="numeric"
+                    className="block w-full rounded-lg border border-slate-300 px-4 py-2 pr-11 focus:border-[#2463eb] focus:outline-none"
+                    value={startMeetingTime}
+                    onChange={(e) => setStartMeetingTime(e.target.value)}
+                  />
+                  <button
+                    type="button"
+                    onClick={() => openDateTimePicker(startMeetingPickerRef.current)}
+                    className="absolute inset-y-0 right-0 flex w-11 items-center justify-center text-slate-400 hover:text-[#2463eb]"
+                    aria-label="Choose start meeting date and time"
+                  >
+                    <i className="bi bi-calendar3" />
+                    <input
+                      ref={startMeetingPickerRef}
+                      type="datetime-local"
+                      min={minMeetingDateTime}
+                      max={maxMeetingDateTime}
+                      value={toLocalDateTimeValue(startMeetingTime)}
+                      onChange={(e) => setStartMeetingTime(toDisplayDateTimeFromLocal(e.target.value))}
+                      className="pointer-events-none absolute h-px w-px opacity-0"
+                      tabIndex={-1}
+                      aria-hidden="true"
+                    />
+                  </button>
+                </div>
               </div>
               <div>
                 <label className="block text-sm font-medium text-slate-700">End Meeting Time</label>
-                <input
-                  type="datetime-local"
-                  required
-                  min={startMeetingTime || minMeetingDateTime}
-                  max={maxMeetingDateTime}
-                  className="mt-1 block w-full rounded-lg border border-slate-300 px-4 py-2 focus:border-[#2463eb] focus:outline-none"
-                  value={endMeetingTime}
-                  onChange={(e) => setEndMeetingTime(e.target.value)}
-                />
+                <div className="relative mt-1">
+                  <input
+                    type="text"
+                    required
+                    placeholder="dd/mm/yyyy HH:mm"
+                    inputMode="numeric"
+                    className="block w-full rounded-lg border border-slate-300 px-4 py-2 pr-11 focus:border-[#2463eb] focus:outline-none"
+                    value={endMeetingTime}
+                    onChange={(e) => setEndMeetingTime(e.target.value)}
+                  />
+                  <button
+                    type="button"
+                    onClick={() => openDateTimePicker(endMeetingPickerRef.current)}
+                    className="absolute inset-y-0 right-0 flex w-11 items-center justify-center text-slate-400 hover:text-[#2463eb]"
+                    aria-label="Choose end meeting date and time"
+                  >
+                    <i className="bi bi-calendar3" />
+                    <input
+                      ref={endMeetingPickerRef}
+                      type="datetime-local"
+                      min={toLocalDateTimeValue(startMeetingTime) || minMeetingDateTime}
+                      max={maxMeetingDateTime}
+                      value={toLocalDateTimeValue(endMeetingTime)}
+                      onChange={(e) => setEndMeetingTime(toDisplayDateTimeFromLocal(e.target.value))}
+                      className="pointer-events-none absolute h-px w-px opacity-0"
+                      tabIndex={-1}
+                      aria-hidden="true"
+                    />
+                  </button>
+                </div>
               </div>
               <div>
                 <label className="block text-sm font-medium text-slate-700">Total Hours</label>
@@ -1123,13 +1239,27 @@ export default function PipDetailPage() {
             <h3 className="mb-4 text-lg font-bold">Approve Reopen Request</h3>
             <div>
               <label className="block text-sm font-medium text-slate-700">Extended End Date</label>
-              <input
-                type="date"
-                min={minReopenApprovalDate}
-                className="mt-1 block w-full rounded-lg border border-slate-300 px-4 py-2 focus:border-[#2463eb] focus:outline-none"
-                value={extendedEndDate}
-                onChange={(e) => setExtendedEndDate(e.target.value)}
-              />
+              <div className="relative mt-1">
+                <input
+                  type="text"
+                  placeholder="dd/mm/yyyy"
+                  inputMode="numeric"
+                  className="block w-full rounded-lg border border-slate-300 px-4 py-2 pr-11 focus:border-[#2463eb] focus:outline-none"
+                  value={extendedEndDate}
+                  onChange={(e) => setExtendedEndDate(e.target.value)}
+                />
+                <label className="absolute inset-y-0 right-0 flex w-11 cursor-pointer items-center justify-center text-slate-400 hover:text-[#2463eb]">
+                  <i className="bi bi-calendar3" />
+                  <input
+                    type="date"
+                    min={minReopenApprovalDate}
+                    value={toIsoDate(extendedEndDate)}
+                    onChange={(e) => setExtendedEndDate(toDisplayDateFromIso(e.target.value))}
+                    className="absolute inset-0 h-full w-full cursor-pointer opacity-0"
+                    aria-label="Choose extended end date"
+                  />
+                </label>
+              </div>
             </div>
             <div className="mt-6 flex justify-end gap-3">
               <button onClick={() => setShowApproveReopenModal(false)} className="px-4 py-2 text-sm font-medium text-slate-600">Cancel</button>

@@ -56,16 +56,24 @@ const ManagerLayout: React.FC = () => {
 
   const menuSections: DashMenuSection[] = [
     {
-      label: 'Main',
+      label: 'Overview',
       items: [
-        { label: 'Dashboard', path: '/manager/dashboard', icon: <LayoutDashboard size={18} /> },
-        ...(authUser?.roleId === 2
-          ? [
-              { label: 'Employees', path: '/manager/employees', icon: <Users size={18} /> },
-              { label: 'Positions', path: '/manager/positions', icon: <Briefcase size={18} /> },
-              { label: 'Promotion Approvals', path: '/manager/promotions/approvals', icon: <ClipboardCheck size={18} /> },
-            ]
-          : []),
+        { label: 'Overview', path: '/manager/dashboard', icon: <LayoutDashboard size={18} /> },
+      ],
+    },
+    ...(authUser?.roleId === 2
+      ? [{
+          label: 'Organization',
+          items: [
+            { label: 'Employees', path: '/manager/employees', icon: <Users size={18} /> },
+            { label: 'Positions', path: '/manager/positions', icon: <Briefcase size={18} /> },
+            { label: 'Promotion Approvals', path: '/manager/promotions/approvals', icon: <ClipboardCheck size={18} /> },
+          ],
+        }]
+      : []),
+    {
+      label: 'Performance',
+      items: [
         {
           label: 'KPI',
           path: '/manager/kpis',
@@ -74,18 +82,6 @@ const ManagerLayout: React.FC = () => {
             { label: 'KPIs', path: '/manager/kpis', icon: <ListChecks size={16} /> },
             { label: 'My KPIs', path: '/manager/my-kpis', icon: <User size={16} /> },
           ],
-        },
-      ],
-    },
-    {
-      label: 'Management',
-      items: [
-        {
-          label: 'Team PIPs',
-          path: '/manager/pip',
-          icon: <Zap size={18} />,
-          onMouseEnter: () => prefetchPips(),
-          onFocus: () => prefetchPips(),
         },
         {
           label: 'Appraisals',
@@ -97,14 +93,6 @@ const ManagerLayout: React.FC = () => {
           ],
         },
         {
-          label: 'Self-Assessment',
-          path: authUser?.roleId === 2
-            ? '/manager/self-assessment-forms/my-form'
-            : '/manager/self-assessment/templates',
-          icon: <FileText size={18} />,
-          subItems: selfAssessmentSubItems,
-        },
-        {
           label: '360 Feedback',
           path: '/manager/360-feedback/give',
           icon: <RefreshCcw size={18} />,
@@ -113,6 +101,21 @@ const ManagerLayout: React.FC = () => {
             { label: 'Receive Feedback', path: '/manager/360-feedback/received', icon: <Inbox size={16} /> },
             { label: 'Feedback History', path: '/manager/360-feedback/history', icon: <History size={16} /> },
           ],
+        },
+        {
+          label: 'Team PIPs',
+          path: '/manager/pip',
+          icon: <Zap size={18} />,
+          onMouseEnter: () => prefetchPips(),
+          onFocus: () => prefetchPips(),
+        },
+        {
+          label: 'Self-Assessment',
+          path: authUser?.roleId === 2
+            ? '/manager/self-assessment-forms/my-form'
+            : '/manager/self-assessment/templates',
+          icon: <FileText size={18} />,
+          subItems: selfAssessmentSubItems,
         },
         ...(authUser?.roleId !== 2
           ? [{
@@ -125,12 +128,12 @@ const ManagerLayout: React.FC = () => {
               ],
             }]
           : []),
-        { label: 'Meetings', path: '/manager/meetings', icon: <Calendar size={18} /> },
       ],
     },
     {
-      label: 'Analytics',
+      label: 'Dashboard',
       items: [
+        { label: 'Meetings', path: '/manager/meetings', icon: <Calendar size={18} /> },
         {
           label: 'Reports',
           path: '/manager/reports',
