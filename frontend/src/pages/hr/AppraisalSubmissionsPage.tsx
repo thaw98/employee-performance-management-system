@@ -18,6 +18,7 @@ import {
 } from '../../features/appraisals/appraisalTheme';
 import ConfirmActionModal from '../../features/hrEmployeeList/components/ConfirmActionModal';
 import ReturnConfirmationModal from '../../features/appraisals/ReturnConfirmationModal';
+import { displayKpiTarget, displayKpiUnit } from '../../features/kpi/kpiDisplay';
 
 type ConfirmableAction = 'approve' | 'reject' | 'return' | 'unlock' | 'lock' | 'reset';
 
@@ -1163,7 +1164,7 @@ export function AppraisalSubmissionsPage() {
                                                     <tr key={kpi.id || idx} className={`${kpi.recordStatus === 'Archived' ? 'opacity-60 bg-slate-50' : 'bg-emerald-50/20'}`}>
                                                         <td className="p-3 font-bold">{kpi.period}</td>
                                                         <td className="p-3 font-medium text-slate-800">{kpi.name}</td>
-                                                        <td className="p-3">{kpi.target} {kpi.unit}</td>
+                                                        <td className="p-3">{displayKpiTarget(kpi.target, kpi.unit)}</td>
                                                         <td className="p-3 font-bold text-slate-700">{kpi.actual || '-'}</td>
                                                         <td className="p-3 font-black text-[#2463eb]">{kpi.score || '-'}</td>
                                                         <td className="p-3">
@@ -1583,7 +1584,7 @@ const KpiEditModal = ({ employee, period, onClose }: { employee: any, period?: s
                                             <td className="py-4 px-4 text-center border-r border-slate-100">
                                                 <span className="text-xs font-bold text-slate-700">{kpi.target}</span>
                                             </td>
-                                            <td className="py-4 px-4 text-center text-[10px] font-black text-slate-400 border-r border-slate-100 uppercase">{kpi.unit}</td>
+                                            <td className="py-4 px-4 text-center text-[10px] font-black text-slate-400 border-r border-slate-100 uppercase">{displayKpiUnit(kpi.unit)}</td>
                                             <td className="py-4 px-2 border-r border-slate-100">
                                                 <input 
                                                     type="text" 

@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { useSearchParams, useNavigate } from 'react-router-dom';
-import { Target, ChevronLeft, Calendar, Briefcase, LayoutGrid, Award, ShieldCheck, FileEdit, Lock, Save, X } from 'lucide-react';
+import { Target, ChevronLeft, Calendar, Briefcase, LayoutGrid, Award, ShieldCheck, FileEdit, Save, X } from 'lucide-react';
 import { MonthYearPicker } from '../../components/common/MonthYearPicker';
 
 const getCurrentMonthValue = () => {
@@ -26,6 +26,7 @@ import { useGetPositionByIdQuery } from '../../features/position/api/positionApi
 import { toast } from 'react-hot-toast';
 import { kpisGradientBr, kpisGradientR } from '../../features/kpi/kpisTheme';
 import { useKpiViewContext } from '../../hooks/useKpiViewContext';
+import { displayKpiUnit } from '../../features/kpi/kpiDisplay';
 
 export const PositionKpiDetailPage: React.FC = () => {
   const [searchParams] = useSearchParams();
@@ -54,7 +55,6 @@ export const PositionKpiDetailPage: React.FC = () => {
   const department = deptResponse?.data;
   const position = posResponse?.data;
 
-  const totalWeight = kpis?.reduce((sum, k) => sum + (k.weight || 0), 0) || 0;
   const totalScore = kpis?.reduce((sum, k) => sum + (k.weightedScore || 0), 0) || 0;
 
   if (!departmentId || !positionId) return <div className="p-10 text-center font-bold text-red-500 uppercase tracking-widest">No Position Selected</div>;
@@ -187,7 +187,7 @@ export const PositionKpiDetailPage: React.FC = () => {
                       {kpi.actual || '—'}
                     </span>
                   </td>
-                  <td className="py-5 px-6 text-center text-[10px] font-black text-slate-400 uppercase tracking-widest">{kpi.unit}</td>
+	                  <td className="py-5 px-6 text-center text-[10px] font-black text-slate-400 uppercase tracking-widest">{displayKpiUnit(kpi.unit)}</td>
                   <td className="py-5 px-4 text-center text-xs font-bold text-slate-600">{kpi.weight}%</td>
                   <td className="py-5 px-4 text-center text-xs font-black text-emerald-600">{kpi.score?.toFixed(2) || '0.00'}%</td>
                   <td className="py-5 px-8 text-right font-black text-[#2463eb] text-sm italic">{kpi.weightedScore?.toFixed(2) || '0.00'}</td>
@@ -335,7 +335,7 @@ const PositionKpiEditModal: React.FC<PositionKpiEditModalProps> = ({ department,
                   <td className="py-5 px-4 text-center border-r border-slate-100">
                     <span className="text-xs font-bold text-slate-700">{kpi.target}</span>
                   </td>
-                  <td className="py-5 px-4 text-center text-[10px] font-black text-slate-400 border-r border-slate-100 uppercase tracking-widest">{kpi.unit}</td>
+	                  <td className="py-5 px-4 text-center text-[10px] font-black text-slate-400 border-r border-slate-100 uppercase tracking-widest">{displayKpiUnit(kpi.unit)}</td>
                   <td className="py-5 px-6 border-r border-slate-100 bg-[#2463eb]/[0.03]">
                     <input 
                       type="text" 

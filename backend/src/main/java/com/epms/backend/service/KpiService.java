@@ -145,7 +145,7 @@ public class KpiService {
             kpi.setName(dto.getName());
             kpi.setCategory(dto.getCategory());
             kpi.setTarget(dto.getTarget());
-            kpi.setUnit(dto.getUnit());
+            kpi.setUnit(normalizeOptionalText(dto.getUnit()));
             kpi.setActual(dto.getActual());
             kpi.setWeight(dto.getWeight());
             kpi.setScore(dto.getScore());
@@ -602,7 +602,7 @@ public class KpiService {
             entity.setName(dto.getName());
             entity.setCategory(dto.getCategory());
             entity.setTarget(dto.getTarget());
-            entity.setUnit(dto.getUnit());
+            entity.setUnit(normalizeOptionalText(dto.getUnit()));
             entity.setWeight(dto.getWeight());
             entity.setPeriod(resolvePeriodString(dto.getPeriod(), dto.getYear(), dto.getMonth(), dto.getPeriodLabel()));
             entity.setRecordStatus("Active");
@@ -670,7 +670,7 @@ public class KpiService {
             entity.setName(dto.getName());
             entity.setCategory(dto.getCategory());
             entity.setTarget(dto.getTarget());
-            entity.setUnit(dto.getUnit());
+            entity.setUnit(normalizeOptionalText(dto.getUnit()));
             entity.setWeight(dto.getWeight());
             entity.setPeriod(resolvePeriodString(dto.getPeriod(), dto.getYear(), dto.getMonth(), dto.getPeriodLabel()));
             entity.setRecordStatus("Active");
@@ -867,6 +867,13 @@ public class KpiService {
             }
         }
         return period != null ? period : periodLabel;
+    }
+
+    private String normalizeOptionalText(String value) {
+        if (value == null || value.isBlank()) {
+            return null;
+        }
+        return value.trim();
     }
 
     private void populatePeriodParts(String period, KpiDto dto) {

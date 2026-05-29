@@ -31,7 +31,7 @@ public class KpiTemplateItem {
     @Column(nullable = false)
     private String target;
 
-    @Column(nullable = false)
+    @Column
     private String unit;
 
     @Column(nullable = false)

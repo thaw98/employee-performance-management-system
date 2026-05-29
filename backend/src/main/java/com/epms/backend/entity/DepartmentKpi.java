@@ -32,7 +32,7 @@ public class DepartmentKpi {
     @Column(nullable = false)
     private String target;
 
-    @Column(nullable = false)
+    @Column
     private String unit;
 
     private String actual;

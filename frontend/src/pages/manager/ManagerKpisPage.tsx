@@ -3,6 +3,7 @@ import { Combobox, ComboboxButton, ComboboxInput, ComboboxOption, ComboboxOption
 import { Target, X, Save, AlertCircle, CheckCircle2, History, Calendar, ChevronDown, Briefcase } from 'lucide-react';
 import { PaginationBar } from '../../components/common/PaginationBar';
 import { useGetManagerTeamQuery, useGetLatestKpisByEmployeeQuery, useUpdateManagerKpiActualsMutation, useGetEmployeeKpiHistoryQuery, type Kpi } from '../../features/kpi/kpiApi';
+import { displayKpiTarget, displayKpiUnit } from '../../features/kpi/kpiDisplay';
 import { KPI_CHART_COLORS } from '../../features/kpi/kpisTheme';
 import { format } from 'date-fns';
 import toast from 'react-hot-toast';
@@ -139,7 +140,7 @@ const KpiEditModal = ({ employee, onClose }: { employee: any, onClose: () => voi
                       <td className="py-4 px-4 text-center border-r border-slate-100">
                         <span className="text-xs font-bold text-slate-700">{kpi.target}</span>
                       </td>
-                      <td className="py-4 px-4 text-center text-[10px] font-black text-slate-400 border-r border-slate-100 uppercase">{kpi.unit}</td>
+	                      <td className="py-4 px-4 text-center text-[10px] font-black text-slate-400 border-r border-slate-100 uppercase">{displayKpiUnit(kpi.unit)}</td>
                       <td className="py-4 px-2 border-r border-slate-100">
                         <div className="relative">
                           <input 
@@ -330,7 +331,7 @@ const KpiHistoryModal = ({ employee, onClose }: { employee: any, onClose: () => 
                             </div>
                           </td>
                           <td className="py-4 px-4 border-r border-slate-100">
-                            <span className="text-xs font-bold text-slate-700">{kpi.target} {kpi.unit}</span>
+	                            <span className="text-xs font-bold text-slate-700">{displayKpiTarget(kpi.target, kpi.unit)}</span>
                           </td>
                           <td className="py-4 px-4 text-center border-r border-slate-100">
                             <span className="text-xs font-bold text-slate-900">{kpi.actual || '-'}</span>

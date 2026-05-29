@@ -1,5 +1,6 @@
 import { Target, TrendingUp, Award, Calendar } from 'lucide-react';
 import { useGetMyLatestKpisQuery } from '../../features/kpi/kpiApi';
+import { displayKpiTarget } from '../../features/kpi/kpiDisplay';
 import { KPI_CHART_COLORS, kpisGradientBr } from '../../features/kpi/kpisTheme';
 
 export function MyKpisPage() {
@@ -147,7 +148,7 @@ export function MyKpisPage() {
                   </td>
                   <td className="py-6 px-4 text-center">
                     <span className="text-xs font-bold text-slate-600 uppercase tracking-tight">
-                      {kpi.target} <span className="text-[10px] text-slate-400">{kpi.unit}</span>
+	                      {displayKpiTarget(kpi.target, kpi.unit)}
                     </span>
                   </td>
                   <td className="py-6 px-4 text-center font-black text-slate-900 text-sm">
