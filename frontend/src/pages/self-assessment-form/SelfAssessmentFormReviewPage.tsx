@@ -373,6 +373,7 @@ export const SelfAssessmentFormReviewPage: React.FC<SelfAssessmentFormReviewPage
   const [hrReturnCustomReason, setHrReturnCustomReason] = useState('');
   const [rejectReasonType, setRejectReasonType] = useState<string>(HR_ADJUSTMENT_REJECTION_REASONS[0]);
   const [rejectReason, setRejectReason] = useState('');
+  const [retakeDeadline, setRetakeDeadline] = useState('');
   const [searchQuery, setSearchQuery] = useState('');
   const [isExportingPdf, setIsExportingPdf] = useState(false);
   const [showUnlockModal, setShowUnlockModal] = useState(false);
@@ -835,6 +836,7 @@ export const SelfAssessmentFormReviewPage: React.FC<SelfAssessmentFormReviewPage
   const resetRejectModal = () => {
     setRejectReasonType(HR_ADJUSTMENT_REJECTION_REASONS[0]);
     setRejectReason('');
+    setRetakeDeadline('');
     setShowRejectModal(false);
   };
 
@@ -842,11 +844,13 @@ export const SelfAssessmentFormReviewPage: React.FC<SelfAssessmentFormReviewPage
     rejectReasonType === HR_ADJUSTMENT_REJECTION_OTHER ? rejectReason.trim() : rejectReasonType;
 
   const handleHrRejectAdjustment = async () => {
-    if (!selectedFormId || !resolvedRejectReason || !hasDefaultSignature) {
+    if (!selectedFormId || !resolvedRejectReason || !hasDefaultSignature || !retakeDeadline) {
       toast.error(
-        rejectReasonType === HR_ADJUSTMENT_REJECTION_OTHER
-          ? 'Enter a custom rejection reason and set a default signature in Signature Settings.'
-          : 'Select a rejection reason and set a default signature in Signature Settings.',
+        !retakeDeadline
+          ? 'Please select a retake deadline.'
+          : rejectReasonType === HR_ADJUSTMENT_REJECTION_OTHER
+            ? 'Enter a custom rejection reason and set a default signature in Signature Settings.'
+            : 'Select a rejection reason and set a default signature in Signature Settings.',
       );
       return;
     }
@@ -854,13 +858,13 @@ export const SelfAssessmentFormReviewPage: React.FC<SelfAssessmentFormReviewPage
     try {
       await hrRejectManagerReview({
         formId: selectedFormId,
-        request: { rejectionReason: resolvedRejectReason },
+        request: { rejectionReason: resolvedRejectReason, retakeDeadline },
       }).unwrap();
-      toast.success('Manager adjustments rejected');
+      toast.success('Self-assessment rejected; full retake required');
       resetRejectModal();
       refetchForm();
     } catch (error: any) {
-      toast.error(error?.data?.message || 'Failed to reject adjustments');
+      toast.error(error?.data?.message || 'Failed to reject self-assessment');
     }
   };
 
@@ -2814,14 +2818,14 @@ Review Submissions
                   <XCircle size={20} className="text-white" />
                 </div>
                 <div>
-                  <h3 className="text-lg font-bold text-white">Reject Adjustments</h3>
-                  <p className="text-sm text-red-100">Provide a reason for rejection</p>
+                  <h3 className="text-lg font-bold text-white">Reject Self-Assessment</h3>
+                  <p className="text-sm text-red-100">Reject and require full retake</p>
                 </div>
               </div>
             </div>
             <div className="space-y-4 p-6">
               <p className="text-sm leading-relaxed text-slate-600 dark:text-slate-400">
-                Please provide a reason for rejecting the manager&apos;s proposed adjustments.
+                This will archive the current reviewed form and reset it to a fresh draft for the employee to retake from scratch.
               </p>
               <div>
                 <label className="mb-2 block text-sm font-semibold text-slate-700 dark:text-slate-300">
@@ -2855,10 +2859,25 @@ Review Submissions
                     onChange={(e) => setRejectReason(e.target.value)}
                     rows={4}
                     className={`${filterControlClass} resize-none`}
-                    placeholder="Explain why the adjustments are being rejected..."
+                    placeholder="Explain why the self-assessment is being rejected..."
                   />
                 </div>
               )}
+              <div>
+                <label className="mb-2 block text-sm font-semibold text-slate-700 dark:text-slate-300">
+                  Retake Deadline <span className="text-red-500">*</span>
+                </label>
+                <input
+                  type="date"
+                  value={retakeDeadline}
+                  onChange={(e) => setRetakeDeadline(e.target.value)}
+                  min={new Date().toISOString().split('T')[0]}
+                  className={filterControlClass}
+                />
+                <p className="mt-1 text-xs text-slate-500 dark:text-slate-400">
+                  New deadline for the employee to complete the full retake.
+                </p>
+              </div>
               <div className="rounded-xl border border-slate-200/80 bg-slate-50/50 p-3 dark:border-slate-700/60 dark:bg-slate-700/20">
                 <p className="flex items-start gap-1.5 text-xs text-slate-500 dark:text-slate-400">
                   <PenLine size={12} className="mt-0.5 shrink-0" />
@@ -2876,11 +2895,11 @@ Review Submissions
                 <button
                   type="button"
                   onClick={handleHrRejectAdjustment}
-                  disabled={isHrRejecting || isDefaultSigLoading || !hasDefaultSignature || !resolvedRejectReason}
+                  disabled={isHrRejecting || isDefaultSigLoading || !hasDefaultSignature || !resolvedRejectReason || !retakeDeadline}
                   className="inline-flex items-center gap-2 px-6 py-2.5 text-sm font-bold text-white rounded-xl bg-gradient-to-r from-red-600 to-rose-600 shadow-md shadow-red-500/20 disabled:opacity-50 disabled:cursor-not-allowed transition-all"
                 >
                   {isHrRejecting ? <Loader2 size={16} className="animate-spin" /> : <XCircle size={16} />}
-                  Reject Adjustments
+                  Reject &amp; Require Retake
                 </button>
               </div>
             </div>

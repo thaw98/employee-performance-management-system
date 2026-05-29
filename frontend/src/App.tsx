@@ -89,6 +89,8 @@ import { SelfAssessmentSettingsPage } from './pages/self-assessment-form/SelfAss
 import { SelfAssessmentAssignedEmployeesPage } from './pages/self-assessment-form/SelfAssessmentAssignedEmployeesPage';
 import { SelfAssessmentScoreRecordsPage } from './pages/self-assessment-form/SelfAssessmentScoreRecordsPage';
 import { SelfAssessmentUnlockRequestsPage } from './pages/self-assessment-form/SelfAssessmentUnlockRequestsPage';
+import { SelfAssessmentArchiveListPage } from './pages/self-assessment-form/SelfAssessmentArchiveListPage';
+import { SelfAssessmentArchiveDetailPage } from './pages/self-assessment-form/SelfAssessmentArchiveDetailPage';
 
 // Meetings
 import { MeetingsPage } from './pages/manager/MeetingsPage';
@@ -236,6 +238,8 @@ function App() {
             <Route path="self-assessment/reviews/:formId" element={<SelfAssessmentFormReviewPage />} />
             <Route path="self-assessment/settings" element={<SelfAssessmentSettingsPage />} />
             <Route path="self-assessment/history" element={<SelfAssessmentScoreRecordsPage />} />
+            <Route path="self-assessment/archive" element={<SelfAssessmentArchiveListPage basePath="/hr/self-assessment" />} />
+            <Route path="self-assessment/archive/:archiveId" element={<SelfAssessmentArchiveDetailPage basePath="/hr/self-assessment" />} />
             <Route
               path="self-assessment/score-records"
               element={<Navigate to="/hr/self-assessment/history" replace />}
@@ -361,6 +365,8 @@ function App() {
             <Route path="pip-monitoring/:id" element={<PipDetailPage />} />
             <Route path="pip-notes" element={<PipNotesReviewPage />} />
             <Route path="self-assessment/history" element={<SelfAssessmentScoreRecordsPage />} />
+            <Route path="self-assessment/archive" element={<SelfAssessmentArchiveListPage basePath="/audit/self-assessment" />} />
+            <Route path="self-assessment/archive/:archiveId" element={<SelfAssessmentArchiveDetailPage basePath="/audit/self-assessment" />} />
             <Route path="self-assessment/reviews/:formId" element={<SelfAssessmentFormReviewPage readOnly />} />
             <Route path="meetings" element={<MeetingsPage />} />
             <Route path="meetings/:id" element={<MeetingDetailPage />} />

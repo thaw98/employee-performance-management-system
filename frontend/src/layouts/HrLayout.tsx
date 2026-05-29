@@ -22,7 +22,7 @@ import {
   HelpCircle,
   Zap,
   RefreshCcw,
-  Tag,
+  Archive,
 } from 'lucide-react';
 import { Outlet } from 'react-router-dom';
 import { useSelector } from 'react-redux';
@@ -153,6 +153,7 @@ const HrLayout: React.FC = () => {
             { label: 'Review Submissions', path: '/hr/self-assessment/review-queue', icon: <ListChecks size={16} /> },
             { label: 'Unlock Requests', path: '/hr/self-assessment/unlock-requests', icon: <RefreshCcw size={16} /> },
             { label: 'History', path: '/hr/self-assessment/history', icon: <History size={16} /> },
+            { label: 'Archive', path: '/hr/self-assessment/archive', icon: <Archive size={16} /> },
           ],
         },
       ],

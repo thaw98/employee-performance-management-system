@@ -67,6 +67,7 @@ public class SelfAssessmentFormService {
     private final SelfAssessmentSettingsRepository settingsRepository;
     private final ReportingManagerResolver reportingManagerResolver;
     private final SelfAssessmentUnlockRequestRepository unlockRequestRepository;
+    private final SelfAssessmentArchiveSnapshotRepository archiveSnapshotRepository;
 
     public SelfAssessmentFormService(
             SelfAssessmentFormTemplateRepository templateRepository,
@@ -85,7 +86,8 @@ public class SelfAssessmentFormService {
             NotificationRepository notificationRepository,
             SelfAssessmentSettingsRepository settingsRepository,
             ReportingManagerResolver reportingManagerResolver,
-            SelfAssessmentUnlockRequestRepository unlockRequestRepository) {
+            SelfAssessmentUnlockRequestRepository unlockRequestRepository,
+            SelfAssessmentArchiveSnapshotRepository archiveSnapshotRepository) {
         this.templateRepository = templateRepository;
         this.copiedTemplateRepository = copiedTemplateRepository;
         this.formRepository = formRepository;
@@ -103,6 +105,7 @@ public class SelfAssessmentFormService {
         this.settingsRepository = settingsRepository;
         this.reportingManagerResolver = reportingManagerResolver;
         this.unlockRequestRepository = unlockRequestRepository;
+        this.archiveSnapshotRepository = archiveSnapshotRepository;
     }
 
     @Transactional
@@ -1786,7 +1789,11 @@ Instant now = Instant.now();
                 && form.getStatus() != SelfAssessmentFormStatus.PENDING_HR_CALIBRATION_REVIEW
                 && form.getStatus() != SelfAssessmentFormStatus.PENDING_EMPLOYEE_REVIEW
                 && form.getStatus() != SelfAssessmentFormStatus.PENDING_FINAL_APPROVAL) {
-            throw new RuntimeException("Form is not eligible for HR adjustment rejection");
+            throw new RuntimeException("Form is not eligible for HR rejection");
+        }
+
+        if (request.retakeDeadline() == null) {
+            throw new RuntimeException("Retake deadline is required");
         }
 
         User hrUser = findHrUser(hrUserId);
@@ -1794,27 +1801,122 @@ Instant now = Instant.now();
         Signature defaultSig = signatureRepository.findByUserAndIsDefaultTrue(hrUser)
                 .orElseThrow(() -> new RuntimeException("No default signature found. Please set up your signature before rejecting."));
 
+        // Create archive snapshot BEFORE clearing anything
+        SelfAssessmentArchiveSnapshot archive = new SelfAssessmentArchiveSnapshot();
+        archive.setOriginalFormId(form.getId());
+        archive.setEmployee(form.getEmployee());
+        archive.setEmployeeName(form.getEmployee() != null ? form.getEmployee().getEmployeeName() : null);
+        archive.setEmployeeStaffNo(form.getEmployee() != null ? form.getEmployee().getEmployeeId() : null);
+        archive.setDepartmentId(form.getEmployee() != null && form.getEmployee().getDepartment() != null
+                ? form.getEmployee().getDepartment().getId() : null);
+        archive.setDepartmentName(form.getEmployee() != null && form.getEmployee().getDepartment() != null
+                ? form.getEmployee().getDepartment().getName() : null);
+        archive.setPositionId(form.getEmployee() != null && form.getEmployee().getPosition() != null
+                ? form.getEmployee().getPosition().getId() : null);
+        archive.setPositionName(form.getEmployee() != null && form.getEmployee().getPosition() != null
+                ? form.getEmployee().getPosition().getName() : null);
+        archive.setTemplate(form.getTemplate());
+        archive.setTemplateTitle(form.getTemplate() != null ? form.getTemplate().getTitle() : null);
+        archive.setCycle(form.getCycle());
+        archive.setCycleName(form.getCycle() != null ? form.getCycle().getName() : null);
+        archive.setArchivedStatus(form.getStatus());
+        archive.setRejectionReason(request.rejectionReason());
+        archive.setHrUserId(hrUserId);
+        archive.setHrUserName(displayNameFromUser(hrUser));
+        archive.setArchivedAt(Instant.now());
+        archive.setRetakeDeadline(request.retakeDeadline());
+        archive.setTotalScore(form.getTotalScore());
+        archive.setManagerRevisedTotalScore(form.getManagerRevisedTotalScore());
+        archive.setFinalApprovedTotalScore(form.getFinalApprovedTotalScore());
+        archive.setRatingCategory(form.getRatingCategory());
+        archive.setFormSnapshot(snapshotAnswers(form));
+
+        archiveSnapshotRepository.save(archive);
+
+        // Now reset the form to DRAFT for full retake
         form.setHrAdjustmentSignatureId(defaultSig.getId());
         form.setHrAdjustmentSignatureDate(Instant.now());
         recordHrSigner(form, hrUser);
 
-        for (SelfAssessmentFormAnswer answer : form.getAnswers()) {
+        // Clear employee answers/remarks/signature
+        form.setEmployeeRemarks(null);
+        form.setEmployeeSignatureId(null);
+        form.setEmployeeSignatureDate(null);
+        form.setOverallRemarks(null);
+        form.setSubmittedDate(null);
+        form.setAssessmentDate(null);
+
+        // Clear manager comments/signature/proposed adjustments
+        form.setManagerComments(null);
+        form.setManagerSignatureId(null);
+        form.setManagerSignatureDate(null);
+        form.setManagerRevisedTotalScore(null);
+
+        // Clear HR signatures/review fields
+        form.setHrSignatureId(null);
+        form.setHrSignatureDate(null);
+        form.setHrFinalSignatureId(null);
+        form.setHrFinalSignatureDate(null);
+        form.setHrReviewRequired(null);
+        form.setHrReviewReason(null);
+        form.setHrReturnComments(null);
+        form.setHrReviewReasonAt(null);
+        form.setRequiresHrReview(null);
+        form.setAffectsCompensationOrPip(null);
+        form.setCompanyPolicyRequiresHrApproval(null);
+
+        // Clear scores
+        form.setTotalScore(null);
+        form.setRatingCategory(null);
+        form.setFinalApprovedTotalScore(null);
+
+        // Clear retake fields
+        form.setRetakeRequestedAt(null);
+        form.setRetakeSubmittedAt(null);
+        form.setRetakeRequestUsed(false);
+        form.setManagerApprovedRetakeAt(null);
+        form.setManagerForceChangeApprovedAt(null);
+
+        // Clear acknowledgement/dispute fields
+        form.setEmployeeAcknowledgedAt(null);
+        form.setEmployeeDisputedAt(null);
+        form.setEmployeeDisputeReason(null);
+
+        // Clear final approval fields
+        form.setFinalApprovedTotalScore(null);
+
+        // Clear answer-level fields
+        for (var answer : form.getAnswers()) {
+            answer.setYesNoAnswer(null);
+            answer.setRating(null);
+            answer.setRemarks(null);
             answer.setManagerProposedYesNo(null);
             answer.setManagerProposedRating(null);
             answer.setManagerProposedComment(null);
             answer.setHrAdjustmentApproved(null);
             answer.setFinalApprovedYesNo(null);
             answer.setFinalApprovedRating(null);
+            answer.setRetakeRequested(false);
+            answer.setRetakeRequestComment(null);
+            answer.setRetakeYesNoAnswer(null);
+            answer.setRetakeRating(null);
+            answer.setRetakeReason(null);
+            answer.setRetakeSubmittedAt(null);
+            answer.setRetakeApproved(null);
+            answer.setManagerForceChanged(false);
+            answer.setManagerForceChangeReason(null);
+            answer.setManagerForceChangedAt(null);
         }
 
-        form.setManagerRevisedTotalScore(null);
-        form.setFinalApprovedTotalScore(null);
-        form.setEmployeeAcknowledgedAt(null);
-        form.setEmployeeDisputedAt(null);
-        form.setStatus(SelfAssessmentFormStatus.PENDING_MANAGER_REVIEW);
+        // Set new deadline and status
+        form.setDeadlineDate(request.retakeDeadline());
+        form.setStatus(SelfAssessmentFormStatus.DRAFT);
         form.setUpdatedDate(Instant.now());
 
         SelfAssessmentForm saved = formRepository.save(form);
+
+        // Notify employee
+        sendHrRejectionRetakeNotification(saved);
 
         auditService.record(
                 AuditActionType.SELF_ASSESSMENT_FORM_HR_REJECTED_ADJUSTMENT,
@@ -1822,7 +1924,8 @@ Instant now = Instant.now();
                 saved.getId(),
                 hrUserId,
                 null,
-                "HR rejected manager adjustments. Reason: " + request.rejectionReason(),
+                "HR rejected self-assessment and required full retake. Reason: " + request.rejectionReason()
+                        + ". Retake deadline: " + request.retakeDeadline(),
                 null);
 
         return toFormDto(saved);
@@ -2936,6 +3039,22 @@ Instant now = Instant.now();
                                 + resolveFormDisplayTitle(form) + " for your review.",
                         "SELF_ASSESSMENT_FORM",
                         form.getId()));
+    }
+
+    private void sendHrRejectionRetakeNotification(SelfAssessmentForm form) {
+        Employee employee = form.getEmployee();
+        resolveActiveEmployeeUser(employee).ifPresent(user -> notificationService.send(
+                user,
+                "Self-Assessment Rejected - Full Retake Required",
+                "HR has rejected your reviewed self-assessment for "
+                        + resolveFormDisplayTitle(form)
+                        + ". A full retake is required. New deadline: "
+                        + (form.getDeadlineDate() != null
+                                ? form.getDeadlineDate().format(NOTIFICATION_DEADLINE_FORMAT)
+                                : "N/A")
+                        + ".",
+                "SELF_ASSESSMENT_FORM",
+                form.getId()));
     }
 
     private void sendHrUnlockRequestedNotification(SelfAssessmentUnlockRequest request) {

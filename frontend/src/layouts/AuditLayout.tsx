@@ -19,6 +19,7 @@ import {
     FileText,
     Calendar,
     Shield,
+    Archive,
 } from 'lucide-react';
 import { Outlet } from 'react-router-dom';
 import { useSelector } from 'react-redux';
@@ -104,6 +105,7 @@ const AuditLayout: React.FC = () => {
                     icon: <FileText size={18} />,
                     subItems: [
                         { label: 'History', path: '/audit/self-assessment/history', icon: <History size={16} /> },
+                        { label: 'Archive', path: '/audit/self-assessment/archive', icon: <Archive size={16} /> },
                     ],
                 },
                 {
