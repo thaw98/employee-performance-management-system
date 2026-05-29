@@ -1,4 +1,4 @@
-import { useGetPipByIdQuery, useGetPipHistoryQuery } from '../pipApi'
+import { useGetPipHistoryQuery } from '../pipApi'
 import type { PipProgressUpdate } from '../pipApi'
 import { format } from 'date-fns'
 
@@ -7,7 +7,6 @@ interface PipUnifiedLogProps {
 }
 
 export default function PipUnifiedLog({ pipId }: PipUnifiedLogProps) {
-  const { data: pipData } = useGetPipByIdQuery(pipId)
   const { data: updatesData = [], isLoading, isError } = useGetPipHistoryQuery(pipId)
 
   const updates = [...updatesData].sort((a, b) => {
@@ -59,7 +58,6 @@ export default function PipUnifiedLog({ pipId }: PipUnifiedLogProps) {
                 key={update.id} 
                 update={update} 
                 isLatest={index === 0} 
-                pipEmployeeId={pipData?.employee?.id}
               />
             ))}
           </div>
@@ -69,12 +67,11 @@ export default function PipUnifiedLog({ pipId }: PipUnifiedLogProps) {
   )
 }
 
-function LogEntry({ update, isLatest, pipEmployeeId }: { update: PipProgressUpdate; isLatest?: boolean; pipEmployeeId?: number }) {
+function LogEntry({ update, isLatest }: { update: PipProgressUpdate; isLatest?: boolean }) {
   const dateStr = update.createdAt || update.updateDate || ''
   const formattedDate = dateStr ? format(new Date(dateStr), 'MMM d, yyyy • h:mm a') : 'N/A'
 
   const hasProgressChange = update.newPercentage !== update.previousPercentage
-  const isEmployeeUpdate = pipEmployeeId && update.updatedBy?.id === pipEmployeeId
 
   return (
     <div className="relative pl-12 group">
@@ -120,12 +117,6 @@ function LogEntry({ update, isLatest, pipEmployeeId }: { update: PipProgressUpda
             ></div>
           </div>
 
-          {isEmployeeUpdate && update.completedHours !== undefined && update.completedHours !== null && update.completedHours > 0 && (
-            <div className="flex items-center gap-1.5 rounded-lg bg-indigo-50 px-3 py-1.5 border border-indigo-100 text-indigo-700">
-              <i className="bi bi-clock-history text-[10px]"></i>
-              <span className="text-xs font-bold">{update.completedHours} hrs</span>
-            </div>
-          )}
         </div>
 
         {update.feedback && (

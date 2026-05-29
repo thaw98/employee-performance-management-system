@@ -12,6 +12,48 @@ export function getFeedbackPath(pathname: string) {
   return `/${getRolePrefix(pathname)}/360-feedback/received`;
 }
 
+/**
+ * Routes a feedback notification to either the History (given) or Received page.
+ *
+ * Routing rules:
+ * - GIVER (evaluator) should open Feedback History when they receive a chat/reply
+ *   notification FROM the evaluatee.
+ * - RECEIVER (evaluatee) should open Received Feedback when they receive a chat
+ *   notification FROM the evaluator.
+ *
+ * The backend now includes a distinguishing phrase in the notification message:
+ *  - "[EVALUATOR_RECIPIENT]" → notification was sent to the evaluator (giver) → history
+ *  - "[EVALUATEE_RECIPIENT]" → notification was sent to the evaluatee (receiver) → received
+ *
+ * Legacy / explicit text cues are also checked for backward compatibility.
+ */
+export function getFeedbackRoutePath(
+  pathname: string,
+  notification: NotificationNavigationInput,
+) {
+  const prefix = getRolePrefix(pathname);
+  const text = `${notification.title ?? ''} ${notification.message ?? ''}`.toUpperCase();
+
+  // Explicit backend-embedded recipient markers (new convention)
+  if (text.includes('[EVALUATOR_RECIPIENT]')) {
+    return `/${prefix}/360-feedback/history`;
+  }
+  if (text.includes('[EVALUATEE_RECIPIENT]')) {
+    return `/${prefix}/360-feedback/received`;
+  }
+
+  // Legacy explicit text cues: notification was sent to the feedback giver
+  if (
+    text.includes('REPLIED TO YOUR FEEDBACK') ||
+    text.includes('ON YOUR GIVEN FEEDBACK')
+  ) {
+    return `/${prefix}/360-feedback/history`;
+  }
+
+  // Default: received feedback page
+  return `/${prefix}/360-feedback/received`;
+}
+
 export function getGiveFeedbackPath(pathname: string) {
   return `/${getRolePrefix(pathname)}/360-feedback/give`;
 }
@@ -166,5 +208,7 @@ export function getNotificationDestinationPath(notification: NotificationNavigat
     return getGiveFeedbackPath(pathname);
   }
 
-  return getFeedbackPath(pathname);
+  // Route to Feedback History (for givers) or Received Feedback (for receivers)
+  // based on the embedded recipient marker set by the backend.
+  return getFeedbackRoutePath(pathname, notification);
 }

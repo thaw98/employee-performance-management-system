@@ -230,9 +230,7 @@ export function PipCommunicationNotes({
       <div className="h-[420px] overflow-y-auto rounded-lg border border-slate-100 bg-slate-50/60 p-4 pr-2">
         {isLoadingNotes && <p className="py-4 text-center text-slate-500">Loading notes...</p>}
 
-        {!isLoadingNotes && timelineNotes.length === 0 && (
-          <p className="py-4 text-center text-slate-500">No PIP notes yet.</p>
-        )}
+        {!isLoadingNotes && timelineNotes.length === 0 && null}
 
         {!isLoadingNotes && timelineNotes.length > 0 && (
           <div className="space-y-4">
