@@ -21,8 +21,7 @@ import AuditLayout from './layouts/AuditLayout';
 import { AuditDashboard } from './pages/audit/AuditDashboard';
 import { AuditLogsPage } from './pages/audit/AuditLogsPage';
 import { AuditActivityPage } from './pages/audit/AuditActivityPage';
-import { SecurityAnalytics } from './pages/audit/SecurityAnalytics';
-
+import { AuditFeedbackEvaluateeHistoryPage, AuditFeedbackHistoryPage } from './pages/audit/AuditFeedbackHistoryPage';
 // Dashboard Pages - Using the correct file names from your project
 import { HRDashboardPage } from './pages/hr/HRDashboardPage';
 import { ManagerDashboardPage } from './pages/manager/ManagerDashboardPage';
@@ -54,12 +53,14 @@ import { AppraisalsPage } from './pages/hr/AppraisalsPage';
 import { GiveFeedbackPage } from './pages/GiveFeedbackPage';
 import { CombinedFeedbackHistoryPage } from './pages/CombinedFeedbackHistoryPage';
 import { GetFeedbackPage } from './pages/GetFeedbackPage';
+import { FeedbackDetailPage } from './pages/FeedbackDetailPage';
 import { KpiManagementPage } from './pages/hr/KpiManagementPage';
 import { KpiAssignedPage } from './pages/hr/KpiAssignedPage';
 import { KpiDetailPage } from './pages/hr/KpiDetailPage';
 import { DepartmentKpiDetailPage } from './pages/hr/DepartmentKpiDetailPage';
 import { PositionKpiDetailPage } from './pages/hr/PositionKpiDetailPage';
 import { KpiCategoryPage } from './pages/hr/KpiCategoryPage';
+import { KpiUnitPage } from './pages/hr/KpiUnitPage';
 import { KpiHistoryPage } from './pages/hr/KpiHistoryPage';
 import KpiReportsPage from './pages/hr/KpiReportsPage';
 import { AppraisalSubmissionsPage } from './pages/hr/AppraisalSubmissionsPage';
@@ -186,7 +187,9 @@ function App() {
             <Route path="360-feedback/criteria" element={<CriteriaPage />} />
             <Route path="360-feedback/give" element={<GiveFeedbackPage />} />
             <Route path="360-feedback/received" element={<GetFeedbackPage />} />
+            <Route path="360-feedback/received/:feedbackId" element={<FeedbackDetailPage />} />
             <Route path="360-feedback/history" element={<CombinedFeedbackHistoryPage />} />
+            <Route path="360-feedback/history/:feedbackId" element={<FeedbackDetailPage />} />
             <Route path="360-feedback/combined-history" element={<Navigate to="/hr/360-feedback/history" replace />} />
             <Route path="appraisals" element={<AppraisalsPage />} />
             <Route path="appraisals/submissions" element={<AppraisalSubmissionsPage />} />
@@ -197,6 +200,7 @@ function App() {
             <Route path="department-kpi-detail" element={<DepartmentKpiDetailPage />} />
             <Route path="position-kpi-detail" element={<PositionKpiDetailPage />} />
             <Route path="kpi-categories" element={<KpiCategoryPage />} />
+            <Route path="kpi-units" element={<KpiUnitPage />} />
             <Route path="kpi-history" element={<KpiHistoryPage />} />
             <Route path="kpi-reports" element={<KpiReportsPage />} />
             <Route path='AppraisalSubmissionsPage' element={<AppraisalSubmissionsPage />} />
@@ -262,7 +266,9 @@ function App() {
             <Route path="appraisals/:id/evaluate" element={<ManagerEvaluationPage />} />
             <Route path="360-feedback/give" element={<GiveFeedbackPage />} />
             <Route path="360-feedback/received" element={<GetFeedbackPage />} />
+            <Route path="360-feedback/received/:feedbackId" element={<FeedbackDetailPage />} />
             <Route path="360-feedback/history" element={<CombinedFeedbackHistoryPage />} />
+            <Route path="360-feedback/history/:feedbackId" element={<FeedbackDetailPage />} />
             <Route path="360-feedback/combined-history" element={<Navigate to="/manager/360-feedback/history" replace />} />
             <Route path="profile" element={<UserProfilePage />} />
             <Route path="settings/profile" element={<Navigate to="/manager/profile" replace />} />
@@ -303,7 +309,9 @@ function App() {
             <Route path="pip/:id" element={<PipDetailPage />} />
             <Route path="360-feedback/give" element={<GiveFeedbackPage />} />
             <Route path="360-feedback/received" element={<GetFeedbackPage />} />
+            <Route path="360-feedback/received/:feedbackId" element={<FeedbackDetailPage />} />
             <Route path="360-feedback/history" element={<CombinedFeedbackHistoryPage />} />
+            <Route path="360-feedback/history/:feedbackId" element={<FeedbackDetailPage />} />
             <Route path="360-feedback/combined-history" element={<Navigate to="/employee/360-feedback/history" replace />} />
             <Route path="profile" element={<UserProfilePage />} />
             <Route path="settings/profile" element={<Navigate to="/employee/profile" replace />} />
@@ -332,9 +340,11 @@ function App() {
             <Route index element={<Navigate to="/audit/dashboard" replace />} />
             <Route path="dashboard" element={<AuditDashboard />} />
             <Route path="employees" element={<EmployeeListPage />} />
+            <Route path="employees/create-account" element={<CreateEmployeeAccountPage />} />
             <Route path="departments" element={<DepartmentListPage />} />
             <Route path="departments/:departmentId/employees" element={<DepartmentEmployeeListPage />} />
             <Route path="departments/:departmentId" element={<DepartmentDetailPage />} />
+            <Route path="positions" element={<PositionListPage />} />
             <Route path="level-codes" element={<LevelCodeListPage />} />
             <Route path="kpi-assigned" element={<KpiAssignedPage />} />
             <Route path="kpi-history" element={<KpiHistoryPage />} />
@@ -349,7 +359,9 @@ function App() {
             <Route path="self-assessment/reviews/:formId" element={<SelfAssessmentFormReviewPage readOnly />} />
             <Route path="meetings" element={<MeetingsPage />} />
             <Route path="meetings/:id" element={<MeetingDetailPage />} />
-            <Route path="360-feedback/history" element={<CombinedFeedbackHistoryPage />} />
+            <Route path="360-feedback/history" element={<AuditFeedbackHistoryPage />} />
+            <Route path="360-feedback/history/:employeeId" element={<AuditFeedbackEvaluateeHistoryPage />} />
+            <Route path="360-feedback/history/:employeeId/:feedbackId" element={<FeedbackDetailPage />} />
             <Route path="reports" element={<HrReportsPage />} />
             <Route path="reports/feedback" element={<FeedbackReportPage mode="audit" />} />
             <Route path="reports/appraisal" element={<AppraisalReportsPage />} />
@@ -359,7 +371,6 @@ function App() {
             <Route path="performance-reports/:employeeId" element={<PerformanceReportDetailPage basePath="/audit/performance-reports" readOnly />} />
             <Route path="logs" element={<AuditLogsPage />} />
             <Route path="activity-monitor" element={<AuditActivityPage />} />
-            <Route path="security-analytics" element={<SecurityAnalytics />} />
             <Route path="profile" element={<UserProfilePage />} />
             <Route path="settings/profile" element={<Navigate to="/audit/profile" replace />} />
             <Route path="settings/signature" element={<DefaultSignaturePage />} />

@@ -62,6 +62,7 @@ export const baseApi = createApi({
     'SelfAssessmentUnlockRequest',
     'QuestionBank',
     'KpiCategory',
+    'KpiUnit',
     'AuditLog',
     'FaqSupport',
   ],

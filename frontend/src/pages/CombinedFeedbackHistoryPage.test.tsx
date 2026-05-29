@@ -1,7 +1,9 @@
 import { cleanup, render, screen, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
+import { MemoryRouter, Route, Routes, useLocation } from 'react-router-dom';
 import { CombinedFeedbackHistoryPage } from './CombinedFeedbackHistoryPage';
+import { FeedbackDetailPage } from './FeedbackDetailPage';
 
 const mocks = vi.hoisted(() => ({
   get: vi.fn(),
@@ -110,6 +112,34 @@ const pageResponse = {
   },
 };
 
+const detailPageResponse = {
+  data: {
+    data: {
+      ...pageResponse.data.data.content[0],
+      details: [{ criteriaName: 'Communication', rating: 5, comment: 'Clear and kind' }],
+    },
+  },
+};
+
+let currentLocation: ReturnType<typeof useLocation> | null = null;
+
+function LocationProbe() {
+  currentLocation = useLocation();
+  return null;
+}
+
+function renderHistoryRoute(initialEntries = ['/hr/360-feedback/history']) {
+  return render(
+    <MemoryRouter initialEntries={initialEntries as any}>
+      <LocationProbe />
+      <Routes>
+        <Route path="/hr/360-feedback/history" element={<CombinedFeedbackHistoryPage />} />
+        <Route path="/hr/360-feedback/history/:feedbackId" element={<FeedbackDetailPage />} />
+      </Routes>
+    </MemoryRouter>
+  );
+}
+
 describe('CombinedFeedbackHistoryPage', () => {
   beforeEach(() => {
     mocks.get.mockReset();
@@ -118,21 +148,45 @@ describe('CombinedFeedbackHistoryPage', () => {
     mocks.toastError.mockReset();
     mocks.get.mockImplementation((url: string) => {
       if (url.startsWith('/review-cycles')) {
-        return Promise.resolve({ data: { data: [{ id: 10, name: '2026 H1' }] } });
+        return Promise.resolve({
+          data: {
+            data: [
+              { id: 10, name: '2026 H1', startDate: '2026-01-01', status: 'ACTIVE' },
+              { id: 11, name: 'Q2 2026-2027', startDate: '2026-07-01', status: 'UPCOMING' },
+            ],
+          },
+        });
       }
       if (url.includes('/details')) {
         return Promise.resolve({ data: { data: [{ criteriaName: 'Communication', rating: 5, comment: 'Clear' }] } });
       }
+      if (url.includes('/detail-page')) {
+        return Promise.resolve(detailPageResponse);
+      }
       return Promise.resolve(pageResponse);
     });
+    currentLocation = null;
   });
 
   afterEach(() => {
     cleanup();
   });
 
+  it('does not show future review cycles in the cycle filter', async () => {
+    renderHistoryRoute();
+
+    await waitFor(() => {
+      expect(mocks.get).toHaveBeenCalledWith('/review-cycles?requiresEmployeeSubmission=true');
+    });
+
+    const cycleFilter = screen.getByLabelText('Review cycle') as HTMLSelectElement;
+    const optionLabels = Array.from(cycleFilter.options).map((option) => option.text);
+    expect(optionLabels).toContain('2026 H1');
+    expect(optionLabels).not.toContain('Q2 2026-2027');
+  });
+
   it('renders tabs, filters, rows, and masks anonymous received evaluator details', async () => {
-    render(<CombinedFeedbackHistoryPage />);
+    renderHistoryRoute();
 
     expect(screen.getByRole('tab', { name: 'All' })).toBeTruthy();
     expect(screen.getByRole('tab', { name: 'Given' })).toBeTruthy();
@@ -147,7 +201,7 @@ describe('CombinedFeedbackHistoryPage', () => {
 
   it('sends direction when a direction tab is selected', async () => {
     const user = userEvent.setup();
-    render(<CombinedFeedbackHistoryPage />);
+    renderHistoryRoute();
 
     await screen.findByText('Aye Aye');
     await user.click(screen.getByRole('tab', { name: 'Received' }));
@@ -157,18 +211,57 @@ describe('CombinedFeedbackHistoryPage', () => {
     });
   });
 
-  it('opens details modal and offers PDF export for rows', async () => {
+  it('navigates to a details page from row view action', async () => {
     const user = userEvent.setup();
-    render(<CombinedFeedbackHistoryPage />);
+    renderHistoryRoute();
 
     await screen.findByText('Aye Aye');
     await user.click(screen.getAllByTitle('View details')[0]);
 
+    await waitFor(() => {
+      expect(currentLocation?.pathname).toBe('/hr/360-feedback/history/1');
+    });
     expect(await screen.findByText('Feedback Details')).toBeTruthy();
     expect(await screen.findByText('Communication')).toBeTruthy();
+  });
+
+  it('renders criteria, comments, score, and PDF export on the detail route', async () => {
+    const user = userEvent.setup();
+    renderHistoryRoute(['/hr/360-feedback/history/1']);
+
+    expect(await screen.findByText('Communication')).toBeTruthy();
+    expect(screen.getByText('Clear and kind')).toBeTruthy();
+    expect(screen.getByText('Good | 82.0%')).toBeTruthy();
     expect(screen.getByRole('button', { name: /PRINT REPORT/i })).toBeTruthy();
 
     await user.click(screen.getByRole('button', { name: /PRINT REPORT/i }));
     await waitFor(() => expect(mocks.save).toHaveBeenCalledTimes(1));
+  });
+
+  it('back returns to the previous list route with state', async () => {
+    const user = userEvent.setup();
+    render(
+      <MemoryRouter initialEntries={[{
+        pathname: '/hr/360-feedback/history/1',
+        state: {
+          sourcePath: '/hr/360-feedback/history',
+          listState: { page: 2, pageSize: 20, filters: { direction: 'RECEIVED' } },
+        },
+      } as any]}>
+        <LocationProbe />
+        <Routes>
+          <Route path="/hr/360-feedback/history" element={<CombinedFeedbackHistoryPage />} />
+          <Route path="/hr/360-feedback/history/:feedbackId" element={<FeedbackDetailPage />} />
+        </Routes>
+      </MemoryRouter>
+    );
+
+    await screen.findByText('Communication');
+    await user.click(screen.getByRole('button', { name: /BACK/i }));
+
+    await waitFor(() => {
+      expect(currentLocation?.pathname).toBe('/hr/360-feedback/history');
+      expect(currentLocation?.state).toEqual({ page: 2, pageSize: 20, filters: { direction: 'RECEIVED' } });
+    });
   });
 });

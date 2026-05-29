@@ -25,7 +25,7 @@ import lombok.RequiredArgsConstructor;
 @RestController
 @RequestMapping("/api/users")
 @RequiredArgsConstructor
-@PreAuthorize("hasRole('HR')")
+@PreAuthorize("hasAnyRole('HR', 'AUDIT')")
 public class EmployeeAccountController {
 	private final EmployeeAccountService employeeAccountService;
 	private final UserRepository userRepository;

@@ -2,8 +2,12 @@ package com.epms.backend.controller;
 
 import com.epms.backend.common.ApiResponse;
 import com.epms.backend.dto.FeedbackDraftDto;
+import com.epms.backend.dto.FeedbackAuditEvaluateeHistoryDto;
+import com.epms.backend.dto.FeedbackAuditHistoryFilter;
+import com.epms.backend.dto.FeedbackAuditSummaryPageDto;
 import com.epms.backend.dto.FeedbackHistoryFilter;
 import com.epms.backend.dto.FeedbackHistoryDto;
+import com.epms.backend.dto.FeedbackDetailPageDto;
 import com.epms.backend.dto.FeedbackSubmissionRequest;
 import com.epms.backend.entity.Employee;
 import com.epms.backend.entity.Department;
@@ -162,6 +166,63 @@ public class FeedbackController {
         }
     }
 
+    @GetMapping("/audit/history-summary")
+    public ResponseEntity<ApiResponse<FeedbackAuditSummaryPageDto>> getAuditHistorySummary(
+            @RequestParam(defaultValue = "0") int page,
+            @RequestParam(defaultValue = "10") int size,
+            @RequestParam(required = false) String search,
+            @RequestParam(required = false) String department,
+            @RequestParam(required = false) Long reviewCycleId,
+            @RequestParam(required = false) String feedbackType,
+            @RequestParam(required = false) LocalDate fromDate,
+            @RequestParam(required = false) LocalDate toDate) {
+        try {
+            User user = getCurrentUser();
+            if (!isAudit(user)) {
+                return ResponseEntity.status(403).body(new ApiResponse<>(false, "Access denied", null));
+            }
+            FeedbackAuditHistoryFilter filter = new FeedbackAuditHistoryFilter();
+            filter.setSearch(search);
+            filter.setDepartment(department);
+            filter.setReviewCycleId(reviewCycleId);
+            filter.setFeedbackType(feedbackType);
+            filter.setFromDate(fromDate);
+            filter.setToDate(toDate);
+            FeedbackAuditSummaryPageDto summary = feedbackService.getAuditHistorySummary(filter, PageRequest.of(page, size));
+            return ResponseEntity.ok(new ApiResponse<>(true, "Audit feedback summary fetched", summary));
+        } catch (Exception e) {
+            return ResponseEntity.status(500).body(new ApiResponse<>(false, "Audit Summary Error: " + e.getMessage(), null));
+        }
+    }
+
+    @GetMapping("/audit/evaluatees/{employeeId}/history")
+    public ResponseEntity<ApiResponse<FeedbackAuditEvaluateeHistoryDto>> getAuditEvaluateeHistory(
+            @PathVariable Long employeeId,
+            @RequestParam(defaultValue = "0") int page,
+            @RequestParam(defaultValue = "10") int size,
+            @RequestParam(required = false) String department,
+            @RequestParam(required = false) Long reviewCycleId,
+            @RequestParam(required = false) String feedbackType,
+            @RequestParam(required = false) LocalDate fromDate,
+            @RequestParam(required = false) LocalDate toDate) {
+        try {
+            User user = getCurrentUser();
+            if (!isAudit(user)) {
+                return ResponseEntity.status(403).body(new ApiResponse<>(false, "Access denied", null));
+            }
+            FeedbackAuditHistoryFilter filter = new FeedbackAuditHistoryFilter();
+            filter.setDepartment(department);
+            filter.setReviewCycleId(reviewCycleId);
+            filter.setFeedbackType(feedbackType);
+            filter.setFromDate(fromDate);
+            filter.setToDate(toDate);
+            FeedbackAuditEvaluateeHistoryDto history = feedbackService.getAuditEvaluateeHistory(employeeId, filter, PageRequest.of(page, size));
+            return ResponseEntity.ok(new ApiResponse<>(true, "Audit evaluatee feedback history fetched", history));
+        } catch (Exception e) {
+            return ResponseEntity.status(500).body(new ApiResponse<>(false, "Audit Evaluatee History Error: " + e.getMessage(), null));
+        }
+    }
+
     @GetMapping("/eligible-evaluatees")
     public ResponseEntity<ApiResponse<Map<String, Object>>> getEligible(@RequestParam String role) {
         try {
@@ -227,6 +288,21 @@ public class FeedbackController {
             return ResponseEntity.ok(new ApiResponse<>(true, "Details fetched", feedbackService.getFeedbackDetails(id)));
         } catch (Exception e) {
             return ResponseEntity.status(500).body(new ApiResponse<>(false, "Details Error: " + e.getMessage(), null));
+        }
+    }
+
+    @GetMapping("/{id}/detail-page")
+    public ResponseEntity<ApiResponse<FeedbackDetailPageDto>> getDetailPage(@PathVariable Long id) {
+        try {
+            User user = getCurrentUser();
+            FeedbackDetailPageDto details = isAudit(user)
+                    ? feedbackService.getAuditFeedbackDetailPage(id)
+                    : feedbackService.getFeedbackDetailPage(id, user.getEmployee().getId());
+            return ResponseEntity.ok(new ApiResponse<>(true, "Feedback detail page fetched", details));
+        } catch (SecurityException e) {
+            return ResponseEntity.status(403).body(new ApiResponse<>(false, e.getMessage(), null));
+        } catch (Exception e) {
+            return ResponseEntity.status(500).body(new ApiResponse<>(false, "Detail Page Error: " + e.getMessage(), null));
         }
     }
 
@@ -565,6 +641,16 @@ public class FeedbackController {
         return Long.valueOf(1L).equals(roleId)
                 || Long.valueOf(5L).equals(roleId)
                 || (roleName != null && (roleName.equalsIgnoreCase("HR") || roleName.equalsIgnoreCase("AUDIT")));
+    }
+
+    private boolean isAudit(User user) {
+        if (user == null || user.getRole() == null) {
+            return false;
+        }
+        Long roleId = user.getRole().getId();
+        String roleName = user.getRole().getName();
+        return Long.valueOf(5L).equals(roleId)
+                || (roleName != null && roleName.equalsIgnoreCase("AUDIT"));
     }
 
     private boolean isManager(User user) {

@@ -19,7 +19,7 @@ import lombok.RequiredArgsConstructor;
 @RestController
 @RequestMapping("/api/employees")
 @RequiredArgsConstructor
-@PreAuthorize("hasRole('HR')")
+@PreAuthorize("hasAnyRole('HR', 'AUDIT')")
 public class EmployeeDuplicateCheckController {
 
 	private final EmployeeRepository employeeRepository;

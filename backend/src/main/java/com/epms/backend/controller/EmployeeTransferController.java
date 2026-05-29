@@ -30,7 +30,7 @@ import lombok.RequiredArgsConstructor;
 @RestController
 @RequestMapping("/api/employees")
 @RequiredArgsConstructor
-@PreAuthorize("principal.roleId == 1")
+@PreAuthorize("principal.roleId == 1 or principal.roleId == 5")
 public class EmployeeTransferController {
 
     private final EmployeeTransferService transferService;

@@ -7,7 +7,7 @@ export interface Kpi {
   name: string
   category: string
   target: string
-  unit: string
+  unit?: string | null
   actual?: string
   weight: number
   score?: number
@@ -30,7 +30,7 @@ export interface PositionKpi {
   name: string
   category: string
   target: string
-  unit: string
+  unit?: string | null
   weight: number
   actual?: string
   score?: number
@@ -49,7 +49,7 @@ export interface DepartmentKpi {
   name: string
   category: string
   target: string
-  unit: string
+  unit?: string | null
   actual?: string
   weight: number
   score?: number

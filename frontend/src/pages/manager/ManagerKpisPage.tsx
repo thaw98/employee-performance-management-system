@@ -1,6 +1,9 @@
-import React, { useState, useEffect } from 'react';
-import { Target, X, Save, AlertCircle, CheckCircle2, History, Calendar } from 'lucide-react';
+import React, { useState, useEffect, useMemo } from 'react';
+import { Combobox, ComboboxButton, ComboboxInput, ComboboxOption, ComboboxOptions } from '@headlessui/react';
+import { Target, X, Save, AlertCircle, CheckCircle2, History, Calendar, ChevronDown, Briefcase } from 'lucide-react';
+import { PaginationBar } from '../../components/common/PaginationBar';
 import { useGetManagerTeamQuery, useGetLatestKpisByEmployeeQuery, useUpdateManagerKpiActualsMutation, useGetEmployeeKpiHistoryQuery, type Kpi } from '../../features/kpi/kpiApi';
+import { displayKpiTarget, displayKpiUnit } from '../../features/kpi/kpiDisplay';
 import { KPI_CHART_COLORS } from '../../features/kpi/kpisTheme';
 import { format } from 'date-fns';
 import toast from 'react-hot-toast';
@@ -137,7 +140,7 @@ const KpiEditModal = ({ employee, onClose }: { employee: any, onClose: () => voi
                       <td className="py-4 px-4 text-center border-r border-slate-100">
                         <span className="text-xs font-bold text-slate-700">{kpi.target}</span>
                       </td>
-                      <td className="py-4 px-4 text-center text-[10px] font-black text-slate-400 border-r border-slate-100 uppercase">{kpi.unit}</td>
+	                      <td className="py-4 px-4 text-center text-[10px] font-black text-slate-400 border-r border-slate-100 uppercase">{displayKpiUnit(kpi.unit)}</td>
                       <td className="py-4 px-2 border-r border-slate-100">
                         <div className="relative">
                           <input 
@@ -328,7 +331,7 @@ const KpiHistoryModal = ({ employee, onClose }: { employee: any, onClose: () => 
                             </div>
                           </td>
                           <td className="py-4 px-4 border-r border-slate-100">
-                            <span className="text-xs font-bold text-slate-700">{kpi.target} {kpi.unit}</span>
+	                            <span className="text-xs font-bold text-slate-700">{displayKpiTarget(kpi.target, kpi.unit)}</span>
                           </td>
                           <td className="py-4 px-4 text-center border-r border-slate-100">
                             <span className="text-xs font-bold text-slate-900">{kpi.actual || '-'}</span>
@@ -359,22 +362,93 @@ const KpiHistoryModal = ({ employee, onClose }: { employee: any, onClose: () => 
   );
 };
 
+const ALL_POSITIONS = '__all__';
+
+type TeamMember = {
+  id: number;
+  name: string;
+  role: string;
+  position: string;
+  status: string;
+  score: number;
+  initial: string;
+  color: string;
+};
+
 export function ManagerKpisPage() {
   const { data: teamData, isLoading: isTeamLoading } = useGetManagerTeamQuery();
-  const [selectedEmployee, setSelectedEmployee] = useState<any>(null);
-  const [selectedHistoryEmployee, setSelectedHistoryEmployee] = useState<any>(null);
+  const [selectedEmployee, setSelectedEmployee] = useState<TeamMember | null>(null);
+  const [selectedHistoryEmployee, setSelectedHistoryEmployee] = useState<TeamMember | null>(null);
+  const [employeeFilterId, setEmployeeFilterId] = useState<number | null>(null);
+  const [employeeQuery, setEmployeeQuery] = useState('');
+  const [positionFilter, setPositionFilter] = useState(ALL_POSITIONS);
+  const [pageIndex, setPageIndex] = useState(0);
+  const [pageSize, setPageSize] = useState(10);
 
-  const teamMembers = teamData ? [...teamData]
-    .sort((a, b) => (a.name || '').localeCompare(b.name || ''))
-    .map((emp, idx) => ({
-      id: emp.id,
-      name: emp.name,
-      role: emp.role,
-      status: emp.status || 'ACTIVE',
-      score: 0,
-      initial: emp.name ? emp.name.charAt(0) : 'U',
-      color: ['bg-[#eff6ff] text-[#2463eb]', 'bg-[#dbeafe] text-[#1d4ed8]', 'bg-[#bfdbfe] text-[#1e40af]', 'bg-[#93c5fd]/30 text-[#1e40af]'][idx % 4]
-    })) : [];
+  const teamMembers: TeamMember[] = useMemo(() => {
+    if (!teamData) return [];
+    return [...teamData]
+      .sort((a, b) => (a.name || '').localeCompare(b.name || ''))
+      .map((emp, idx) => ({
+        id: emp.id,
+        name: emp.name,
+        role: emp.role,
+        position: emp.role || 'Unassigned',
+        status: emp.status || 'ACTIVE',
+        score: 0,
+        initial: emp.name ? emp.name.charAt(0) : 'U',
+        color: ['bg-[#eff6ff] text-[#2463eb]', 'bg-[#dbeafe] text-[#1d4ed8]', 'bg-[#bfdbfe] text-[#1e40af]', 'bg-[#93c5fd]/30 text-[#1e40af]'][idx % 4],
+      }));
+  }, [teamData]);
+
+  const positions = useMemo(
+    () =>
+      Array.from(new Set(teamMembers.map((m) => m.position).filter(Boolean))).sort((a, b) =>
+        a.localeCompare(b),
+      ),
+    [teamMembers],
+  );
+
+  const filteredEmployeeOptions = useMemo(() => {
+    const q = employeeQuery.trim().toLowerCase();
+    if (!q) return teamMembers;
+    return teamMembers.filter(
+      (m) =>
+        m.name.toLowerCase().includes(q) ||
+        m.position.toLowerCase().includes(q),
+    );
+  }, [teamMembers, employeeQuery]);
+
+  const selectedEmployeeFilter = useMemo(
+    () => teamMembers.find((m) => m.id === employeeFilterId) ?? null,
+    [teamMembers, employeeFilterId],
+  );
+
+  const filteredMembers = useMemo(() => {
+    return teamMembers.filter((member) => {
+      const matchesEmployee = employeeFilterId === null || member.id === employeeFilterId;
+      const matchesPosition =
+        positionFilter === ALL_POSITIONS || member.position === positionFilter;
+      return matchesEmployee && matchesPosition;
+    });
+  }, [teamMembers, employeeFilterId, positionFilter]);
+
+  useEffect(() => {
+    setPageIndex(0);
+  }, [employeeFilterId, positionFilter]);
+
+  const pageCount = Math.max(1, Math.ceil(filteredMembers.length / pageSize));
+  const paginatedMembers = useMemo(
+    () => filteredMembers.slice(pageIndex * pageSize, pageIndex * pageSize + pageSize),
+    [filteredMembers, pageIndex, pageSize],
+  );
+
+  useEffect(() => {
+    const maxPageIndex = Math.max(0, pageCount - 1);
+    if (pageIndex > maxPageIndex) {
+      setPageIndex(maxPageIndex);
+    }
+  }, [pageCount, pageIndex]);
 
   return (
     <div className="space-y-8 animate-in fade-in duration-700 max-w-5xl mx-auto">
@@ -393,12 +467,95 @@ export function ManagerKpisPage() {
           </div>
         </div>
 
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+          <div className="flex items-center gap-3 bg-slate-50 px-4 py-2.5 rounded-2xl border border-slate-200">
+            <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest shrink-0">
+              Employee
+            </span>
+            <div className="relative min-w-0 flex-1">
+              <Combobox
+                value={selectedEmployeeFilter}
+                onChange={(member: TeamMember | null) => {
+                  setEmployeeFilterId(member ? member.id : null);
+                  setEmployeeQuery('');
+                }}
+                nullable
+              >
+                <ComboboxInput
+                  className="w-full min-w-0 border-0 bg-transparent py-0 pr-6 pl-0 text-sm font-bold text-slate-900 focus:ring-0 outline-none placeholder:font-medium placeholder:text-slate-400"
+                  displayValue={(member: TeamMember | null) => member?.name ?? ''}
+                  onChange={(e) => setEmployeeQuery(e.target.value)}
+                  placeholder="Search employee…"
+                  autoComplete="off"
+                />
+                <ComboboxButton className="absolute inset-y-0 right-0 flex items-center text-slate-400">
+                  <ChevronDown size={14} aria-hidden />
+                </ComboboxButton>
+                <ComboboxOptions
+                  anchor="bottom start"
+                  className="z-50 mt-1 max-h-60 w-(--anchor-width) min-w-[240px] overflow-auto rounded-xl border border-slate-200 bg-white py-1 shadow-lg focus:outline-none"
+                >
+                  <ComboboxOption
+                    value={null}
+                    className="cursor-pointer px-3 py-2 text-sm text-slate-600 data-focus:bg-[#eff6ff] data-selected:font-semibold data-selected:text-[#1d4ed8]"
+                  >
+                    All Employees
+                  </ComboboxOption>
+                  {filteredEmployeeOptions.length === 0 ? (
+                    <div className="px-3 py-2 text-sm text-slate-500">No employees found</div>
+                  ) : (
+                    filteredEmployeeOptions.map((member) => (
+                      <ComboboxOption
+                        key={member.id}
+                        value={member}
+                        className="cursor-pointer px-3 py-2 text-sm text-slate-800 data-focus:bg-[#eff6ff] data-selected:font-semibold data-selected:text-[#1d4ed8]"
+                      >
+                        <span className="font-semibold">{member.name}</span>
+                        {member.position && (
+                          <span className="text-slate-500"> — {member.position}</span>
+                        )}
+                      </ComboboxOption>
+                    ))
+                  )}
+                </ComboboxOptions>
+              </Combobox>
+            </div>
+          </div>
+
+          <label className="relative flex items-center gap-3 bg-slate-50 px-4 py-2.5 rounded-2xl border border-slate-200">
+            <Briefcase size={14} className="text-slate-400 shrink-0" />
+            <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest shrink-0">
+              Position
+            </span>
+            <select
+              value={positionFilter}
+              onChange={(e) => setPositionFilter(e.target.value)}
+              className="flex-1 min-w-0 border-0 bg-transparent py-0 pr-6 text-sm font-bold text-slate-900 outline-none focus:ring-0 appearance-none cursor-pointer"
+              aria-label="Filter by position"
+            >
+              <option value={ALL_POSITIONS}>All Positions</option>
+              {positions.map((position) => (
+                <option key={position} value={position}>
+                  {position}
+                </option>
+              ))}
+            </select>
+            <ChevronDown
+              size={14}
+              className="absolute right-4 top-1/2 -translate-y-1/2 text-slate-400 pointer-events-none"
+              aria-hidden
+            />
+          </label>
+        </div>
+
         <div className="space-y-4">
           {isTeamLoading ? (
              <div className="flex justify-center items-center h-20"><div className="w-6 h-6 border-2 border-slate-300 border-t-slate-900 rounded-full animate-spin"></div></div>
           ) : teamMembers.length === 0 ? (
             <p className="text-sm text-slate-500 font-medium text-center py-4">No team members found.</p>
-          ) : teamMembers.map((member) => (
+          ) : filteredMembers.length === 0 ? (
+            <p className="text-sm text-slate-500 font-medium text-center py-4">No employees match the selected filters.</p>
+          ) : paginatedMembers.map((member) => (
             <div 
               key={member.id} 
               onClick={() => setSelectedEmployee(member)}
@@ -444,6 +601,22 @@ export function ManagerKpisPage() {
             </div>
           ))}
         </div>
+
+        {!isTeamLoading && filteredMembers.length > 0 && (
+          <PaginationBar
+            pageIndex={pageIndex}
+            pageSize={pageSize}
+            pageCount={pageCount}
+            totalItems={filteredMembers.length}
+            itemLabel="employees"
+            rowsPerPageOptions={[5, 10, 20, 50]}
+            onPageIndexChange={setPageIndex}
+            onPageSizeChange={(nextSize) => {
+              setPageSize(nextSize);
+              setPageIndex(0);
+            }}
+          />
+        )}
       </div>
 
       {selectedEmployee && (

@@ -59,6 +59,7 @@ public class HrEmployeeAccountService {
 	private static final Pattern STAFF_NO_PATTERN = Pattern.compile("^[0-9]+$");
 	private static final long HR_ROLE_ID = 1L;
 	private static final long DEPARTMENT_MANAGER_ROLE_ID = 2L;
+	private static final long AUDIT_ROLE_ID = 5L;
 	/** When no numeric staff numbers exist, start at 0001. */
 	private static final long STAFF_NO_SEQUENCE_START = 0L;
 	private static final long STAFF_TYPE_PERMANENT_ID = 1L;
@@ -303,13 +304,13 @@ public class HrEmployeeAccountService {
 					department.getId(),
 					principal.getId(),
 					principal.getRoleId(),
-					"HR user %d assigned employee_id %d as manager for department_id %d"
+					"User %d assigned employee_id %d as manager for department_id %d"
 							.formatted(principal.getId(), savedEmployee.getId(), department.getId()),
 					("{\"departmentId\":%d,\"managerEmployeeId\":%d,\"employeeAccountId\":%d,\"roleId\":%d}")
 							.formatted(department.getId(), savedEmployee.getId(), savedUser.getId(), accountRole.getId()));
 		}
 
-		String description = "HR user %d created employee account for employee_id %d with role_id %d"
+		String description = "User %d created employee account for employee_id %d with role_id %d"
 				.formatted(principal.getId(), savedEmployee.getId(), accountRole.getId());
 		String metadata = "{\"userAccountId\":%d,\"employeeId\":%d}"
 				.formatted(savedUser.getId(), savedEmployee.getId());
@@ -339,8 +340,8 @@ public class HrEmployeeAccountService {
 
 	@Transactional(readOnly = true)
 	public NextStaffNoResponseDto suggestNextStaffNo(UserPrincipal principal) {
-		if (principal.getRoleId() == null || !principal.getRoleId().equals(HR_ROLE_ID)) {
-			throw new IllegalArgumentException("Only HR can request the next staff number");
+		if (principal.getRoleId() == null || (!principal.getRoleId().equals(HR_ROLE_ID) && !principal.getRoleId().equals(AUDIT_ROLE_ID))) {
+			throw new IllegalArgumentException("Only HR or Audit can request the next staff number");
 		}
 		long max = employeeRepository.findMaxNumericStaffNo().orElse(STAFF_NO_SEQUENCE_START);
 		long next = max + 1;
@@ -349,8 +350,8 @@ public class HrEmployeeAccountService {
 
 	@Transactional
 	public MessageResponseDto resendTemporaryPassword(Long employeeId, UserPrincipal principal) {
-		if (principal.getRoleId() == null || !principal.getRoleId().equals(HR_ROLE_ID)) {
-			throw new IllegalArgumentException("Only HR can resend temporary passwords");
+		if (principal.getRoleId() == null || (!principal.getRoleId().equals(HR_ROLE_ID) && !principal.getRoleId().equals(AUDIT_ROLE_ID))) {
+			throw new IllegalArgumentException("Only HR or Audit can resend temporary passwords");
 		}
 		Employee employee = employeeRepository.findById(employeeId)
 				.orElseThrow(() -> new IllegalArgumentException("Employee not found"));
@@ -362,7 +363,7 @@ public class HrEmployeeAccountService {
 		user.setMustChangePassword(true);
 		User saved = userRepository.save(user);
 
-		String description = "HR user %d resent temporary password for user_account_id %d"
+		String description = "User %d resent temporary password for user_account_id %d"
 				.formatted(principal.getId(), saved.getId());
 		auditService.record(
 				AuditActionType.TEMP_PASSWORD_RESENT,

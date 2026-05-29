@@ -44,7 +44,7 @@ public class KpiTemplateService {
                 item.setName(itemDto.getName());
                 item.setCategory(itemDto.getCategory());
                 item.setTarget(itemDto.getTarget());
-                item.setUnit(itemDto.getUnit());
+                item.setUnit(normalizeOptionalText(itemDto.getUnit()));
                 item.setWeight(itemDto.getWeight());
                 template.addItem(item);
             }
@@ -71,5 +71,12 @@ public class KpiTemplateService {
             return itemDto;
         }).collect(Collectors.toList()));
         return dto;
+    }
+
+    private String normalizeOptionalText(String value) {
+        if (value == null || value.isBlank()) {
+            return null;
+        }
+        return value.trim();
     }
 }

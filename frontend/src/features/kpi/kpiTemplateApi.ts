@@ -4,7 +4,7 @@ export interface KpiTemplateItem {
   name: string
   category: string
   target: string
-  unit: string
+  unit?: string | null
   weight: number
 }
 

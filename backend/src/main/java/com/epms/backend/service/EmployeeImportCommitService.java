@@ -134,7 +134,7 @@ public class EmployeeImportCommitService {
         sessionRepository.save(session);
 
         // Audit log
-        String desc = "HR user %d committed import session %s: %d imported, %d failed"
+        String desc = "User %d committed import session %s: %d imported, %d failed"
                 .formatted(principal.getId(), validationId, importedCount, failedCount);
         String meta = "{\"validationId\":\"%s\",\"fileName\":\"%s\",\"importedCount\":%d,\"failedCount\":%d}"
                 .formatted(validationId, session.getFileName(), importedCount, failedCount);

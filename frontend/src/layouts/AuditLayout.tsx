@@ -3,10 +3,12 @@ import React from 'react';
 import {
     LayoutDashboard,
     Activity,
-    TrendingUp,
     BarChart,
     Users,
+    List,
+    UserPlus,
     Building2,
+    Briefcase,
     Layers,
     Target,
     ListChecks,
@@ -31,12 +33,31 @@ const AuditLayout: React.FC = () => {
 
     const menuSections: DashMenuSection[] = [
         {
-            label: 'Main',
+            label: 'Overview',
             items: [
                 { label: 'Dashboard', path: '/audit/dashboard', icon: <LayoutDashboard size={18} /> },
-                { label: 'Employee List', path: '/audit/employees', icon: <Users size={18} /> },
+            ],
+        },
+        {
+            label: 'Organization',
+            items: [
+                {
+                    label: 'Employee',
+                    path: '/audit/employees',
+                    icon: <Users size={18} />,
+                    subItems: [
+                        { label: 'Employee List', path: '/audit/employees', icon: <List size={16} /> },
+                        { label: 'Create Employee Account', path: '/audit/employees/create-account', icon: <UserPlus size={16} /> },
+                    ],
+                },
                 { label: 'Department', path: '/audit/departments', icon: <Building2 size={18} /> },
+                { label: 'Positions', path: '/audit/positions', icon: <Briefcase size={18} /> },
                 { label: 'Level Codes', path: '/audit/level-codes', icon: <Layers size={18} /> },
+            ],
+        },
+        {
+            label: 'Performance',
+            items: [
                 {
                     label: 'KPI',
                     path: '/audit/kpi-assigned',
@@ -127,7 +148,6 @@ const AuditLayout: React.FC = () => {
             label: 'Audit',
             items: [
                 { label: 'Activity Monitor', path: '/audit/activity-monitor', icon: <Activity size={18} /> },
-                { label: 'Security Analytics', path: '/audit/security-analytics', icon: <TrendingUp size={18} /> },
             ],
         },
     ];

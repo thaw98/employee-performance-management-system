@@ -14,6 +14,7 @@ import { useKpiViewContext } from '../../hooks/useKpiViewContext';
 import { EmployeeAutocomplete } from '../../components/common/EmployeeAutocomplete';
 import { DepartmentAutocomplete } from '../../components/common/DepartmentAutocomplete';
 import { PositionAutocomplete } from '../../components/common/PositionAutocomplete';
+import { displayKpiTarget } from '../../features/kpi/kpiDisplay';
 
 export const KpiHistoryPage: React.FC = () => {
   const { isViewOnly } = useKpiViewContext();
@@ -297,7 +298,7 @@ export const KpiHistoryPage: React.FC = () => {
           {item.category}
         </span>
       </td>
-      <td className="py-4 px-6 text-sm text-slate-600">{item.target} {item.unit}</td>
+      <td className="py-4 px-6 text-sm text-slate-600">{displayKpiTarget(item.target, item.unit)}</td>
       <td className="py-4 px-6 text-sm font-bold text-slate-900">{item.actual || '-'}</td>
       <td className="py-4 px-6 text-center text-sm font-black text-[#2463eb]">{item.weight}%</td>
       <td className="py-4 px-6 text-center text-sm font-black text-emerald-600">{item.score || '-'}</td>

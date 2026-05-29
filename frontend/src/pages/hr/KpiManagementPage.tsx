@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useMemo } from 'react';
 import { useSearchParams, useNavigate } from 'react-router-dom';
-import { Plus, Trash2, Save, AlertCircle, CheckCircle2, Target, User, Users, X, ClipboardList, Download, FolderOpen, ChevronDown } from 'lucide-react';
+import { Plus, Trash2, Save, AlertCircle, CheckCircle2, Target, User, Users, X, ClipboardList, FolderOpen, ChevronDown, Ruler } from 'lucide-react';
 import { Combobox, ComboboxButton, ComboboxInput, ComboboxOption, ComboboxOptions } from '@headlessui/react';
 import { MonthYearPicker } from '../../components/common/MonthYearPicker';
 import { EmployeeAutocomplete } from '../../components/common/EmployeeAutocomplete';
@@ -17,6 +17,7 @@ import {
 } from '../../features/kpi/kpiApi';
 import { useGetDepartmentByIdQuery } from '../../features/department/api/departmentApi';
 import { useGetCategoriesQuery, useAddCategoryMutation } from '../../features/kpi/kpiCategoryApi';
+import { useGetUnitsQuery, useAddUnitMutation } from '../../features/kpi/kpiUnitApi';
 import {
   useGetKpiTemplatesQuery,
   useCreateKpiTemplateMutation
@@ -58,7 +59,6 @@ export const KpiManagementPage: React.FC = () => {
   const [deptQuery, setDeptQuery] = useState('');
   const [posQuery, setPosQuery] = useState('');
   const [periodMonth, setPeriodMonth] = useState(getCurrentMonthValue());
-  const currentMonthValue = getCurrentMonthValue();
   const selectedPeriodLabel = formatMonthYear(periodMonth);
   const [kpis, setKpis] = useState<any[]>([]);
 
@@ -121,10 +121,14 @@ export const KpiManagementPage: React.FC = () => {
   const [setupDeptKpis, { isLoading: isSavingDept }] = useSetupDepartmentKpisMutation();
   const { data: categories = [] } = useGetCategoriesQuery();
   const [addCategory] = useAddCategoryMutation();
+  const { data: units = [] } = useGetUnitsQuery();
+  const [addUnit] = useAddUnitMutation();
 
   // Manual Category Logic
   const [newCategoryRows, setNewCategoryRows] = useState<Record<number, boolean>>({});
   const [tempCategoryValues, setTempCategoryValues] = useState<Record<number, string>>({});
+  const [newUnitRows, setNewUnitRows] = useState<Record<number, boolean>>({});
+  const [tempUnitValues, setTempUnitValues] = useState<Record<number, string>>({});
 
   const handleAddNewCategory = async (idx: number) => {
     const name = tempCategoryValues[idx];
@@ -140,6 +144,23 @@ export const KpiManagementPage: React.FC = () => {
       toast.success(`Category "${name}" added and selected`);
     } catch (err) {
       toast.error('Failed to add category');
+    }
+  };
+
+  const handleAddNewUnit = async (idx: number) => {
+    const name = tempUnitValues[idx];
+    if (!name || !name.trim()) {
+      toast.error('Unit name cannot be empty');
+      return;
+    }
+
+    try {
+      await addUnit({ name: name.trim() }).unwrap();
+      handleInputChange(idx, 'unit', name.trim());
+      setNewUnitRows(prev => ({ ...prev, [idx]: false }));
+      toast.success(`Unit "${name}" added and selected`);
+    } catch (err) {
+      toast.error('Failed to add unit');
     }
   };
 
@@ -176,7 +197,7 @@ export const KpiManagementPage: React.FC = () => {
         name: item.name,
         category: item.category,
         target: item.target,
-        unit: item.unit,
+	        unit: item.unit ?? '',
         weight: item.weight,
         period: selectedPeriodLabel,
         year,
@@ -223,7 +244,7 @@ export const KpiManagementPage: React.FC = () => {
           name: k.name,
           category: k.category,
           target: k.target,
-          unit: k.unit,
+	          unit: k.unit?.trim() || null,
           weight: k.weight
         }))
       }).unwrap();
@@ -286,7 +307,7 @@ export const KpiManagementPage: React.FC = () => {
       name: '',
       category: '',
       target: '',
-      unit: '',
+	      unit: '',
       actual: '',
       weight: 0,
       score: 0,
@@ -302,7 +323,7 @@ export const KpiManagementPage: React.FC = () => {
       name: '',
       category: '',
       target: '',
-      unit: '',
+	      unit: '',
       weight: 0,
       period: selectedPeriodLabel,
       year: Number(periodMonth.split('-')[0]),
@@ -313,7 +334,7 @@ export const KpiManagementPage: React.FC = () => {
       name: '',
       category: '',
       target: '',
-      unit: '',
+	      unit: '',
       weight: 0,
       period: selectedPeriodLabel,
       year: Number(periodMonth.split('-')[0]),
@@ -389,15 +410,15 @@ export const KpiManagementPage: React.FC = () => {
       };
 
       if (mode === 'individual') {
-        await setupKpis(kpis.map(k => ({ ...k, employeeId: selectedEmployeeId, ...periodPayload }))).unwrap();
+	        await setupKpis(kpis.map(k => ({ ...k, unit: k.unit?.trim() || null, employeeId: selectedEmployeeId, ...periodPayload }))).unwrap();
         toast.success('Individual KPI setup saved successfully');
         refetchKpis();
       } else if (mode === 'position') {
-        await setupPosKpis(kpis.map(k => ({ ...k, departmentId: selectedDeptId, positionId: selectedPosId, ...periodPayload }))).unwrap();
+	        await setupPosKpis(kpis.map(k => ({ ...k, unit: k.unit?.trim() || null, departmentId: selectedDeptId, positionId: selectedPosId, ...periodPayload }))).unwrap();
         toast.success('Position KPIs saved and applied to all employees');
         refetchPosKpis();
       } else if (mode === 'department') {
-        await setupDeptKpis(kpis.map(k => ({ ...k, departmentId: selectedDeptId, ...periodPayload }))).unwrap();
+	        await setupDeptKpis(kpis.map(k => ({ ...k, unit: k.unit?.trim() || null, departmentId: selectedDeptId, ...periodPayload }))).unwrap();
         toast.success('Department KPIs saved successfully');
         refetchDeptKpis();
       }
@@ -433,12 +454,20 @@ export const KpiManagementPage: React.FC = () => {
             <Target size={14} /> Same Department
           </button>
         </div>
-        <button
-          onClick={() => navigate('/hr/kpi-categories')}
-          className="flex items-center gap-2 px-5 py-2.5 bg-[#eff6ff] hover:bg-[#dbeafe] text-[#1d4ed8] rounded-xl text-xs font-black transition-all uppercase tracking-widest border border-[#bfdbfe]"
-        >
-          <FolderOpen size={16} /> Manage Categories
-        </button>
+        <div className="flex flex-wrap gap-2">
+          <button
+            onClick={() => navigate('/hr/kpi-categories')}
+            className="flex items-center gap-2 px-5 py-2.5 bg-[#eff6ff] hover:bg-[#dbeafe] text-[#1d4ed8] rounded-xl text-xs font-black transition-all uppercase tracking-widest border border-[#bfdbfe]"
+          >
+            <FolderOpen size={16} /> Manage Categories
+          </button>
+          <button
+            onClick={() => navigate('/hr/kpi-units')}
+            className="flex items-center gap-2 px-5 py-2.5 bg-[#eff6ff] hover:bg-[#dbeafe] text-[#1d4ed8] rounded-xl text-xs font-black transition-all uppercase tracking-widest border border-[#bfdbfe]"
+          >
+            <Ruler size={16} /> Manage Units
+          </button>
+        </div>
       </div>
 
       <div className="flex flex-col md:flex-col md:items-start justify-between gap-4 bg-white p-6 rounded-3xl shadow-sm border border-slate-100">
@@ -736,16 +765,53 @@ export const KpiManagementPage: React.FC = () => {
                       onChange={(e) => handleInputChange(idx, 'target', e.target.value)}
                     />
                   </td>
-                  <td className="py-3 px-6">
-                    <input
-                      type="text"
-                      className={`w-full bg-slate-50 border-none rounded-lg px-3 py-2 text-sm font-bold text-slate-800 focus:ring-2 focus:ring-[#dbeafe] outline-none ${isAlreadyDefined ? 'cursor-not-allowed opacity-70' : ''}`}
-                      placeholder="Rate"
-                      value={kpi.unit}
-                      readOnly={isAlreadyDefined}
-                      onChange={(e) => handleInputChange(idx, 'unit', e.target.value)}
-                    />
-                  </td>
+	                  <td className="py-3 px-6">
+	                    {newUnitRows[idx] ? (
+	                      <div className="flex items-center gap-2">
+	                        <input
+	                          type="text"
+	                          className="flex-1 bg-white border border-[#bfdbfe] rounded-lg px-3 py-1.5 text-xs font-bold text-slate-800 outline-none focus:ring-2 focus:ring-[#dbeafe]"
+	                          placeholder="New unit..."
+	                          value={tempUnitValues[idx] || ''}
+	                          onChange={(e) => setTempUnitValues({ ...tempUnitValues, [idx]: e.target.value })}
+	                          autoFocus
+	                        />
+	                        <button
+	                          onClick={() => handleAddNewUnit(idx)}
+	                          className="p-1.5 bg-[#2463eb] text-white rounded-lg hover:bg-[#1d4ed8] transition-colors"
+	                          title="Save Unit"
+	                        >
+	                          <Save size={14} />
+	                        </button>
+	                        <button
+	                          onClick={() => setNewUnitRows({ ...newUnitRows, [idx]: false })}
+	                          className="p-1.5 bg-slate-200 text-slate-600 rounded-lg hover:bg-slate-300 transition-colors"
+	                          title="Cancel"
+	                        >
+	                          <Trash2 size={14} />
+	                        </button>
+	                      </div>
+	                    ) : (
+	                      <select
+	                        className={`w-full bg-slate-50 border-none rounded-lg px-3 py-2 text-sm font-bold text-slate-800 focus:ring-2 focus:ring-[#dbeafe] outline-none ${isAlreadyDefined ? 'cursor-not-allowed opacity-70' : ''}`}
+	                        value={kpi.unit || ''}
+	                        disabled={isAlreadyDefined}
+	                        onChange={(e) => {
+	                          if (e.target.value === 'ADD_NEW') {
+	                            setNewUnitRows({ ...newUnitRows, [idx]: true });
+	                          } else {
+	                            handleInputChange(idx, 'unit', e.target.value);
+	                          }
+	                        }}
+	                      >
+	                        <option value="">No Unit</option>
+	                        {units.map(unit => (
+	                          <option key={unit.id} value={unit.name}>{unit.name}</option>
+	                        ))}
+	                        <option value="ADD_NEW" className="text-[#2463eb] font-black">+ Add New Unit...</option>
+	                      </select>
+	                    )}
+	                  </td>
                   {mode === 'individual' && (
                     <td className="py-3 px-6">
                       <input

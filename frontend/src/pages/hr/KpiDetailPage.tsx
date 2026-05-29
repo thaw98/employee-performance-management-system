@@ -13,6 +13,7 @@ import { useGetEmployeeByIdQuery } from '../../features/hrEmployeeList/hrEmploye
 import { toast } from 'react-hot-toast';
 import { withGenderTitle } from '../../utils/personName';
 import { useKpiViewContext } from '../../hooks/useKpiViewContext';
+import { displayKpiTarget, displayKpiUnit } from '../../features/kpi/kpiDisplay';
 
 const formatKpiUpdatedDate = (value?: string) => {
   if (!value) return 'N/A';
@@ -244,7 +245,7 @@ export const KpiDetailPage: React.FC = () => {
                               </span>
                             </td>
                             <td className="py-4 px-6">
-                              <p className="text-sm font-bold text-slate-700">{kpi.target} <span className="text-slate-400 font-medium">{kpi.unit}</span></p>
+	                              <p className="text-sm font-bold text-slate-700">{displayKpiTarget(kpi.target, kpi.unit)}</p>
                             </td>
                             <td className="py-4 px-6 text-center">
                               <span className="text-xs font-black text-blue-600">{kpi.weight}%</span>
@@ -409,7 +410,7 @@ const KpiEditModal: React.FC<{ employee: any; kpis: Kpi[]; displayName: string; 
                     <td className="py-4 px-4 text-center border-r border-slate-100">
                       <span className="text-xs font-bold text-slate-700">{kpi.target}</span>
                     </td>
-                    <td className="py-4 px-4 text-center text-[10px] font-black text-slate-400 border-r border-slate-100 uppercase">{kpi.unit}</td>
+	                    <td className="py-4 px-4 text-center text-[10px] font-black text-slate-400 border-r border-slate-100 uppercase">{displayKpiUnit(kpi.unit)}</td>
                     <td className="py-4 px-2 border-r border-slate-100">
                       <input 
                         type="text" 
