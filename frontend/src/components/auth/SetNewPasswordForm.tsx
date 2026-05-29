@@ -95,7 +95,7 @@ export function SetNewPasswordForm({ variant }: SetNewPasswordFormProps) {
         {/* Message block */}
         {message && (
           <div
-            className={`mb-5 flex items-center gap-2 rounded-xl border px-4 py-3 text-sm font-medium ${
+            className={`mb-5 flex items-center gap-2 rounded-[14px] border px-4 py-3 text-sm font-medium ${
               message.type === 'success'
                 ? 'border-emerald-100 bg-emerald-50 text-emerald-700'
                 : 'border-red-100 bg-red-50 text-red-600'
@@ -109,10 +109,10 @@ export function SetNewPasswordForm({ variant }: SetNewPasswordFormProps) {
           </div>
         )}
 
-        <form className="space-y-5" onSubmit={handleSubmit(onSubmit)} noValidate>
+        <form className="space-y-6" onSubmit={handleSubmit(onSubmit)} noValidate>
           {/* New Password */}
           <div>
-            <label className="mb-1.5 block text-sm font-bold text-slate-700" htmlFor="new-password-first">
+            <label className="mb-2 block text-sm font-bold text-slate-700" htmlFor="new-password-first">
               New Password <span className="text-red-500">*</span>
             </label>
             <div className="relative">
@@ -123,10 +123,10 @@ export function SetNewPasswordForm({ variant }: SetNewPasswordFormProps) {
                 autoComplete="new-password"
                 placeholder="At least 8 characters"
                 aria-invalid={errors.newPassword ? 'true' : 'false'}
-                className={`w-full rounded-xl border bg-white py-3.5 pl-12 pr-12 text-slate-800 placeholder:text-slate-400 focus:outline-none focus:ring-2 ${
+                className={`w-full h-[64px] rounded-[14px] border bg-[#EAF1FB] border-[#D8E2F0] pl-12 pr-12 text-slate-800 placeholder:text-slate-400/80 focus:outline-none focus:ring-2 focus:ring-blue-100/50 focus:border-[#2563FF] transition-all ${
                   errors.newPassword
                     ? 'border-red-300 focus:border-red-500 focus:ring-red-100'
-                    : 'border-slate-200 focus:border-blue-500 focus:ring-blue-100'
+                    : ''
                 }`}
                 {...register('newPassword')}
               />
@@ -140,13 +140,13 @@ export function SetNewPasswordForm({ variant }: SetNewPasswordFormProps) {
               </button>
             </div>
             {errors.newPassword?.message && (
-              <p className="mt-1.5 text-xs text-red-500">{errors.newPassword.message}</p>
+              <p className="mt-1.5 text-xs text-red-500 font-medium">{errors.newPassword.message}</p>
             )}
           </div>
 
           {/* Confirm Password */}
           <div>
-            <label className="mb-1.5 block text-sm font-bold text-slate-700" htmlFor="confirm-password-first">
+            <label className="mb-2 block text-sm font-bold text-slate-700" htmlFor="confirm-password-first">
               Confirm Password <span className="text-red-500">*</span>
             </label>
             <div className="relative">
@@ -157,10 +157,10 @@ export function SetNewPasswordForm({ variant }: SetNewPasswordFormProps) {
                 autoComplete="new-password"
                 placeholder="Re-enter your new password"
                 aria-invalid={errors.confirmPassword ? 'true' : 'false'}
-                className={`w-full rounded-xl border bg-white py-3.5 pl-12 pr-12 text-slate-800 placeholder:text-slate-400 focus:outline-none focus:ring-2 ${
+                className={`w-full h-[64px] rounded-[14px] border bg-[#EAF1FB] border-[#D8E2F0] pl-12 pr-12 text-slate-800 placeholder:text-slate-400/80 focus:outline-none focus:ring-2 focus:ring-blue-100/50 focus:border-[#2563FF] transition-all ${
                   errors.confirmPassword
                     ? 'border-red-300 focus:border-red-500 focus:ring-red-100'
-                    : 'border-slate-200 focus:border-blue-500 focus:ring-blue-100'
+                    : ''
                 }`}
                 {...register('confirmPassword')}
               />
@@ -174,7 +174,7 @@ export function SetNewPasswordForm({ variant }: SetNewPasswordFormProps) {
               </button>
             </div>
             {errors.confirmPassword?.message && (
-              <p className="mt-1.5 text-xs text-red-500">{errors.confirmPassword.message}</p>
+              <p className="mt-1.5 text-xs text-red-500 font-medium">{errors.confirmPassword.message}</p>
             )}
           </div>
 
@@ -182,7 +182,7 @@ export function SetNewPasswordForm({ variant }: SetNewPasswordFormProps) {
           <button
             type="submit"
             disabled={isLoading}
-            className="flex w-full items-center justify-center gap-2 rounded-xl bg-blue-600 py-3.5 font-bold text-white transition-all hover:bg-blue-700 disabled:opacity-50"
+            className="flex w-full h-[64px] items-center justify-center gap-2 rounded-[14px] bg-[#2563FF] font-bold text-white transition-all hover:bg-[#1E63FF] hover:shadow-lg disabled:opacity-50 active:scale-[0.99]"
           >
             {isLoading ? (
               <div className="h-5 w-5 animate-spin rounded-full border-2 border-white border-t-transparent" />
