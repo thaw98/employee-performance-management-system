@@ -97,13 +97,13 @@ public class PerformanceReportService {
         String promotionEligibility = determinePromotionEligibility(overallRating, hasActivePip, allScoresCompleted);
         boolean eligible = allScoresCompleted && !hasActivePip && overallRating != null && overallRating >= 3.5;
 
-        java.time.LocalDate joinedLocalDate = emp.getDateOfJoining();
-        if (joinedLocalDate == null) {
-            if (emp.getUserAccount() != null && emp.getUserAccount().getCreatedDate() != null) {
-                joinedLocalDate = java.time.LocalDate.ofInstant(emp.getUserAccount().getCreatedDate(), java.time.ZoneId.systemDefault());
-            } else if (emp.getCreatedDate() != null) {
-                joinedLocalDate = java.time.LocalDate.ofInstant(emp.getCreatedDate(), java.time.ZoneId.systemDefault());
-            }
+        java.time.LocalDate joinedLocalDate = null;
+        if (emp.getUserAccount() != null && emp.getUserAccount().getCreatedDate() != null) {
+            joinedLocalDate = java.time.LocalDate.ofInstant(emp.getUserAccount().getCreatedDate(), java.time.ZoneId.systemDefault());
+        } else if (emp.getDateOfJoining() != null) {
+            joinedLocalDate = emp.getDateOfJoining();
+        } else if (emp.getCreatedDate() != null) {
+            joinedLocalDate = java.time.LocalDate.ofInstant(emp.getCreatedDate(), java.time.ZoneId.systemDefault());
         }
         String joinedDateStr = null;
         if (joinedLocalDate != null) {

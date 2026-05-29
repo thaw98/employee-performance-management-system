@@ -28,6 +28,7 @@ import { HRDashboardPage } from './pages/hr/HRDashboardPage';
 import { ManagerDashboardPage } from './pages/manager/ManagerDashboardPage';
 import { ManagerKpisPage } from './pages/manager/ManagerKpisPage';
 import ManagerPositionsPage from './pages/manager/ManagerPositionsPage';
+import { PromotionApprovalsPage } from './pages/manager/PromotionApprovalsPage';
 import { ManagerAppraisalsPage } from './pages/manager/ManagerAppraisalsPage';
 import { ManagerEvaluationPage } from './pages/manager/ManagerEvaluationPage';
 import { MyKpisPage } from './pages/employee/MyKpisPage';
@@ -250,6 +251,7 @@ function App() {
             <Route path="dashboard" element={<ManagerDashboardPage />} />
             <Route path="employees" element={<EmployeeListPage />} />
             <Route path="positions" element={<ManagerPositionsPage />} />
+            <Route path="promotions/approvals" element={<PromotionApprovalsPage />} />
             <Route path="kpis" element={<ManagerKpisPage />} />
             <Route path="kpi-history" element={<KpiHistoryPage />} />
             <Route path="my-kpis" element={<MyKpisPage />} />

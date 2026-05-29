@@ -13,6 +13,8 @@ import com.epms.backend.dto.position.PositionDto;
 import com.epms.backend.security.UserPrincipal;
 import com.epms.backend.service.PromotionService;
 
+import com.epms.backend.dto.PromotionProposalResponseDto;
+
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 
@@ -31,6 +33,50 @@ public class PromotionController {
             @AuthenticationPrincipal UserPrincipal actor) {
         promotionService.executePromotion(employeeId, request, actor);
         return ResponseEntity.ok(ApiResponse.ok("Employee promoted successfully", null));
+    }
+
+    @PostMapping("/employee/{employeeId}/propose")
+    @PreAuthorize("hasRole('HR')")
+    public ResponseEntity<ApiResponse<Void>> proposePromotion(
+            @PathVariable Long employeeId,
+            @Valid @RequestBody PromotionRequestDto request,
+            @AuthenticationPrincipal UserPrincipal actor) {
+        promotionService.proposePromotion(employeeId, request, actor);
+        return ResponseEntity.ok(ApiResponse.ok("Promotion proposal submitted successfully", null));
+    }
+
+    @GetMapping("/pending")
+    @PreAuthorize("hasRole('MANAGER')")
+    public ResponseEntity<ApiResponse<List<PromotionProposalResponseDto>>> getPendingProposals(
+            @AuthenticationPrincipal UserPrincipal manager) {
+        List<PromotionProposalResponseDto> proposals = promotionService.getPendingProposals(manager);
+        return ResponseEntity.ok(ApiResponse.ok("Success", proposals));
+    }
+
+    @GetMapping("/proposals")
+    @PreAuthorize("hasAnyRole('HR', 'MANAGER')")
+    public ResponseEntity<ApiResponse<List<PromotionProposalResponseDto>>> getProposalsHistory(
+            @AuthenticationPrincipal UserPrincipal user) {
+        List<PromotionProposalResponseDto> proposals = promotionService.getProposalsHistory(user);
+        return ResponseEntity.ok(ApiResponse.ok("Success", proposals));
+    }
+
+    @PostMapping("/proposals/{id}/approve")
+    @PreAuthorize("hasRole('MANAGER')")
+    public ResponseEntity<ApiResponse<Void>> approveProposal(
+            @PathVariable Long id,
+            @AuthenticationPrincipal UserPrincipal actor) {
+        promotionService.approveProposal(id, actor);
+        return ResponseEntity.ok(ApiResponse.ok("Promotion proposal approved successfully", null));
+    }
+
+    @PostMapping("/proposals/{id}/reject")
+    @PreAuthorize("hasRole('MANAGER')")
+    public ResponseEntity<ApiResponse<Void>> rejectProposal(
+            @PathVariable Long id,
+            @AuthenticationPrincipal UserPrincipal actor) {
+        promotionService.rejectProposal(id, actor);
+        return ResponseEntity.ok(ApiResponse.ok("Promotion proposal rejected successfully", null));
     }
 
     @GetMapping("/employee/{employeeId}/available-positions")
