@@ -598,7 +598,20 @@ export function AppraisalsPage() {
 
     // Import Modal State
     const [showImportModal, setShowImportModal] = useState(false);
+    const [templateDownloading, setTemplateDownloading] = useState(false);
     const authToken = useAppSelector((s) => s.auth.token);
+
+    const handleDownloadTemplate = async () => {
+        setTemplateDownloading(true);
+        try {
+            await downloadBlob('/appraisals/import/template', 'appraisal_import_template.xlsx', authToken);
+            toast.success('Template downloaded.');
+        } catch {
+            toast.error('Failed to download template');
+        } finally {
+            setTemplateDownloading(false);
+        }
+    };
 
     // Target Audience State
     const [allPositions, setAllPositions] = useState<DepartmentPositionMapping[]>([]);
@@ -924,59 +937,64 @@ export function AppraisalsPage() {
     return (
         <div className="p-8 space-y-8 animate-in fade-in duration-500 max-w-7xl mx-auto">
             {/* Header - Hidden in Print */}
-            <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 bg-white p-8 rounded-3xl border border-slate-100 shadow-sm shadow-slate-200/50 print:hidden">
+            <div className="space-y-6 bg-white p-8 rounded-3xl border border-slate-100 shadow-sm shadow-slate-200/50 print:hidden">
                 <div>
                     <h1 className="text-4xl font-black tracking-tight" style={{ color: PRIMARY }}>Appraisals Management</h1>
                     <p className="text-slate-500 mt-2 font-medium">Configure performance appraisal categories and their specific questions.</p>
                 </div>
-                <div className="flex items-center gap-3">
-                    <button
-                        onClick={() => {
-                            downloadBlob('/appraisals/import/template', 'appraisal_import_template.xlsx', authToken).catch(
-                                () => toast.error('Failed to download template'),
-                            );
-                        }}
-                        className="flex items-center gap-2 px-4 py-3 bg-white border-2 border-slate-200 text-slate-600 rounded-2xl font-black text-[10px] uppercase tracking-widest hover:border-[#60a5fa] hover:text-[#2463eb] hover:bg-[#eff6ff]/50 transition-all shadow-sm"
-                    >
-                        <Download size={16} />
-                        Download Template
-                    </button>
-                    <button
-                        onClick={() => setShowImportModal(true)}
-                        className="flex items-center gap-2 px-4 py-3 bg-gradient-to-r from-[#2463eb] to-[#1d4ed8] text-white rounded-2xl font-black text-[10px] uppercase tracking-widest hover:from-[#1d4ed8] hover:to-[#1e40af] transition-all shadow-lg shadow-[#dbeafe]"
-                    >
-                        <FileSpreadsheet size={16} />
-                        Import
-                    </button>
-                </div>
-                <div className="flex bg-slate-100 p-1.5 rounded-2xl">
-                    <button 
-                        onClick={() => setActiveTab('category')}
-                        className={`px-6 py-3 rounded-xl text-xs font-black transition-all ${activeTab === 'category' ? 'bg-white text-[#2463eb] shadow-sm' : 'text-slate-500 hover:text-slate-700'}`}
-                    >
-                        CATEGORY
-                    </button>
-                    <button 
-                        onClick={() => setActiveTab('questions')}
-                        className={`px-6 py-3 rounded-xl text-xs font-black transition-all ${activeTab === 'questions' ? 'bg-white text-[#2463eb] shadow-sm' : 'text-slate-500 hover:text-slate-700'}`}
-                    >
-                        QUESTIONS
-                    </button>
-                    <button
-                        onClick={() => setActiveTab('confirmed')}
-                        className={`px-6 py-3 rounded-xl text-xs font-black transition-all ${activeTab === 'confirmed' ? 'bg-white text-[#2463eb] shadow-sm' : 'text-slate-500 hover:text-slate-700'}`}
-                    >
-                        REVIEW & FINALIZE
-                    </button>
-                    <button
-                        onClick={() => {
-                            setSelectedTemplateId(null);
-                            setActiveTab('finalized');
-                        }}
-                        className={`px-6 py-3 rounded-xl text-xs font-black transition-all ${activeTab === 'finalized' ? 'bg-white text-[#2463eb] shadow-sm' : 'text-slate-500 hover:text-slate-700'}`}
-                    >
-                        CONFIRMED APPRAISAL
-                    </button>
+                <div className="flex flex-wrap items-center justify-between gap-4">
+                    <div className="flex flex-wrap bg-slate-100 p-1.5 rounded-2xl">
+                        <button 
+                            onClick={() => setActiveTab('category')}
+                            className={`px-6 py-3 rounded-xl text-xs font-black transition-all ${activeTab === 'category' ? 'bg-white text-[#2463eb] shadow-sm' : 'text-slate-500 hover:text-slate-700'}`}
+                        >
+                            CATEGORY
+                        </button>
+                        <button 
+                            onClick={() => setActiveTab('questions')}
+                            className={`px-6 py-3 rounded-xl text-xs font-black transition-all ${activeTab === 'questions' ? 'bg-white text-[#2463eb] shadow-sm' : 'text-slate-500 hover:text-slate-700'}`}
+                        >
+                            QUESTIONS
+                        </button>
+                        <button
+                            onClick={() => setActiveTab('confirmed')}
+                            className={`px-6 py-3 rounded-xl text-xs font-black transition-all ${activeTab === 'confirmed' ? 'bg-white text-[#2463eb] shadow-sm' : 'text-slate-500 hover:text-slate-700'}`}
+                        >
+                            REVIEW & FINALIZE
+                        </button>
+                        <button
+                            onClick={() => {
+                                setSelectedTemplateId(null);
+                                setActiveTab('finalized');
+                            }}
+                            className={`px-6 py-3 rounded-xl text-xs font-black transition-all ${activeTab === 'finalized' ? 'bg-white text-[#2463eb] shadow-sm' : 'text-slate-500 hover:text-slate-700'}`}
+                        >
+                            CONFIRMED APPRAISAL
+                        </button>
+                    </div>
+                    <div className="flex flex-wrap items-center gap-3">
+                        <button
+                            onClick={handleDownloadTemplate}
+                            disabled={templateDownloading}
+                            className="inline-flex min-h-11 items-center justify-center gap-2 rounded-xl border border-[#bfdbfe] bg-white px-4 py-2.5 text-sm font-semibold text-[#1d4ed8] shadow-sm transition hover:bg-[#eff6ff] hover:border-[#93c5fd] focus:outline-none focus:ring-4 focus:ring-[#dbeafe] disabled:cursor-not-allowed disabled:opacity-60"
+                            aria-label="Download appraisal import template"
+                        >
+                            {templateDownloading ? (
+                                <RefreshCcw size={16} className="animate-spin" />
+                            ) : (
+                                <Download size={16} />
+                            )}
+                            <span className="whitespace-nowrap">Download Template</span>
+                        </button>
+                        <button
+                            onClick={() => setShowImportModal(true)}
+                            className="inline-flex min-h-11 items-center justify-center gap-2 rounded-xl bg-gradient-to-r from-[#2463eb] to-[#1d4ed8] px-4 py-2.5 text-sm font-semibold text-white shadow-sm shadow-[#dbeafe] transition hover:from-[#1d4ed8] hover:to-[#1e40af] focus:outline-none focus:ring-4 focus:ring-[#dbeafe]"
+                            aria-label="Import appraisal template"
+                        >
+                            <FileSpreadsheet size={16} />
+                            <span className="whitespace-nowrap">Import File</span>
+                        </button>
+                    </div>
                 </div>
             </div>
 
