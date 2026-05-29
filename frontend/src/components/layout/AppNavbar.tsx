@@ -4,6 +4,7 @@ import { useAppDispatch, useAppSelector } from '../../app/hooks'
 import { logout } from '../../features/auth/authSlice'
 import { useGetProfileQuery } from '../../features/user/userApi'
 import { resolveProfilePictureSrc } from '../../utils/mediaUrl'
+import axios from '../../app/axiosInstance'
 import { Clock, Calendar } from 'lucide-react'
 
 const PRIMARY = '#0855BF'
@@ -57,6 +58,11 @@ export function AppNavbar() {
   }
 
   const rolePrefix = getRolePrefix()
+
+  const handleLogout = async () => {
+    await axios.post('/pips/sessions/end-active').catch(() => undefined)
+    dispatch(logout())
+  }
 
   const formattedDay = time.toLocaleDateString('en-US', { weekday: 'long' })
   const formattedDate = time
@@ -143,7 +149,7 @@ export function AppNavbar() {
                   className="flex w-full items-center gap-3 px-3 py-2.5 text-xs font-black text-red-500 rounded-xl hover:bg-red-50 transition-all text-left group"
                   onClick={() => {
                     setIsDropdownOpen(false);
-                    dispatch(logout());
+                    void handleLogout();
                   }}
                 >
                   <i className="bi bi-box-arrow-right h-8 w-8 flex items-center justify-center bg-red-50 rounded-lg group-hover:bg-white border border-transparent group-hover:border-red-100"></i>

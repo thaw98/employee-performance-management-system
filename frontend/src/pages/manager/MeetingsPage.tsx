@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useMemo } from 'react';
+import React, { useRef, useState, useEffect, useMemo } from 'react';
 import axios from '../../app/axiosInstance';
 import { toast } from 'react-hot-toast';
 import {
@@ -13,6 +13,33 @@ const isHrEmployeeOption = (employee: any) => {
         .filter(Boolean)
         .join(' ');
     return /(^|\W)(hr|human resources?)(\W|$)/i.test(searchableText);
+};
+
+const DISPLAY_DATE_TIME_PATTERN = /^(\d{2})\/(\d{2})\/(\d{4})\s+(\d{2}):(\d{2})$/;
+
+const toLocalDateTimeValue = (value: string) => {
+    const match = value.match(DISPLAY_DATE_TIME_PATTERN);
+    if (!match) return '';
+    const [, day, month, year, hour, minute] = match;
+    const parsed = new Date(Number(year), Number(month) - 1, Number(day), Number(hour), Number(minute));
+    if (
+        parsed.getFullYear() !== Number(year)
+        || parsed.getMonth() !== Number(month) - 1
+        || parsed.getDate() !== Number(day)
+        || parsed.getHours() !== Number(hour)
+        || parsed.getMinutes() !== Number(minute)
+    ) return '';
+    return `${year}-${month}-${day}T${hour}:${minute}`;
+};
+
+const toDisplayDateTimeFromLocal = (value: string) => {
+    if (!value) return '';
+    const [datePart, timePart] = value.split('T');
+    if (!datePart || !timePart) return '';
+    const [year, month, day] = datePart.split('-');
+    const [hour, minute] = timePart.split(':');
+    if (!year || !month || !day || !hour || !minute) return '';
+    return `${day}/${month}/${year} ${hour}:${minute}`;
 };
 
 export function MeetingsPage() {
@@ -35,6 +62,7 @@ export function MeetingsPage() {
         setSearchParams(nextParams);
     };
     const navigate = useNavigate();
+    const meetingsPagePath = isHrView ? '/hr/meetings' : '/manager/meetings';
 
     const formatDate = (dateString: string) => {
         if (!dateString) return 'N/A';
@@ -77,6 +105,7 @@ export function MeetingsPage() {
     const [title, setTitle] = useState('');
     const [description, setDescription] = useState('');
     const [scheduledTime, setScheduledTime] = useState('');
+    const schedulePickerRef = useRef<HTMLInputElement | null>(null);
     const [durationMinutes, setDurationMinutes] = useState(45);
     const selectableEmployees = useMemo(
         () => (isFaqHrMeeting ? eligibleEmployees.filter(isHrEmployeeOption) : eligibleEmployees),
@@ -85,6 +114,11 @@ export function MeetingsPage() {
 
     const now = new Date();
     const minDateTime = new Date(now.getTime() - now.getTimezoneOffset() * 60000).toISOString().slice(0, 16);
+    const openDateTimePicker = (input: HTMLInputElement | null) => {
+        if (!input) return;
+        if (typeof input.showPicker === 'function') input.showPicker();
+        else input.click();
+    };
 
     // Reschedule state
     const [isRescheduleModalOpen, setIsRescheduleModalOpen] = useState(false);
@@ -110,11 +144,15 @@ export function MeetingsPage() {
     useEffect(() => {
         const requestedEmployeeId = searchParams.get('employeeId');
         const requestedEmployeeName = searchParams.get('employeeName');
+        const requestedTitle = searchParams.get('meetingTitle');
         const requestedDescription = searchParams.get('meetingDescription');
         const requestedAction = searchParams.get('action');
+        if (requestedTitle) {
+            setTitle(requestedTitle);
+        }
         if (requestedDescription) {
             setDescription(requestedDescription);
-            setTitle(requestedDescription);
+            if (!requestedTitle) setTitle(requestedDescription);
         }
         if (isFaqHrMeeting && !requestedDescription && !title) {
             setTitle('FAQ clarification with HR');
@@ -228,23 +266,38 @@ export function MeetingsPage() {
     const closeScheduleModal = () => {
         const nextParams = new URLSearchParams(searchParams);
         nextParams.delete('action');
+        nextParams.delete('employeeId');
+        nextParams.delete('employeeName');
+        nextParams.delete('meetingTitle');
+        nextParams.delete('meetingDescription');
         setSearchParams(nextParams);
         setIsModalOpen(false);
     };
 
     const handleSchedule = async (e: React.FormEvent) => {
         e.preventDefault();
+        const scheduledTimeValue = toLocalDateTimeValue(scheduledTime);
+        if (!scheduledTimeValue) {
+            toast.error('Date & Time must be in dd/mm/yyyy HH:mm format');
+            return;
+        }
         try {
             const payload = {
                 employeeId: parseInt(employeeId),
                 title,
                 description,
-                scheduledTime: new Date(scheduledTime).toISOString(),
+                scheduledTime: new Date(scheduledTimeValue).toISOString(),
                 durationMinutes
             };
             await axios.post('/meetings', payload);
             toast.success('Meeting scheduled successfully');
-            closeScheduleModal();
+            setIsModalOpen(false);
+            setEmployeeId('');
+            setTitle('');
+            setDescription('');
+            setScheduledTime('');
+            setDurationMinutes(45);
+            navigate(meetingsPagePath, { replace: true });
             fetchMeetings();
         } catch (err: any) {
             toast.error(err.response?.data?.message || 'Failed to schedule meeting');
@@ -702,14 +755,35 @@ export function MeetingsPage() {
                             </div>
                             <div>
                                 <label className="block text-xs font-black text-slate-500 uppercase tracking-wider mb-2">Date & Time</label>
-                                <input 
-                                    required
-                                    type="datetime-local"
-                                    min={minDateTime}
-                                    value={scheduledTime}
-                                    onChange={(e) => setScheduledTime(e.target.value)}
-                                    className="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-3 text-sm font-semibold focus:border-[#2463eb] focus:ring-1 focus:ring-[#dbeafe] outline-none transition-all"
-                                />
+                                <div className="relative">
+                                    <input
+                                        required
+                                        type="text"
+                                        placeholder="dd/mm/yyyy HH:mm"
+                                        inputMode="numeric"
+                                        value={scheduledTime}
+                                        onChange={(e) => setScheduledTime(e.target.value)}
+                                        className="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-3 pr-12 text-sm font-semibold focus:border-[#2463eb] focus:ring-1 focus:ring-[#dbeafe] outline-none transition-all"
+                                    />
+                                    <button
+                                        type="button"
+                                        onClick={() => openDateTimePicker(schedulePickerRef.current)}
+                                        className="absolute inset-y-0 right-0 flex w-12 items-center justify-center text-slate-400 hover:text-[#2463eb]"
+                                        aria-label="Choose meeting date and time"
+                                    >
+                                        <Calendar size={18} />
+                                        <input
+                                            ref={schedulePickerRef}
+                                            type="datetime-local"
+                                            min={minDateTime}
+                                            value={toLocalDateTimeValue(scheduledTime)}
+                                            onChange={(e) => setScheduledTime(toDisplayDateTimeFromLocal(e.target.value))}
+                                            className="pointer-events-none absolute h-px w-px opacity-0"
+                                            tabIndex={-1}
+                                            aria-hidden="true"
+                                        />
+                                    </button>
+                                </div>
                             </div>
                             <div className="grid grid-cols-2 gap-4">
                                 <div>

@@ -40,6 +40,10 @@ public class PipHoursSchemaMigrationInitializer implements BeanPostProcessor {
 			jdbc.execute("ALTER TABLE performance_improvement_plan ADD COLUMN completed_hours INT NULL");
 			log.info("Added performance_improvement_plan.completed_hours");
 		}
+		if (tableExists(jdbc, "pip_objective") && !columnExists(jdbc, "pip_objective", "active_session_start")) {
+			jdbc.execute("ALTER TABLE pip_objective ADD COLUMN active_session_start DATETIME(6) NULL");
+			log.info("Added pip_objective.active_session_start");
+		}
 		int updated = jdbc.update("""
 				UPDATE performance_improvement_plan
 				SET completed_hours = 0
