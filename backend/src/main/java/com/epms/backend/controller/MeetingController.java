@@ -270,6 +270,17 @@ public class MeetingController {
         }
     }
 
+    @PutMapping("/{id}/decline")
+    public ResponseEntity<ApiResponse<MeetingResponse>> declineMeeting(@PathVariable Long id) {
+        try {
+            User user = getCurrentUser();
+            MeetingResponse response = meetingService.declineMeeting(id, user.getId());
+            return ResponseEntity.ok(new ApiResponse<>(true, "Meeting declined", response));
+        } catch (Exception e) {
+            return ResponseEntity.badRequest().body(new ApiResponse<>(false, e.getMessage(), null));
+        }
+    }
+
     @PutMapping("/{id}/reschedule")
     public ResponseEntity<ApiResponse<MeetingResponse>> requestReschedule(@PathVariable Long id,
             @RequestBody MeetingRescheduleRequest request) {

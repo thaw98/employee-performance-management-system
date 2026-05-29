@@ -210,7 +210,6 @@ export default function PipDetailPage() {
 
   const mergedMeetingNotes = useMemo(() => {
     const notes = oneOnOnePipMeetings.flatMap((meeting) => {
-      const meetingTitle = meeting.title || 'PIP meeting'
       const typedNotes = meeting.notes.map((note) => ({
         id: `meeting-note-${note.id}`,
         noteType: note.noteType === 'MANAGER_NOTE' ? 'Meeting Note - Manager' : 'Meeting Note - Employee',
@@ -218,16 +217,7 @@ export default function PipDetailPage() {
         createdAt: note.createdDate,
         content: note.content,
       }))
-      const summaryNote = meeting.summaryNotes
-        ? [{
-            id: `meeting-summary-${meeting.id}`,
-            noteType: 'Meeting Summary',
-            authorName: meeting.managerName || 'Meeting',
-            createdAt: meeting.actualEndTime || meeting.scheduledTime,
-            content: `${meetingTitle}\n${meeting.summaryNotes}`,
-          }]
-        : []
-      return [...typedNotes, ...summaryNote]
+      return typedNotes
     })
     return notes
   }, [oneOnOnePipMeetings])
@@ -745,7 +735,7 @@ export default function PipDetailPage() {
           {/* Follow-up Meetings Section */}
           <section className="rounded-xl border border-slate-200 bg-white p-6 shadow-sm">
             <h2 className="mb-6 text-lg font-bold text-slate-900">Follow-Up Meetings</h2>
-            <div className="space-y-4">
+            <div className="h-[420px] space-y-4 overflow-y-auto rounded-lg border border-slate-100 bg-slate-50/60 p-4 pr-2">
               {isPipMeetingsLoading && (
                 <p className="py-4 text-center text-slate-500">Loading meetings...</p>
               )}

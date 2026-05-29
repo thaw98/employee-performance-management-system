@@ -72,6 +72,15 @@ public class Meeting {
 
     @Column(name = "summary_notes", columnDefinition = "TEXT")
     private String summaryNotes;
+
+    @Column(name = "meeting_scope", length = 30)
+    private String meetingScope = "ONE_ON_ONE";
+
+    @Column(name = "meeting_group_key", length = 80)
+    private String meetingGroupKey;
+
+    @Column(name = "department_id")
+    private Long departmentId;
     
     @PreUpdate
     public void preUpdate() {

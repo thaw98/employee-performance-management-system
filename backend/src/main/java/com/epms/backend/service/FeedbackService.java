@@ -12,11 +12,14 @@ import com.epms.backend.dto.FeedbackAuditTotalsDto;
 import com.epms.backend.dto.FeedbackHistoryFilter;
 import com.epms.backend.dto.FeedbackHistoryDto;
 import com.epms.backend.dto.FeedbackDetailPageDto;
+import com.epms.backend.dto.FeedbackChatMessageDto;
+import com.epms.backend.dto.FeedbackChatMessageRequest;
 import com.epms.backend.dto.FeedbackSubmissionRequest;
 import com.epms.backend.entity.*;
 import com.epms.backend.repository.*;
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageImpl;
 import org.springframework.data.domain.Pageable;
@@ -28,6 +31,7 @@ import org.springframework.transaction.annotation.Transactional;
 import java.time.Instant;
 import java.time.LocalDate;
 import java.time.ZoneId;
+import java.time.format.DateTimeFormatter;
 import java.util.ArrayList;
 import java.util.Comparator;
 import java.util.List;
@@ -55,6 +59,35 @@ public class FeedbackService {
     private final ReviewCycleService reviewCycleService;
     private final ReviewCycleRepository reviewCycleRepository;
     private final AuditService auditService;
+    private final FeedbackChatMessageRepository feedbackChatMessageRepository;
+
+    @Autowired
+    public FeedbackService(
+            FeedbackRepository feedbackRepository,
+            FeedbackDraftRepository feedbackDraftRepository,
+            EmployeeRepository employeeRepository,
+            ReportingManagerResolver reportingManagerResolver,
+            CriteriaRepository criteriaRepository,
+            UserRepository userRepository,
+            NotificationService notificationService,
+            TimeSettingService timeSettingService,
+            ReviewCycleService reviewCycleService,
+            ReviewCycleRepository reviewCycleRepository,
+            AuditService auditService,
+            FeedbackChatMessageRepository feedbackChatMessageRepository) {
+        this.feedbackRepository = feedbackRepository;
+        this.feedbackDraftRepository = feedbackDraftRepository;
+        this.employeeRepository = employeeRepository;
+        this.reportingManagerResolver = reportingManagerResolver;
+        this.criteriaRepository = criteriaRepository;
+        this.userRepository = userRepository;
+        this.notificationService = notificationService;
+        this.timeSettingService = timeSettingService;
+        this.reviewCycleService = reviewCycleService;
+        this.reviewCycleRepository = reviewCycleRepository;
+        this.auditService = auditService;
+        this.feedbackChatMessageRepository = feedbackChatMessageRepository;
+    }
 
     public FeedbackService(
             FeedbackRepository feedbackRepository,
@@ -68,17 +101,9 @@ public class FeedbackService {
             ReviewCycleService reviewCycleService,
             ReviewCycleRepository reviewCycleRepository,
             AuditService auditService) {
-        this.feedbackRepository = feedbackRepository;
-        this.feedbackDraftRepository = feedbackDraftRepository;
-        this.employeeRepository = employeeRepository;
-        this.reportingManagerResolver = reportingManagerResolver;
-        this.criteriaRepository = criteriaRepository;
-        this.userRepository = userRepository;
-        this.notificationService = notificationService;
-        this.timeSettingService = timeSettingService;
-        this.reviewCycleService = reviewCycleService;
-        this.reviewCycleRepository = reviewCycleRepository;
-        this.auditService = auditService;
+        this(feedbackRepository, feedbackDraftRepository, employeeRepository, reportingManagerResolver,
+                criteriaRepository, userRepository, notificationService, timeSettingService, reviewCycleService,
+                reviewCycleRepository, auditService, null);
     }
 
     /* Reporting helpers */
@@ -856,6 +881,48 @@ public class FeedbackService {
     }
 
     @Transactional(readOnly = true)
+    public List<FeedbackChatMessageDto> getFeedbackChatMessages(Long feedbackId, Long currentEmployeeId) {
+        Feedback feedback = getFeedbackForChat(feedbackId, currentEmployeeId);
+        return feedbackChatMessageRepository.findByFeedback_IdOrderByCreatedDateAsc(feedback.getId()).stream()
+                .map(this::mapFeedbackChatMessage)
+                .collect(Collectors.toList());
+    }
+
+    @Transactional
+    public FeedbackChatMessageDto addFeedbackChatMessage(Long feedbackId, Long currentEmployeeId, FeedbackChatMessageRequest request) {
+        Feedback feedback = getFeedbackForChat(feedbackId, currentEmployeeId);
+        String content = request == null || request.content() == null ? "" : request.content().trim();
+        if (content.isEmpty()) {
+            throw new RuntimeException("Message content is required");
+        }
+        Employee author = currentEmployeeId.equals(feedback.getEvaluator().getId())
+                ? feedback.getEvaluator()
+                : feedback.getEvaluatee();
+        Employee recipient = currentEmployeeId.equals(feedback.getEvaluator().getId())
+                ? feedback.getEvaluatee()
+                : feedback.getEvaluator();
+
+        FeedbackChatMessage message = new FeedbackChatMessage();
+        message.setFeedback(feedback);
+        message.setAuthor(author);
+        message.setContent(content);
+        message.setCreatedDate(Instant.now());
+        message = feedbackChatMessageRepository.save(message);
+
+        if (recipient != null && recipient.getUserAccount() != null) {
+            notificationService.send(
+                    recipient.getUserAccount(),
+                    "New Feedback Chat Message",
+                    author.getEmployeeName() + " sent a feedback chat message for feedback #"
+                            + feedback.getId() + " at "
+                            + DateTimeFormatter.ofPattern("dd MMM yyyy HH:mm").withZone(ZoneId.systemDefault()).format(message.getCreatedDate()),
+                    "360_FEEDBACK");
+        }
+
+        return mapFeedbackChatMessage(message);
+    }
+
+    @Transactional(readOnly = true)
     public FeedbackDetailPageDto getFeedbackDetailPage(Long feedbackId, Long currentEmployeeId) {
         Feedback feedback = feedbackRepository.findById(feedbackId)
                 .orElseThrow(() -> new RuntimeException("Feedback not found"));
@@ -894,6 +961,28 @@ public class FeedbackService {
         dto.setReviewCycleStartDate(summary.getReviewCycleStartDate());
         dto.setDetails(mapFeedbackDetails(feedback));
         return dto;
+    }
+
+    private Feedback getFeedbackForChat(Long feedbackId, Long currentEmployeeId) {
+        Feedback feedback = feedbackRepository.findById(feedbackId)
+                .orElseThrow(() -> new RuntimeException("Feedback not found"));
+        boolean participant = (feedback.getEvaluator() != null && currentEmployeeId.equals(feedback.getEvaluator().getId()))
+                || (feedback.getEvaluatee() != null && currentEmployeeId.equals(feedback.getEvaluatee().getId()));
+        if (!participant) {
+            throw new SecurityException("Access denied");
+        }
+        return feedback;
+    }
+
+    private FeedbackChatMessageDto mapFeedbackChatMessage(FeedbackChatMessage message) {
+        Employee author = message.getAuthor();
+        return new FeedbackChatMessageDto(
+                message.getId(),
+                message.getFeedback().getId(),
+                author != null ? author.getId() : null,
+                author != null ? author.getEmployeeName() : "Unknown",
+                message.getContent(),
+                message.getCreatedDate());
     }
 
     @Transactional(readOnly = true)

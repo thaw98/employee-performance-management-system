@@ -3,7 +3,7 @@ import axios from '../../app/axiosInstance';
 import { toast } from 'react-hot-toast';
 import { useParams, useNavigate } from 'react-router-dom';
 import { 
-    ArrowLeft, Send, MessageSquare, Clock, User, 
+    ArrowLeft, Send, MessageSquare, User, 
     Calendar, CheckCircle, XCircle, Timer, History, 
     PlayCircle, StopCircle, ClipboardList, Info
 } from 'lucide-react';
@@ -144,6 +144,7 @@ export function MeetingDetailPage() {
     const employeeNotes = notes.filter(n => n.noteType === 'EMPLOYEE_NOTE');
     const isManager = user?.id === meeting.managerUserId;
     const isEmployee = user?.id === meeting.employeeUserId;
+    const isTeamMeeting = meeting.meetingScope === 'DEPARTMENT' || meeting.meetingScope === 'TEAM';
 
     return (
         <div className="meetings-theme max-w-7xl mx-auto space-y-6 pb-20 px-4">
@@ -339,6 +340,54 @@ export function MeetingDetailPage() {
 
                 {/* Sidebar Column: Notes */}
                 <div className="space-y-8">
+                    {isTeamMeeting ? (
+                    <div className="bg-[#dbeafe]/40 p-6 rounded-[32px] border border-[#bfdbfe] flex flex-col h-[620px]">
+                        <div className="flex items-center gap-3 mb-6">
+                            <div className="w-10 h-10 rounded-2xl bg-[#2463eb] text-white flex items-center justify-center shadow-lg shadow-[#dbeafe]">
+                                <MessageSquare size={20} />
+                            </div>
+                            <div>
+                                <h3 className="font-black text-slate-800 text-xs uppercase tracking-tighter">Team Meeting Notes</h3>
+                                <p className="text-[10px] text-slate-400 font-bold">{meeting.departmentName || 'Team meeting'}</p>
+                            </div>
+                        </div>
+                        <div className="flex-1 overflow-y-auto space-y-4 pr-2 scrollbar-thin scrollbar-thumb-[#bfdbfe]">
+                            {notes.length === 0 && (
+                                <div className="h-full flex flex-col items-center justify-center opacity-40">
+                                    <MessageSquare size={32} className="text-[#93c5fd] mb-2" />
+                                    <p className="text-[10px] font-black uppercase tracking-widest">No messages yet</p>
+                                </div>
+                            )}
+                            {notes.map(note => (
+                                <div key={note.id} className="bg-white p-4 rounded-2xl shadow-sm border border-[#dbeafe]">
+                                    <div className="mb-2 flex items-center justify-between gap-3">
+                                        <p className="text-xs font-black text-slate-700">{note.authorName}</p>
+                                        <p className="text-[10px] text-slate-400 font-bold">
+                                            {formatDate(note.createdDate)} {new Date(note.createdDate).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                                        </p>
+                                    </div>
+                                    <p className="text-slate-700 text-sm whitespace-pre-wrap font-medium">{note.content}</p>
+                                </div>
+                            ))}
+                        </div>
+                        {(isManager || isEmployee) && (
+                            <form onSubmit={handleAddNote} className="mt-4">
+                                <div className="relative">
+                                    <textarea
+                                        value={newNote}
+                                        onChange={e => setNewNote(e.target.value)}
+                                        placeholder="Send a team meeting note..."
+                                        className="w-full bg-white border border-[#bfdbfe] rounded-2xl pl-4 pr-12 py-3 text-xs font-bold outline-none focus:border-[#2463eb] focus:ring-1 focus:ring-[#dbeafe] resize-none h-20 shadow-sm"
+                                    />
+                                    <button type="submit" className="absolute bottom-3 right-3 w-8 h-8 bg-[#2463eb] text-white rounded-xl flex items-center justify-center hover:bg-[#1d4ed8] transition-colors shadow-md">
+                                        <Send size={14} />
+                                    </button>
+                                </div>
+                            </form>
+                        )}
+                    </div>
+                    ) : (
+                    <>
                     {/* Manager Notes */}
                     <div className="bg-[#dbeafe]/50 p-6 rounded-[32px] border border-[#bfdbfe] flex flex-col h-[500px]">
                         <div className="flex items-center justify-between mb-6">
@@ -434,6 +483,8 @@ export function MeetingDetailPage() {
                             </form>
                         )}
                     </div>
+                    </>
+                    )}
                 </div>
             </div>
             {/* End Meeting Modal */}
