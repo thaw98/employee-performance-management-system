@@ -22,6 +22,7 @@ import { AuditDashboard } from './pages/audit/AuditDashboard';
 import { AuditLogsPage } from './pages/audit/AuditLogsPage';
 import { AuditActivityPage } from './pages/audit/AuditActivityPage';
 import { AuditFeedbackEvaluateeHistoryPage, AuditFeedbackHistoryPage } from './pages/audit/AuditFeedbackHistoryPage';
+import PermissionMatrixPage from './pages/audit/PermissionMatrixPage';
 // Dashboard Pages - Using the correct file names from your project
 import { HRDashboardPage } from './pages/hr/HRDashboardPage';
 import { ManagerDashboardPage } from './pages/manager/ManagerDashboardPage';
@@ -375,6 +376,7 @@ function App() {
             <Route path="performance-reports/:employeeId" element={<PerformanceReportDetailPage basePath="/audit/performance-reports" readOnly />} />
             <Route path="logs" element={<AuditLogsPage />} />
             <Route path="activity-monitor" element={<AuditActivityPage />} />
+            <Route path="permissions" element={<PermissionMatrixPage />} />
             <Route path="profile" element={<UserProfilePage />} />
             <Route path="settings/profile" element={<Navigate to="/audit/profile" replace />} />
             <Route path="settings/signature" element={<DefaultSignaturePage />} />

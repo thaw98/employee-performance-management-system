@@ -66,6 +66,7 @@ export const baseApi = createApi({
     'KpiName',
     'AuditLog',
     'FaqSupport',
+    'Permission',
   ],
   endpoints: () => ({}),
 });

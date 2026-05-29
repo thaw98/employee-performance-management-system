@@ -55,4 +55,6 @@ public final class AuditActionType {
 	public static final String KPI_MONTHLY_RESET = "KPI_MONTHLY_RESET";
 	
 	public static final String EMPLOYEE_PROMOTION = "EMPLOYEE_PROMOTION";
+
+	public static final String PERMISSION_MATRIX_UPDATED = "PERMISSION_MATRIX_UPDATED";
 }
