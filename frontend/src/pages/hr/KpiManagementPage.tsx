@@ -712,7 +712,7 @@ export const KpiManagementPage: React.FC = () => {
         <div className="overflow-x-auto">
           <table className="w-full text-left">
             <thead>
-              <tr className="bg-slate-50/80 text-slate-400 text-[10px] font-black uppercase tracking-widest border-b border-slate-100">
+              <tr className="bg-slate-50/80 text-slate-700 text-[10px] font-black uppercase tracking-widest border-b border-slate-100">
                 <th className="py-4 px-6 w-1/4">KPI Name</th>
                 <th className="py-4 px-6">Category</th>
                 <th className="py-4 px-6">Target</th>
