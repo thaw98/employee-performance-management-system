@@ -48,7 +48,6 @@ const HR_KPI_SECTION_PATHS = [
   '/hr/kpi-history',
   '/hr/kpi-audit-logs',
   '/hr/kpi-categories',
-  '/hr/kpi-units',
   '/hr/kpi-detail',
   '/hr/department-kpi-detail',
   '/hr/position-kpi-detail',
@@ -105,7 +104,6 @@ const HrLayout: React.FC = () => {
             { label: 'KPI Modeler', path: '/hr/kpi-management', icon: <SlidersHorizontal size={16} /> },
             { label: 'Assigned List', path: '/hr/kpi-assigned', icon: <ListChecks size={16} /> },
             { label: 'History', path: '/hr/kpi-history', icon: <History size={16} /> },
-            { label: 'Units', path: '/hr/kpi-units', icon: <ListFilter size={16} /> },
           ],
         },
         {
