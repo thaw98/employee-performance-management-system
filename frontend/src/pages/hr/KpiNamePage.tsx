@@ -1,11 +1,13 @@
 import React, { useState } from 'react';
-import { Plus, Trash2, Tag, Search, X, Save } from 'lucide-react';
+import { useNavigate } from 'react-router-dom';
+import { Plus, Trash2, Tag, Search, X, Save, ChevronLeft } from 'lucide-react';
 import { toast } from 'react-hot-toast';
 import { useAddNameMutation, useDeleteNameMutation, useGetNamesQuery } from '../../features/kpi/kpiNameApi';
 import { kcGradientBr, kcGradientR, kcGradientRHover } from '../../features/kpi/kpiCategoriesTheme';
 import '../../styles/kpi-categories.css';
 
 export const KpiNamePage: React.FC = () => {
+  const navigate = useNavigate();
   const { data: names, isLoading } = useGetNamesQuery();
   const [addName] = useAddNameMutation();
   const [deleteName] = useDeleteNameMutation();
@@ -50,6 +52,14 @@ export const KpiNamePage: React.FC = () => {
     <div className="kpi-categories-theme space-y-6">
       <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
         <div className="flex items-start gap-4">
+          <button
+            type="button"
+            onClick={() => navigate('/hr/kpi-management')}
+            aria-label="Back to KPI management"
+            className="p-2 bg-white hover:bg-slate-50 border border-slate-200 rounded-xl text-slate-500 transition-all shadow-sm shrink-0"
+          >
+            <ChevronLeft size={20} />
+          </button>
           <div className={`flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl text-white shadow-lg shadow-[#2463eb]/25 ${kcGradientBr}`}>
             <Tag size={22} />
           </div>
