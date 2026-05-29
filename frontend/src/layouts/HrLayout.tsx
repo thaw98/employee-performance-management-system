@@ -22,6 +22,7 @@ import {
   HelpCircle,
   Zap,
   RefreshCcw,
+  Tag,
 } from 'lucide-react';
 import { Outlet } from 'react-router-dom';
 import { useSelector } from 'react-redux';
@@ -48,6 +49,8 @@ const HR_KPI_SECTION_PATHS = [
   '/hr/kpi-history',
   '/hr/kpi-audit-logs',
   '/hr/kpi-categories',
+  '/hr/kpi-names',
+  '/hr/kpi-units',
   '/hr/kpi-detail',
   '/hr/department-kpi-detail',
   '/hr/position-kpi-detail',
@@ -104,6 +107,7 @@ const HrLayout: React.FC = () => {
             { label: 'KPI Modeler', path: '/hr/kpi-management', icon: <SlidersHorizontal size={16} /> },
             { label: 'Assigned List', path: '/hr/kpi-assigned', icon: <ListChecks size={16} /> },
             { label: 'History', path: '/hr/kpi-history', icon: <History size={16} /> },
+
           ],
         },
         {
@@ -123,7 +127,7 @@ const HrLayout: React.FC = () => {
           subItems: [
             { label: 'Criteria', path: '/hr/360-feedback/criteria', icon: <ListFilter size={16} /> },
             { label: 'Give Feedback', path: '/hr/360-feedback/give', icon: <Send size={16} /> },
-            { label: 'Get Feedback', path: '/hr/360-feedback/received', icon: <Inbox size={16} /> },
+            { label: 'Receive Feedback', path: '/hr/360-feedback/received', icon: <Inbox size={16} /> },
             { label: 'Feedback History', path: '/hr/360-feedback/history', icon: <History size={16} /> },
           ],
         },

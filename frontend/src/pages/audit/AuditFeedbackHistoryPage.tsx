@@ -226,8 +226,8 @@ export function AuditFeedbackHistoryPage() {
         ]),
       ];
       const workbook = XLSX.utils.book_new();
-      XLSX.utils.book_append_sheet(workbook, XLSX.utils.aoa_to_sheet(summaryRows), 'Audit 360 Summary');
-      XLSX.writeFile(workbook, 'Audit_360_Feedback_Summary.xlsx');
+      XLSX.utils.book_append_sheet(workbook, XLSX.utils.aoa_to_sheet(summaryRows), '360 Summary');
+      XLSX.writeFile(workbook, '360_Feedback_Summary.xlsx');
     } catch {
       toast.error('Failed to export Excel summary');
     }
@@ -238,7 +238,7 @@ export function AuditFeedbackHistoryPage() {
       const exportRows = await fetchExportRows();
       const doc = new jsPDF();
       const margin = 14;
-      addPdfProfessionalHeader(doc, 'Audit 360 Feedback Summary', `Generated: ${new Date().toLocaleString('en-GB')}`, { margin });
+      addPdfProfessionalHeader(doc, '360 Feedback Summary', `Generated: ${new Date().toLocaleString('en-GB')}`, { margin });
       let currentY = addPdfSectionHeader(doc, margin, 42, 'Report Filters', { width: 182 });
       currentY = addPdfInfoTable(doc, currentY + 2, filterSummary, { marginLeft: margin, marginRight: margin }) + 8;
       currentY = addPdfSectionHeader(doc, margin, currentY, 'Totals', { width: 182 });
@@ -261,7 +261,7 @@ export function AuditFeedbackHistoryPage() {
         doc.setPage(pageNumber);
         addPdfProfessionalFooter(doc, pageNumber, pageCount, { margin });
       }
-      doc.save('Audit_360_Feedback_Summary.pdf');
+      doc.save('360_Feedback_Summary.pdf');
     } catch {
       toast.error('Failed to export PDF summary');
     }
@@ -271,7 +271,7 @@ export function AuditFeedbackHistoryPage() {
     <div className="space-y-6 animate-in fade-in duration-500">
       <div className="flex flex-col gap-4 xl:flex-row xl:items-center xl:justify-between">
         <div>
-          <h2 className="text-2xl font-black text-slate-800 tracking-tight">AUDIT 360 FEEDBACK HISTORY</h2>
+          <h2 className="text-2xl font-black text-slate-800 tracking-tight">360 FEEDBACK HISTORY</h2>
           <p className="text-sm font-bold text-slate-400">Company-wide evaluatee summary</p>
         </div>
         <div className="flex flex-wrap gap-2">
@@ -324,7 +324,7 @@ export function AuditFeedbackHistoryPage() {
             </thead>
             <tbody className="divide-y divide-slate-50">
               {loading ? (
-                <tr><td colSpan={8} className="p-20 text-center"><div className="w-10 h-10 border-4 border-blue-600 border-t-transparent rounded-full animate-spin mx-auto" /><p className="mt-4 text-sm font-bold text-slate-400 uppercase tracking-widest">Loading audit history...</p></td></tr>
+                <tr><td colSpan={8} className="p-20 text-center"><div className="w-10 h-10 border-4 border-blue-600 border-t-transparent rounded-full animate-spin mx-auto" /><p className="mt-4 text-sm font-bold text-slate-400 uppercase tracking-widest">Loading feedback history...</p></td></tr>
               ) : rows.length === 0 ? (
                 <tr><td colSpan={8} className="p-20 text-center text-slate-300"><FileText size={48} className="mx-auto mb-4" /><p className="text-lg font-black uppercase">No feedback history found</p></td></tr>
               ) : rows.map(row => (
@@ -412,7 +412,7 @@ export function AuditFeedbackEvaluateeHistoryPage() {
       const pdfDetails: FeedbackDetail[] = resp.data.data || [];
       const doc = new jsPDF();
       const margin = 14;
-      addPdfProfessionalHeader(doc, 'Audit 360 Feedback Assessment Report', `Generated: ${new Date().toLocaleString('en-GB')}`, { margin });
+      addPdfProfessionalHeader(doc, '360 Feedback Assessment Report', `Generated: ${new Date().toLocaleString('en-GB')}`, { margin });
       let currentY = 42;
       currentY = addPdfSectionHeader(doc, margin, currentY, 'Evaluator Information', { width: 182 });
       currentY = addPdfInfoTable(doc, currentY + 2, [
@@ -450,7 +450,7 @@ export function AuditFeedbackEvaluateeHistoryPage() {
         doc.setPage(pageNumber);
         addPdfProfessionalFooter(doc, pageNumber, pageCount, { margin });
       }
-      doc.save(`Audit_360_Feedback_${item.id}.pdf`);
+      doc.save(`360_Feedback_${item.id}.pdf`);
     } catch {
       toast.error('Failed to generate PDF report');
     }

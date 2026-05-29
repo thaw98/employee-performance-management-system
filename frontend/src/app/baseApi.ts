@@ -63,6 +63,7 @@ export const baseApi = createApi({
     'QuestionBank',
     'KpiCategory',
     'KpiUnit',
+    'KpiName',
     'AuditLog',
     'FaqSupport',
   ],

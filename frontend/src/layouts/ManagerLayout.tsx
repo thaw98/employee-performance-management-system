@@ -109,7 +109,7 @@ const ManagerLayout: React.FC = () => {
           icon: <RefreshCcw size={18} />,
           subItems: [
             { label: 'Give Feedback', path: '/manager/360-feedback/give', icon: <Send size={16} /> },
-            { label: 'Get Feedback', path: '/manager/360-feedback/received', icon: <Inbox size={16} /> },
+            { label: 'Receive Feedback', path: '/manager/360-feedback/received', icon: <Inbox size={16} /> },
             { label: 'Feedback History', path: '/manager/360-feedback/history', icon: <History size={16} /> },
           ],
         },

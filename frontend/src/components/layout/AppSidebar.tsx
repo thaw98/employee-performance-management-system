@@ -92,7 +92,7 @@ export function AppSidebar() {
           subItems: [
             ...(isHr ? [{ name: 'Criteria', path: '/hr/360-feedback/criteria', icon: 'bi-funnel' }] : []),
             { name: 'Give Feedback', path: '/hr/360-feedback/give', icon: 'bi-send' },
-            { name: 'Get Feedback', path: '/hr/360-feedback/received', icon: 'bi-inbox' },
+            { name: 'Receive Feedback', path: '/hr/360-feedback/received', icon: 'bi-inbox' },
             { name: 'Feedback History', path: '/hr/360-feedback/history', icon: 'bi-clock-history' }
           ]
         },
