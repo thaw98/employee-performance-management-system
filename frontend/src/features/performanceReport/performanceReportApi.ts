@@ -25,6 +25,25 @@ export interface PerformanceReportSummary {
   promotionEligible: boolean;
 }
 
+export interface PromotionProposalResponse {
+  id: number;
+  employeeId: number;
+  employeeName: string;
+  staffNo: string;
+  oldPositionId: number | null;
+  oldPositionName: string;
+  targetPositionId: number;
+  targetPositionName: string;
+  requesterName: string;
+  departmentId: number;
+  departmentName: string;
+  effectiveDate: string;
+  remarks: string;
+  status: 'PENDING' | 'APPROVED' | 'REJECTED';
+  createdAt: string;
+  updatedAt: string | null;
+}
+
 export const performanceReportApi = baseApi.injectEndpoints({
   endpoints: (builder) => ({
     getPerformanceSummaries: builder.query<PerformanceReportSummary[], void>({
@@ -52,6 +71,41 @@ export const performanceReportApi = baseApi.injectEndpoints({
         { type: 'PerformanceReport', id: employeeId },
       ],
     }),
+    proposePromotion: builder.mutation<void, { employeeId: number; newPositionId: number; effectiveDate: string; remarks?: string }>({
+      query: ({ employeeId, ...body }) => ({
+        url: `/promotions/employee/${employeeId}/propose`,
+        method: 'POST',
+        body,
+      }),
+      invalidatesTags: (_result, _error, { employeeId }) => [
+        'PerformanceReport',
+        { type: 'PerformanceReport', id: employeeId },
+      ],
+    }),
+    getPendingPromotionProposals: builder.query<PromotionProposalResponse[], void>({
+      query: () => '/promotions/pending',
+      providesTags: ['PromotionProposal'],
+      transformResponse: (response: any) => response.data || [],
+    }),
+    getPromotionProposalsHistory: builder.query<PromotionProposalResponse[], void>({
+      query: () => '/promotions/proposals',
+      providesTags: ['PromotionProposal'],
+      transformResponse: (response: any) => response.data || [],
+    }),
+    approvePromotionProposal: builder.mutation<void, number>({
+      query: (id) => ({
+        url: `/promotions/proposals/${id}/approve`,
+        method: 'POST',
+      }),
+      invalidatesTags: ['PromotionProposal', 'PerformanceReport'],
+    }),
+    rejectPromotionProposal: builder.mutation<void, number>({
+      query: (id) => ({
+        url: `/promotions/proposals/${id}/reject`,
+        method: 'POST',
+      }),
+      invalidatesTags: ['PromotionProposal'],
+    }),
   }),
 });
 
@@ -60,4 +114,9 @@ export const {
   useGetEmployeePerformanceSummaryQuery,
   useGetAvailablePositionsQuery,
   useExecutePromotionMutation,
+  useProposePromotionMutation,
+  useGetPendingPromotionProposalsQuery,
+  useGetPromotionProposalsHistoryQuery,
+  useApprovePromotionProposalMutation,
+  useRejectPromotionProposalMutation,
 } = performanceReportApi;

@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
-import { X, Rocket, Loader2 } from 'lucide-react';
-import { useGetAvailablePositionsQuery, useExecutePromotionMutation } from '../../features/performanceReport/performanceReportApi';
+import { X, Rocket, Loader2, ClipboardCheck } from 'lucide-react';
+import { useGetAvailablePositionsQuery, useProposePromotionMutation } from '../../features/performanceReport/performanceReportApi';
 
 interface PromotionModalProps {
   isOpen: boolean;
@@ -23,7 +23,7 @@ export const PromotionModal: React.FC<PromotionModalProps> = ({
     skip: !isOpen,
   });
 
-  const [executePromotion, { isLoading: isSubmitting }] = useExecutePromotionMutation();
+  const [proposePromotion, { isLoading: isSubmitting }] = useProposePromotionMutation();
 
   const [selectedPositionId, setSelectedPositionId] = useState<string>('');
   const [effectiveDate, setEffectiveDate] = useState<string>(new Date().toISOString().split('T')[0]);
@@ -46,7 +46,7 @@ export const PromotionModal: React.FC<PromotionModalProps> = ({
 
     setError('');
     try {
-      await executePromotion({
+      await proposePromotion({
         employeeId,
         newPositionId: Number(selectedPositionId),
         effectiveDate,
@@ -57,9 +57,9 @@ export const PromotionModal: React.FC<PromotionModalProps> = ({
       setTimeout(() => {
         setSuccess(false);
         onClose();
-      }, 1500);
+      }, 2000);
     } catch (err: any) {
-      setError(err?.data?.message || 'Failed to execute promotion');
+      setError(err?.data?.message || 'Failed to submit promotion proposal');
     }
   };
 
@@ -69,8 +69,8 @@ export const PromotionModal: React.FC<PromotionModalProps> = ({
         {/* Header */}
         <div className="flex items-center justify-between px-6 py-4 border-b border-slate-200 dark:border-slate-800">
           <div className="flex items-center gap-2">
-            <Rocket className="text-emerald-600 dark:text-emerald-400" size={20} />
-            <h3 className="text-lg font-bold text-slate-800 dark:text-slate-100">Promote Employee</h3>
+            <ClipboardCheck className="text-indigo-600 dark:text-indigo-400" size={20} />
+            <h3 className="text-lg font-bold text-slate-800 dark:text-slate-100">Propose Promotion</h3>
           </div>
           <button 
             onClick={onClose}
@@ -82,11 +82,13 @@ export const PromotionModal: React.FC<PromotionModalProps> = ({
 
         {success ? (
           <div className="p-8 text-center space-y-3">
-            <div className="w-12 h-12 bg-emerald-50 dark:bg-emerald-950/30 rounded-full flex items-center justify-center mx-auto text-emerald-600 dark:text-emerald-400">
-              <Rocket size={24} className="animate-bounce" />
+            <div className="w-12 h-12 bg-indigo-50 dark:bg-indigo-950/30 rounded-full flex items-center justify-center mx-auto text-indigo-600 dark:text-indigo-400">
+              <ClipboardCheck size={24} className="animate-bounce" />
             </div>
-            <h4 className="text-lg font-bold text-slate-800 dark:text-slate-100">Promotion Successful!</h4>
-            <p className="text-sm text-slate-500 dark:text-slate-400">Employee has been successfully promoted.</p>
+            <h4 className="text-lg font-bold text-slate-800 dark:text-slate-100">Proposal Submitted!</h4>
+            <p className="text-sm text-slate-500 dark:text-slate-400">
+              Promotion proposal has been successfully submitted to the Department Head for approval.
+            </p>
           </div>
         ) : (
           <form onSubmit={handleSubmit} className="p-6 space-y-4">
@@ -127,7 +129,7 @@ export const PromotionModal: React.FC<PromotionModalProps> = ({
                   required
                   value={selectedPositionId}
                   onChange={(e) => setSelectedPositionId(e.target.value)}
-                  className="w-full bg-white dark:bg-slate-950 border border-slate-200 dark:border-slate-800 rounded-xl px-4 py-2.5 text-sm font-semibold text-slate-800 dark:text-slate-100 focus:outline-none focus:ring-2 focus:ring-emerald-500/25 focus:border-emerald-500"
+                  className="w-full bg-white dark:bg-slate-950 border border-slate-200 dark:border-slate-800 rounded-xl px-4 py-2.5 text-sm font-semibold text-slate-800 dark:text-slate-100 focus:outline-none focus:ring-2 focus:ring-indigo-500/25 focus:border-indigo-500"
                 >
                   <option value="">Select Target Position</option>
                   {positions.map((pos) => (
@@ -149,21 +151,21 @@ export const PromotionModal: React.FC<PromotionModalProps> = ({
                 type="date"
                 value={effectiveDate}
                 onChange={(e) => setEffectiveDate(e.target.value)}
-                className="w-full bg-white dark:bg-slate-950 border border-slate-200 dark:border-slate-800 rounded-xl px-4 py-2.5 text-sm font-semibold text-slate-800 dark:text-slate-100 focus:outline-none focus:ring-2 focus:ring-emerald-500/25 focus:border-emerald-500"
+                className="w-full bg-white dark:bg-slate-950 border border-slate-200 dark:border-slate-800 rounded-xl px-4 py-2.5 text-sm font-semibold text-slate-800 dark:text-slate-100 focus:outline-none focus:ring-2 focus:ring-indigo-500/25 focus:border-indigo-500"
               />
             </div>
 
             {/* Remarks */}
             <div className="space-y-1.5">
               <label className="text-xs font-bold text-slate-500 dark:text-slate-400 uppercase">
-                Promotion Remarks
+                Proposal Remarks / Reason
               </label>
               <textarea
                 value={remarks}
                 onChange={(e) => setRemarks(e.target.value)}
-                placeholder="Specify the reason or remarks for this promotion..."
+                placeholder="Specify the justification or remarks for this promotion proposal..."
                 rows={3}
-                className="w-full bg-white dark:bg-slate-950 border border-slate-200 dark:border-slate-800 rounded-xl px-4 py-2.5 text-sm font-semibold text-slate-800 dark:text-slate-100 focus:outline-none focus:ring-2 focus:ring-emerald-500/25 focus:border-emerald-500 resize-none"
+                className="w-full bg-white dark:bg-slate-950 border border-slate-200 dark:border-slate-800 rounded-xl px-4 py-2.5 text-sm font-semibold text-slate-800 dark:text-slate-100 focus:outline-none focus:ring-2 focus:ring-indigo-500/25 focus:border-indigo-500 resize-none"
               />
             </div>
 
@@ -180,17 +182,17 @@ export const PromotionModal: React.FC<PromotionModalProps> = ({
               <button
                 type="submit"
                 disabled={isSubmitting || !selectedPositionId}
-                className="flex items-center gap-2 px-5 py-2.5 bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-emerald-700 hover:to-teal-700 text-white rounded-xl font-bold text-sm shadow-md transition-all disabled:opacity-50 active:scale-[0.98]"
+                className="flex items-center gap-2 px-5 py-2.5 bg-gradient-to-r from-indigo-600 to-violet-600 hover:from-indigo-700 hover:to-violet-700 text-white rounded-xl font-bold text-sm shadow-md transition-all disabled:opacity-50 active:scale-[0.98]"
               >
                 {isSubmitting ? (
                   <>
                     <Loader2 size={16} className="animate-spin" />
-                    Executing...
+                    Submitting...
                   </>
                 ) : (
                   <>
                     <Rocket size={16} />
-                    Confirm Promotion
+                    Submit Proposal
                   </>
                 )}
               </button>

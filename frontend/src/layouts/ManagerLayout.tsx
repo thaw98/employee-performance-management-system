@@ -63,6 +63,7 @@ const ManagerLayout: React.FC = () => {
           ? [
               { label: 'Employees', path: '/manager/employees', icon: <Users size={18} /> },
               { label: 'Positions', path: '/manager/positions', icon: <Briefcase size={18} /> },
+              { label: 'Promotion Approvals', path: '/manager/promotions/approvals', icon: <ClipboardCheck size={18} /> },
             ]
           : []),
         {

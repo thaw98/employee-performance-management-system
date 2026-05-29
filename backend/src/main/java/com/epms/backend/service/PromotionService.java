@@ -25,6 +25,12 @@ import com.epms.backend.audit.AuditActionType;
 import com.epms.backend.audit.AuditTargetType;
 import com.epms.backend.security.UserPrincipal;
 
+import com.epms.backend.entity.PromotionProposal;
+import com.epms.backend.entity.PromotionProposalStatus;
+import com.epms.backend.repository.PromotionProposalRepository;
+import com.epms.backend.repository.DepartmentRepository;
+import com.epms.backend.dto.PromotionProposalResponseDto;
+
 import lombok.RequiredArgsConstructor;
 
 @Service
@@ -38,6 +44,8 @@ public class PromotionService {
     private final AuditService auditService;
     private final NotificationService notificationService;
     private final UserRepository userRepository;
+    private final PromotionProposalRepository promotionProposalRepository;
+    private final DepartmentRepository departmentRepository;
 
     @Transactional
     public void executePromotion(Long employeeId, PromotionRequestDto req, UserPrincipal actor) {
@@ -186,5 +194,260 @@ public class PromotionService {
                 .roleName(p.getRole() != null ? p.getRole().getName() : null)
                 .build())
             .toList();
+    }
+
+    @Transactional
+    public void proposePromotion(Long employeeId, PromotionRequestDto req, UserPrincipal actor) {
+        // 1. Get Employee
+        Employee employee = employeeRepository.findById(employeeId)
+            .orElseThrow(() -> new IllegalArgumentException("Employee not found"));
+
+        // 2. Validate position exists
+        Position newPosition = positionRepository.findById(req.getNewPositionId())
+            .orElseThrow(() -> new IllegalArgumentException("Position not found"));
+
+        Department currentDept = employee.getDepartment();
+        if (currentDept == null) {
+            throw new IllegalArgumentException("Employee does not belong to any department");
+        }
+
+        // 3. Verify target position belongs to department and is active
+        DepartmentPosition mapping = departmentPositionRepository
+            .findByDepartmentIdAndPositionId(currentDept.getId(), newPosition.getId())
+            .orElseThrow(() -> new IllegalArgumentException("Position does not belong to employee's department"));
+
+        if (!"active".equalsIgnoreCase(mapping.getStatus())) {
+            throw new IllegalArgumentException("Position is not active in this department");
+        }
+
+        // 4. Verify not same position
+        Position oldPosition = employee.getPosition();
+        if (oldPosition != null && oldPosition.getId().equals(newPosition.getId())) {
+            throw new IllegalArgumentException("Cannot promote to the same position");
+        }
+
+        // 5. Create PromotionProposal
+        User requester = userRepository.findById(actor.getId())
+            .orElseThrow(() -> new IllegalArgumentException("Requester not found"));
+
+        PromotionProposal proposal = new PromotionProposal();
+        proposal.setEmployee(employee);
+        proposal.setTargetPosition(newPosition);
+        proposal.setRequester(requester);
+        proposal.setDepartment(currentDept);
+        proposal.setEffectiveDate(req.getEffectiveDate());
+        proposal.setRemarks(req.getRemarks());
+        proposal.setStatus(PromotionProposalStatus.PENDING);
+        proposal.setCreatedAt(LocalDateTime.now());
+        
+        promotionProposalRepository.save(proposal);
+
+        // 6. Notify Department Head/Manager
+        Long deptManagerId = currentDept.getManagerId();
+        if (deptManagerId != null) {
+            userRepository.findByEmployee_Id(deptManagerId).ifPresent(managerUser -> {
+                notificationService.send(
+                    managerUser,
+                    "New Promotion Proposal",
+                    "A promotion proposal has been submitted for " + employee.getEmployeeName() + " to " + newPosition.getName() + ". Please review and action it.",
+                    "GENERAL",
+                    proposal.getId()
+                );
+            });
+        }
+    }
+
+    @Transactional(readOnly = true)
+    public List<PromotionProposalResponseDto> getPendingProposals(UserPrincipal manager) {
+        Long empDbId = manager.getEmployeeDbId();
+        if (empDbId == null) {
+            return new ArrayList<>();
+        }
+        Department dept = departmentRepository.findFirstByManagerId(empDbId)
+            .orElse(null);
+        if (dept == null) {
+            return new ArrayList<>();
+        }
+        return promotionProposalRepository.findByDepartmentIdAndStatus(dept.getId(), PromotionProposalStatus.PENDING)
+            .stream()
+            .map(this::mapToDto)
+            .toList();
+    }
+
+    @Transactional(readOnly = true)
+    public List<PromotionProposalResponseDto> getProposalsHistory(UserPrincipal user) {
+        if ("HR".equalsIgnoreCase(user.getRoleName())) {
+            return promotionProposalRepository.findAllWithDetails()
+                .stream()
+                .map(this::mapToDto)
+                .toList();
+        } else if ("MANAGER".equalsIgnoreCase(user.getRoleName())) {
+            Long empDbId = user.getEmployeeDbId();
+            if (empDbId == null) {
+                return new ArrayList<>();
+            }
+            Department dept = departmentRepository.findFirstByManagerId(empDbId)
+                .orElse(null);
+            if (dept == null) {
+                return new ArrayList<>();
+            }
+            return promotionProposalRepository.findByDepartmentIdWithDetails(dept.getId())
+                .stream()
+                .map(this::mapToDto)
+                .toList();
+        }
+        return new ArrayList<>();
+    }
+
+    @Transactional
+    public void approveProposal(Long proposalId, UserPrincipal actor) {
+        PromotionProposal proposal = promotionProposalRepository.findById(proposalId)
+            .orElseThrow(() -> new IllegalArgumentException("Proposal not found"));
+
+        if (proposal.getStatus() != PromotionProposalStatus.PENDING) {
+            throw new IllegalArgumentException("Proposal is already actioned");
+        }
+
+        // Verify authority - actor must be the department manager of the employee's department
+        Department dept = proposal.getDepartment();
+        if (dept == null || dept.getManagerId() == null || !dept.getManagerId().equals(actor.getEmployeeDbId())) {
+            throw new IllegalArgumentException("You are not authorized to approve this promotion proposal");
+        }
+
+        Employee employee = proposal.getEmployee();
+        Position newPosition = proposal.getTargetPosition();
+        Position oldPosition = employee.getPosition();
+
+        DepartmentPosition mapping = departmentPositionRepository
+            .findByDepartmentIdAndPositionId(dept.getId(), newPosition.getId())
+            .orElseThrow(() -> new IllegalArgumentException("Position mapping not found"));
+
+        // Close current history
+        EmployeeDepartmentHistory currentHistory = historyRepository
+            .findByEmployee_IdAndCurrentTrue(employee.getId())
+            .orElse(null);
+
+        if (currentHistory != null) {
+            currentHistory.setCurrent(false);
+            currentHistory.setEffectiveEndDate(proposal.getEffectiveDate().minusDays(1));
+            currentHistory.setUpdatedBy(actor.getId());
+            currentHistory.setUpdatedOn(LocalDateTime.now());
+            historyRepository.save(currentHistory);
+        }
+
+        // Create new promotion history
+        EmployeeDepartmentHistory newHistory = new EmployeeDepartmentHistory();
+        newHistory.setEmployee(employee);
+        newHistory.setFromDepartment(dept);
+        newHistory.setToDepartment(dept);
+        newHistory.setFromPosition(oldPosition);
+        newHistory.setToPosition(newPosition);
+        newHistory.setTransferType(TransferType.PROMOTION);
+        newHistory.setEffectiveStartDate(proposal.getEffectiveDate());
+        newHistory.setCurrent(true);
+        newHistory.setReason("Promotion");
+        newHistory.setRemarks(proposal.getRemarks());
+        newHistory.setCreatedBy(actor.getId());
+        newHistory.setCreatedOn(LocalDateTime.now());
+        historyRepository.save(newHistory);
+
+        // Update employee
+        employee.setPosition(newPosition);
+        employee.setDepartmentPosition(mapping);
+        employeeRepository.save(employee);
+
+        // Update proposal status
+        proposal.setStatus(PromotionProposalStatus.APPROVED);
+        proposal.setUpdatedAt(LocalDateTime.now());
+        promotionProposalRepository.save(proposal);
+
+        // Record audit log
+        auditService.record(
+            AuditActionType.EMPLOYEE_PROMOTION,
+            AuditTargetType.EMPLOYEE,
+            employee.getId(),
+            actor.getId(),
+            actor.getRoleId(),
+            "Promoted employee " + employee.getEmployeeName() 
+                + " from " + (oldPosition != null ? oldPosition.getName() : "N/A") 
+                + " to " + newPosition.getName() + " (Approved proposal ID: " + proposalId + ")",
+            null
+        );
+
+        // Send notifications
+        // 1. Notify Requester (HR User)
+        if (proposal.getRequester() != null) {
+            notificationService.send(
+                proposal.getRequester(),
+                "Promotion Approved",
+                "The promotion proposal for " + employee.getEmployeeName() + " to " + newPosition.getName() + " has been APPROVED.",
+                "GENERAL",
+                proposal.getId()
+            );
+        }
+
+        // 2. Notify Employee
+        User employeeUser = employee.getUserAccount();
+        if (employeeUser != null) {
+            notificationService.send(
+                employeeUser,
+                "Promotion Notification",
+                "Congratulations! You have been promoted to " + newPosition.getName() + " effective " + proposal.getEffectiveDate() + ".",
+                "GENERAL",
+                employee.getId()
+            );
+        }
+    }
+
+    @Transactional
+    public void rejectProposal(Long proposalId, UserPrincipal actor) {
+        PromotionProposal proposal = promotionProposalRepository.findById(proposalId)
+            .orElseThrow(() -> new IllegalArgumentException("Proposal not found"));
+
+        if (proposal.getStatus() != PromotionProposalStatus.PENDING) {
+            throw new IllegalArgumentException("Proposal is already actioned");
+        }
+
+        // Verify authority - actor must be the department manager of the employee's department
+        Department dept = proposal.getDepartment();
+        if (dept == null || dept.getManagerId() == null || !dept.getManagerId().equals(actor.getEmployeeDbId())) {
+            throw new IllegalArgumentException("You are not authorized to reject this promotion proposal");
+        }
+
+        proposal.setStatus(PromotionProposalStatus.REJECTED);
+        proposal.setUpdatedAt(LocalDateTime.now());
+        promotionProposalRepository.save(proposal);
+
+        // Notify Requester (HR User)
+        if (proposal.getRequester() != null) {
+            notificationService.send(
+                proposal.getRequester(),
+                "Promotion Rejected",
+                "The promotion proposal for " + proposal.getEmployee().getEmployeeName() + " to " + proposal.getTargetPosition().getName() + " has been REJECTED.",
+                "GENERAL",
+                proposal.getId()
+            );
+        }
+    }
+
+    private PromotionProposalResponseDto mapToDto(PromotionProposal p) {
+        return PromotionProposalResponseDto.builder()
+            .id(p.getId())
+            .employeeId(p.getEmployee().getId())
+            .employeeName(p.getEmployee().getEmployeeName())
+            .staffNo(p.getEmployee().getEmployeeId())
+            .oldPositionId(p.getEmployee().getPosition() != null ? p.getEmployee().getPosition().getId() : null)
+            .oldPositionName(p.getEmployee().getPosition() != null ? p.getEmployee().getPosition().getName() : "N/A")
+            .targetPositionId(p.getTargetPosition().getId())
+            .targetPositionName(p.getTargetPosition().getName())
+            .requesterName(p.getRequester() != null && p.getRequester().getEmployee() != null ? p.getRequester().getEmployee().getEmployeeName() : "HR")
+            .departmentId(p.getDepartment().getId())
+            .departmentName(p.getDepartment().getName())
+            .effectiveDate(p.getEffectiveDate())
+            .remarks(p.getRemarks())
+            .status(p.getStatus().name())
+            .createdAt(p.getCreatedAt())
+            .updatedAt(p.getUpdatedAt())
+            .build();
     }
 }
