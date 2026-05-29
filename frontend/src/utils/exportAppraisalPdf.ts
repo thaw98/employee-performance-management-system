@@ -1,6 +1,7 @@
 import jsPDF from 'jspdf';
 import autoTable from 'jspdf-autotable';
 import { resolveMediaSrc } from './mediaUrl';
+import { formatRatingCategory } from './formatRatingCategory';
 import { addPdfFooterBranding, addPdfHeaderBranding, addPdfHeaderLogo, loadPdfLogo } from './pdfBranding';
 
 interface Question {
@@ -245,7 +246,7 @@ export async function exportAppraisalPdf(assignment: AppraisalAssignmentForPdf):
       { content: 'Total Rating Score', styles: { fontStyle: 'bold' as const, textColor: navy, fillColor: sectionFill } },
       `${assignment.totalScore?.toFixed(1) || '0.0'}%`,
       { content: 'Performance Grade', styles: { fontStyle: 'bold' as const, textColor: navy, fillColor: sectionFill } },
-      assignment.ratingCategory || 'N/A',
+      formatRatingCategory(assignment.ratingCategory),
     ]
   ];
 

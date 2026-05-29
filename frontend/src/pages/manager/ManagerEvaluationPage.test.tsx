@@ -59,6 +59,7 @@ const mocks = vi.hoisted(() => {
       hasPendingChanges: true,
     },
     flush: vi.fn(),
+    forceBaselineUpdate: vi.fn(),
   }
 })
 
@@ -85,7 +86,7 @@ vi.mock('react-hook-form-autosave', () => ({
       flush: mocks.flush,
       abort: vi.fn(),
       forceSave: mocks.flush,
-      forceBaselineUpdate: vi.fn(),
+      forceBaselineUpdate: mocks.forceBaselineUpdate,
       getBaseline: vi.fn(),
       isBaselineInitialized: vi.fn(),
       getMetrics: vi.fn(),
@@ -114,6 +115,14 @@ vi.mock('../../app/axiosInstance', () => ({
   },
 }))
 
+vi.mock('../../features/user/userApi', () => ({
+  useGetDefaultSignatureQuery: () => ({
+    data: { data: { signatureData: 'default-signature' } },
+    isLoading: false,
+    refetch: vi.fn().mockResolvedValue({ data: { data: { signatureData: 'default-signature' } } }),
+  }),
+}))
+
 vi.mock('react-signature-canvas', () => ({
   default: React.forwardRef((props: any, ref: React.Ref<any>) => {
     React.useImperativeHandle(ref, () => ({
@@ -138,6 +147,7 @@ describe('ManagerEvaluationPage autosave', () => {
     mocks.navigate.mockReset()
     mocks.flush.mockReset()
     mocks.flush.mockResolvedValue({ ok: true })
+    mocks.forceBaselineUpdate.mockReset()
     mocks.axiosGet.mockReset()
     mocks.axiosGet.mockImplementation((url: string) => {
       if (url === '/signatures/default') {
@@ -157,6 +167,38 @@ describe('ManagerEvaluationPage autosave', () => {
     mocks.autosaveState.isSaving = false
     mocks.autosaveState.lastError = null
     mocks.autosaveState.hasPendingChanges = true
+  })
+
+  it('shows live score and completion progress while evaluating', async () => {
+    render(<ManagerEvaluationPage />)
+
+    expect(await screen.findByText('Meets goals')).toBeTruthy()
+    expect(screen.getByText('Completion Progress')).toBeTruthy()
+    expect(screen.getByText('(1/1 Answered)')).toBeTruthy()
+    expect(screen.getByText('Live Score')).toBeTruthy()
+    expect(screen.getByText('80.0%')).toBeTruthy()
+    expect(screen.getByText('GOOD')).toBeTruthy()
+    expect(screen.getByText('1/1 Answered')).toBeTruthy()
+    expect(screen.getByText('100% complete')).toBeTruthy()
+  })
+
+  it('updates live score when a rating changes', async () => {
+    mocks.assignment.answers[0].rating = 0
+    const user = userEvent.setup()
+    render(<ManagerEvaluationPage />)
+
+    await screen.findByText('Meets goals')
+    expect(screen.getByText('(0/1 Answered)')).toBeTruthy()
+    expect(screen.getByText('0.0%')).toBeTruthy()
+    expect(screen.getByText('1 question remaining')).toBeTruthy()
+
+    await user.click(screen.getByRole('button', { name: '5' }))
+
+    await waitFor(() => {
+      expect(screen.getByText('(1/1 Answered)')).toBeTruthy()
+      expect(screen.getByText('100.0%')).toBeTruthy()
+      expect(screen.getByText('EXCEPTIONAL')).toBeTruthy()
+    })
   })
 
   it('configures autosave with debounce and retry, mapping answers while excluding signature', async () => {
@@ -191,6 +233,11 @@ describe('ManagerEvaluationPage autosave', () => {
     const user = userEvent.setup()
     render(<ManagerEvaluationPage />)
 
+    await screen.findByText('Meets goals')
+    const formLoads = mocks.axiosGet.mock.calls.filter(
+      ([url]) => url === '/appraisal-assignments/11/form',
+    ).length
+
     await user.click(await screen.findByRole('button', { name: 'Save Draft' }))
 
     await waitFor(() => {
@@ -206,7 +253,14 @@ describe('ManagerEvaluationPage autosave', () => {
         comments: 'Initial manager note',
         signature: 'default-signature',
       })
+      expect(mocks.forceBaselineUpdate).toHaveBeenCalledTimes(1)
     })
+
+    const formLoadsAfterSave = mocks.axiosGet.mock.calls.filter(
+      ([url]) => url === '/appraisal-assignments/11/form',
+    ).length
+    expect(formLoadsAfterSave).toBe(formLoads)
+    expect(screen.queryByText('Loading appraisal form...')).toBeNull()
   })
 
   it('disables autosave and edit actions when the assignment is read-only', async () => {

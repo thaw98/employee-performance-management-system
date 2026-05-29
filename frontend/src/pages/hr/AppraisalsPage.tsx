@@ -368,7 +368,7 @@ function ConfirmedAppraisalView({ categories, allAvailableCategories, onAdd, onR
                 <table className="w-full border-separate border-spacing-0 min-w-[1000px]">
                     <thead>
                         <tr className={`${appraisalGradientHeader} print:from-white print:to-white print:text-black`}>
-                            <th className="p-5 text-[11px] font-black uppercase tracking-[0.2em] text-blue-100 text-center w-40 border-b border-blue-400/20 print:text-slate-900 print:border-slate-800 print:border-b-2">Category</th>
+                            <th className="p-5 text-[11px] font-black uppercase tracking-[0.2em] text-blue-100 text-center w-14 border-b border-blue-400/20 print:text-slate-900 print:border-slate-800 print:border-b-2">Category</th>
                             <th className="p-5 text-[11px] font-black uppercase tracking-[0.2em] text-blue-100 text-center w-16 border-b border-blue-400/20 border-l border-blue-400/10 print:text-slate-900 print:border-slate-800 print:border-b-2 print:border-l-2">No.</th>
                             <th className="p-5 text-[11px] font-black uppercase tracking-[0.2em] text-blue-100 text-left border-b border-blue-400/20 border-l border-blue-400/10 print:text-slate-900 print:border-slate-800 print:border-b-2 print:border-l-2">Evaluation Criteria & Performance Indicators</th>
                             {/* DYNAMIC RATING COLUMNS */}
@@ -407,15 +407,15 @@ function ConfirmedAppraisalView({ categories, allAvailableCategories, onAdd, onR
                                                         {idx === 0 && (
                                                             <td
                                                                 rowSpan={qList.length}
-                                                                className="p-0 border-r border-slate-100 bg-slate-50/40 align-middle w-40 relative group-hover:bg-[#eff6ff]/50 transition-colors print:border-slate-800 print:border-r-2"
+                                                                className="p-0 border-r border-slate-100 bg-slate-50/40 align-middle w-14 relative group-hover:bg-[#eff6ff]/50 transition-colors print:border-slate-800 print:border-r-2"
                                                             >
-                                                                <div className="flex items-center justify-center h-full min-h-[120px] p-4 text-center">
-                                                                    <span className="font-black text-[#2463eb] text-[10px] uppercase tracking-[0.2em] opacity-70 print:text-slate-900 print:opacity-100 italic leading-relaxed">
+                                                                <div className="flex items-center justify-center h-full min-h-[120px] py-4 px-1">
+                                                                    <span className="font-black text-[#2463eb] text-[10px] uppercase tracking-[0.15em] print:text-slate-900 leading-relaxed whitespace-nowrap [writing-mode:vertical-rl] rotate-180">
                                                                         {cat.name}
                                                                     </span>
                                                                 </div>
                                                                 {/* Accent Line for Category Section */}
-                                                                <div className="absolute left-0 top-4 bottom-4 w-1 bg-[#eff6ff]0 rounded-r-full print:hidden" />
+                                                                <div className="absolute left-0 top-4 bottom-4 w-1 bg-[#2463eb]/20 rounded-r-full print:hidden" />
                                                             </td>
                                                         )}
                                                         <td className="p-6 text-center border-r border-slate-100 border-b border-slate-50 font-black text-slate-400 group-hover:text-blue-500 transition-colors w-16 print:border-slate-800 print:border-r-2 print:border-b-2 print:text-slate-900">
@@ -455,13 +455,13 @@ function ConfirmedAppraisalView({ categories, allAvailableCategories, onAdd, onR
                                             })
                                         ) : (
                                             <tr key={`empty-${cat.id}`}>
-                                                <td className="p-6 border-r border-slate-100 bg-slate-50/40 text-center relative w-40">
-                                                    <div className="p-2 text-center">
-                                                         <span className="font-black text-slate-400 text-[10px] uppercase tracking-[0.2em] leading-relaxed">
+                                                <td className="p-0 border-r border-slate-100 bg-slate-50/40 text-center relative w-14">
+                                                    <div className="flex items-center justify-center min-h-[80px] py-4 px-1">
+                                                        <span className="font-black text-[#2463eb] text-[10px] uppercase tracking-[0.15em] leading-relaxed whitespace-nowrap [writing-mode:vertical-rl] rotate-180">
                                                             {cat.name}
                                                         </span>
                                                     </div>
-                                                    <div className="absolute left-0 top-4 bottom-4 w-1 bg-slate-200 rounded-r-full" />
+                                                    <div className="absolute left-0 top-4 bottom-4 w-1 bg-[#2463eb]/20 rounded-r-full" />
                                                 </td>
                                                 <td colSpan={3} className="p-12 text-center border-b border-slate-50">
                                                     <div className="flex flex-col items-center gap-2 opacity-30">
