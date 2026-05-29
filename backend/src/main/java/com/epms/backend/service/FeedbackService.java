@@ -12,8 +12,6 @@ import com.epms.backend.dto.FeedbackAuditTotalsDto;
 import com.epms.backend.dto.FeedbackHistoryFilter;
 import com.epms.backend.dto.FeedbackHistoryDto;
 import com.epms.backend.dto.FeedbackDetailPageDto;
-import com.epms.backend.dto.FeedbackChatMessageDto;
-import com.epms.backend.dto.FeedbackChatMessageRequest;
 import com.epms.backend.dto.FeedbackSubmissionRequest;
 import com.epms.backend.entity.*;
 import com.epms.backend.repository.*;
@@ -59,7 +57,6 @@ public class FeedbackService {
     private final ReviewCycleService reviewCycleService;
     private final ReviewCycleRepository reviewCycleRepository;
     private final AuditService auditService;
-    private final FeedbackChatMessageRepository feedbackChatMessageRepository;
 
     @Autowired
     public FeedbackService(
@@ -73,8 +70,7 @@ public class FeedbackService {
             TimeSettingService timeSettingService,
             ReviewCycleService reviewCycleService,
             ReviewCycleRepository reviewCycleRepository,
-            AuditService auditService,
-            FeedbackChatMessageRepository feedbackChatMessageRepository) {
+            AuditService auditService) {
         this.feedbackRepository = feedbackRepository;
         this.feedbackDraftRepository = feedbackDraftRepository;
         this.employeeRepository = employeeRepository;
@@ -86,24 +82,6 @@ public class FeedbackService {
         this.reviewCycleService = reviewCycleService;
         this.reviewCycleRepository = reviewCycleRepository;
         this.auditService = auditService;
-        this.feedbackChatMessageRepository = feedbackChatMessageRepository;
-    }
-
-    public FeedbackService(
-            FeedbackRepository feedbackRepository,
-            FeedbackDraftRepository feedbackDraftRepository,
-            EmployeeRepository employeeRepository,
-            ReportingManagerResolver reportingManagerResolver,
-            CriteriaRepository criteriaRepository,
-            UserRepository userRepository,
-            NotificationService notificationService,
-            TimeSettingService timeSettingService,
-            ReviewCycleService reviewCycleService,
-            ReviewCycleRepository reviewCycleRepository,
-            AuditService auditService) {
-        this(feedbackRepository, feedbackDraftRepository, employeeRepository, reportingManagerResolver,
-                criteriaRepository, userRepository, notificationService, timeSettingService, reviewCycleService,
-                reviewCycleRepository, auditService, null);
     }
 
     /* Reporting helpers */
@@ -881,67 +859,6 @@ public class FeedbackService {
     }
 
     @Transactional(readOnly = true)
-    public List<FeedbackChatMessageDto> getFeedbackChatMessages(Long feedbackId, Long currentEmployeeId) {
-        Feedback feedback = getFeedbackForChat(feedbackId, currentEmployeeId);
-        return feedbackChatMessageRepository.findByFeedback_IdOrderByCreatedDateAsc(feedback.getId()).stream()
-                .map(this::mapFeedbackChatMessage)
-                .collect(Collectors.toList());
-    }
-
-    @Transactional
-    public FeedbackChatMessageDto addFeedbackChatMessage(Long feedbackId, Long currentEmployeeId, FeedbackChatMessageRequest request) {
-        Feedback feedback = getFeedbackForChat(feedbackId, currentEmployeeId);
-        String content = request == null || request.content() == null ? "" : request.content().trim();
-        if (content.isEmpty()) {
-            throw new RuntimeException("Message content is required");
-        }
-        Employee author = currentEmployeeId.equals(feedback.getEvaluator().getId())
-                ? feedback.getEvaluator()
-                : feedback.getEvaluatee();
-        Employee recipient = currentEmployeeId.equals(feedback.getEvaluator().getId())
-                ? feedback.getEvaluatee()
-                : feedback.getEvaluator();
-
-        FeedbackChatMessage message = new FeedbackChatMessage();
-        message.setFeedback(feedback);
-        message.setAuthor(author);
-        message.setContent(content);
-        message.setCreatedDate(Instant.now());
-        message = feedbackChatMessageRepository.save(message);
-
-        if (recipient != null && recipient.getUserAccount() != null) {
-            // Use "Anonymous" as the author name in the notification when the feedback is anonymous,
-            // to avoid revealing the real evaluator's identity.
-            String notifAuthorName = Boolean.TRUE.equals(feedback.getAnonymous())
-                    ? "Anonymous"
-                    : author.getEmployeeName();
-
-            // Embed a recipient marker so the frontend can route the notification correctly:
-            //   [EVALUATOR_RECIPIENT] → the recipient of this notification is the feedback GIVER
-            //                           → frontend routes to Feedback History
-            //   [EVALUATEE_RECIPIENT] → the recipient is the feedback RECEIVER
-            //                           → frontend routes to Received Feedback
-            boolean recipientIsEvaluator = recipient.getUserAccount() != null
-                    && feedback.getEvaluator() != null
-                    && feedback.getEvaluator().getUserAccount() != null
-                    && feedback.getEvaluator().getUserAccount().getId()
-                        .equals(recipient.getUserAccount().getId());
-            String recipientMarker = recipientIsEvaluator ? " [EVALUATOR_RECIPIENT]" : " [EVALUATEE_RECIPIENT]";
-
-            notificationService.send(
-                    recipient.getUserAccount(),
-                    "New Feedback Chat Message",
-                    notifAuthorName + " sent a feedback chat message for feedback #"
-                            + feedback.getId() + " at "
-                            + DateTimeFormatter.ofPattern("dd MMM yyyy HH:mm").withZone(ZoneId.systemDefault()).format(message.getCreatedDate())
-                            + recipientMarker,
-                    "360_FEEDBACK");
-        }
-
-        return mapFeedbackChatMessage(message);
-    }
-
-    @Transactional(readOnly = true)
     public FeedbackDetailPageDto getFeedbackDetailPage(Long feedbackId, Long currentEmployeeId) {
         Feedback feedback = feedbackRepository.findById(feedbackId)
                 .orElseThrow(() -> new RuntimeException("Feedback not found"));
@@ -980,41 +897,6 @@ public class FeedbackService {
         dto.setReviewCycleStartDate(summary.getReviewCycleStartDate());
         dto.setDetails(mapFeedbackDetails(feedback));
         return dto;
-    }
-
-    private Feedback getFeedbackForChat(Long feedbackId, Long currentEmployeeId) {
-        Feedback feedback = feedbackRepository.findById(feedbackId)
-                .orElseThrow(() -> new RuntimeException("Feedback not found"));
-        boolean participant = (feedback.getEvaluator() != null && currentEmployeeId.equals(feedback.getEvaluator().getId()))
-                || (feedback.getEvaluatee() != null && currentEmployeeId.equals(feedback.getEvaluatee().getId()));
-        if (!participant) {
-            throw new SecurityException("Access denied");
-        }
-        return feedback;
-    }
-
-    private FeedbackChatMessageDto mapFeedbackChatMessage(FeedbackChatMessage message) {
-        Employee author = message.getAuthor();
-        Feedback feedback = message.getFeedback();
-        // Determine the display name for the author.
-        // If the feedback is anonymous and the message was written by the evaluator,
-        // show "Anonymous" to protect the evaluator's identity.
-        boolean authorIsEvaluator = author != null
-                && feedback.getEvaluator() != null
-                && author.getId().equals(feedback.getEvaluator().getId());
-        String authorDisplayName;
-        if (Boolean.TRUE.equals(feedback.getAnonymous()) && authorIsEvaluator) {
-            authorDisplayName = "Anonymous";
-        } else {
-            authorDisplayName = author != null ? author.getEmployeeName() : "Unknown";
-        }
-        return new FeedbackChatMessageDto(
-                message.getId(),
-                feedback.getId(),
-                author != null ? author.getId() : null,
-                authorDisplayName,
-                message.getContent(),
-                message.getCreatedDate());
     }
 
     @Transactional(readOnly = true)
