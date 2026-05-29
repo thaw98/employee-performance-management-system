@@ -1,6 +1,6 @@
 import React, { useCallback, useMemo, useState, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
-import { useForm } from 'react-hook-form';
+import { useForm, useWatch } from 'react-hook-form';
 import { useRhfAutosave, withRetry, type SaveResult, type Transport } from 'react-hook-form-autosave';
 import axios from '../../app/axiosInstance';
 import { toast } from 'react-hot-toast';
@@ -20,6 +20,7 @@ import {
     Send,
     X,
     AlertTriangle,
+    ClipboardCheck,
 } from 'lucide-react';
 import { formatCycleDate } from '../self-assessment-form/SelfAssessmentReviewCycleInfo';
 import { formatDate } from '../../utils/dateUtils';
@@ -104,6 +105,53 @@ const toEvaluationPayload = (data: EvaluationFormData, includeSignature: boolean
     ...(includeSignature ? { signature: data.signature } : {}),
 });
 
+const computeRatingCategory = (score: number): string => {
+    if (score >= 90) return 'EXCEPTIONAL';
+    if (score >= 75) return 'GOOD';
+    if (score >= 50) return 'AVERAGE';
+    return 'NEEDS_IMPROVEMENT';
+};
+
+function EvaluationProgressBar({ current, total }: { current: number; total: number }) {
+    const pct = total === 0 ? 0 : Math.round((current / total) * 100);
+    const complete = pct === 100;
+    return (
+        <div className="space-y-2.5">
+            <div className="flex items-center justify-between">
+                <div className="flex items-center gap-2">
+                    <ClipboardCheck size={15} className={complete ? 'text-[#2463eb]' : 'text-slate-400'} />
+                    <span className="text-xs font-semibold uppercase tracking-wider text-slate-600">
+                        Completion Progress
+                    </span>
+                </div>
+                <div className="flex items-baseline gap-1.5">
+                    <span className="text-base font-bold tabular-nums text-slate-900">
+                        {pct}%
+                    </span>
+                    <span className="text-[11px] font-medium tabular-nums text-slate-400">
+                        ({current}/{total} Answered)
+                    </span>
+                </div>
+            </div>
+            <div className="h-2 w-full overflow-hidden rounded-full bg-slate-100">
+                <div
+                    className={`h-full rounded-full transition-all duration-700 ease-out ${
+                        complete
+                            ? 'bg-gradient-to-r from-[#2463eb] via-[#2463eb] to-[#3b82f6]'
+                            : 'bg-gradient-to-r from-[#2463eb] to-[#3b82f6]'
+                    }`}
+                    style={{ width: `${pct}%` }}
+                />
+            </div>
+            {total > 0 && !complete && (
+                <p className="text-[11px] font-medium text-slate-500">
+                    {total - current} question{total - current === 1 ? '' : 's'} remaining
+                </p>
+            )}
+        </div>
+    );
+}
+
 export const ManagerEvaluationPage: React.FC = () => {
     const { id } = useParams<{ id: string }>();
     const navigate = useNavigate();
@@ -125,16 +173,23 @@ export const ManagerEvaluationPage: React.FC = () => {
             signature: '',
         },
     });
-    const { getValues, reset, setValue, watch, formState } = form;
-    const answers = watch('answers');
+    const { getValues, reset, setValue, watch, formState, control } = form;
+    const answers = useWatch({ control, name: 'answers' }) ?? {};
     const comments = watch('comments');
-    const isReadOnly = assignment?.status !== 'PENDING_MANAGER' && assignment?.status !== 'RETURNED';
+    const isEditableStatus = (status?: string) =>
+        status === 'PENDING_MANAGER' || status === 'RETURNED' || status === 'DRAFT';
+    const isReadOnly = !isEditableStatus(assignment?.status);
     const autosaveDisabled = loading || !assignment || Boolean(isReadOnly);
 
     const draftTransport = useMemo<Transport>(() => {
         const transport: Transport = async (payload) => {
             try {
                 await axios.post(`/appraisal-assignments/${id}/draft`, payload);
+                setAssignment((current) =>
+                    current && isEditableStatus(current.status)
+                        ? { ...current, status: 'DRAFT' }
+                        : current
+                );
                 return { ok: true };
             } catch (error: any) {
                 return {
@@ -258,15 +313,31 @@ export const ManagerEvaluationPage: React.FC = () => {
             }
 
             const finalSignature = await resolveSubmissionSignature();
+            const currentValues = getValues();
+            const savedValues: EvaluationFormData = {
+                ...currentValues,
+                signature: finalSignature || currentValues.signature,
+            };
             if (finalSignature) {
                 setValue('signature', finalSignature, { shouldDirty: false });
             }
-            await axios.post(`/appraisal-assignments/${id}/draft`, toEvaluationPayload({
-                ...getValues(),
-                signature: finalSignature,
-            }, Boolean(finalSignature)));
+            await axios.post(
+                `/appraisal-assignments/${id}/draft`,
+                toEvaluationPayload(savedValues, Boolean(finalSignature)),
+            );
+            reset(savedValues);
+            autosave.forceBaselineUpdate();
+            setAssignment((current) =>
+                current
+                    ? {
+                        ...current,
+                        status: isEditableStatus(current.status) ? 'DRAFT' : current.status,
+                        managerComments: savedValues.comments,
+                        managerSignature: finalSignature || current.managerSignature,
+                    }
+                    : current,
+            );
             toast.success('Draft saved');
-            await fetchForm();
         } catch (error: any) {
             toast.error(error?.response?.data?.message || 'Failed to save draft');
         } finally {
@@ -331,6 +402,34 @@ export const ManagerEvaluationPage: React.FC = () => {
             setIsSavingInlineSignature(false);
         }
     };
+
+    const maxRating = assignment?.template?.maxRating || 5;
+    const totalQuestionCount = useMemo(
+        () => assignment?.template?.categories?.reduce(
+            (count, category) => count + (category.questions?.length ?? 0),
+            0,
+        ) ?? 0,
+        [assignment?.template?.categories],
+    );
+    const liveEvaluationStats = useMemo(() => {
+        const answerValues = Object.values(answers ?? {});
+        const answeredCount = answerValues.filter((answer) => (answer?.rating ?? 0) > 0).length;
+        const pointsAchieved = answerValues.reduce((sum, answer) => sum + (answer?.rating ?? 0), 0);
+        const maxPoints = totalQuestionCount * maxRating;
+        const liveScore = maxPoints > 0 ? (pointsAchieved / maxPoints) * 100 : 0;
+        const progressPercent = totalQuestionCount > 0
+            ? Math.round((answeredCount / totalQuestionCount) * 100)
+            : 0;
+
+        return {
+            answeredCount,
+            pointsAchieved,
+            maxPoints,
+            liveScore,
+            progressPercent,
+            ratingCategory: computeRatingCategory(liveScore),
+        };
+    }, [answers, maxRating, totalQuestionCount]);
 
     if (loading) {
         return (
@@ -408,7 +507,7 @@ export const ManagerEvaluationPage: React.FC = () => {
                     )}
                 </div>
                 {/* HR Feedback if returned or rejected */}
-                {(assignment.status === 'RETURNED' || assignment.status === 'REJECTED') && assignment.hrComments && (
+                {(assignment.status === 'RETURNED' || assignment.status === 'REJECTED' || assignment.status === 'DRAFT') && assignment.hrComments && (
                     <section className="bg-red-50 border border-red-100 rounded-3xl p-6 flex items-start gap-4">
                         <div className="bg-red-500 text-white p-2 rounded-xl">
                             <AlertCircle size={20} />
@@ -446,6 +545,40 @@ export const ManagerEvaluationPage: React.FC = () => {
                         </div>
                     </div>
                 </section>
+
+                {/* Live progress & score while evaluating */}
+                {!isReadOnly && totalQuestionCount > 0 && (
+                    <>
+                        <section className="rounded-3xl border border-slate-200/60 bg-white p-6 shadow-sm">
+                            <EvaluationProgressBar
+                                current={liveEvaluationStats.answeredCount}
+                                total={totalQuestionCount}
+                            />
+                        </section>
+                        <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+                            <div className={`p-6 ${appraisalGradientSoft} border border-[#bfdbfe] rounded-3xl space-y-2 shadow-sm`}>
+                                <p className="text-[10px] font-bold text-[#2463eb] uppercase tracking-wider">Points Achieved</p>
+                                <p className="text-3xl font-black text-[#1d4ed8] italic">
+                                    {liveEvaluationStats.pointsAchieved}
+                                    <span className="text-[#93c5fd] mx-2 text-xl font-normal">/</span>
+                                    <span className="text-[#60a5fa] text-2xl">{liveEvaluationStats.maxPoints}</span>
+                                </p>
+                            </div>
+                            <div className={`p-6 ${appraisalGradientSoft} border border-[#bfdbfe] rounded-3xl space-y-2 shadow-sm`}>
+                                <p className="text-[10px] font-bold text-[#2463eb] uppercase tracking-wider">Live Score</p>
+                                <p className="text-3xl font-black text-[#1d4ed8]">
+                                    {liveEvaluationStats.liveScore.toFixed(1)}%
+                                </p>
+                            </div>
+                            <div className="p-6 bg-gradient-to-br from-emerald-50 to-emerald-100/50 border border-emerald-200 rounded-3xl space-y-2 shadow-sm min-w-0 overflow-hidden">
+                                <p className="text-[10px] font-bold text-emerald-500 uppercase tracking-wider">Performance Category</p>
+                                <p className="text-lg sm:text-xl font-bold text-emerald-700 break-words leading-snug">
+                                    {formatRatingCategory(liveEvaluationStats.ratingCategory)}
+                                </p>
+                            </div>
+                        </div>
+                    </>
+                )}
 
                 {/* Summary Cards */}
                 {isReadOnly && (
@@ -528,13 +661,13 @@ export const ManagerEvaluationPage: React.FC = () => {
                                     
                                     {/* Question Comments */}
                                     <div className="mt-8 pt-8 border-t border-slate-100 flex items-start gap-4">
-                                        <MessageSquare size={20} className="text-slate-300 mt-3" />
+                                        <MessageSquare size={20} className="text-slate-500 mt-3 shrink-0" />
                                         <textarea
                                             placeholder={isReadOnly ? "No comments provided" : "Add specific comments for this item (optional)..."}
                                             value={answers[question.id]?.comments || ''}
                                             onChange={(e) => !isReadOnly && handleAnswerCommentChange(question.id, e.target.value)}
                                             readOnly={isReadOnly}
-                                            className="flex-1 bg-slate-50/50 border-none rounded-2xl p-4 text-sm focus:ring-2 focus:ring-[#2463eb]/20 transition-all resize-none h-24"
+                                            className="flex-1 bg-slate-50 border-2 border-slate-200 rounded-2xl p-4 text-sm text-slate-700 placeholder:text-slate-400 outline-none focus:border-[#2463eb] focus:bg-white focus:ring-2 focus:ring-[#2463eb]/20 transition-all resize-none h-24 read-only:bg-slate-100 read-only:text-slate-600"
                                         />
                                     </div>
                                 </div>
@@ -620,11 +753,26 @@ export const ManagerEvaluationPage: React.FC = () => {
             {!isReadOnly && (
                 <div className="fixed bottom-0 left-64 right-0 z-40 border-t border-slate-200 bg-white/85 backdrop-blur-xl">
                     <div className="mx-auto flex max-w-5xl items-center justify-between gap-4 px-6 py-4">
-                        <span className={`hidden text-xs font-bold sm:inline ${saveStatusTone}`}>
-                            {saveStatus}
-                        </span>
+                        <div className="hidden items-center gap-2 sm:flex">
+                            <span className={`text-xs font-bold ${saveStatusTone}`}>
+                                {saveStatus}
+                            </span>
+                            {totalQuestionCount > 0 && (
+                                <>
+                                    <span className="text-slate-300">·</span>
+                                    <span className="text-xs font-medium tabular-nums text-slate-500">
+                                        {liveEvaluationStats.answeredCount}/{totalQuestionCount} Answered
+                                    </span>
+                                    <span className="text-slate-300">·</span>
+                                    <span className="text-xs font-medium tabular-nums text-slate-500">
+                                        {liveEvaluationStats.progressPercent}% complete
+                                    </span>
+                                </>
+                            )}
+                        </div>
                         <div className="flex flex-1 items-center justify-end gap-3 sm:flex-initial">
                             <button
+                                type="button"
                                 onClick={handleSaveDraft}
                                 disabled={savingDraft || autosave.isSaving}
                                 className="flex items-center gap-2 border border-slate-200 bg-white text-slate-700 px-4 py-2.5 rounded-2xl font-bold text-sm shadow-sm hover:bg-slate-50 transition-all disabled:opacity-50"
@@ -633,6 +781,7 @@ export const ManagerEvaluationPage: React.FC = () => {
                                 Save Draft
                             </button>
                             <button
+                                type="button"
                                 onClick={handleSubmitClick}
                                 disabled={submitting || savingDraft}
                                 className={`flex items-center gap-2 ${appraisalGradientBtn} text-white px-6 py-2.5 rounded-2xl font-bold text-sm shadow-lg shadow-[#2463eb]/20 transition-all disabled:opacity-50`}
@@ -647,14 +796,19 @@ export const ManagerEvaluationPage: React.FC = () => {
 
             {showSubmitConfirm && (
                 <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/50 p-4 backdrop-blur-sm">
-                    <div className="w-full max-w-md overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-2xl">
+                    <div
+                        role="dialog"
+                        aria-modal="true"
+                        aria-labelledby="submit-evaluation-title"
+                        className="w-full max-w-md overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-2xl"
+                    >
                         <div className="flex items-start justify-between gap-4 border-b border-slate-100 px-6 py-5">
                             <div className="flex items-center gap-3">
                                 <div className="flex h-11 w-11 items-center justify-center rounded-xl bg-gradient-to-br from-[#2463eb] to-[#1d4ed8] text-white shadow-md shadow-[#2463eb]/20">
                                     <Send size={18} />
                                 </div>
                                 <div>
-                                    <h3 className="text-base font-bold tracking-tight text-slate-900">
+                                    <h3 id="submit-evaluation-title" className="text-base font-bold tracking-tight text-slate-900">
                                         Submit Evaluation
                                     </h3>
                                     <p className="text-xs text-slate-500">

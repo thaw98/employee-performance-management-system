@@ -94,15 +94,22 @@ public class AppraisalAssignmentService {
         return assignment;
     }
 
+    private boolean isManagerEditable(AppraisalStatus status) {
+        return status == AppraisalStatus.PENDING_MANAGER
+                || status == AppraisalStatus.RETURNED
+                || status == AppraisalStatus.DRAFT;
+    }
+
     @Transactional
     public AppraisalAssignment saveDraft(Long id, com.epms.backend.dto.EvaluationRequest req) {
         AppraisalAssignment assignment = getById(id);
 
-        if (assignment.getStatus() != AppraisalStatus.PENDING_MANAGER && assignment.getStatus() != AppraisalStatus.RETURNED) {
-            throw new RuntimeException("Draft can only be saved for pending or returned appraisals.");
+        if (!isManagerEditable(assignment.getStatus())) {
+            throw new RuntimeException("Draft can only be saved for pending, draft, or returned appraisals.");
         }
 
         replaceAnswers(assignment, req);
+        assignment.setStatus(AppraisalStatus.DRAFT);
         assignment.setManagerComments(req.getComments());
         if (req.getSignature() != null) {
             assignment.setManagerSignature(persistSignatureIfNeeded(req.getSignature()));
@@ -117,8 +124,8 @@ public class AppraisalAssignmentService {
     public AppraisalAssignment submitEvaluation(Long id, com.epms.backend.dto.EvaluationRequest req, Long userId, Long roleId) {
         AppraisalAssignment assignment = getById(id);
 
-        if (assignment.getStatus() != AppraisalStatus.PENDING_MANAGER && assignment.getStatus() != AppraisalStatus.RETURNED) {
-            throw new RuntimeException("Evaluation can only be submitted for pending or returned appraisals.");
+        if (!isManagerEditable(assignment.getStatus())) {
+            throw new RuntimeException("Evaluation can only be submitted for pending, draft, or returned appraisals.");
         }
 
         if (req.getSignature() == null || req.getSignature().isBlank()) {

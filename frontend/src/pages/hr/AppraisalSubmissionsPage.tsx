@@ -573,7 +573,7 @@ export function AppraisalSubmissionsPage() {
             a.employee.position?.name || 'N/A',
             a.period?.name || 'N/A',
             `${a.totalScore?.toFixed(1) || '0.0'}%`,
-            a.ratingCategory || 'N/A'
+            formatRatingCategory(a.ratingCategory)
         ]);
 
         autoTable(doc, {
@@ -672,13 +672,11 @@ export function AppraisalSubmissionsPage() {
             case 'RETURNED':
                 return 'bg-amber-50 text-amber-700 border-amber-200';
             case 'LOCKED':
-                return 'bg-slate-100 text-slate-600 border-slate-200';
+                return 'bg-slate-900 text-white border-slate-900';
             case 'SUBMITTED':
                 return 'bg-[#eff6ff] text-[#1d4ed8] border-[#bfdbfe]';
             case 'PENDING':
                 return 'bg-purple-50 text-purple-700 border-purple-200';
-            case 'LOCKED':
-                return 'bg-slate-900 text-white border-slate-900';
             default:
                 return 'bg-slate-50 text-slate-500 border-slate-200';
         }
@@ -883,7 +881,7 @@ export function AppraisalSubmissionsPage() {
                                                     {sa.totalScore ? `${sa.totalScore.toFixed(1)}%` : '—'}
                                                 </span>
                                                 <span className="text-[9px] font-bold uppercase text-slate-400">
-                                                    {sa.ratingCategory || 'PENDING'}
+                                                    {sa.ratingCategory ? formatRatingCategory(sa.ratingCategory) : 'PENDING'}
                                                 </span>
                                             </div>
                                         </td>

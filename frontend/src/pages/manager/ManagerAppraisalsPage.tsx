@@ -194,10 +194,36 @@ export const ManagerAppraisalsPage: React.FC = () => {
         }
     };
 
+    const isEditableStatus = (status: string) =>
+        status === 'PENDING_MANAGER' || status === 'RETURNED' || status === 'DRAFT';
+
+    const getStatusLabel = (status: string) => {
+        switch (status) {
+            case 'PENDING_MANAGER':
+                return 'PENDING';
+            case 'DRAFT':
+                return 'DRAFT';
+            case 'RETURNED':
+                return 'RETURNED';
+            case 'SUBMITTED':
+                return 'SUBMITTED';
+            case 'HR_APPROVED':
+                return 'APPROVED';
+            case 'REJECTED':
+                return 'REJECTED';
+            case 'LOCKED':
+                return 'FINALIZED';
+            default:
+                return status.replace('_', ' ');
+        }
+    };
+
     const getStatusStyle = (status: string) => {
         switch (status) {
             case 'PENDING_MANAGER':
                 return 'bg-amber-50 text-amber-600 border-amber-100';
+            case 'DRAFT':
+                return 'bg-violet-50 text-violet-600 border-violet-100';
             case 'SUBMITTED':
                 return 'bg-[#eff6ff] text-[#2463eb] border-[#dbeafe]';
             case 'HR_APPROVED':
@@ -335,13 +361,13 @@ export const ManagerAppraisalsPage: React.FC = () => {
                     </div>
                 </div>
                 <div className="flex bg-slate-100 p-1.5 rounded-2xl overflow-x-auto">
-                        {['ALL', 'PENDING_MANAGER', 'RETURNED', 'SUBMITTED', 'HR_APPROVED', 'REJECTED', 'LOCKED'].map(status => (
+                        {['ALL', 'PENDING_MANAGER', 'DRAFT', 'RETURNED', 'SUBMITTED', 'HR_APPROVED', 'REJECTED', 'LOCKED'].map(status => (
                             <button
                                 key={status}
                                 onClick={() => setFilterStatus(status)}
                                 className={`px-4 py-2 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all whitespace-nowrap ${filterStatus === status ? 'bg-white text-[#2463eb] shadow-sm' : 'text-slate-400 hover:text-slate-600'}`}
                             >
-                                {status === 'PENDING_MANAGER' ? 'PENDING' : status === 'RETURNED' ? 'RETURNED' : status === 'SUBMITTED' ? 'SUBMITTED' : status === 'HR_APPROVED' ? 'APPROVED' : status === 'REJECTED' ? 'REJECTED' : status === 'LOCKED' ? 'FINALIZED' : 'ALL'}
+                                {status === 'ALL' ? 'ALL' : getStatusLabel(status)}
                             </button>
                         ))}
                     </div>
@@ -374,7 +400,7 @@ export const ManagerAppraisalsPage: React.FC = () => {
                         >
                             {/* Status Badge */}
                             <div className={`absolute top-6 right-6 px-3 py-1 rounded-full text-[9px] font-black uppercase tracking-tight border ${getStatusStyle(assignment.status)}`}>
-                                {assignment.status === 'LOCKED' ? 'FINALIZED' : assignment.status.replace('_', ' ')}
+                                {getStatusLabel(assignment.status)}
                             </div>
 
                             <div className="space-y-6">
@@ -449,20 +475,24 @@ export const ManagerAppraisalsPage: React.FC = () => {
                                     <Link 
                                         to={`/manager/appraisals/${assignment.id}/evaluate`}
                                         className={`flex-1 py-4 rounded-2xl font-black text-[10px] uppercase tracking-widest transition-all flex items-center justify-center gap-2 shadow-sm ${
-                                            (assignment.status === 'PENDING_MANAGER' || assignment.status === 'RETURNED')
+                                            isEditableStatus(assignment.status)
                                             ? 'bg-slate-900 text-white hover:bg-[#2463eb] hover:shadow-lg hover:shadow-[#2463eb]/20'
                                             : 'bg-slate-100 text-slate-600 hover:bg-slate-200'
                                         }`}
                                     >
-                                        {(assignment.status === 'PENDING_MANAGER' || assignment.status === 'RETURNED') ? (
+                                        {isEditableStatus(assignment.status) ? (
                                             <>
-                                                {assignment.status === 'RETURNED' ? 'RE-EVALUATE' : 'Start Evaluation'} <ArrowRight size={14} />
+                                                {assignment.status === 'RETURNED'
+                                                    ? 'RE-EVALUATE'
+                                                    : assignment.status === 'DRAFT'
+                                                        ? 'Continue Draft'
+                                                        : 'Start Evaluation'} <ArrowRight size={14} />
                                             </>
                                         ) : (
                                             <>View Details <ChevronRight size={14} /></>
                                         )}
                                     </Link>
-                                    {assignment.status !== 'PENDING_MANAGER' && assignment.status !== 'RETURNED' && (
+                                    {!isEditableStatus(assignment.status) && (
                                         <button
                                             onClick={() => handleDownloadPdf(assignment.id)}
                                             className="px-4 py-4 rounded-2xl bg-emerald-50 text-emerald-600 hover:bg-emerald-100 border border-emerald-100 transition-all flex items-center justify-center shadow-sm cursor-pointer"

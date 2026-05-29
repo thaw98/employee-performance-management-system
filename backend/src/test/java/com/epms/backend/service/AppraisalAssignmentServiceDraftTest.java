@@ -67,7 +67,7 @@ class AppraisalAssignmentServiceDraftTest {
     }
 
     @Test
-    void saveDraft_persistsAnswersCommentsAndSignatureWithoutChangingStatus() {
+    void saveDraft_persistsAnswersCommentsAndSignatureAndSetsDraftStatus() {
         AppraisalAssignment assignment = editableAssignment(AppraisalStatus.RETURNED);
         assignment.setSubmittedAt(java.time.Instant.parse("2026-05-01T00:00:00Z"));
         assignment.setManagerSignedAt(java.time.Instant.parse("2026-05-01T00:00:00Z"));
@@ -81,7 +81,7 @@ class AppraisalAssignmentServiceDraftTest {
 
         AppraisalAssignment result = appraisalAssignmentService.saveDraft(7L, request(101L, 3.0, "Draft note", "Manager comments", "sig"));
 
-        assertEquals(AppraisalStatus.RETURNED, result.getStatus());
+        assertEquals(AppraisalStatus.DRAFT, result.getStatus());
         assertEquals(1, result.getAnswers().size());
         assertEquals(3, result.getAnswers().get(0).getRating());
         assertEquals("Draft note", result.getAnswers().get(0).getComments());
@@ -103,7 +103,21 @@ class AppraisalAssignmentServiceDraftTest {
             appraisalAssignmentService.saveDraft(7L, request(101L, 3.0, "Draft note", "Manager comments", null))
         );
 
-        assertEquals("Draft can only be saved for pending or returned appraisals.", ex.getMessage());
+        assertEquals("Draft can only be saved for pending, draft, or returned appraisals.", ex.getMessage());
+    }
+
+    @Test
+    void saveDraft_fromPendingManager_setsDraftStatus() {
+        AppraisalAssignment assignment = editableAssignment(AppraisalStatus.PENDING_MANAGER);
+        AppraisalQuestion question = question(101L);
+
+        when(appraisalAssignmentRepository.findById(eq(7L))).thenReturn(Optional.of(assignment));
+        when(appraisalQuestionRepository.findById(eq(101L))).thenReturn(Optional.of(question));
+        when(appraisalAssignmentRepository.save(any(AppraisalAssignment.class))).thenAnswer(invocation -> invocation.getArgument(0));
+
+        AppraisalAssignment result = appraisalAssignmentService.saveDraft(7L, request(101L, 3.0, "Draft note", "Manager comments", null));
+
+        assertEquals(AppraisalStatus.DRAFT, result.getStatus());
     }
 
     @Test
