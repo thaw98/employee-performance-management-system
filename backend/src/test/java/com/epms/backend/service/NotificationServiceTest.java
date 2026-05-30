@@ -90,9 +90,20 @@ class NotificationServiceTest {
     void getMyNotificationsRejectsInvalidSource() {
         assertThatThrownBy(() -> notificationService.getMyNotifications(recipient, PageRequest.of(0, 10), "all", "GENERAL"))
                 .isInstanceOf(IllegalArgumentException.class)
-                .hasMessage("source must be one of: APPRAISAL, KPI, 360_FEEDBACK, MEETING, PIP, SELF_ASSESSMENT_FORM");
+                .hasMessage("source must be one of: APPRAISAL, KPI, 360_FEEDBACK, MEETING, PIP, SELF_ASSESSMENT_FORM, FAQ_SUPPORT, TRANSFER");
 
         verify(notificationRepository, never()).findAll(anyNotificationSpec(), any(Pageable.class));
+    }
+
+    @Test
+    void getMyNotificationsAcceptsTransferSourceFilter() {
+        Pageable pageable = PageRequest.of(0, 10);
+        when(notificationRepository.findAll(anyNotificationSpec(), any(Pageable.class)))
+                .thenReturn(new PageImpl<>(List.of(notification(4L, "TRANSFER", false)), pageable, 1));
+
+        Page<NotificationDto> page = notificationService.getMyNotifications(recipient, pageable, "all", "TRANSFER");
+
+        assertThat(page.getContent()).extracting(NotificationDto::source).containsExactly("TRANSFER");
     }
 
     @Test

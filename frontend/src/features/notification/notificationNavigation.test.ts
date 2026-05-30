@@ -1,7 +1,24 @@
 import { describe, expect, it } from 'vitest';
-import { getNotificationDestinationPath } from './notificationNavigation';
+import { getNotificationDestinationPath, getTransferPath } from './notificationNavigation';
 
 describe('notification navigation', () => {
+  it('routes TRANSFER notifications to HR employees page with employeeId query param', () => {
+    expect(getNotificationDestinationPath({
+      title: 'Temporary Transfer Ending Soon',
+      message: 'Temporary transfer for employee Test will end soon.',
+      source: 'TRANSFER',
+      targetId: 100,
+    }, '/hr/notifications')).toBe('/hr/employees?employeeId=100');
+  });
+
+  it('routes TRANSFER notifications with targetId to HR employees page', () => {
+    expect(getTransferPath('/hr/notifications', 100)).toBe('/hr/employees?employeeId=100');
+  });
+
+  it('routes TRANSFER notifications without targetId to notifications fallback', () => {
+    expect(getTransferPath('/hr/notifications', null)).toBe('/hr/notifications');
+  });
+
   it('deep-links HR self-assessment notifications when a form id is available', () => {
     expect(getNotificationDestinationPath({
       title: 'Self-Assessment Disputed',

@@ -40,6 +40,10 @@ public interface EmployeeDepartmentHistoryRepository extends JpaRepository<Emplo
         TransferType transferType,
         LocalDate date);
 
+    List<EmployeeDepartmentHistory> findByCurrentTrueAndTransferTypeAndEffectiveEndDate(
+        TransferType transferType,
+        LocalDate date);
+
     @Query("""
         SELECT h.employee.id AS employeeId, h.transferType AS transferType
         FROM EmployeeDepartmentHistory h

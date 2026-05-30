@@ -165,7 +165,7 @@ function EmployeeTable({
                         title={
                           row.currentTransferType === 'TEMPORARY'
                             ? 'Already on temporary assignment. Use Return action first, then create a new transfer.'
-                            : 'Temporary Transfer'
+                            : 'Transfer'
                         }
                       >
                         <ArrowLeftRight size={18} />

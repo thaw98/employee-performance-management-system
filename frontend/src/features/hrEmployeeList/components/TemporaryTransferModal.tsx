@@ -10,16 +10,18 @@ import {
   type DepartmentOptionDto,
   type PositionOptionDto,
 } from '../../hrCreateEmployee/hrEmployeeAccountApi'
-import { useGetCurrentTransferQuery, useTemporaryTransferMutation } from '../employeeTransferApi'
+import { useGetCurrentTransferQuery, useTemporaryTransferMutation, usePermanentTransferMutation } from '../employeeTransferApi'
 import { employeeListInputBaseCompact as inputBase } from '../employeeListTheme'
 
-interface TemporaryTransferModalProps {
+interface TransferModalProps {
   isOpen: boolean
   employeeId: number | null
   employeeName: string
   onClose: () => void
   onSuccess?: () => void
 }
+
+type TransferType = 'TEMPORARY' | 'PERMANENT'
 
 const addDaysToIsoDate = (date: string, days: number) => {
   const [year, month, day] = date.split('-').map(Number)
@@ -29,13 +31,16 @@ const addDaysToIsoDate = (date: string, days: number) => {
   return value.toISOString().slice(0, 10)
 }
 
-export function TemporaryTransferModal({ isOpen, employeeId, employeeName, onClose, onSuccess }: TemporaryTransferModalProps) {
+export function TemporaryTransferModal({ isOpen, employeeId, employeeName, onClose, onSuccess }: TransferModalProps) {
+  const [transferType, setTransferType] = useState<TransferType>('TEMPORARY')
   const [toDepartmentId, setToDepartmentId] = useState<number | ''>('')
   const [toPositionId, setToPositionId] = useState<number | ''>('')
   const [effectiveStartDate, setEffectiveStartDate] = useState('')
   const [effectiveEndDate, setEffectiveEndDate] = useState('')
   const [reason, setReason] = useState('')
   const [remarks, setRemarks] = useState('')
+
+  const isTemporary = transferType === 'TEMPORARY'
 
   const { data: deptRes, isLoading: deptLoading } = useGetDepartmentsQuery(undefined, { skip: !isOpen })
   const departments: DepartmentOptionDto[] = deptRes?.data ?? []
@@ -65,9 +70,12 @@ export function TemporaryTransferModal({ isOpen, employeeId, employeeName, onClo
     effectiveStartDate && effectiveEndDate && effectiveEndDate <= effectiveStartDate,
   )
 
-  const [temporaryTransfer, { isLoading }] = useTemporaryTransferMutation()
+  const [temporaryTransfer, { isLoading: tempLoading }] = useTemporaryTransferMutation()
+  const [permanentTransfer, { isLoading: permLoading }] = usePermanentTransferMutation()
+  const isLoading = tempLoading || permLoading
 
   const reset = () => {
+    setTransferType('TEMPORARY')
     setToDepartmentId('')
     setToPositionId('')
     setEffectiveStartDate('')
@@ -80,36 +88,54 @@ export function TemporaryTransferModal({ isOpen, employeeId, employeeName, onClo
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
-    if (!employeeId || !toDepartmentId || !toPositionId || !effectiveStartDate || !effectiveEndDate) {
+    if (!employeeId || !toDepartmentId || !toPositionId || !effectiveStartDate) {
+      toast.error('Please fill in all required fields')
+      return
+    }
+    if (isTemporary && !effectiveEndDate) {
       toast.error('Please fill in all required fields')
       return
     }
     if (hasInvalidStartDate) {
       return
     }
-    if (hasInvalidEndDate) {
+    if (isTemporary && hasInvalidEndDate) {
       toast.error('Effective end date must be after effective start date')
       return
     }
     try {
-      await temporaryTransfer({
-        employeeId,
-        body: {
-          toDepartmentId: toDepartmentId as number,
-          toPositionId: toPositionId as number,
-          effectiveStartDate,
-          effectiveEndDate,
-          reason: reason || undefined,
-          remarks: remarks || undefined,
-        },
-      }).unwrap()
-      toast.success('Temporary transfer completed')
+      if (isTemporary) {
+        await temporaryTransfer({
+          employeeId,
+          body: {
+            toDepartmentId: toDepartmentId as number,
+            toPositionId: toPositionId as number,
+            effectiveStartDate,
+            effectiveEndDate,
+            reason: reason || undefined,
+            remarks: remarks || undefined,
+          },
+        }).unwrap()
+        toast.success('Temporary transfer completed')
+      } else {
+        await permanentTransfer({
+          employeeId,
+          body: {
+            toDepartmentId: toDepartmentId as number,
+            toPositionId: toPositionId as number,
+            effectiveStartDate,
+            reason: reason || undefined,
+            remarks: remarks || undefined,
+          },
+        }).unwrap()
+        toast.success('Permanent transfer completed')
+      }
       reset()
       onSuccess?.()
       onClose()
     } catch (err: unknown) {
       const e = err as { data?: { message?: string } }
-      toast.error(e?.data?.message || 'Temporary transfer failed')
+      toast.error(e?.data?.message || 'Transfer failed')
     }
   }
 
@@ -146,7 +172,7 @@ export function TemporaryTransferModal({ isOpen, employeeId, employeeName, onClo
                       <ArrowLeftRight size={18} />
                     </div>
                     <div className="min-w-0">
-                      <Dialog.Title className="text-base font-bold text-gray-900">Temporary Transfer</Dialog.Title>
+                      <Dialog.Title className="text-base font-bold text-gray-900">Transfer</Dialog.Title>
                       <p className="truncate text-xs text-gray-500">{employeeName}</p>
                     </div>
                   </div>
@@ -161,6 +187,20 @@ export function TemporaryTransferModal({ isOpen, employeeId, employeeName, onClo
                 </div>
 
                 <form onSubmit={handleSubmit} className="space-y-3.5 p-5">
+                  <div>
+                    <label className="mb-1.5 block text-sm font-semibold text-slate-700">
+                      Transfer Type <span className="text-red-400">*</span>
+                    </label>
+                    <select
+                      className={inputBase}
+                      value={transferType}
+                      onChange={(e) => setTransferType(e.target.value as TransferType)}
+                    >
+                      <option value="TEMPORARY">Temporary Transfer</option>
+                      <option value="PERMANENT">Permanent Transfer</option>
+                    </select>
+                  </div>
+
                   <div>
                     <label className="mb-1.5 block text-sm font-semibold text-slate-700">
                       Target Department <span className="text-red-400">*</span>
@@ -200,7 +240,7 @@ export function TemporaryTransferModal({ isOpen, employeeId, employeeName, onClo
                   <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
                     <div className="min-w-0">
                       <label className="mb-1.5 block text-sm font-semibold text-slate-700">
-                        Effective Start <span className="text-red-400">*</span>
+                        {isTemporary ? 'Effective Start' : 'Effective Date'} <span className="text-red-400">*</span>
                       </label>
                       <input
                         type="date"
@@ -217,22 +257,24 @@ export function TemporaryTransferModal({ isOpen, employeeId, employeeName, onClo
                       ) : null}
                     </div>
 
-                    <div className="min-w-0">
-                      <label className="mb-1.5 block text-sm font-semibold text-slate-700">
-                        Effective End <span className="text-red-400">*</span>
-                      </label>
-                      <input
-                        type="date"
-                        className={inputBase}
-                        value={effectiveEndDate}
-                        min={minEffectiveEndDate}
-                        onChange={(e) => setEffectiveEndDate(e.target.value)}
-                        required
-                      />
-                      {hasInvalidEndDate ? (
-                        <p className="mt-1 text-xs font-medium text-red-500">End date must be after the start date.</p>
-                      ) : null}
-                    </div>
+                    {isTemporary && (
+                      <div className="min-w-0">
+                        <label className="mb-1.5 block text-sm font-semibold text-slate-700">
+                          Effective End <span className="text-red-400">*</span>
+                        </label>
+                        <input
+                          type="date"
+                          className={inputBase}
+                          value={effectiveEndDate}
+                          min={minEffectiveEndDate}
+                          onChange={(e) => setEffectiveEndDate(e.target.value)}
+                          required
+                        />
+                        {hasInvalidEndDate ? (
+                          <p className="mt-1 text-xs font-medium text-red-500">End date must be after the start date.</p>
+                        ) : null}
+                      </div>
+                    )}
                   </div>
 
                   <div>
@@ -278,7 +320,7 @@ export function TemporaryTransferModal({ isOpen, employeeId, employeeName, onClo
                       className="flex items-center gap-2 rounded-xl bg-amber-500 px-6 py-2.5 text-sm font-bold text-white transition-colors hover:bg-amber-600 disabled:opacity-50"
                     >
                       {isLoading ? <span className="h-4 w-4 rounded-full border-2 border-white/40 border-t-white animate-spin" /> : null}
-                      Confirm Transfer
+                      {isTemporary ? 'Confirm Temporary Transfer' : 'Confirm Permanent Transfer'}
                     </button>
                   </div>
                 </form>
