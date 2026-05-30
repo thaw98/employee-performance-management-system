@@ -110,6 +110,12 @@ import SelfAssessmentReportPage from './pages/reports/SelfAssessmentReportPage';
 import PerformanceReportPage from './pages/hr/PerformanceReportPage';
 import PerformanceReportDetailPage from './pages/hr/PerformanceReportDetailPage';
 
+// Continuous Feedback
+import ContinuousFeedbackPage from './pages/continuous-feedback/ContinuousFeedbackPage';
+import ContinuousFeedbackDetailPage from './pages/continuous-feedback/ContinuousFeedbackDetailPage';
+import ContinuousFeedbackDashboardPage from './pages/continuous-feedback/ContinuousFeedbackDashboardPage';
+import EmployeeContinuousFeedbackPage from './pages/continuous-feedback/EmployeeContinuousFeedbackPage';
+
 const TOAST_DEDUP_MS = 600;
 const recentToastTimestamps = new Map<string, number>();
 let isToastPatched = false;
@@ -255,6 +261,9 @@ function App() {
             <Route path="reports/self-assessment" element={<SelfAssessmentReportPage mode="hr" />} />
             <Route path="performance-reports" element={<PerformanceReportPage />} />
             <Route path="performance-reports/:employeeId" element={<PerformanceReportDetailPage />} />
+            <Route path="continuous-feedback" element={<ContinuousFeedbackPage />} />
+            <Route path="continuous-feedback/:feedbackId" element={<ContinuousFeedbackDetailPage />} />
+            <Route path="continuous-feedback/dashboard" element={<ContinuousFeedbackDashboardPage />} />
             <Route path="*" element={<Navigate to="/hr/dashboard" replace />} />
           </Route>
         </Route>
@@ -307,6 +316,8 @@ function App() {
             <Route path="reports/feedback" element={<FeedbackReportPage mode="manager" />} />
             <Route path="reports/appraisal" element={<AppraisalReportsPage mode="manager" />} />
             <Route path="reports/self-assessment" element={<SelfAssessmentReportPage mode="manager" />} />
+            <Route path="continuous-feedback" element={<ContinuousFeedbackPage />} />
+            <Route path="continuous-feedback/:feedbackId" element={<ContinuousFeedbackDetailPage />} />
             <Route path="*" element={<Navigate to="/manager/dashboard" replace />} />
           </Route>
         </Route>
@@ -341,6 +352,8 @@ function App() {
             <Route path="appraisals/:id/view" element={<EmployeeAppraisalViewPage />} />
             <Route path="reports" element={<EmployeeReportsPage />} />
             <Route path="reports/feedback" element={<FeedbackReportPage mode="employee" />} />
+            <Route path="continuous-feedback" element={<EmployeeContinuousFeedbackPage />} />
+            <Route path="continuous-feedback/:feedbackId" element={<ContinuousFeedbackDetailPage />} />
             <Route path="*" element={<Navigate to="/employee/dashboard" replace />} />
           </Route>
         </Route>
@@ -382,6 +395,9 @@ function App() {
             <Route path="kpi-reports" element={<KpiReportsPage />} />
             <Route path="performance-reports" element={<PerformanceReportPage basePath="/audit/performance-reports" readOnly />} />
             <Route path="performance-reports/:employeeId" element={<PerformanceReportDetailPage basePath="/audit/performance-reports" readOnly />} />
+            <Route path="continuous-feedback" element={<ContinuousFeedbackPage />} />
+            <Route path="continuous-feedback/:feedbackId" element={<ContinuousFeedbackDetailPage />} />
+            <Route path="continuous-feedback/dashboard" element={<ContinuousFeedbackDashboardPage />} />
             <Route path="logs" element={<AuditLogsPage />} />
             <Route path="activity-monitor" element={<AuditActivityPage />} />
             <Route path="permissions" element={<PermissionMatrixPage />} />

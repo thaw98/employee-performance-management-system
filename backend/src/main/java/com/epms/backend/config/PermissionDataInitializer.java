@@ -40,7 +40,8 @@ public class PermissionDataInitializer implements CommandLineRunner {
                 new String[]{"SELF_ASSESSMENT", "Self Assessment", "Self-assessment forms and templates"},
                 new String[]{"MEETINGS", "Meetings / One-on-One", "Meeting scheduling and management"},
                 new String[]{"REPORTS", "Reports", "Performance and analytics reports"},
-                new String[]{"EMPLOYEE_PROFILE", "Employee / Profile Basics", "Employee and profile management"})) {
+                new String[]{"EMPLOYEE_PROFILE", "Employee / Profile Basics", "Employee and profile management"},
+                new String[]{"CONTINUOUS_FEEDBACK", "Continuous Feedback", "Continuous performance feedback management"})) {
             if (!moduleRepository.existsByModuleKey(module[0])) {
                 PermissionModule m = new PermissionModule();
                 m.setModuleKey(module[0]);
@@ -124,6 +125,18 @@ public class PermissionDataInitializer implements CommandLineRunner {
                 new String[]{"view_employee", "View Employee", "1"},
                 new String[]{"manage_employee", "Manage Employee", "2"},
                 new String[]{"view_org_setup", "View Org Setup", "3"}));
+
+        moduleActions.put("CONTINUOUS_FEEDBACK", List.of(
+                new String[]{"view", "View Feedback", "1"},
+                new String[]{"create", "Create Feedback", "2"},
+                new String[]{"comment", "Add Comments", "3"},
+                new String[]{"acknowledge", "Acknowledge Feedback", "4"},
+                new String[]{"manage_action_items", "Manage Action Items", "5"},
+                new String[]{"create_followup_meeting", "Create Follow-up Meeting", "6"},
+                new String[]{"create_pip", "Create PIP", "7"},
+                new String[]{"view_private_notes", "View Private Notes", "8"},
+                new String[]{"report", "Generate Reports", "9"},
+                new String[]{"audit", "Audit Feedback", "10"}));
 
         int order = 0;
         for (Map.Entry<String, List<String[]>> entry : moduleActions.entrySet()) {

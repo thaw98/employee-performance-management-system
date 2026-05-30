@@ -20,6 +20,7 @@ import {
     Calendar,
     Shield,
     Archive,
+    MessageSquare,
 } from 'lucide-react';
 import { Outlet } from 'react-router-dom';
 import { useSelector } from 'react-redux';
@@ -121,6 +122,16 @@ const AuditLayout: React.FC = () => {
                     path: '/audit/360-feedback/history',
                     icon: <RefreshCcw size={18} />,
                     subItems: [{ label: 'Feedback History', path: '/audit/360-feedback/history', icon: <History size={16} /> }],
+                },
+                {
+                    label: 'Continuous Feedback',
+                    path: '/audit/continuous-feedback',
+                    icon: <MessageSquare size={18} />,
+                    isActive: (pathname) => pathname.startsWith('/audit/continuous-feedback'),
+                    subItems: [
+                        { label: 'Feedback Audit', path: '/audit/continuous-feedback', icon: <MessageSquare size={16} /> },
+                        { label: 'Dashboard', path: '/audit/continuous-feedback/dashboard', icon: <BarChart size={16} /> },
+                    ],
                 },
             ],
         },

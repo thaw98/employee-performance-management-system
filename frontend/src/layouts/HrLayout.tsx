@@ -25,6 +25,7 @@ import {
   Archive,
   Settings,
   TableProperties,
+  MessageSquare,
 } from 'lucide-react';
 import { Outlet } from 'react-router-dom';
 import { useSelector } from 'react-redux';
@@ -145,7 +146,17 @@ const HrLayout: React.FC = () => {
           ],
         },
         {
-          label: 'Self-Assessment',
+          label: 'Continuous Feedback',
+            path: '/hr/continuous-feedback',
+            icon: <MessageSquare size={18} />,
+            isActive: (pathname) => pathname.startsWith('/hr/continuous-feedback'),
+            subItems: [
+              { label: 'Feedback Review', path: '/hr/continuous-feedback', icon: <MessageSquare size={16} /> },
+              { label: 'Dashboard', path: '/hr/continuous-feedback/dashboard', icon: <BarChart size={16} /> },
+            ],
+          },
+          {
+            label: 'Self-Assessment',
           path: '/hr/self-assessment/templates',
           icon: <FileText size={18} />,
           subItems: [
