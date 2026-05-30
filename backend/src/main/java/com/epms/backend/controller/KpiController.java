@@ -229,9 +229,9 @@ public class KpiController {
     }
 
     @GetMapping("/history/department-comparison")
-    public ResponseEntity<List<com.epms.backend.dto.DepartmentComparisonDto>> getDepartmentComparison(
+    public ResponseEntity<List<com.epms.backend.dto.DepartmentDto>> getDepartment(
             @RequestParam(required = false) String period) {
-        return ResponseEntity.ok(kpiService.getDepartmentComparison(period));
+        return ResponseEntity.ok(kpiService.getDepartment(period));
     }
 
     @PreAuthorize("hasRole('HR')")

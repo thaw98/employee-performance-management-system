@@ -234,7 +234,7 @@ export const kpiApi = baseApi.injectEndpoints({
       }),
       providesTags: ['KPI'],
     }),
-    getDepartmentComparison: builder.query<DepartmentComparison[], { period?: string }>({
+    getDepartment: builder.query<Department[], { period?: string }>({
       query: ({ period } = {}) => ({
         url: '/kpis/history/department-comparison',
         params: period ? { period } : {},
@@ -251,7 +251,7 @@ export const kpiApi = baseApi.injectEndpoints({
   }),
 })
 
-export interface DepartmentComparison {
+export interface Department {
   departmentId: number;
   departmentName: string;
   totalStaff: number;
@@ -281,6 +281,6 @@ export const {
   useGetPositionKpiHistoryQuery,
   useGetDepartmentKpiHistoryQuery,
   useGetKpiHistorySummaryQuery,
-  useGetDepartmentComparisonQuery,
+  useGetDepartmentQuery,
   usePerformMonthlyKpiResetMutation,
 } = kpiApi
