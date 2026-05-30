@@ -3011,10 +3011,6 @@ Instant now = Instant.now();
                         form.getId()));
     }
 
-    private void sendManagerDisputeReturnNotification(SelfAssessmentForm form, String hrReason) {
-        sendManagerDisputeReturnNotification(form, hrReason, null);
-    }
-
     private void sendManagerDisputeReturnNotification(SelfAssessmentForm form, String hrReason, String hrComments) {
         Employee employee = form.getEmployee();
         resolveManagerRecipient(employee)
@@ -3424,10 +3420,10 @@ Instant now = Instant.now();
         );
 
         Double finalApprovedScore = form.getFinalApprovedTotalScore();
-	        String performance = form.getFinalApprovedTotalScore() != null && scoreExplanationResolver != null
-	                ? scoreExplanationResolver.resolveTitle(ScoreExplanationModule.SELF_ASSESSMENT,
-	                        form.getFinalApprovedTotalScore(), form.getRatingCategory())
-	                : form.getRatingCategory();
+        String performance = form.getFinalApprovedTotalScore() != null && scoreExplanationResolver != null
+                ? scoreExplanationResolver.resolveTitle(ScoreExplanationModule.SELF_ASSESSMENT,
+                        form.getFinalApprovedTotalScore(), form.getRatingCategory())
+                : form.getRatingCategory();
         if (form.getStatus() == SelfAssessmentFormStatus.NOT_SUBMITTED) {
             if (finalApprovedScore == null) {
                 finalApprovedScore = 0.0;
