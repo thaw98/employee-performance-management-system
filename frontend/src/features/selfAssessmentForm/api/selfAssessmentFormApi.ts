@@ -32,6 +32,7 @@ export interface SelfAssessmentFormTemplateDto {
   isActive: boolean
   ratingSystem: SelfAssessmentRatingSystem
   tenPointYesMinRating: number
+  fivePointYesMinRating: number
   isLocked: boolean
   isAssignedToDeadline: boolean
   questions: QuestionDto[]
@@ -79,6 +80,7 @@ export interface CreateTemplateRequest {
   manualEndDate?: string | null
   ratingSystem?: SelfAssessmentRatingSystem
   tenPointYesMinRating?: number | null
+  fivePointYesMinRating?: number | null
 }
 
 export interface CopiedSelfAssessmentFormTemplateDto {
@@ -87,6 +89,7 @@ export interface CopiedSelfAssessmentFormTemplateDto {
   title: string
   ratingSystem: SelfAssessmentRatingSystem
   tenPointYesMinRating: number
+  fivePointYesMinRating: number
   departmentId: number
   positionId: number
   departmentName?: string | null
@@ -126,6 +129,7 @@ export interface UpdateTemplateRequest {
   questions: QuestionRequest[]
   ratingSystem?: SelfAssessmentRatingSystem
   tenPointYesMinRating?: number | null
+  fivePointYesMinRating?: number | null
 }
 
 export interface EmployeeInfoDto {
@@ -210,6 +214,7 @@ export interface SelfAssessmentFormDto {
   title: string
   ratingSystem: SelfAssessmentRatingSystem
   tenPointYesMinRating: number
+  fivePointYesMinRating: number
   startDate: string | null
   deadlineDate: string | null
   managerReviewDeadlineDate: string | null
@@ -390,6 +395,7 @@ export interface ScoreRecordDto {
 export interface SelfAssessmentSettingsDto {
   ratingSystem: SelfAssessmentRatingSystem
   tenPointYesMinRating: number
+  fivePointYesMinRating: number
   ratingSystemEditable: boolean
   ratingSystemLockReason: string | null
 }
@@ -397,6 +403,7 @@ export interface SelfAssessmentSettingsDto {
 export interface SelfAssessmentSettingsRequest {
   ratingSystem: SelfAssessmentRatingSystem
   tenPointYesMinRating?: number | null
+  fivePointYesMinRating?: number | null
 }
 
 export interface FormStatusDto {
@@ -683,6 +690,12 @@ const normalizeTenPointYesMinRating = (value: unknown): number => {
   return Math.min(10, Math.max(2, Math.trunc(numericValue)))
 }
 
+const normalizeFivePointYesMinRating = (value: unknown): number => {
+  const numericValue = Number(value ?? 3)
+  if (!Number.isFinite(numericValue)) return 3
+  return Math.min(5, Math.max(2, Math.trunc(numericValue)))
+}
+
 const getResponseData = (response: unknown) => {
   return isRecord(response) ? response.data : undefined
 }
@@ -822,6 +835,7 @@ const normalizeForm = (form: unknown): SelfAssessmentFormDto => {
     title: getString(source.title, 'Self Assessment Form'),
     ratingSystem: normalizeRatingSystem(source.ratingSystem),
     tenPointYesMinRating: normalizeTenPointYesMinRating(source.tenPointYesMinRating),
+    fivePointYesMinRating: normalizeFivePointYesMinRating(source.fivePointYesMinRating),
     startDate: getOptionalString(source.startDate) ?? null,
     deadlineDate: getOptionalString(source.deadlineDate) ?? null,
     managerReviewDeadlineDate: getOptionalString(source.managerReviewDeadlineDate) ?? null,
@@ -1003,6 +1017,7 @@ const normalizeSettings = (settings: unknown): SelfAssessmentSettingsDto => {
   return {
     ratingSystem: normalizeRatingSystem(source.ratingSystem),
     tenPointYesMinRating: normalizeTenPointYesMinRating(source.tenPointYesMinRating),
+    fivePointYesMinRating: normalizeFivePointYesMinRating(source.fivePointYesMinRating),
     ratingSystemEditable: getBoolean(source.ratingSystemEditable, true),
     ratingSystemLockReason: getOptionalString(source.ratingSystemLockReason) ?? null,
   }
@@ -1044,6 +1059,7 @@ const normalizeTemplate = (template: unknown): SelfAssessmentFormTemplateDto => 
     isActive: getBoolean(source.isActive),
     ratingSystem: normalizeRatingSystem(source.ratingSystem),
     tenPointYesMinRating: normalizeTenPointYesMinRating(source.tenPointYesMinRating),
+    fivePointYesMinRating: normalizeFivePointYesMinRating(source.fivePointYesMinRating),
     isLocked: getBoolean(source.isLocked),
     isAssignedToDeadline: getBoolean(source.isAssignedToDeadline, getBoolean(source.isLocked)),
     questions: getArray(source.questions).map(normalizeTemplateQuestion),
@@ -1066,6 +1082,7 @@ const normalizeCopiedTemplate = (template: unknown): CopiedSelfAssessmentFormTem
     title: getString(source.title),
     ratingSystem: normalizeRatingSystem(source.ratingSystem),
     tenPointYesMinRating: normalizeTenPointYesMinRating(source.tenPointYesMinRating),
+    fivePointYesMinRating: normalizeFivePointYesMinRating(source.fivePointYesMinRating),
     departmentId,
     positionId,
     departmentName: getOptionalString(source.departmentName ?? source.department_name) ?? null,

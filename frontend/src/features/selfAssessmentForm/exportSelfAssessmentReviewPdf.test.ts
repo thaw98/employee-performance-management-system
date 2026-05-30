@@ -12,6 +12,7 @@ const baseForm = (): SelfAssessmentFormDto => ({
   title: 'Self Assessment',
   ratingSystem: 'FIVE_POINT',
   tenPointYesMinRating: 7,
+  fivePointYesMinRating: 3,
   startDate: null,
   deadlineDate: null,
   managerReviewDeadlineDate: null,

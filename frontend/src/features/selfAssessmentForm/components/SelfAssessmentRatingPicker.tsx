@@ -16,6 +16,7 @@ export interface SelfAssessmentRatingPickerProps {
   fivePointVariant?: 'stars' | 'numeric';
   ratingSystem: SelfAssessmentRatingSystem | null | undefined;
   tenPointYesMinRating?: number | null;
+  fivePointYesMinRating?: number | null;
   yesNoAnswer: string | null | undefined;
   value: number | null | undefined;
   onChange: (rating: number) => void;
@@ -184,13 +185,14 @@ export function SelfAssessmentRatingPicker({
   fivePointVariant = 'stars',
   ratingSystem,
   tenPointYesMinRating,
+  fivePointYesMinRating,
   yesNoAnswer,
   value,
   onChange,
   disabled = false,
 }: SelfAssessmentRatingPickerProps) {
   const system: SelfAssessmentRatingSystem = ratingSystem === 'TEN_POINT' ? 'TEN_POINT' : 'FIVE_POINT';
-  const allowed = getRatingOptions(system, yesNoAnswer, tenPointYesMinRating);
+  const allowed = getRatingOptions(system, yesNoAnswer, tenPointYesMinRating, fivePointYesMinRating);
   const pickerDisabled = disabled || !yesNoAnswer;
 
   const body =

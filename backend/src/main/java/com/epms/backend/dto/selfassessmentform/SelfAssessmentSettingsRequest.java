@@ -4,5 +4,6 @@ import jakarta.validation.constraints.NotBlank;
 
 public record SelfAssessmentSettingsRequest(
         @NotBlank String ratingSystem,
-        Integer tenPointYesMinRating
+        Integer tenPointYesMinRating,
+        Integer fivePointYesMinRating
 ) {}

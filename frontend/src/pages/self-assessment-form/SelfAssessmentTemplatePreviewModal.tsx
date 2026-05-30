@@ -18,6 +18,7 @@ interface SelfAssessmentTemplatePreviewModalProps {
   reviewCycleDetail?: string | null;
   ratingSystem?: SelfAssessmentRatingSystem | null;
   tenPointYesMinRating?: number | null;
+  fivePointYesMinRating?: number | null;
   questions: SelfAssessmentTemplatePreviewQuestion[];
 }
 
@@ -32,6 +33,7 @@ export const SelfAssessmentTemplatePreviewModal: React.FC<SelfAssessmentTemplate
   reviewCycleDetail,
   ratingSystem,
   tenPointYesMinRating,
+  fivePointYesMinRating,
   questions,
 }) => {
   const visibleQuestions = useMemo(
@@ -39,8 +41,8 @@ export const SelfAssessmentTemplatePreviewModal: React.FC<SelfAssessmentTemplate
     [questions],
   );
   const normalizedRatingSystem = ratingSystem === 'TEN_POINT' ? 'TEN_POINT' : 'FIVE_POINT';
-  const yesRatings = getRatingOptions(normalizedRatingSystem, 'Yes', tenPointYesMinRating);
-  const noRatings = getRatingOptions(normalizedRatingSystem, 'No', tenPointYesMinRating);
+  const yesRatings = getRatingOptions(normalizedRatingSystem, 'Yes', tenPointYesMinRating, fivePointYesMinRating);
+  const noRatings = getRatingOptions(normalizedRatingSystem, 'No', tenPointYesMinRating, fivePointYesMinRating);
   const displayTitle = title.trim() || 'Untitled Template';
   const displayAudience = audienceLabels.filter((label) => label.trim());
 

@@ -23,6 +23,7 @@ const mocks = vi.hoisted(() => {
     title: 'Employee Self Assessment',
     ratingSystem: 'FIVE_POINT',
     tenPointYesMinRating: 5,
+    fivePointYesMinRating: 3,
     deadlineDate: '2026-05-30',
     managerReviewDeadlineDate: null,
     finalApprovalDeadlineDate: null,

@@ -19,6 +19,7 @@ let templateData = {
   isActive: true,
   ratingSystem: 'FIVE_POINT',
   tenPointYesMinRating: 5,
+  fivePointYesMinRating: 3,
   isLocked: false,
   createdOn: '',
   createdBy: 1,

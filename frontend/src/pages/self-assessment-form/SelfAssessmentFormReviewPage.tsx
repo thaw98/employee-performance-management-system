@@ -712,7 +712,7 @@ export const SelfAssessmentFormReviewPage: React.FC<SelfAssessmentFormReviewPage
     if (flaggedAnswers.some(answer => {
       const finalValue = forceChangeAnswers[answer.id];
       return finalValue
-        && !isRatingValidForAnswer(selectedForm.ratingSystem, finalValue.yesNoAnswer, finalValue.rating, selectedForm.tenPointYesMinRating);
+        && !isRatingValidForAnswer(selectedForm.ratingSystem, finalValue.yesNoAnswer, finalValue.rating, selectedForm.tenPointYesMinRating, selectedForm.fivePointYesMinRating);
     })) {
       toast.error('Choose a valid rating for each final answer');
       return;
@@ -2349,6 +2349,7 @@ Review Submissions
                     selectedForm.ratingSystem,
                     current.yesNoAnswer,
                     selectedForm.tenPointYesMinRating,
+                    selectedForm.fivePointYesMinRating,
                   );
 
                   return (

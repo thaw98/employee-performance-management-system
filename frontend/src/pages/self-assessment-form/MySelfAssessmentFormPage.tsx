@@ -515,6 +515,7 @@ export const MySelfAssessmentFormPage: React.FC = () => {
 
   const ratingSystem = formData?.ratingSystem ?? 'FIVE_POINT';
   const tenPointYesMinRating = formData?.tenPointYesMinRating ?? 5;
+  const fivePointYesMinRating = formData?.fivePointYesMinRating ?? 3;
 
   const answeredCount =
     watchAnswers?.filter((a) => (a.yesNoAnswer === 'Yes' || a.yesNoAnswer === 'No') && a.rating != null)
@@ -541,7 +542,7 @@ export const MySelfAssessmentFormPage: React.FC = () => {
 
   const handleYesNoChange = (index: number, value: string, currentRating: number | null) => {
     setValue(`answers.${index}.yesNoAnswer`, value, { shouldDirty: true, shouldTouch: true });
-    if (isRatingValidForAnswer(ratingSystem, value, currentRating, tenPointYesMinRating)) {
+    if (isRatingValidForAnswer(ratingSystem, value, currentRating, tenPointYesMinRating, fivePointYesMinRating)) {
       setValue(`answers.${index}.rating`, currentRating, { shouldDirty: true, shouldTouch: true });
     } else {
       setValue(`answers.${index}.rating`, null as any, { shouldDirty: true, shouldTouch: true });
@@ -1118,12 +1119,13 @@ export const MySelfAssessmentFormPage: React.FC = () => {
                           <SelfAssessmentRatingPicker
                             fivePointVariant="numeric"
                             ratingSystem={ratingSystem}
-                            tenPointYesMinRating={tenPointYesMinRating}
+                              tenPointYesMinRating={tenPointYesMinRating}
+                              fivePointYesMinRating={fivePointYesMinRating}
                             yesNoAnswer={watchAnswers?.[index]?.yesNoAnswer}
                             value={field.value}
                             onChange={(rating) => {
                               const yn2 = watchAnswers?.[index]?.yesNoAnswer ?? null;
-                              if (!isRatingValidForAnswer(ratingSystem, yn2, rating, tenPointYesMinRating)) {
+                              if (!isRatingValidForAnswer(ratingSystem, yn2, rating, tenPointYesMinRating, fivePointYesMinRating)) {
                                 toast.error('Rating does not match the selected response');
                                 return;
                               }

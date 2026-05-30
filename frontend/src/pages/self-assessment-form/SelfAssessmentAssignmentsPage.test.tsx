@@ -73,6 +73,7 @@ const assignedTemplate = {
   isActive: true,
   ratingSystem: 'FIVE_POINT',
   tenPointYesMinRating: 7,
+  fivePointYesMinRating: 3,
   isLocked: false,
   isAssignedToDeadline: true,
   questions: [{ id: 1, questionText: 'Goal progress', sortOrder: 0 }],

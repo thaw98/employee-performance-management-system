@@ -1011,6 +1011,7 @@ export const EditSelfAssessmentTemplatePage: React.FC = () => {
           reviewCycleDetail={previewReviewCycleDetail}
           ratingSystem={editPreviewRatingSystem}
           tenPointYesMinRating={loadedTemplate?.tenPointYesMinRating}
+          fivePointYesMinRating={loadedTemplate?.fivePointYesMinRating}
           questions={watchedQuestions ?? []}
         />
 

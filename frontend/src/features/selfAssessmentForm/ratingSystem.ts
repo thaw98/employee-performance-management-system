@@ -9,10 +9,20 @@ export const DEFAULT_TEN_POINT_YES_MIN_RATING = 5
 export const MIN_TEN_POINT_YES_MIN_RATING = 2
 export const MAX_TEN_POINT_YES_MIN_RATING = 10
 
+export const DEFAULT_FIVE_POINT_YES_MIN_RATING = 3
+export const MIN_FIVE_POINT_YES_MIN_RATING = 2
+export const MAX_FIVE_POINT_YES_MIN_RATING = 5
+
 export const normalizeTenPointYesMinRating = (value: number | null | undefined) => {
   const numeric = Number(value ?? DEFAULT_TEN_POINT_YES_MIN_RATING)
   if (!Number.isFinite(numeric)) return DEFAULT_TEN_POINT_YES_MIN_RATING
   return Math.min(MAX_TEN_POINT_YES_MIN_RATING, Math.max(MIN_TEN_POINT_YES_MIN_RATING, Math.trunc(numeric)))
+}
+
+export const normalizeFivePointYesMinRating = (value: number | null | undefined) => {
+  const numeric = Number(value ?? DEFAULT_FIVE_POINT_YES_MIN_RATING)
+  if (!Number.isFinite(numeric)) return DEFAULT_FIVE_POINT_YES_MIN_RATING
+  return Math.min(MAX_FIVE_POINT_YES_MIN_RATING, Math.max(MIN_FIVE_POINT_YES_MIN_RATING, Math.trunc(numeric)))
 }
 
 export const tenPointYesMinRatingOptions = Array.from(
@@ -20,10 +30,16 @@ export const tenPointYesMinRatingOptions = Array.from(
   (_, index) => MIN_TEN_POINT_YES_MIN_RATING + index,
 )
 
+export const fivePointYesMinRatingOptions = Array.from(
+  { length: MAX_FIVE_POINT_YES_MIN_RATING - MIN_FIVE_POINT_YES_MIN_RATING + 1 },
+  (_, index) => MIN_FIVE_POINT_YES_MIN_RATING + index,
+)
+
 export const getRatingOptions = (
   ratingSystem: SelfAssessmentRatingSystem | null | undefined,
   yesNoAnswer: string | null | undefined,
   tenPointYesMinRating?: number | null,
+  fivePointYesMinRating?: number | null,
 ) => {
   const system = ratingSystem === 'TEN_POINT' ? 'TEN_POINT' : 'FIVE_POINT'
   if (yesNoAnswer === 'Yes') {
@@ -31,14 +47,16 @@ export const getRatingOptions = (
       const threshold = normalizeTenPointYesMinRating(tenPointYesMinRating)
       return Array.from({ length: 10 - threshold + 1 }, (_, index) => 10 - index)
     }
-    return [5, 4, 3]
+    const threshold = normalizeFivePointYesMinRating(fivePointYesMinRating)
+    return Array.from({ length: 5 - threshold + 1 }, (_, index) => 5 - index)
   }
   if (yesNoAnswer === 'No') {
     if (system === 'TEN_POINT') {
       const threshold = normalizeTenPointYesMinRating(tenPointYesMinRating)
       return Array.from({ length: threshold - 1 }, (_, index) => threshold - 1 - index)
     }
-    return [2, 1]
+    const threshold = normalizeFivePointYesMinRating(fivePointYesMinRating)
+    return Array.from({ length: threshold - 1 }, (_, index) => threshold - 1 - index)
   }
   return []
 }
@@ -48,9 +66,10 @@ export const isRatingValidForAnswer = (
   yesNoAnswer: string | null | undefined,
   rating: number | null | undefined,
   tenPointYesMinRating?: number | null,
+  fivePointYesMinRating?: number | null,
 ) => {
   if (!yesNoAnswer || rating == null) return true
-  return getRatingOptions(ratingSystem, yesNoAnswer, tenPointYesMinRating).includes(rating)
+  return getRatingOptions(ratingSystem, yesNoAnswer, tenPointYesMinRating, fivePointYesMinRating).includes(rating)
 }
 
 /** Proposed adjustment must change Yes/No and/or rating vs the employee's saved answer. */

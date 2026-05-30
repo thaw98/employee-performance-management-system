@@ -12,5 +12,6 @@ public record UpdateTemplateRequest(
         boolean isActive,
         @NotEmpty List<QuestionRequest> questions,
         String ratingSystem,
-        Integer tenPointYesMinRating
+        Integer tenPointYesMinRating,
+        Integer fivePointYesMinRating
 ) {}

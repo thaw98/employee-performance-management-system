@@ -18,5 +18,6 @@ public record CreateTemplateRequest(
         LocalDate manualStartDate,
         LocalDate manualEndDate,
         String ratingSystem,
-        Integer tenPointYesMinRating
+        Integer tenPointYesMinRating,
+        Integer fivePointYesMinRating
 ) {}

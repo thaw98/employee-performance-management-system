@@ -103,6 +103,7 @@ export default function SelfAssessmentTemplateImportModal({ isOpen, onClose, onI
   const [manualEndDate, setManualEndDate] = useState('')
   const [ratingSystem, setRatingSystem] = useState<SelfAssessmentRatingSystem | undefined>(undefined)
   const [tenPointYesMinRating, setTenPointYesMinRating] = useState<number>(5)
+  const [fivePointYesMinRating, setFivePointYesMinRating] = useState<number>(3)
 
   const [validateFile, { isLoading: isValidating }] = useValidateSelfAssessmentTemplateImportMutation()
   const [createTemplate, { isLoading: isCreating }] = useCreateTemplateMutation()
@@ -188,6 +189,7 @@ export default function SelfAssessmentTemplateImportModal({ isOpen, onClose, onI
     if (!selfAssessmentSettingsLoading && selfAssessmentSettings) {
       setRatingSystem(selfAssessmentSettings.ratingSystem)
       setTenPointYesMinRating(selfAssessmentSettings.tenPointYesMinRating)
+      setFivePointYesMinRating(selfAssessmentSettings.fivePointYesMinRating)
     }
   }, [selfAssessmentSettings, selfAssessmentSettingsLoading])
 
@@ -451,6 +453,7 @@ export default function SelfAssessmentTemplateImportModal({ isOpen, onClose, onI
             manualEndDate: timelineMode === 'MANUAL' ? manualEndDate : null,
             ratingSystem: ratingSystem || undefined,
             tenPointYesMinRating: tenPointYesMinRating || undefined,
+            fivePointYesMinRating: fivePointYesMinRating || undefined,
           }).unwrap()
           createdCount += 1
         } catch (error: unknown) {
