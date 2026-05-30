@@ -126,6 +126,16 @@ export function getFaqSupportPath(pathname: string) {
   return pathname.startsWith('/hr') ? '/hr/settings/faq-support' : `/${getRolePrefix(pathname)}/faq`;
 }
 
+export function getTransferPath(pathname: string, employeeId?: number | null) {
+  if (pathname.startsWith('/hr') && employeeId) {
+    return `/hr/employees?employeeId=${employeeId}`;
+  }
+  if (employeeId) {
+    return `/hr/employees?employeeId=${employeeId}`;
+  }
+  return `/${getRolePrefix(pathname)}/notifications`;
+}
+
 type NotificationNavigationInput = Pick<NotificationItem, 'source' | 'title' | 'message' | 'targetId'>;
 
 function normalizeNotificationSource(source: string | undefined) {
@@ -184,6 +194,10 @@ export function getNotificationDestinationPath(notification: NotificationNavigat
 
   if (source === 'FAQ_SUPPORT') {
     return getFaqSupportPath(pathname);
+  }
+
+  if (source === 'TRANSFER') {
+    return getTransferPath(pathname, notification.targetId);
   }
 
   if (source === '360_FEEDBACK' && isFeedbackCycleStartNotification(notification)) {

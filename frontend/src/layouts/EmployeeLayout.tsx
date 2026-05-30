@@ -11,6 +11,7 @@ import {
   FileText,
   ClipboardList,
   BarChart,
+  MessageSquare,
 } from 'lucide-react';
 import { Outlet } from 'react-router-dom';
 import { useSelector } from 'react-redux';
@@ -81,6 +82,7 @@ const EmployeeLayout: React.FC = () => {
             { label: 'Feedback History', path: '/employee/360-feedback/history', icon: <History size={16} /> },
           ],
         },
+        { label: 'My Continuous Feedback', path: '/employee/continuous-feedback', icon: <MessageSquare size={18} /> },
         { label: 'My PIPs', path: '/employee/pip', icon: <TrendingUp size={18} /> },
         ...(isEmployeeRole ? [selfAssessmentItem] : []),
       ],

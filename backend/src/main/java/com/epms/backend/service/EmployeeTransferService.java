@@ -43,6 +43,7 @@ import lombok.RequiredArgsConstructor;
 public class EmployeeTransferService {
 
     public static final long AUDIT_SYSTEM_ACTOR_ID = 0L;
+    private static final String NOTIFICATION_SOURCE = "TRANSFER";
     private static final DateTimeFormatter TRANSFER_DATE_FORMAT = DateTimeFormatter.ofPattern("dd/MM/yyyy");
 
     private static final List<TransferType> BASE_TRANSFER_TYPES = List.of(
@@ -201,6 +202,8 @@ public class EmployeeTransferService {
         employee.setPosition(toPos);
         employeeRepository.save(employee);
 
+        sendPermanentTransferNotification(employee, toDept, toPos, req.getEffectiveStartDate());
+
         auditService.record(
             AuditActionType.EMPLOYEE_PERMANENT_TRANSFER,
             AuditTargetType.EMPLOYEE,
@@ -239,6 +242,8 @@ public class EmployeeTransferService {
         employee.setDepartment(current.getToDepartment());
         employee.setPosition(current.getToPosition());
         employeeRepository.save(employee);
+
+        sendMakePermanentNotification(employee, current.getToDepartment(), current.getToPosition(), req.getEffectiveStartDate());
 
         auditService.record(
             AuditActionType.EMPLOYEE_PERMANENT_TRANSFER,
@@ -457,9 +462,53 @@ public class EmployeeTransferService {
             + effectiveEndDate.format(TRANSFER_DATE_FORMAT)
             + ").";
         try {
-            notificationService.send(employee.getUserAccount(), title, message);
+            notificationService.send(employee.getUserAccount(), title, message, NOTIFICATION_SOURCE, employee.getId());
         } catch (Exception ignored) {
             // Keep transfer flow successful even if notification delivery fails.
+        }
+    }
+
+    private void sendPermanentTransferNotification(
+            Employee employee,
+            Department toDept,
+            Position toPos,
+            LocalDate effectiveDate) {
+        if (employee.getUserAccount() == null) {
+            return;
+        }
+        String title = "Permanent Transfer Completed";
+        String message = "You have been permanently transferred to "
+            + toDept.getName()
+            + " as "
+            + toPos.getName()
+            + " effective "
+            + effectiveDate.format(TRANSFER_DATE_FORMAT)
+            + ".";
+        try {
+            notificationService.send(employee.getUserAccount(), title, message, NOTIFICATION_SOURCE, employee.getId());
+        } catch (Exception ignored) {
+        }
+    }
+
+    private void sendMakePermanentNotification(
+            Employee employee,
+            Department toDept,
+            Position toPos,
+            LocalDate effectiveDate) {
+        if (employee.getUserAccount() == null) {
+            return;
+        }
+        String title = "Temporary Transfer Made Permanent";
+        String message = "Your temporary transfer to "
+            + toDept.getName()
+            + " as "
+            + toPos.getName()
+            + " has been made permanent effective "
+            + effectiveDate.format(TRANSFER_DATE_FORMAT)
+            + ".";
+        try {
+            notificationService.send(employee.getUserAccount(), title, message, NOTIFICATION_SOURCE, employee.getId());
+        } catch (Exception ignored) {
         }
     }
 

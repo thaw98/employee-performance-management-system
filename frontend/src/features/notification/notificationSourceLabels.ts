@@ -5,6 +5,7 @@ export const NOTIFICATION_SOURCE_LABELS: Record<string, string> = {
   MEETING: 'One-on-one Meeting',
   PIP: 'PIP',
   SELF_ASSESSMENT_FORM: 'Self-Assessment',
+  TRANSFER: 'Transfer',
 };
 
 export function getNotificationSourceLabel(source: string): string {

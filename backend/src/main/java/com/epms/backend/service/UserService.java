@@ -177,7 +177,9 @@ public class UserService {
 
     private UserProfileDto toUserProfileDto(User user) {
         Employee employee = user.getEmployee();
-        String profilePictureUrl = employee != null ? employee.getProfilePictureUrl() : null;
+        String profilePictureUrl = employee != null
+                ? profilePictureStorageService.toPublicUrl(employee.getProfilePictureUrl())
+                : null;
         if (profilePictureUrl != null && !profilePictureStorageService.isAvailable(profilePictureUrl)) {
             profilePictureUrl = null;
         }

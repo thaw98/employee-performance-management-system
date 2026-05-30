@@ -28,7 +28,8 @@ type NotificationSourceFilter =
   | 'MEETING'
   | 'PIP'
   | 'SELF_ASSESSMENT_FORM'
-  | 'FAQ_SUPPORT';
+  | 'FAQ_SUPPORT'
+  | 'TRANSFER';
 
 const PAGE_SIZE = 10;
 const CATEGORY_OPTIONS: { value: NotificationSourceFilter; label: string }[] = [
@@ -40,6 +41,7 @@ const CATEGORY_OPTIONS: { value: NotificationSourceFilter; label: string }[] = [
   { value: 'PIP', label: 'PIP' },
   { value: 'SELF_ASSESSMENT_FORM', label: 'Self-Assessment' },
   { value: 'FAQ_SUPPORT', label: 'FAQ Support' },
+  { value: 'TRANSFER', label: 'Transfer' },
 ];
 
 function getNotificationTitle(notification: NotificationItem) {

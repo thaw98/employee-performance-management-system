@@ -1,4 +1,5 @@
 import { useState, useMemo, memo } from 'react'
+import { resolveProfilePictureSrc } from '../../../utils/mediaUrl'
 
 interface EmployeeProfileCellProps {
   url?: string
@@ -7,6 +8,7 @@ interface EmployeeProfileCellProps {
 
 function EmployeeProfileCell({ url, name }: EmployeeProfileCellProps) {
   const [imgError, setImgError] = useState(false)
+  const imageSrc = useMemo(() => resolveProfilePictureSrc(url), [url])
 
   const initials = useMemo(
     () =>
@@ -21,9 +23,9 @@ function EmployeeProfileCell({ url, name }: EmployeeProfileCellProps) {
 
   return (
     <div className="flex items-center gap-3">
-      {url && !imgError ? (
+      {imageSrc && !imgError ? (
         <img
-          src={url}
+          src={imageSrc}
           alt={name}
           className="h-10 w-10 rounded-full object-cover border border-gray-200"
           onError={() => setImgError(true)}

@@ -1126,6 +1126,25 @@ const normalizeScoreRecord = (record: unknown): ScoreRecordDto => {
   }
 }
 
+export interface SelfAssessmentTemplateImportValidRow {
+  rowNumber: number
+  questionText: string
+}
+
+export interface SelfAssessmentTemplateImportInvalidRow {
+  rowNumber: number
+  questionText: string | null
+  errors: string[]
+}
+
+export interface SelfAssessmentTemplateImportValidationResponse {
+  totalRows: number
+  validRows: number
+  invalidRows: number
+  validRowData: SelfAssessmentTemplateImportValidRow[]
+  invalidRowsData: SelfAssessmentTemplateImportInvalidRow[]
+}
+
 export const selfAssessmentFormApi = baseApi.injectEndpoints({
   endpoints: (builder) => ({
     getMyFormStatus: builder.query<FormStatusDto, void>({
@@ -1595,6 +1614,17 @@ export const selfAssessmentFormApi = baseApi.injectEndpoints({
       providesTags: ['SelfAssessmentForm'],
       transformResponse: (response: unknown) => normalizeArchiveSnapshot(getResponseData(response)),
     }),
+
+    validateSelfAssessmentTemplateImport: builder.mutation<
+      { success: boolean; message: string; data: SelfAssessmentTemplateImportValidationResponse },
+      FormData
+    >({
+      query: (body) => ({
+        url: '/self-assessment-forms/templates/import/validate',
+        method: 'POST',
+        body,
+      }),
+    }),
   }),
 })
 
@@ -1648,4 +1678,5 @@ export const {
   useGetScoreRecordsQuery,
   useGetArchiveListQuery,
   useGetArchiveDetailQuery,
+  useValidateSelfAssessmentTemplateImportMutation,
 } = selfAssessmentFormApi

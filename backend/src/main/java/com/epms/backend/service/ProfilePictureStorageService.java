@@ -126,7 +126,34 @@ public class ProfilePictureStorageService {
 				return filename;
 			}
 		}
+		if (path.indexOf('/') < 0 && !path.contains("..") && looksLikeStoredFilename(path)) {
+			return path;
+		}
 		return null;
+	}
+
+	public String toPublicUrl(String profilePictureUrl) {
+		if (profilePictureUrl == null || profilePictureUrl.isBlank()) {
+			return null;
+		}
+		String value = profilePictureUrl.trim();
+		if (value.startsWith("http://") || value.startsWith("https://") || value.startsWith("data:")) {
+			return value;
+		}
+		if (value.startsWith(PUBLIC_PATH_PREFIX + "/") || value.startsWith(LEGACY_PUBLIC_PATH_PREFIX + "/")) {
+			return value;
+		}
+		String filename = extractFilename(value);
+		if (filename != null) {
+			return PUBLIC_PATH_PREFIX + "/" + filename;
+		}
+		return value;
+	}
+
+	private static boolean looksLikeStoredFilename(String path) {
+		String lower = path.toLowerCase(Locale.ROOT);
+		return lower.endsWith(".jpg") || lower.endsWith(".jpeg") || lower.endsWith(".png")
+				|| lower.endsWith(".gif") || lower.endsWith(".webp");
 	}
 
 	private static String extensionForContentType(String contentType) {

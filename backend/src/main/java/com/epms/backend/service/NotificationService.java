@@ -24,7 +24,9 @@ public class NotificationService {
             "MEETING",
             "PIP",
             "SELF_ASSESSMENT_FORM",
-            "FAQ_SUPPORT");
+            "FAQ_SUPPORT",
+            "TRANSFER",
+            "CONTINUOUS_FEEDBACK");
 
     private final NotificationRepository notificationRepository;
     private final WebSocketNotificationService webSocketNotificationService;
@@ -134,7 +136,7 @@ public class NotificationService {
         String normalized = source.trim().toUpperCase();
         if (!VALID_SOURCES.contains(normalized)) {
             throw new IllegalArgumentException(
-                    "source must be one of: APPRAISAL, KPI, 360_FEEDBACK, MEETING, PIP, SELF_ASSESSMENT_FORM, FAQ_SUPPORT");
+                    "source must be one of: APPRAISAL, KPI, 360_FEEDBACK, MEETING, PIP, SELF_ASSESSMENT_FORM, FAQ_SUPPORT, TRANSFER, CONTINUOUS_FEEDBACK");
         }
         return normalized;
     }

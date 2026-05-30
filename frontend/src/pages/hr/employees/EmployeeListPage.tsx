@@ -1,4 +1,5 @@
 import { useState, useCallback, useMemo, useEffect } from 'react'
+import { useSearchParams } from 'react-router-dom'
 import { skipToken } from '@reduxjs/toolkit/query'
 import type { UpdateEmploymentStatusRequest, ProbationInfo } from '../../../features/hrEmployeeList/hrEmployeeApi'
 
@@ -124,6 +125,21 @@ export default function EmployeeListPage() {
     triggerGetEmployeeView,
     { data: viewData, isLoading: isViewLoading, isError: isViewError },
   ] = useLazyGetEmployeeViewByIdQuery()
+
+  const [searchParams, setSearchParams] = useSearchParams()
+  const queryParamEmployeeId = searchParams.get('employeeId')
+
+  useEffect(() => {
+    if (!queryParamEmployeeId) return
+    const id = Number(queryParamEmployeeId)
+    if (isNaN(id)) return
+    setSelectedViewEmployeeId(id)
+    triggerGetEmployeeView(id, true).unwrap().catch(() => {
+      setSelectedViewEmployeeId(null)
+    })
+    searchParams.delete('employeeId')
+    setSearchParams(searchParams, { replace: true })
+  }, [queryParamEmployeeId, triggerGetEmployeeView, searchParams, setSearchParams])
 
   useEffect(() => {
     if (!employeeListError) return
