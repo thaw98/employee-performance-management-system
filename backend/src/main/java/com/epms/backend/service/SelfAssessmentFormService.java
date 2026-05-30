@@ -150,6 +150,7 @@ public class SelfAssessmentFormService {
         template.setRatingSystem(resolveTemplateRatingSystem(request.ratingSystem()));
         template.setTenPointYesMinRating(resolveTemplateTenPointYesMinRating(request.tenPointYesMinRating()));
         template.setFivePointYesMinRating(resolveTemplateFivePointYesMinRating(request.fivePointYesMinRating()));
+        template.setIncludeYesNo(resolveTemplateIncludeYesNo(request.includeYesNo()));
         template.setActive(true);
         template.setCreatedBy(userId);
         template.setCreatedOn(Instant.now());
@@ -213,6 +214,7 @@ Instant now = Instant.now();
         copied.setRatingSystem(SelfAssessmentRatingSystem.defaultIfNull(source.getRatingSystem()));
         copied.setTenPointYesMinRating(resolveSavedTenPointYesMinRating(source.getTenPointYesMinRating()));
         copied.setFivePointYesMinRating(resolveSavedFivePointYesMinRating(source.getFivePointYesMinRating()));
+        copied.setIncludeYesNo(source.isIncludeYesNo());
         copied.setCreatedBy(userId);
         copied.setCreatedOn(now);
         copied.setDepartmentId(source.getDepartment().getId());
@@ -306,6 +308,9 @@ Instant now = Instant.now();
         }
         if (request.fivePointYesMinRating() != null) {
             template.setFivePointYesMinRating(parseFivePointYesMinRating(request.fivePointYesMinRating()));
+        }
+        if (request.includeYesNo() != null) {
+            template.setIncludeYesNo(request.includeYesNo());
         }
         template.setActive(request.isActive());
         template.setUpdatedBy(userId);
@@ -1053,14 +1058,16 @@ Instant now = Instant.now();
         SelfAssessmentRatingSystem targetRatingSystem = parseRatingSystem(request.ratingSystem());
         int targetTenPointYesMinRating = parseTenPointYesMinRating(request.tenPointYesMinRating());
         int targetFivePointYesMinRating = parseFivePointYesMinRating(request.fivePointYesMinRating());
+        boolean targetIncludeYesNo = request.includeYesNo() != null ? request.includeYesNo() : true;
         SelfAssessmentSettings settings = getOrCreateSettings();
         settings.setRatingSystem(targetRatingSystem);
         settings.setTenPointYesMinRating(targetTenPointYesMinRating);
         settings.setFivePointYesMinRating(targetFivePointYesMinRating);
+        settings.setIncludeYesNo(targetIncludeYesNo);
         settings.setUpdatedBy(userId);
         settings.setUpdatedOn(Instant.now());
         settingsRepository.save(settings);
-        syncUnassignedTemplatesInActiveCycle(targetRatingSystem, targetTenPointYesMinRating, targetFivePointYesMinRating, userId);
+        syncUnassignedTemplatesInActiveCycle(targetRatingSystem, targetTenPointYesMinRating, targetFivePointYesMinRating, targetIncludeYesNo, userId);
         return toSettingsDto(settings);
     }
 
@@ -1190,10 +1197,18 @@ Instant now = Instant.now();
         if (hasManagerAdjustments) {
             SelfAssessmentRatingSystem ratingSystem = SelfAssessmentRatingSystem.defaultIfNull(form.getRatingSystem());
             int yesMinRating = resolveYesMinRating(ratingSystem, form);
+            boolean includeYesNo = form.isIncludeYesNo();
             for (ManagerAdjustmentRequest adj : request.adjustments()) {
-                if (!ratingSystem.isValidYesNo(adj.proposedYesNo()) || adj.proposedRating() == null
-                        || !ratingSystem.isValidRating(adj.proposedYesNo(), adj.proposedRating(), yesMinRating)) {
-                    throw new RuntimeException("Proposed rating does not match the form rating system");
+                if (includeYesNo) {
+                    if (!ratingSystem.isValidYesNo(adj.proposedYesNo()) || adj.proposedRating() == null
+                            || !ratingSystem.isValidRating(adj.proposedYesNo(), adj.proposedRating(), yesMinRating)) {
+                        throw new RuntimeException("Proposed rating does not match the form rating system");
+                    }
+                } else {
+                    if (adj.proposedRating() == null || adj.proposedRating() < 1
+                            || adj.proposedRating() > ratingSystem.getMaxRating()) {
+                        throw new RuntimeException("Proposed rating does not match the form rating system");
+                    }
                 }
                 for (SelfAssessmentFormAnswer answer : form.getAnswers()) {
                     if (answer.getId().equals(adj.answerId())) {
@@ -1202,11 +1217,11 @@ Instant now = Instant.now();
                             throw new RuntimeException(
                                     "Proposed adjustment must differ from the employee's current answer");
                         }
-                        if (!adj.proposedYesNo().equals(answer.getYesNoAnswer())
-                                || !adj.proposedRating().equals(answer.getRating())) {
+                        if (!Objects.equals(adj.proposedYesNo(), answer.getYesNoAnswer())
+                                || !Objects.equals(adj.proposedRating(), answer.getRating())) {
                             anyScoreChanged = true;
                         }
-                        answer.setManagerProposedYesNo(adj.proposedYesNo());
+                        answer.setManagerProposedYesNo(includeYesNo ? adj.proposedYesNo() : null);
                         answer.setManagerProposedRating(adj.proposedRating());
                         answer.setManagerProposedComment(adj.comment());
                         break;
@@ -1217,9 +1232,9 @@ Instant now = Instant.now();
                 adjustment.setForm(form);
                 adjustment.setQuestionText(findQuestionText(form, adj.answerId()));
                 adjustment.setSortOrder(findSortOrder(form, adj.answerId()));
-                adjustment.setOriginalYesNo(findOriginalYesNo(form, adj.answerId()));
+                adjustment.setOriginalYesNo(includeYesNo ? findOriginalYesNo(form, adj.answerId()) : null);
                 adjustment.setOriginalRating(findOriginalRating(form, adj.answerId()));
-                adjustment.setProposedYesNo(adj.proposedYesNo());
+                adjustment.setProposedYesNo(includeYesNo ? adj.proposedYesNo() : null);
                 adjustment.setProposedRating(adj.proposedRating());
                 adjustment.setManagerComment(adj.comment());
                 adjustment.setAdjustedAt(Instant.now());
@@ -1384,16 +1399,23 @@ Instant now = Instant.now();
 
         SelfAssessmentRatingSystem ratingSystem = SelfAssessmentRatingSystem.defaultIfNull(form.getRatingSystem());
         int yesMinRating = resolveYesMinRating(ratingSystem, form);
+        boolean includeYesNo = form.isIncludeYesNo();
         Instant now = Instant.now();
         for (SelfAssessmentFormAnswer answer : retakeAnswers) {
             EmployeeRetakeAnswerRequest retake = submittedById.get(answer.getId());
             if (retake == null) {
                 throw new RuntimeException("Submit a retake response for every warned question");
             }
-            if (!ratingSystem.isValidYesNo(retake.yesNoAnswer()) || retake.yesNoAnswer() == null
-                    || retake.rating() == null
-                    || !ratingSystem.isValidRating(retake.yesNoAnswer(), retake.rating(), yesMinRating)) {
-                throw new RuntimeException("Retake rating does not match the form rating system");
+            if (includeYesNo) {
+                if (!ratingSystem.isValidYesNo(retake.yesNoAnswer()) || retake.yesNoAnswer() == null
+                        || retake.rating() == null
+                        || !ratingSystem.isValidRating(retake.yesNoAnswer(), retake.rating(), yesMinRating)) {
+                    throw new RuntimeException("Retake rating does not match the form rating system");
+                }
+            } else {
+                if (retake.rating() == null || retake.rating() < 1 || retake.rating() > ratingSystem.getMaxRating()) {
+                    throw new RuntimeException("Retake rating does not match the form rating system");
+                }
             }
             if (retake.reason() == null || retake.reason().trim().isBlank()) {
                 throw new RuntimeException("A retake reason is required for every warned question");
@@ -1530,16 +1552,20 @@ Instant now = Instant.now();
             form.setManagerComments(request.comments());
         }
 
+        boolean includeYesNo = form.isIncludeYesNo();
         for (SelfAssessmentFormAnswer answer : form.getAnswers()) {
             if (Boolean.TRUE.equals(answer.getRetakeRequested())) {
-                if (answer.getRetakeYesNoAnswer() == null || answer.getRetakeRating() == null) {
+                if (includeYesNo && answer.getRetakeYesNoAnswer() == null) {
                     throw new RuntimeException("All requested retake questions must be submitted before approval");
                 }
-                answer.setFinalApprovedYesNo(answer.getRetakeYesNoAnswer());
+                if (answer.getRetakeRating() == null) {
+                    throw new RuntimeException("All requested retake questions must be submitted before approval");
+                }
+                answer.setFinalApprovedYesNo(includeYesNo ? answer.getRetakeYesNoAnswer() : null);
                 answer.setFinalApprovedRating(answer.getRetakeRating());
                 answer.setRetakeApproved(true);
             } else {
-                answer.setFinalApprovedYesNo(answer.getYesNoAnswer());
+                answer.setFinalApprovedYesNo(includeYesNo ? answer.getYesNoAnswer() : null);
                 answer.setFinalApprovedRating(answer.getRating());
             }
         }
@@ -1603,6 +1629,7 @@ Instant now = Instant.now();
 
         SelfAssessmentRatingSystem ratingSystem = SelfAssessmentRatingSystem.defaultIfNull(form.getRatingSystem());
         int yesMinRating = resolveYesMinRating(ratingSystem, form);
+        boolean includeYesNo = form.isIncludeYesNo();
         Instant now = Instant.now();
         String beforeSnapshot = snapshotAnswers(form);
 
@@ -1611,23 +1638,33 @@ Instant now = Instant.now();
             if (finalValue == null) {
                 throw new RuntimeException("Submit a final value for every warned question");
             }
-            if (answer.getRetakeYesNoAnswer() == null || answer.getRetakeRating() == null) {
+            if (answer.getRetakeRating() == null) {
                 throw new RuntimeException("All requested retake questions must be submitted before manager override");
             }
-            if (!ratingSystem.isValidYesNo(finalValue.finalYesNoAnswer())
-                    || finalValue.finalYesNoAnswer() == null
-                    || finalValue.finalRating() == null
-                    || !ratingSystem.isValidRating(finalValue.finalYesNoAnswer(), finalValue.finalRating(), yesMinRating)) {
-                throw new RuntimeException("Invalid final answer or rating");
+            if (includeYesNo) {
+                if (answer.getRetakeYesNoAnswer() == null
+                        || !ratingSystem.isValidYesNo(finalValue.finalYesNoAnswer())
+                        || finalValue.finalYesNoAnswer() == null
+                        || finalValue.finalRating() == null
+                        || !ratingSystem.isValidRating(finalValue.finalYesNoAnswer(), finalValue.finalRating(), yesMinRating)) {
+                    throw new RuntimeException("Invalid final answer or rating");
+                }
+            } else {
+                if (finalValue.finalRating() == null || finalValue.finalRating() < 1
+                        || finalValue.finalRating() > ratingSystem.getMaxRating()) {
+                    throw new RuntimeException("Invalid final rating");
+                }
             }
-            boolean changed = !Objects.equals(answer.getRetakeYesNoAnswer(), finalValue.finalYesNoAnswer())
-                    || !Objects.equals(answer.getRetakeRating(), finalValue.finalRating());
+            boolean changed = includeYesNo
+                    ? !Objects.equals(answer.getRetakeYesNoAnswer(), finalValue.finalYesNoAnswer())
+                            || !Objects.equals(answer.getRetakeRating(), finalValue.finalRating())
+                    : !Objects.equals(answer.getRetakeRating(), finalValue.finalRating());
             String reason = finalValue.reason() != null ? finalValue.reason().trim() : "";
             if (changed && reason.isBlank()) {
                 throw new RuntimeException("A reason is required for every changed warned question");
             }
 
-            answer.setFinalApprovedYesNo(finalValue.finalYesNoAnswer());
+            answer.setFinalApprovedYesNo(includeYesNo ? finalValue.finalYesNoAnswer() : null);
             answer.setFinalApprovedRating(finalValue.finalRating());
             answer.setRetakeApproved(!changed);
             answer.setManagerForceChanged(changed);
@@ -1637,7 +1674,7 @@ Instant now = Instant.now();
 
         for (SelfAssessmentFormAnswer answer : form.getAnswers()) {
             if (!flaggedIds.contains(answer.getId())) {
-                answer.setFinalApprovedYesNo(answer.getYesNoAnswer());
+                answer.setFinalApprovedYesNo(includeYesNo ? answer.getYesNoAnswer() : null);
                 answer.setFinalApprovedRating(answer.getRating());
                 answer.setManagerForceChanged(false);
                 answer.setManagerForceChangeReason(null);
@@ -1762,13 +1799,14 @@ Instant now = Instant.now();
         form.setHrAdjustmentSignatureDate(Instant.now());
         recordHrSigner(form, hrUser);
 
+        boolean includeYesNo = form.isIncludeYesNo();
         for (SelfAssessmentFormAnswer answer : form.getAnswers()) {
-            if (answer.getManagerProposedYesNo() != null) {
-                answer.setFinalApprovedYesNo(answer.getManagerProposedYesNo());
+            if (answer.getManagerProposedYesNo() != null || answer.getManagerProposedRating() != null) {
+                answer.setFinalApprovedYesNo(includeYesNo ? answer.getManagerProposedYesNo() : null);
                 answer.setFinalApprovedRating(answer.getManagerProposedRating());
                 answer.setHrAdjustmentApproved(true);
             } else {
-                answer.setFinalApprovedYesNo(answer.getYesNoAnswer());
+                answer.setFinalApprovedYesNo(includeYesNo ? answer.getYesNoAnswer() : null);
                 answer.setFinalApprovedRating(answer.getRating());
             }
         }
@@ -2037,18 +2075,19 @@ Instant now = Instant.now();
                 .orElseThrow(() -> new RuntimeException("No default signature found. Please set up your signature before approving."));
 
         // Populate finalApproved fields if manager approval did not already do so.
+        boolean includeYesNo = form.isIncludeYesNo();
         boolean finalApprovedMissing = form.getAnswers().stream()
-                .allMatch(a -> a.getFinalApprovedYesNo() == null);
+                .allMatch(a -> a.getFinalApprovedYesNo() == null && a.getFinalApprovedRating() == null);
         if (finalApprovedMissing) {
             for (SelfAssessmentFormAnswer answer : form.getAnswers()) {
                 if (Boolean.TRUE.equals(answer.getRetakeRequested()) && answer.getRetakeYesNoAnswer() != null) {
-                    answer.setFinalApprovedYesNo(answer.getRetakeYesNoAnswer());
+                    answer.setFinalApprovedYesNo(includeYesNo ? answer.getRetakeYesNoAnswer() : null);
                     answer.setFinalApprovedRating(answer.getRetakeRating());
-                } else if (answer.getManagerProposedYesNo() != null) {
-                    answer.setFinalApprovedYesNo(answer.getManagerProposedYesNo());
+                } else if (answer.getManagerProposedYesNo() != null || answer.getManagerProposedRating() != null) {
+                    answer.setFinalApprovedYesNo(includeYesNo ? answer.getManagerProposedYesNo() : null);
                     answer.setFinalApprovedRating(answer.getManagerProposedRating());
                 } else {
-                    answer.setFinalApprovedYesNo(answer.getYesNoAnswer());
+                    answer.setFinalApprovedYesNo(includeYesNo ? answer.getYesNoAnswer() : null);
                     answer.setFinalApprovedRating(answer.getRating());
                 }
             }
@@ -2334,6 +2373,7 @@ Instant now = Instant.now();
         form.setRatingSystem(SelfAssessmentRatingSystem.defaultIfNull(template.getRatingSystem()));
         form.setTenPointYesMinRating(resolveSavedTenPointYesMinRating(template.getTenPointYesMinRating()));
         form.setFivePointYesMinRating(resolveSavedFivePointYesMinRating(template.getFivePointYesMinRating()));
+        form.setIncludeYesNo(template.isIncludeYesNo());
         form.setStartDate(startDate);
         form.setDeadlineDate(deadlineDate);
         form.setManagerReviewDeadlineDate(managerReviewDeadlineDate);
@@ -2479,6 +2519,13 @@ Instant now = Instant.now();
         return resolveSavedFivePointYesMinRating(getOrCreateSettings().getFivePointYesMinRating());
     }
 
+    private boolean resolveTemplateIncludeYesNo(Boolean requestValue) {
+        if (requestValue != null) {
+            return requestValue;
+        }
+        return getOrCreateSettings().isIncludeYesNo();
+    }
+
     private int resolveSavedTenPointYesMinRating(Integer value) {
         return parseTenPointYesMinRating(value);
     }
@@ -2507,6 +2554,7 @@ Instant now = Instant.now();
                     settings.setRatingSystem(SelfAssessmentRatingSystem.FIVE_POINT);
                     settings.setTenPointYesMinRating(SelfAssessmentRatingSystem.DEFAULT_TEN_POINT_YES_MIN_RATING);
                     settings.setFivePointYesMinRating(SelfAssessmentRatingSystem.DEFAULT_FIVE_POINT_YES_MIN_RATING);
+                    settings.setIncludeYesNo(true);
                     return settingsRepository.save(settings);
                 });
     }
@@ -2517,6 +2565,7 @@ Instant now = Instant.now();
                 SelfAssessmentRatingSystem.defaultIfNull(settings.getRatingSystem()).name(),
                 resolveSavedTenPointYesMinRating(settings.getTenPointYesMinRating()),
                 resolveSavedFivePointYesMinRating(settings.getFivePointYesMinRating()),
+                settings.isIncludeYesNo(),
                 editable,
                 editable ? null : getRatingSystemLockReason());
     }
@@ -2533,6 +2582,7 @@ Instant now = Instant.now();
             SelfAssessmentRatingSystem ratingSystem,
             Integer tenPointYesMinRating,
             Integer fivePointYesMinRating,
+            boolean includeYesNo,
             Long userId) {
         ReviewCycle activeCycle = reviewCycleService.getActiveSubmissionCycle();
         if (activeCycle == null) {
@@ -2555,12 +2605,15 @@ Instant now = Instant.now();
             int targetTenPointYesMinRating = resolveSavedTenPointYesMinRating(tenPointYesMinRating);
             int currentFivePointYesMinRating = resolveSavedFivePointYesMinRating(template.getFivePointYesMinRating());
             int targetFivePointYesMinRating = resolveSavedFivePointYesMinRating(fivePointYesMinRating);
+            boolean currentIncludeYesNo = template.isIncludeYesNo();
             if (current != ratingSystem
                     || currentTenPointYesMinRating != targetTenPointYesMinRating
-                    || currentFivePointYesMinRating != targetFivePointYesMinRating) {
+                    || currentFivePointYesMinRating != targetFivePointYesMinRating
+                    || currentIncludeYesNo != includeYesNo) {
                 template.setRatingSystem(ratingSystem);
                 template.setTenPointYesMinRating(targetTenPointYesMinRating);
                 template.setFivePointYesMinRating(targetFivePointYesMinRating);
+                template.setIncludeYesNo(includeYesNo);
                 template.setUpdatedBy(userId);
                 template.setUpdatedOn(now);
                 changed = true;
@@ -2669,21 +2722,33 @@ Instant now = Instant.now();
 
         SelfAssessmentRatingSystem ratingSystem = SelfAssessmentRatingSystem.defaultIfNull(form.getRatingSystem());
         int yesMinRating = resolveYesMinRating(ratingSystem, form);
+        boolean includeYesNo = form.isIncludeYesNo();
         for (AnswerRequest ar : answerRequests) {
             for (SelfAssessmentFormAnswer answer : form.getAnswers()) {
                 if (answer.getId().equals(ar.id())) {
-                    String effectiveYesNo = ar.yesNoAnswer() != null ? ar.yesNoAnswer() : answer.getYesNoAnswer();
-                    Integer effectiveRating = ar.rating() != null ? ar.rating() : answer.getRating();
-                    if ((effectiveRating != null && effectiveYesNo == null)
-                            || !ratingSystem.isValidYesNo(effectiveYesNo)
-                            || !ratingSystem.isValidRating(effectiveYesNo, effectiveRating, yesMinRating)) {
-                        throw new RuntimeException("Rating does not match the form rating system");
-                    }
-                    if (ar.yesNoAnswer() != null) {
-                        answer.setYesNoAnswer(ar.yesNoAnswer());
-                    }
-                    if (ar.rating() != null || ar.yesNoAnswer() != null) {
-                        answer.setRating(ar.rating());
+                    if (!includeYesNo) {
+                        // Rating-only form: ignore/clear Yes/No, validate only rating
+                        answer.setYesNoAnswer(null);
+                        if (ar.rating() != null) {
+                            if (ar.rating() < 1 || ar.rating() > ratingSystem.getMaxRating()) {
+                                throw new RuntimeException("Rating does not match the form rating system");
+                            }
+                            answer.setRating(ar.rating());
+                        }
+                    } else {
+                        String effectiveYesNo = ar.yesNoAnswer() != null ? ar.yesNoAnswer() : answer.getYesNoAnswer();
+                        Integer effectiveRating = ar.rating() != null ? ar.rating() : answer.getRating();
+                        if ((effectiveRating != null && effectiveYesNo == null)
+                                || !ratingSystem.isValidYesNo(effectiveYesNo)
+                                || !ratingSystem.isValidRating(effectiveYesNo, effectiveRating, yesMinRating)) {
+                            throw new RuntimeException("Rating does not match the form rating system");
+                        }
+                        if (ar.yesNoAnswer() != null) {
+                            answer.setYesNoAnswer(ar.yesNoAnswer());
+                        }
+                        if (ar.rating() != null || ar.yesNoAnswer() != null) {
+                            answer.setRating(ar.rating());
+                        }
                     }
                     if (ar.remarks() != null) {
                         answer.setRemarks(ar.remarks());
@@ -3256,6 +3321,7 @@ Instant now = Instant.now();
                 SelfAssessmentRatingSystem.defaultIfNull(copied.getRatingSystem()).name(),
                 resolveSavedTenPointYesMinRating(copied.getTenPointYesMinRating()),
                 resolveSavedFivePointYesMinRating(copied.getFivePointYesMinRating()),
+                copied.isIncludeYesNo(),
                 departmentId,
                 positionId,
                 departmentName,
@@ -3301,6 +3367,7 @@ Instant now = Instant.now();
                 SelfAssessmentRatingSystem.defaultIfNull(template.getRatingSystem()).name(),
                 resolveSavedTenPointYesMinRating(template.getTenPointYesMinRating()),
                 resolveSavedFivePointYesMinRating(template.getFivePointYesMinRating()),
+                template.isIncludeYesNo(),
                 formRepository.existsByTemplate(template),
                 formRepository.existsByTemplate(template),
                 questions,
@@ -3687,6 +3754,7 @@ Instant now = Instant.now();
                 SelfAssessmentRatingSystem.defaultIfNull(form.getRatingSystem()).name(),
                 resolveSavedTenPointYesMinRating(form.getTenPointYesMinRating()),
                 resolveSavedFivePointYesMinRating(form.getFivePointYesMinRating()),
+                form.isIncludeYesNo(),
                 form.getStartDate(),
                 form.getDeadlineDate(),
                 form.getManagerReviewDeadlineDate(),

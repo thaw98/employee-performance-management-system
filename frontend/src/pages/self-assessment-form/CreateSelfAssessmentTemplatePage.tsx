@@ -387,6 +387,7 @@ export const CreateSelfAssessmentTemplatePage: React.FC = () => {
   const [copiedRatingSystem, setCopiedRatingSystem] = useState<SelfAssessmentRatingSystem | undefined>(undefined);
   const [copiedTenPointYesMinRating, setCopiedTenPointYesMinRating] = useState<number | undefined>(undefined);
   const [copiedFivePointYesMinRating, setCopiedFivePointYesMinRating] = useState<number | undefined>(undefined);
+  const [copiedIncludeYesNo, setCopiedIncludeYesNo] = useState<boolean | undefined>(undefined);
   const [isPreviewOpen, setIsPreviewOpen] = useState(false);
 
   const { data: reviewCycles = [], isLoading: reviewCyclesLoading } = useGetReviewCyclesQuery({
@@ -684,6 +685,8 @@ export const CreateSelfAssessmentTemplatePage: React.FC = () => {
     copiedTenPointYesMinRating ?? selfAssessmentSettings?.tenPointYesMinRating;
   const previewFivePointYesMinRating =
     copiedFivePointYesMinRating ?? selfAssessmentSettings?.fivePointYesMinRating;
+  const previewIncludeYesNo =
+    copiedIncludeYesNo ?? selfAssessmentSettings?.includeYesNo;
 
   const [createTemplate, { isLoading: isCreating }] = useCreateTemplateMutation();
   const [checkActiveTemplateConflicts] = useCheckActiveTemplateConflictsMutation();
@@ -744,6 +747,7 @@ export const CreateSelfAssessmentTemplatePage: React.FC = () => {
     setCopiedRatingSystem(copiedTemplate.ratingSystem);
     setCopiedTenPointYesMinRating(copiedTemplate.tenPointYesMinRating);
     setCopiedFivePointYesMinRating(copiedTemplate.fivePointYesMinRating);
+    setCopiedIncludeYesNo(copiedTemplate.includeYesNo);
 
     const copiedDeptId =
       typeof copiedTemplate.departmentId === 'number' && copiedTemplate.departmentId > 0
@@ -1039,6 +1043,7 @@ export const CreateSelfAssessmentTemplatePage: React.FC = () => {
             ratingSystem: copiedRatingSystem,
             tenPointYesMinRating: copiedTenPointYesMinRating,
             fivePointYesMinRating: copiedFivePointYesMinRating,
+            includeYesNo: copiedIncludeYesNo,
           }).unwrap();
           createdCount += 1;
         } catch (error: unknown) {
@@ -1729,6 +1734,7 @@ export const CreateSelfAssessmentTemplatePage: React.FC = () => {
           ratingSystem={previewRatingSystem}
           tenPointYesMinRating={previewTenPointYesMinRating}
           fivePointYesMinRating={previewFivePointYesMinRating}
+          includeYesNo={previewIncludeYesNo}
           questions={watchedQuestions ?? []}
         />
 

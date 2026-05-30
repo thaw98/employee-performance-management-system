@@ -85,8 +85,9 @@ const mocks = vi.hoisted(() => {
     hrReviewRequired: null,
     hrReviewReason: null,
     hrReturnComments: null,
-    hrReviewReasonAt: null,
-  }
+  hrReviewReasonAt: null,
+  includeYesNo: true,
+}
 
   return {
     autosaveOptions: undefined as any,

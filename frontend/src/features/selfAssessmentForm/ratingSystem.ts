@@ -40,8 +40,13 @@ export const getRatingOptions = (
   yesNoAnswer: string | null | undefined,
   tenPointYesMinRating?: number | null,
   fivePointYesMinRating?: number | null,
+  includeYesNo?: boolean,
 ) => {
   const system = ratingSystem === 'TEN_POINT' ? 'TEN_POINT' : 'FIVE_POINT'
+  const max = system === 'TEN_POINT' ? 10 : 5
+  if (!includeYesNo) {
+    return Array.from({ length: max }, (_, index) => max - index)
+  }
   if (yesNoAnswer === 'Yes') {
     if (system === 'TEN_POINT') {
       const threshold = normalizeTenPointYesMinRating(tenPointYesMinRating)
@@ -61,15 +66,30 @@ export const getRatingOptions = (
   return []
 }
 
+export const isIncludeYesNoEnabled = (
+  formIncludeYesNo: boolean | null | undefined,
+  templateIncludeYesNo?: boolean | null | undefined,
+): boolean => {
+  if (formIncludeYesNo != null) return formIncludeYesNo
+  if (templateIncludeYesNo != null) return templateIncludeYesNo
+  return true
+}
+
 export const isRatingValidForAnswer = (
   ratingSystem: SelfAssessmentRatingSystem | null | undefined,
   yesNoAnswer: string | null | undefined,
   rating: number | null | undefined,
   tenPointYesMinRating?: number | null,
   fivePointYesMinRating?: number | null,
+  includeYesNo?: boolean,
 ) => {
+  if (!includeYesNo) {
+    if (rating == null) return true
+    const max = ratingSystem === 'TEN_POINT' ? 10 : 5
+    return rating >= 1 && rating <= max
+  }
   if (!yesNoAnswer || rating == null) return true
-  return getRatingOptions(ratingSystem, yesNoAnswer, tenPointYesMinRating, fivePointYesMinRating).includes(rating)
+  return getRatingOptions(ratingSystem, yesNoAnswer, tenPointYesMinRating, fivePointYesMinRating, includeYesNo).includes(rating)
 }
 
 /** Proposed adjustment must change Yes/No and/or rating vs the employee's saved answer. */

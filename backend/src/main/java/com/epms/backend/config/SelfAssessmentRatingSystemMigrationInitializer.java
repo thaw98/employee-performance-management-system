@@ -35,6 +35,7 @@ public class SelfAssessmentRatingSystemMigrationInitializer implements BeanPostP
         if (tableExists(jdbc, "self_assessment_form_template")) {
             addColumnIfMissing(jdbc, "self_assessment_form_template", "rating_system", "VARCHAR(20) NOT NULL DEFAULT 'FIVE_POINT'");
             addColumnIfMissing(jdbc, "self_assessment_form_template", "ten_point_yes_min_rating", "INT NOT NULL DEFAULT 5");
+            addColumnIfMissing(jdbc, "self_assessment_form_template", "include_yes_no", "TINYINT(1) NOT NULL DEFAULT 1");
             jdbc.update("""
                     UPDATE self_assessment_form_template
                     SET rating_system = 'FIVE_POINT'
@@ -45,6 +46,7 @@ public class SelfAssessmentRatingSystemMigrationInitializer implements BeanPostP
         if (tableExists(jdbc, "self_assessment_form")) {
             addColumnIfMissing(jdbc, "self_assessment_form", "rating_system", "VARCHAR(20) NOT NULL DEFAULT 'FIVE_POINT'");
             addColumnIfMissing(jdbc, "self_assessment_form", "ten_point_yes_min_rating", "INT NOT NULL DEFAULT 5");
+            addColumnIfMissing(jdbc, "self_assessment_form", "include_yes_no", "TINYINT(1) NOT NULL DEFAULT 1");
             jdbc.update("""
                     UPDATE self_assessment_form
                     SET rating_system = 'FIVE_POINT'
@@ -55,6 +57,7 @@ public class SelfAssessmentRatingSystemMigrationInitializer implements BeanPostP
         if (tableExists(jdbc, "copied_self_assessment_form_template")) {
             addColumnIfMissing(jdbc, "copied_self_assessment_form_template", "rating_system", "VARCHAR(20) NOT NULL DEFAULT 'FIVE_POINT'");
             addColumnIfMissing(jdbc, "copied_self_assessment_form_template", "ten_point_yes_min_rating", "INT NOT NULL DEFAULT 5");
+            addColumnIfMissing(jdbc, "copied_self_assessment_form_template", "include_yes_no", "TINYINT(1) NOT NULL DEFAULT 1");
             jdbc.update("""
                     UPDATE copied_self_assessment_form_template
                     SET rating_system = 'FIVE_POINT'
@@ -75,6 +78,7 @@ public class SelfAssessmentRatingSystemMigrationInitializer implements BeanPostP
                 )
                 """);
         addColumnIfMissing(jdbc, "self_assessment_settings", "ten_point_yes_min_rating", "INT NOT NULL DEFAULT 5");
+        addColumnIfMissing(jdbc, "self_assessment_settings", "include_yes_no", "TINYINT(1) NOT NULL DEFAULT 1");
         jdbc.update("""
                 INSERT INTO self_assessment_settings (id, rating_system, ten_point_yes_min_rating)
                 SELECT 1, 'FIVE_POINT', 5

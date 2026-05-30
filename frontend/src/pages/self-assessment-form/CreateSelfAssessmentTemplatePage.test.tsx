@@ -72,7 +72,7 @@ vi.mock('../../features/selfAssessmentForm/api/selfAssessmentFormApi', () => ({
   useGetCopiedTemplateQuery: () => ({ data: undefined }),
   useGetQuestionBankQuery: () => ({ data: [], isLoading: false }),
   useGetSelfAssessmentSettingsQuery: () => ({
-    data: { ratingSystem: 'TEN_POINT', tenPointYesMinRating: 6, fivePointYesMinRating: 3 },
+    data: { ratingSystem: 'TEN_POINT', tenPointYesMinRating: 6, fivePointYesMinRating: 3, includeYesNo: true },
     isLoading: false,
     isError: false,
   }),

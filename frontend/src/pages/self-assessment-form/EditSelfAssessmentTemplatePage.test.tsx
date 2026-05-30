@@ -40,6 +40,7 @@ let templateData = {
     },
   ],
   deletedQuestions: [],
+  includeYesNo: true,
 }
 
 vi.mock('react-redux', () => ({

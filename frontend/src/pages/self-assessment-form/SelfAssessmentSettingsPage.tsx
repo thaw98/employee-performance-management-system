@@ -104,14 +104,16 @@ export const SelfAssessmentSettingsPage: React.FC = () => {
   );
   const [tenPointYesMinRating, setTenPointYesMinRating] = useState(5);
   const [fivePointYesMinRating, setFivePointYesMinRating] = useState(3);
+  const [includeYesNo, setIncludeYesNo] = useState(true);
 
   useEffect(() => {
     if (data?.ratingSystem) {
       setRatingSystem(data.ratingSystem);
       setTenPointYesMinRating(data.tenPointYesMinRating ?? 5);
       setFivePointYesMinRating(data.fivePointYesMinRating ?? 3);
+      setIncludeYesNo(data.includeYesNo ?? true);
     }
-  }, [data?.ratingSystem, data?.tenPointYesMinRating, data?.fivePointYesMinRating]);
+  }, [data?.ratingSystem, data?.tenPointYesMinRating, data?.fivePointYesMinRating, data?.includeYesNo]);
 
   const isRatingScaleEditable = data?.ratingSystemEditable ?? true;
   const ratingScaleLockReason =
@@ -119,11 +121,11 @@ export const SelfAssessmentSettingsPage: React.FC = () => {
     'Templates already assigned to a deadline keep their existing rating scale.';
   const isDirty =
     data?.ratingSystem != null &&
-    (data.ratingSystem !== ratingSystem || (data.tenPointYesMinRating ?? 5) !== tenPointYesMinRating || (data.fivePointYesMinRating ?? 3) !== fivePointYesMinRating);
+    (data.ratingSystem !== ratingSystem || (data.tenPointYesMinRating ?? 5) !== tenPointYesMinRating || (data.fivePointYesMinRating ?? 3) !== fivePointYesMinRating || (data.includeYesNo ?? true) !== includeYesNo);
 
   const handleSave = async () => {
     try {
-      await updateSettings({ ratingSystem, tenPointYesMinRating, fivePointYesMinRating }).unwrap();
+      await updateSettings({ ratingSystem, tenPointYesMinRating, fivePointYesMinRating, includeYesNo }).unwrap();
       toast.success('Self-assessment settings saved');
     } catch (saveError) {
       toast.error(
@@ -516,6 +518,35 @@ export const SelfAssessmentSettingsPage: React.FC = () => {
                   </div>
                 </div>
               )}
+              {/* Include Yes/No Toggle */}
+              <div className="mt-6 rounded-xl border border-slate-200/60 bg-white px-4 py-4 shadow-sm dark:border-slate-700/50 dark:bg-slate-900/20">
+                <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+                  <div className="flex-1">
+                    <label className="text-sm font-bold text-slate-900 dark:text-white">
+                      Include Yes/No Responses
+                    </label>
+                    <p className="mt-1 text-xs leading-relaxed text-slate-500 dark:text-slate-400">
+                      When enabled, employees first answer "Yes" or "No" for each question before selecting a rating.
+                      When disabled, only the numeric rating scale is used. This setting applies to new templates and
+                      unassigned active-cycle templates only.
+                    </p>
+                  </div>
+                  <label className="relative inline-flex cursor-pointer items-center">
+                    <input
+                      type="checkbox"
+                      checked={includeYesNo}
+                      onChange={(e) => setIncludeYesNo(e.target.checked)}
+                      disabled={isSaving}
+                      className="peer sr-only"
+                    />
+                    <div className="h-7 w-12 rounded-full bg-slate-300 after:absolute after:left-0.5 after:top-0.5 after:h-6 after:w-6 after:rounded-full after:bg-white after:shadow after:transition-all after:content-[''] peer-checked:bg-[#2463eb] peer-checked:after:translate-x-full peer-disabled:opacity-60 dark:bg-slate-600 dark:peer-checked:bg-[#60a5fa]" />
+                    <span className="ml-3 text-sm font-semibold text-slate-700 dark:text-slate-300">
+                      {includeYesNo ? 'Enabled' : 'Disabled'}
+                    </span>
+                  </label>
+                </div>
+              </div>
+
               {ratingSystem === 'TEN_POINT' && (
                 <div className="mt-5 rounded-xl border border-slate-200/60 bg-white px-4 py-4 shadow-sm dark:border-slate-700/50 dark:bg-slate-900/20">
                   <div className="flex flex-col gap-4 md:flex-row md:items-start md:justify-between">
@@ -602,7 +633,8 @@ export const SelfAssessmentSettingsPage: React.FC = () => {
                       data?.ratingSystem && (
                         setRatingSystem(data.ratingSystem),
                         setTenPointYesMinRating(data.tenPointYesMinRating ?? 5),
-                        setFivePointYesMinRating(data.fivePointYesMinRating ?? 3)
+                        setFivePointYesMinRating(data.fivePointYesMinRating ?? 3),
+                        setIncludeYesNo(data.includeYesNo ?? true)
                       )
                     }
                     disabled={isSaving}

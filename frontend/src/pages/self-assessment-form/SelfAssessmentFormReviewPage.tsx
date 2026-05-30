@@ -457,6 +457,7 @@ export const SelfAssessmentFormReviewPage: React.FC<SelfAssessmentFormReviewPage
   const isMissingDefaultSignature = !isDefaultSigLoading && !hasDefaultSignature;
   const portalRoot = typeof document !== 'undefined' ? document.body : null;
   const isManagerSelfAssessment = selectedForm?.employee?.roleId === 2;
+  const includeYesNo = selectedForm?.includeYesNo ?? true;
   const isRetakeRequesting = isRequestingRetake || isRequestingHrRetake;
   const canHrRequestManagerRetake = canHrAct
     && isManagerSelfAssessment
@@ -507,7 +508,7 @@ export const SelfAssessmentFormReviewPage: React.FC<SelfAssessmentFormReviewPage
 
   const hasPendingManagerAdjustments = useMemo(
     () => selectedForm?.answers?.some(
-      (a) => a.managerProposedYesNo && a.hrAdjustmentApproved == null,
+      (a) => (a.managerProposedYesNo || a.managerProposedRating) && a.hrAdjustmentApproved == null,
     ) ?? false,
     [selectedForm?.answers],
   );
@@ -522,7 +523,7 @@ export const SelfAssessmentFormReviewPage: React.FC<SelfAssessmentFormReviewPage
       .filter(answer => answer.retakeRequested)
       .forEach(answer => {
         next[answer.id] = {
-          yesNoAnswer: answer.finalApprovedYesNo ?? answer.retakeYesNoAnswer ?? answer.yesNoAnswer ?? '',
+          yesNoAnswer: includeYesNo ? (answer.finalApprovedYesNo ?? answer.retakeYesNoAnswer ?? answer.yesNoAnswer ?? '') : '',
           rating: answer.finalApprovedRating ?? answer.retakeRating ?? answer.rating ?? null,
           reason: answer.managerForceChangeReason ?? '',
         };
@@ -683,8 +684,8 @@ export const SelfAssessmentFormReviewPage: React.FC<SelfAssessmentFormReviewPage
   const hasForceChangeDifference = (answer: any) => {
     const current = forceChangeAnswers[answer.id];
     if (!current) return false;
-    return current.yesNoAnswer !== (answer.retakeYesNoAnswer ?? '')
-      || current.rating !== (answer.retakeRating ?? null);
+    if (includeYesNo && current.yesNoAnswer !== (answer.retakeYesNoAnswer ?? '')) return true;
+    return current.rating !== (answer.retakeRating ?? null);
   };
 
   const handleManagerForceChangeRetake = async () => {
@@ -699,20 +700,27 @@ export const SelfAssessmentFormReviewPage: React.FC<SelfAssessmentFormReviewPage
       const finalValue = forceChangeAnswers[answer.id];
       return {
         answerId: answer.id,
-        finalYesNoAnswer: finalValue?.yesNoAnswer ?? '',
+        finalYesNoAnswer: includeYesNo ? (finalValue?.yesNoAnswer ?? '') : 'Yes',
         finalRating: finalValue?.rating ?? null,
         reason: finalValue?.reason?.trim() || null,
       };
     });
 
-    if (answers.some(answer => !answer.finalYesNoAnswer || answer.finalRating == null)) {
+    if (includeYesNo && answers.some(answer => !answer.finalYesNoAnswer || answer.finalRating == null)) {
       toast.error('Choose a final answer and rating for every warned question');
+      return;
+    }
+    if (!includeYesNo && answers.some(answer => answer.finalRating == null)) {
+      toast.error('Choose a final rating for every warned question');
       return;
     }
     if (flaggedAnswers.some(answer => {
       const finalValue = forceChangeAnswers[answer.id];
-      return finalValue
-        && !isRatingValidForAnswer(selectedForm.ratingSystem, finalValue.yesNoAnswer, finalValue.rating, selectedForm.tenPointYesMinRating, selectedForm.fivePointYesMinRating);
+      if (!finalValue) return false;
+      if (includeYesNo) {
+        return !isRatingValidForAnswer(selectedForm.ratingSystem, finalValue.yesNoAnswer, finalValue.rating, selectedForm.tenPointYesMinRating, selectedForm.fivePointYesMinRating, includeYesNo);
+      }
+      return finalValue.rating != null && (finalValue.rating < 1 || finalValue.rating > (selectedForm.ratingSystem === 'TEN_POINT' ? 10 : 5));
     })) {
       toast.error('Choose a valid rating for each final answer');
       return;
@@ -1572,6 +1580,7 @@ Review Submissions
                               {answer.questionText}
                             </p>
                             <div className="flex flex-wrap items-center gap-2.5">
+                              {includeYesNo && (
                               <div className="inline-flex items-center gap-2 rounded-lg border border-slate-100 bg-slate-50/80 px-3 py-1.5 dark:border-slate-700/40 dark:bg-slate-800/50">
                                 <span className="text-[10px] font-bold uppercase tracking-widest text-slate-400 dark:text-slate-500">Response</span>
                                 <span className={`h-3.5 w-px bg-slate-200 dark:bg-slate-700`} />
@@ -1585,6 +1594,7 @@ Review Submissions
                                   {answer.yesNoAnswer || '-'}
                                 </span>
                               </div>
+                            )}
                               {answer.rating != null && (
                                 <div className="inline-flex items-center gap-2 rounded-lg border border-amber-200/55 bg-amber-50/80 px-3 py-1.5 dark:border-amber-600/45 dark:bg-amber-900/20">
                                   <Star size={12} className="text-amber-500 fill-amber-500" />
@@ -1601,7 +1611,7 @@ Review Submissions
                           </div>
                         </div>
 
-	                        {answer.managerProposedYesNo && (
+	                        {(answer.managerProposedYesNo || answer.managerProposedRating) && (
 	                          <div className="mt-3 ml-10 rounded-xl border border-amber-300/50 bg-amber-50/40 p-3.5 dark:border-amber-600/40 dark:bg-amber-900/15">
                             <div className="flex items-center gap-2 mb-2">
                               <Edit3 size={13} className="text-amber-600 dark:text-amber-400" />
@@ -1625,7 +1635,7 @@ Review Submissions
                                   size="sm"
                                 />
                               </div>
-                              {answer.finalApprovedYesNo && (
+                              {(answer.finalApprovedYesNo || answer.finalApprovedRating) && (
                                 <>
                                   <div className="flex items-center text-slate-300 dark:text-slate-600">
                                     <ArrowLeft size={12} className="rotate-180" />
@@ -1633,7 +1643,7 @@ Review Submissions
                                   <div className="inline-flex items-center gap-2 rounded-lg border border-emerald-300/50 bg-emerald-100/80 px-2.5 py-1.5 dark:border-emerald-600/45 dark:bg-emerald-800/30">
                                     <span className="text-[10px] font-bold uppercase tracking-widest text-emerald-600 dark:text-emerald-400">Final</span>
                                     <YesNoRatingDisplay
-                                      yesNo={answer.finalApprovedYesNo}
+                                      yesNo={includeYesNo ? answer.finalApprovedYesNo : null}
                                       rating={answer.finalApprovedRating}
                                       size="sm"
                                     />
@@ -1665,10 +1675,10 @@ Review Submissions
 	                                <span className="text-[10px] font-bold uppercase tracking-widest text-sky-700 dark:text-sky-300">Retake</span>
 	                                <YesNoRatingDisplay yesNo={answer.retakeYesNoAnswer} rating={answer.retakeRating} size="sm" />
 	                              </div>
-	                              {answer.finalApprovedYesNo && (
+	                              {(answer.finalApprovedYesNo || answer.finalApprovedRating) && (
 	                                <div className="inline-flex items-center gap-2 rounded-lg border border-emerald-300/50 bg-emerald-100/80 px-2.5 py-1.5 dark:border-emerald-600/45 dark:bg-emerald-800/30">
 	                                  <span className="text-[10px] font-bold uppercase tracking-widest text-emerald-600 dark:text-emerald-400">Final</span>
-	                                  <YesNoRatingDisplay yesNo={answer.finalApprovedYesNo} rating={answer.finalApprovedRating} size="sm" />
+	                                  <YesNoRatingDisplay yesNo={includeYesNo ? answer.finalApprovedYesNo : null} rating={answer.finalApprovedRating} size="sm" />
 	                                </div>
 	                              )}
 	                            </div>
@@ -1689,7 +1699,7 @@ Review Submissions
 		                            )}
 		                          </div>
 	                        )}
-                        {!answer.managerProposedYesNo && answer.finalApprovedYesNo && (
+                        {!answer.managerProposedYesNo && !answer.managerProposedRating && (answer.finalApprovedYesNo || answer.finalApprovedRating) && (
                           <div className="mt-3 ml-10 rounded-xl border border-emerald-300/50 bg-emerald-50/40 p-3 dark:border-emerald-600/40 dark:bg-emerald-900/15">
                             <div className="inline-flex items-center gap-2.5 rounded-lg border border-emerald-300/50 bg-emerald-100/80 px-3 py-2 dark:border-emerald-600/45 dark:bg-emerald-800/30">
                               <span className="text-[10px] font-bold uppercase tracking-widest text-emerald-600 dark:text-emerald-400">Final Approved</span>
@@ -2347,9 +2357,10 @@ Review Submissions
                   const changed = editable && hasForceChangeDifference(answer);
                   const ratingOptions = getRatingOptions(
                     selectedForm.ratingSystem,
-                    current.yesNoAnswer,
+                    includeYesNo ? current.yesNoAnswer : null,
                     selectedForm.tenPointYesMinRating,
                     selectedForm.fivePointYesMinRating,
+                    includeYesNo,
                   );
 
                   return (
@@ -2382,22 +2393,24 @@ Review Submissions
                       </div>
 
                       {editable ? (
-                        <div className="grid gap-3 md:grid-cols-[10rem_1fr]">
-                          <label className="space-y-1">
-                            <span className="text-xs font-bold text-slate-600 dark:text-slate-300">Final answer</span>
-                            <select
-                              value={current.yesNoAnswer}
-                              onChange={(event) => handleForceChangeAnswer(answer.id, {
-                                yesNoAnswer: event.target.value,
-                                rating: null,
-                              })}
-                              className="w-full rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm font-semibold text-slate-800 dark:border-slate-600 dark:bg-slate-900 dark:text-slate-100"
-                            >
-                              <option value="">Select</option>
-                              <option value="Yes">Yes</option>
-                              <option value="No">No</option>
-                            </select>
-                          </label>
+                        <div className={`grid gap-3 ${includeYesNo ? 'md:grid-cols-[10rem_1fr]' : ''}`}>
+                          {includeYesNo && (
+                            <label className="space-y-1">
+                              <span className="text-xs font-bold text-slate-600 dark:text-slate-300">Final answer</span>
+                              <select
+                                value={current.yesNoAnswer}
+                                onChange={(event) => handleForceChangeAnswer(answer.id, {
+                                  yesNoAnswer: event.target.value,
+                                  rating: null,
+                                })}
+                                className="w-full rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm font-semibold text-slate-800 dark:border-slate-600 dark:bg-slate-900 dark:text-slate-100"
+                              >
+                                <option value="">Select</option>
+                                <option value="Yes">Yes</option>
+                                <option value="No">No</option>
+                              </select>
+                            </label>
+                          )}
                           <div className="space-y-1">
                             <span className="text-xs font-bold text-slate-600 dark:text-slate-300">Final rating</span>
                             <div className="flex flex-wrap gap-2">

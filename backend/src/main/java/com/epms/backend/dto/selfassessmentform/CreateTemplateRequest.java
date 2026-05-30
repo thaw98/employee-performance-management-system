@@ -19,5 +19,6 @@ public record CreateTemplateRequest(
         LocalDate manualEndDate,
         String ratingSystem,
         Integer tenPointYesMinRating,
-        Integer fivePointYesMinRating
+        Integer fivePointYesMinRating,
+        Boolean includeYesNo
 ) {}

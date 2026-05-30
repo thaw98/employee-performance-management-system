@@ -208,7 +208,7 @@ class SelfAssessmentFormAssignmentServiceTest {
         when(templateRepository.findActiveByReviewCycleId(cycle.getId())).thenReturn(List.of(template));
         when(formRepository.existsByTemplate(template)).thenReturn(false);
 
-        service.updateSettings(new SelfAssessmentSettingsRequest("TEN_POINT", 7), 99L);
+        service.updateSettings(new SelfAssessmentSettingsRequest("TEN_POINT", 7, null, null), 99L);
 
         assertEquals(SelfAssessmentRatingSystem.TEN_POINT, settings.getRatingSystem());
         assertEquals(7, settings.getTenPointYesMinRating());
@@ -534,6 +534,8 @@ class SelfAssessmentFormAssignmentServiceTest {
                 null,
                 null,
                 null,
+                null,
+                null,
                 null), 99L);
 
         ArgumentCaptor<SelfAssessmentFormTemplate> templateCaptor = ArgumentCaptor.forClass(SelfAssessmentFormTemplate.class);
@@ -568,6 +570,8 @@ class SelfAssessmentFormAssignmentServiceTest {
                 start,
                 end,
                 null,
+                null,
+                null,
                 null), 99L);
 
         ArgumentCaptor<SelfAssessmentFormTemplate> templateCaptor = ArgumentCaptor.forClass(SelfAssessmentFormTemplate.class);
@@ -601,6 +605,8 @@ class SelfAssessmentFormAssignmentServiceTest {
                 "MANUAL",
                 start,
                 end,
+                null,
+                null,
                 null,
                 null), 99L));
 

@@ -33,10 +33,10 @@ export interface SelfAssessmentFormTemplateDto {
   ratingSystem: SelfAssessmentRatingSystem
   tenPointYesMinRating: number
   fivePointYesMinRating: number
+  includeYesNo: boolean
   isLocked: boolean
   isAssignedToDeadline: boolean
   questions: QuestionDto[]
-  /** Questions soft-deleted from the template; still visible for restore until cleared server-side. */
   deletedQuestions: QuestionDto[]
   createdOn: string
   createdBy: number
@@ -73,7 +73,6 @@ export interface CreateTemplateRequest {
   positionId: number
   questions: QuestionRequest[]
   deletedQuestions?: QuestionRequest[]
-  /** Omit or null to use the active employee-submission cycle on the server. */
   reviewCycleId?: number | null
   timelineMode?: 'REVIEW_CYCLE' | 'MANUAL'
   manualStartDate?: string | null
@@ -81,6 +80,7 @@ export interface CreateTemplateRequest {
   ratingSystem?: SelfAssessmentRatingSystem
   tenPointYesMinRating?: number | null
   fivePointYesMinRating?: number | null
+  includeYesNo?: boolean | null
 }
 
 export interface CopiedSelfAssessmentFormTemplateDto {
@@ -90,6 +90,7 @@ export interface CopiedSelfAssessmentFormTemplateDto {
   ratingSystem: SelfAssessmentRatingSystem
   tenPointYesMinRating: number
   fivePointYesMinRating: number
+  includeYesNo: boolean
   departmentId: number
   positionId: number
   departmentName?: string | null
@@ -130,6 +131,7 @@ export interface UpdateTemplateRequest {
   ratingSystem?: SelfAssessmentRatingSystem
   tenPointYesMinRating?: number | null
   fivePointYesMinRating?: number | null
+  includeYesNo?: boolean | null
 }
 
 export interface EmployeeInfoDto {
@@ -215,6 +217,7 @@ export interface SelfAssessmentFormDto {
   ratingSystem: SelfAssessmentRatingSystem
   tenPointYesMinRating: number
   fivePointYesMinRating: number
+  includeYesNo: boolean
   startDate: string | null
   deadlineDate: string | null
   managerReviewDeadlineDate: string | null
@@ -396,6 +399,7 @@ export interface SelfAssessmentSettingsDto {
   ratingSystem: SelfAssessmentRatingSystem
   tenPointYesMinRating: number
   fivePointYesMinRating: number
+  includeYesNo: boolean
   ratingSystemEditable: boolean
   ratingSystemLockReason: string | null
 }
@@ -404,6 +408,7 @@ export interface SelfAssessmentSettingsRequest {
   ratingSystem: SelfAssessmentRatingSystem
   tenPointYesMinRating?: number | null
   fivePointYesMinRating?: number | null
+  includeYesNo?: boolean | null
 }
 
 export interface FormStatusDto {
