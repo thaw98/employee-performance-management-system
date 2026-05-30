@@ -1833,11 +1833,8 @@ Instant now = Instant.now();
         SelfAssessmentForm form = formRepository.findById(formId)
                 .orElseThrow(() -> new RuntimeException("Form not found"));
 
-        if (form.getStatus() != SelfAssessmentFormStatus.MANAGER_REVIEWED
-                && form.getStatus() != SelfAssessmentFormStatus.PENDING_HR_CALIBRATION_REVIEW
-                && form.getStatus() != SelfAssessmentFormStatus.PENDING_EMPLOYEE_REVIEW
-                && form.getStatus() != SelfAssessmentFormStatus.PENDING_FINAL_APPROVAL) {
-            throw new RuntimeException("Form is not eligible for HR rejection");
+        if (form.getStatus() != SelfAssessmentFormStatus.PENDING_FINAL_APPROVAL) {
+            throw new RuntimeException("Form is not pending final approval");
         }
 
         if (request.retakeDeadline() == null) {
