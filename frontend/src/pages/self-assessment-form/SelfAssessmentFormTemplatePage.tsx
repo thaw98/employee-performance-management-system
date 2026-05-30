@@ -19,13 +19,11 @@ import {
   List,
   ChevronDown,
   Copy,
+  Download,
+  Upload,
   BookOpen,
   Unlock,
   Settings,
-  ChevronLeft,
-  ChevronRight,
-  ChevronsLeft,
-  ChevronsRight,
 } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import { toast } from 'react-hot-toast';
@@ -41,6 +39,7 @@ import {
   useGetCopiedTemplateQuery,
   type SelfAssessmentFormTemplateDto,
 } from '../../features/selfAssessmentForm/api/selfAssessmentFormApi';
+import SelfAssessmentTemplateImportModal from './SelfAssessmentTemplateImportModal';
 import {
   flexRender,
   getCoreRowModel,
@@ -84,6 +83,8 @@ export const SelfAssessmentFormTemplatePage: React.FC = () => {
   const [expandedFilters, setExpandedFilters] = useState(false);
   const [copyingTemplateId, setCopyingTemplateId] = useState<number | null>(null);
   const [sorting, setSorting] = useState<SortingState>([]);
+  const [importModalOpen, setImportModalOpen] = useState(false);
+  const token = useSelector((state: RootState) => state.auth.token);
 
   const { data: allTemplates = [] } = useGetAllTemplatesQuery();
   const { data: copiedTemplate } = useGetCopiedTemplateQuery(undefined, { skip: isManager });
@@ -208,6 +209,30 @@ export const SelfAssessmentFormTemplatePage: React.FC = () => {
     } catch {
       toast.error('Could not clear duplicate draft');
     }
+  };
+
+  const handleDownloadImportTemplate = async () => {
+    const baseUrl = (import.meta.env.VITE_API_BASE_URL as string)?.replace(/\/$/, '') || 'http://localhost:8080';
+    try {
+      const res = await fetch(`${baseUrl}/api/self-assessment-forms/templates/import/template`, {
+        headers: token ? { Authorization: `Bearer ${token}` } : {},
+      });
+      if (!res.ok) throw new Error('Download failed');
+      const blob = await res.blob();
+      const a = document.createElement('a');
+      a.href = URL.createObjectURL(blob);
+      a.download = 'self_assessment_template_import_template.xlsx';
+      document.body.appendChild(a);
+      a.click();
+      a.remove();
+      toast.success('Template downloaded');
+    } catch {
+      toast.error('Failed to download template');
+    }
+  };
+
+  const handleImportSuccess = () => {
+    setImportModalOpen(false);
   };
 
   const summaryCards = [
@@ -550,15 +575,33 @@ export const SelfAssessmentFormTemplatePage: React.FC = () => {
             Question Bank
           </button>
           {!isManager && (
-            <button
-              type="button"
-              onClick={() => navigate('/hr/self-assessment/templates/create')}
-              className="group inline-flex items-center gap-2.5 rounded-xl bg-gradient-to-r from-[#2463eb] to-[#1d4ed8] px-5 py-2.5 text-sm font-bold text-white shadow-lg shadow-[#2463eb]/25 transition-all hover:shadow-xl hover:shadow-[#2463eb]/30 hover:brightness-110 active:scale-[0.97]"
-            >
-              <Plus size={16} strokeWidth={2.5} />
-              Create Template
-              <ArrowRight size={14} className="transition-transform group-hover:translate-x-0.5" />
-            </button>
+            <>
+              <button
+                type="button"
+                onClick={handleDownloadImportTemplate}
+                className="group inline-flex items-center gap-2.5 rounded-xl border-2 border-[#2463eb]/30 bg-white px-5 py-2.5 text-sm font-bold text-[#2463eb] shadow-sm transition-all hover:border-[#2463eb]/50 hover:bg-[#2463eb]/5 hover:shadow-md active:scale-[0.97]"
+              >
+                <Download size={16} strokeWidth={2.5} />
+                Download Template
+              </button>
+              <button
+                type="button"
+                onClick={() => setImportModalOpen(true)}
+                className="group inline-flex items-center gap-2.5 rounded-xl border-2 border-emerald-500/30 bg-white px-5 py-2.5 text-sm font-bold text-emerald-600 shadow-sm transition-all hover:border-emerald-500/50 hover:bg-emerald-50 hover:shadow-md active:scale-[0.97]"
+              >
+                <Upload size={16} strokeWidth={2.5} />
+                Import Template
+              </button>
+              <button
+                type="button"
+                onClick={() => navigate('/hr/self-assessment/templates/create')}
+                className="group inline-flex items-center gap-2.5 rounded-xl bg-gradient-to-r from-[#2463eb] to-[#1d4ed8] px-5 py-2.5 text-sm font-bold text-white shadow-lg shadow-[#2463eb]/25 transition-all hover:shadow-xl hover:shadow-[#2463eb]/30 hover:brightness-110 active:scale-[0.97]"
+              >
+                <Plus size={16} strokeWidth={2.5} />
+                Create Template
+                <ArrowRight size={14} className="transition-transform group-hover:translate-x-0.5" />
+              </button>
+            </>
           )}
         </div>
       </div>
@@ -1090,6 +1133,13 @@ export const SelfAssessmentFormTemplatePage: React.FC = () => {
           </div>
         )}
       </div>
+
+      <SelfAssessmentTemplateImportModal
+        isOpen={importModalOpen}
+        onClose={() => setImportModalOpen(false)}
+        onImportSuccess={handleImportSuccess}
+        token={token}
+      />
     </div>
   );
 };
