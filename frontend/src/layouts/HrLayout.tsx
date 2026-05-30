@@ -23,6 +23,8 @@ import {
   Zap,
   RefreshCcw,
   Archive,
+  Settings,
+  TableProperties,
 } from 'lucide-react';
 import { Outlet } from 'react-router-dom';
 import { useSelector } from 'react-redux';
@@ -197,6 +199,21 @@ const HrLayout: React.FC = () => {
           ],
         },
         { icon: <HelpCircle size={20} />, label: 'FAQ Support', path: '/hr/settings/faq-support' },
+      ],
+    },
+    {
+      label: 'Settings',
+      items: [
+        {
+          label: 'System Settings',
+          path: '/hr/settings/system/time',
+          icon: <Settings size={18} />,
+          isActive: (pathname) => pathname.startsWith('/hr/settings/system'),
+          subItems: [
+            { label: 'Time Settings', path: '/hr/settings/system/time', icon: <Calendar size={16} /> },
+            { label: 'Score Explanation', path: '/hr/settings/system/score-explanations', icon: <TableProperties size={16} /> },
+          ],
+        },
       ],
     },
   ];

@@ -41,6 +41,7 @@ export function AppNavbar() {
     const path = location.pathname
     if (path.includes('profile')) return 'User Profile'
     if (path.includes('settings/system/time')) return 'Time Settings'
+    if (path.includes('settings/system/score-explanations')) return 'Score Explanation'
     if (path.includes('settings')) return 'System Settings'
     if (path.includes('feedback')) return '360° Feedback'
     if (path.includes('performance')) return 'Performance'
