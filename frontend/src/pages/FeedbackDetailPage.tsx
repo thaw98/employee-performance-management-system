@@ -1,5 +1,5 @@
-import { type FormEvent, useEffect, useMemo, useState } from 'react';
-import { ArrowLeft, Download, Printer, Send } from 'lucide-react';
+import { useEffect, useMemo, useState } from 'react';
+import { ArrowLeft, Download, Printer } from 'lucide-react';
 import { useLocation, useNavigate, useParams } from 'react-router-dom';
 import { toast } from 'react-hot-toast';
 import jsPDF from 'jspdf';
@@ -38,12 +38,7 @@ interface FeedbackDetailPageData {
   details: FeedbackDetail[];
 }
 
-interface FeedbackChatMessage {
-  id: number;
-  authorName: string;
-  content: string;
-  createdDate: string;
-}
+
 
 interface FeedbackDetailLocationState {
   feedback?: Partial<FeedbackDetailPageData>;
@@ -91,8 +86,6 @@ export function FeedbackDetailPage() {
     return { ...(routeState.feedback as FeedbackDetailPageData), details: routeState.feedback.details || [] };
   });
   const [loading, setLoading] = useState(true);
-  const [chatMessages, setChatMessages] = useState<FeedbackChatMessage[]>([]);
-  const [chatDraft, setChatDraft] = useState('');
 
   useEffect(() => {
     const fetchDetails = async () => {
@@ -108,19 +101,6 @@ export function FeedbackDetailPage() {
     };
     fetchDetails();
   }, [feedbackId]);
-
-  useEffect(() => {
-    if (!feedbackId || isAuditView) return;
-    const fetchChat = async () => {
-      try {
-        const resp = await axios.get(`/feedback/${feedbackId}/chat`);
-        setChatMessages(resp.data.data || []);
-      } catch {
-        setChatMessages([]);
-      }
-    };
-    fetchChat();
-  }, [feedbackId, isAuditView]);
 
   const evaluator = useMemo(() => {
     if (!data) return null;
@@ -152,19 +132,7 @@ export function FeedbackDetailPage() {
     navigate(-1);
   };
 
-  const handleSendChat = async (event: FormEvent) => {
-    event.preventDefault();
-    const content = chatDraft.trim();
-    if (!content || !feedbackId) return;
-    try {
-      const resp = await axios.post(`/feedback/${feedbackId}/chat`, { content });
-      setChatMessages((messages) => [...messages, resp.data.data]);
-      setChatDraft('');
-      toast.success('Message sent');
-    } catch (err: any) {
-      toast.error(err.response?.data?.message || 'Failed to send message');
-    }
-  };
+
 
   const generatePDF = async () => {
     if (!data) return;
@@ -381,44 +349,7 @@ export function FeedbackDetailPage() {
           </div>
         </div>
 
-        {!isAuditView && (
-          <div className="mt-8 rounded-2xl border border-slate-100 bg-slate-50/60 p-5">
-            <h2 className="mb-4 text-sm font-black uppercase tracking-widest text-slate-800">
-              {data.anonymous ? 'Anonymous Chat' : 'Feedback Chat'}
-            </h2>
-            <div className="mb-4 max-h-[320px] space-y-3 overflow-y-auto rounded-xl border border-slate-100 bg-white p-4">
-              {chatMessages.length === 0 ? (
-                <p className="py-6 text-center text-sm font-bold text-slate-400">No chat messages yet.</p>
-              ) : chatMessages.map((message) => (
-                <div key={message.id} className="rounded-xl border border-slate-100 bg-slate-50 p-3">
-                  <div className="mb-1 flex items-center justify-between gap-3">
-                    <span className="text-xs font-black text-slate-700">{message.authorName}</span>
-                    <span className="text-[10px] font-bold text-slate-400">
-                      {new Date(message.createdDate).toLocaleString()}
-                    </span>
-                  </div>
-                  <p className="whitespace-pre-wrap break-words text-sm font-medium text-slate-700">{message.content}</p>
-                </div>
-              ))}
-            </div>
-            <form onSubmit={handleSendChat} className="relative">
-              <textarea
-                value={chatDraft}
-                onChange={(event) => setChatDraft(event.target.value)}
-                rows={3}
-                className="w-full resize-none rounded-xl border border-slate-200 bg-white p-3 pr-12 text-sm font-medium text-slate-700 outline-none focus:border-blue-500"
-                placeholder="Write a message..."
-              />
-              <button
-                type="submit"
-                disabled={!chatDraft.trim()}
-                className="absolute bottom-3 right-3 flex h-8 w-8 items-center justify-center rounded-lg bg-blue-600 text-white hover:bg-blue-700 disabled:bg-blue-200"
-              >
-                <Send size={14} />
-              </button>
-            </form>
-          </div>
-        )}
+
 
         <div className="mt-10 pt-8 border-t border-slate-100 flex justify-end gap-3">
           <button onClick={generatePDF} className="flex items-center gap-2 px-8 py-3 bg-blue-600 text-white rounded-xl text-xs font-black hover:bg-blue-700 transition-all">
