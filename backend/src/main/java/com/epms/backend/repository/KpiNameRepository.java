@@ -5,9 +5,11 @@ import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.stereotype.Repository;
 
 import java.util.List;
+import java.util.Optional;
 
 @Repository
 public interface KpiNameRepository extends JpaRepository<KpiName, Long> {
     List<KpiName> findByStatusIgnoreCase(String status);
     boolean existsByNameIgnoreCase(String name);
+    Optional<KpiName> findByNameIgnoreCase(String name);
 }

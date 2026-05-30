@@ -90,7 +90,7 @@ class AppraisalAssignmentServiceDraftTest {
         assertNotNull(result.getSubmittedAt());
         assertNotNull(result.getManagerSignedAt());
         assertEquals(60.0, result.getTotalScore());
-        assertEquals("AVERAGE", result.getRatingCategory());
+        assertEquals("Meet Requirement", result.getRatingCategory());
         verify(notificationService, never()).send(any(User.class), any(), any(), any(), any());
     }
 
@@ -143,7 +143,7 @@ class AppraisalAssignmentServiceDraftTest {
         assertNotNull(result.getSubmittedAt());
         assertNotNull(result.getManagerSignedAt());
         assertEquals(100.0, result.getTotalScore());
-        assertEquals("EXCEPTIONAL", result.getRatingCategory());
+        assertEquals("Outstanding", result.getRatingCategory());
     }
 
     @Test

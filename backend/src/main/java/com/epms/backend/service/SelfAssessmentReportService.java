@@ -6,9 +6,11 @@ import com.epms.backend.dto.selfassessmentform.report.SelfAssessmentSummaryRepor
 import com.epms.backend.dto.selfassessmentform.report.SelfAssessmentSummaryReportRow;
 import com.epms.backend.entity.Employee;
 import com.epms.backend.entity.ReviewCycle;
+import com.epms.backend.entity.ScoreExplanationModule;
 import com.epms.backend.repository.ReviewCycleRepository;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.core.io.ClassPathResource;
 import org.springframework.core.io.FileSystemResource;
@@ -40,8 +42,10 @@ public class SelfAssessmentReportService {
     private static final DateTimeFormatter DATE_FORMAT = DateTimeFormatter.ofPattern("dd MMM yyyy", Locale.ENGLISH);
     private static final DateTimeFormatter GENERATED_AT_FORMAT = DateTimeFormatter.ofPattern("dd MMM yyyy hh:mm a", Locale.ENGLISH);
 
-    private final SelfAssessmentFormService selfAssessmentFormService;
-    private final ReviewCycleRepository reviewCycleRepository;
+	    private final SelfAssessmentFormService selfAssessmentFormService;
+	    private final ReviewCycleRepository reviewCycleRepository;
+	    @Autowired(required = false)
+	    private ScoreExplanationResolver scoreExplanationResolver;
 
     private static final List<String> PERFORMANCE_BANDS = List.of(
             "Outstanding",
@@ -320,7 +324,7 @@ public class SelfAssessmentReportService {
 
     private ReportRecord toReportRecord(ScoreRecordDto record) {
         double score = "NOT_SUBMITTED".equals(record.status()) ? 0.0 : record.finalApprovedScore() == null ? 0.0 : record.finalApprovedScore();
-        String performance = "NOT_SUBMITTED".equals(record.status()) ? "Unsatisfactory" : defaultText(record.performance(), ratingCategory(score));
+	        String performance = "NOT_SUBMITTED".equals(record.status()) ? "Unsatisfactory" : ratingCategory(score);
         return new ReportRecord(
                 record.employee() == null ? null : record.employee().id(),
                 record.employee() == null ? "" : record.employee().employeeId(),
@@ -345,13 +349,15 @@ public class SelfAssessmentReportService {
                 cycle.getEndDate() == null ? null : cycle.getEndDate().toString());
     }
 
-    private String ratingCategory(double score) {
-        if (score >= 86) return PERFORMANCE_BANDS.get(0);
-        if (score >= 71) return PERFORMANCE_BANDS.get(1);
-        if (score >= 60) return PERFORMANCE_BANDS.get(2);
-        if (score >= 40) return PERFORMANCE_BANDS.get(3);
-        return PERFORMANCE_BANDS.get(4);
-    }
+	    private String ratingCategory(double score) {
+	        if (scoreExplanationResolver == null) {
+	            return ScoreExplanationResolver.defaultTitle(score);
+	        }
+	        return scoreExplanationResolver.resolveTitle(
+	                ScoreExplanationModule.SELF_ASSESSMENT,
+	                score,
+	                ScoreExplanationResolver.defaultTitle(score));
+	    }
 
     private double percent(int count, int total) {
         if (total <= 0) return 0;

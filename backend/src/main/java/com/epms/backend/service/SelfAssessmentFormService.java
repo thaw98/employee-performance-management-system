@@ -6,6 +6,7 @@ import com.epms.backend.audit.AuditTargetType;
 import com.epms.backend.dto.selfassessmentform.*;
 import com.epms.backend.entity.*;
 import com.epms.backend.repository.*;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -65,9 +66,11 @@ public class SelfAssessmentFormService {
     private final UserRepository userRepository;
     private final NotificationRepository notificationRepository;
     private final SelfAssessmentSettingsRepository settingsRepository;
-    private final ReportingManagerResolver reportingManagerResolver;
-    private final SelfAssessmentUnlockRequestRepository unlockRequestRepository;
-    private final SelfAssessmentArchiveSnapshotRepository archiveSnapshotRepository;
+	    private final ReportingManagerResolver reportingManagerResolver;
+	    private final SelfAssessmentUnlockRequestRepository unlockRequestRepository;
+	    private final SelfAssessmentArchiveSnapshotRepository archiveSnapshotRepository;
+	    @Autowired(required = false)
+	    private ScoreExplanationResolver scoreExplanationResolver;
 
     public SelfAssessmentFormService(
             SelfAssessmentFormTemplateRepository templateRepository,
@@ -84,10 +87,10 @@ public class SelfAssessmentFormService {
             AuditLogRepository auditLogRepository,
             UserRepository userRepository,
             NotificationRepository notificationRepository,
-            SelfAssessmentSettingsRepository settingsRepository,
-            ReportingManagerResolver reportingManagerResolver,
-            SelfAssessmentUnlockRequestRepository unlockRequestRepository,
-            SelfAssessmentArchiveSnapshotRepository archiveSnapshotRepository) {
+	            SelfAssessmentSettingsRepository settingsRepository,
+	            ReportingManagerResolver reportingManagerResolver,
+	            SelfAssessmentUnlockRequestRepository unlockRequestRepository,
+	            SelfAssessmentArchiveSnapshotRepository archiveSnapshotRepository) {
         this.templateRepository = templateRepository;
         this.copiedTemplateRepository = copiedTemplateRepository;
         this.formRepository = formRepository;
@@ -103,10 +106,10 @@ public class SelfAssessmentFormService {
         this.userRepository = userRepository;
         this.notificationRepository = notificationRepository;
         this.settingsRepository = settingsRepository;
-        this.reportingManagerResolver = reportingManagerResolver;
-        this.unlockRequestRepository = unlockRequestRepository;
-        this.archiveSnapshotRepository = archiveSnapshotRepository;
-    }
+	        this.reportingManagerResolver = reportingManagerResolver;
+	        this.unlockRequestRepository = unlockRequestRepository;
+	        this.archiveSnapshotRepository = archiveSnapshotRepository;
+	    }
 
     @Transactional
     public SelfAssessmentFormTemplateDto createTemplate(CreateTemplateRequest request, Long userId) {
@@ -2660,13 +2663,15 @@ Instant now = Instant.now();
         form.setRatingCategory(getRatingCategory(score));
     }
 
-    private String getRatingCategory(double score) {
-        if (score >= 86) return "Outstanding";
-        if (score >= 71) return "Good";
-        if (score >= 60) return "Meet Requirement";
-        if (score >= 40) return "Need Improvement";
-        return "Unsatisfactory";
-    }
+	    private String getRatingCategory(double score) {
+	        if (scoreExplanationResolver == null) {
+	            return ScoreExplanationResolver.defaultTitle(score);
+	        }
+	        return scoreExplanationResolver.resolveTitle(
+	                ScoreExplanationModule.SELF_ASSESSMENT,
+	                score,
+	                ScoreExplanationResolver.defaultTitle(score));
+	    }
 
     private boolean isDeadlinePassed(SelfAssessmentForm form) {
         LocalDate today = LocalDate.now();
@@ -3004,10 +3009,6 @@ Instant now = Instant.now();
                                 + form.getEmployeeDisputeReason(),
                         "SELF_ASSESSMENT_FORM",
                         form.getId()));
-    }
-
-    private void sendManagerDisputeReturnNotification(SelfAssessmentForm form, String hrReason) {
-        sendManagerDisputeReturnNotification(form, hrReason, null);
     }
 
     private void sendManagerDisputeReturnNotification(SelfAssessmentForm form, String hrReason, String hrComments) {
@@ -3419,7 +3420,10 @@ Instant now = Instant.now();
         );
 
         Double finalApprovedScore = form.getFinalApprovedTotalScore();
-        String performance = form.getRatingCategory();
+        String performance = form.getFinalApprovedTotalScore() != null && scoreExplanationResolver != null
+                ? scoreExplanationResolver.resolveTitle(ScoreExplanationModule.SELF_ASSESSMENT,
+                        form.getFinalApprovedTotalScore(), form.getRatingCategory())
+                : form.getRatingCategory();
         if (form.getStatus() == SelfAssessmentFormStatus.NOT_SUBMITTED) {
             if (finalApprovedScore == null) {
                 finalApprovedScore = 0.0;

@@ -47,6 +47,7 @@ public final class AuditActionType {
 	public static final String QUESTION_BANK_STATUS_CHANGED = "QUESTION_BANK_STATUS_CHANGED";
 
 	public static final String FEEDBACK_360_SUBMITTED = "FEEDBACK_360_SUBMITTED";
+	public static final String SCORE_EXPLANATION_UPDATED = "SCORE_EXPLANATION_UPDATED";
 	
 	public static final String KPI_CREATED = "KPI_CREATED";
 	public static final String KPI_UPDATED = "KPI_UPDATED";

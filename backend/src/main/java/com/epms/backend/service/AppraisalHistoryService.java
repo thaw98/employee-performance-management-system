@@ -9,6 +9,7 @@ import com.epms.backend.entity.AppraisalStatus;
 import com.epms.backend.entity.Department;
 import com.epms.backend.entity.Employee;
 import com.epms.backend.entity.Position;
+import com.epms.backend.entity.ScoreExplanationModule;
 import com.epms.backend.repository.AppraisalAssignmentRepository;
 import com.epms.backend.repository.AppraisalCycleRepository;
 import java.io.ByteArrayOutputStream;
@@ -24,6 +25,7 @@ import java.util.Map;
 import java.util.Objects;
 import java.util.stream.Collectors;
 import lombok.RequiredArgsConstructor;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.apache.poi.ss.usermodel.Cell;
 import org.apache.poi.ss.usermodel.CellStyle;
 import org.apache.poi.ss.usermodel.CreationHelper;
@@ -47,6 +49,8 @@ public class AppraisalHistoryService {
 
     private final AppraisalAssignmentRepository appraisalAssignmentRepository;
     private final AppraisalCycleRepository appraisalCycleRepository;
+    @Autowired(required = false)
+    private ScoreExplanationResolver scoreExplanationResolver;
 
     @Transactional(readOnly = true)
     public List<AppraisalHistoryDetailRowDto> getHistory(Long employeeId, Long roleId) {
@@ -200,7 +204,7 @@ public class AppraisalHistoryService {
                 assignment.getStatus().name(),
                 displayStatus(assignment.getStatus()),
                 assignment.getTotalScore(),
-                assignment.getRatingCategory(),
+	                resolveRatingCategory(assignment.getTotalScore(), assignment.getRatingCategory()),
                 assignment.getSubmittedAt(),
                 assignment.getHrSignedAt(),
                 assignment.getStatus() == AppraisalStatus.LOCKED ? assignment.getUpdatedAt() : null);
@@ -339,6 +343,16 @@ public class AppraisalHistoryService {
             return "HR Approved";
         }
         return status == null ? "" : status.name().replace('_', ' ');
+    }
+
+    private String resolveRatingCategory(Double score, String fallback) {
+        if (score == null) {
+            return fallback;
+        }
+        if (scoreExplanationResolver == null) {
+            return ScoreExplanationResolver.defaultTitle(score);
+        }
+        return scoreExplanationResolver.resolveTitle(ScoreExplanationModule.APPRAISAL, score, fallback);
     }
 
     private boolean isProbationEmployee(AppraisalAssignment assignment) {

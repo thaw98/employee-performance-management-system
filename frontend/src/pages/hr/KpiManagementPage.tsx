@@ -1,6 +1,8 @@
 import React, { useState, useEffect, useMemo, useRef } from 'react';
 import { useSearchParams, useNavigate } from 'react-router-dom';
-import { Plus, Trash2, Save, AlertCircle, CheckCircle2, Target, User, Users, X, ClipboardList, FolderOpen, ChevronDown, Ruler, Tag, Settings2 } from 'lucide-react';
+import { useSelector } from 'react-redux';
+import type { RootState } from '../../app/store';
+import { Plus, Trash2, Save, AlertCircle, CheckCircle2, Target, User, Users, X, ClipboardList, FolderOpen, ChevronDown, Ruler, Tag, Settings2, FileSpreadsheet } from 'lucide-react';
 import { Combobox, ComboboxButton, ComboboxInput, ComboboxOption, ComboboxOptions } from '@headlessui/react';
 import { MonthYearPicker } from '../../components/common/MonthYearPicker';
 import { EmployeeAutocomplete } from '../../components/common/EmployeeAutocomplete';
@@ -24,6 +26,7 @@ import {
   useGetKpiTemplatesQuery,
   useCreateKpiTemplateMutation
 } from '../../features/kpi/kpiTemplateApi';
+import KpiTemplateImportModal from '../../features/kpi/components/KpiTemplateImportModal';
 import { toast } from 'react-hot-toast';
 
 const getCurrentMonthValue = () => {
@@ -65,6 +68,8 @@ export const KpiManagementPage: React.FC = () => {
   const [kpis, setKpis] = useState<any[]>([]);
   const [manageMenuOpen, setManageMenuOpen] = useState(false);
   const manageMenuRef = useRef<HTMLDivElement>(null);
+  const [showImportModal, setShowImportModal] = useState(false);
+  const token = useSelector((state: RootState) => state.auth.token);
 
   useEffect(() => {
     function handleClickOutside(event: MouseEvent) {
@@ -1013,6 +1018,16 @@ export const KpiManagementPage: React.FC = () => {
           Reset Setup
         </button>
         <button
+          onClick={() => setShowImportModal(true)}
+          disabled={isAlreadyDefined}
+          className={`flex items-center gap-2 px-6 py-3 border rounded-2xl text-xs font-black transition-all uppercase tracking-widest ${isAlreadyDefined
+              ? 'bg-slate-50 text-slate-300 border-slate-100 cursor-not-allowed'
+              : 'bg-white border-slate-200 text-[#2463eb] hover:bg-[#eff6ff]'
+            }`}
+        >
+          <FileSpreadsheet size={18} /> Import from Excel
+        </button>
+        <button
           onClick={openSaveTemplateModal}
           disabled={isAlreadyDefined}
           className={`flex items-center gap-2 px-6 py-3 border rounded-2xl text-xs font-black transition-all uppercase tracking-widest ${isAlreadyDefined
@@ -1105,6 +1120,19 @@ export const KpiManagementPage: React.FC = () => {
             </form>
           </div>
         </div>
+      )}
+
+      {showImportModal && (
+        <KpiTemplateImportModal
+          isOpen={showImportModal}
+          onClose={() => setShowImportModal(false)}
+          onImportSuccess={() => {
+            refetchKpis();
+            refetchPosKpis();
+            refetchDeptKpis();
+          }}
+          token={token}
+        />
       )}
     </div>
   );
