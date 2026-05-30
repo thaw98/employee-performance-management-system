@@ -1,15 +1,20 @@
-import { useEffect, useState } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useEffect, useMemo, useState } from 'react';
+import { useLocation, useNavigate } from 'react-router-dom';
+import { useSelector } from 'react-redux';
+import { Combobox, ComboboxButton, ComboboxInput, ComboboxOption, ComboboxOptions } from '@headlessui/react';
 import { toast } from 'react-hot-toast';
-import { MessageSquare, Plus, Send, Eye } from 'lucide-react';
+import type { RootState } from '../../app/store';
+import { getRoleGroup } from '../../utils/dashboardRedirect';
+import { ChevronDown, MessageSquare, Plus, Send, Eye } from 'lucide-react';
 import { continuousFeedbackApi } from '../../features/continuousFeedback/continuousFeedbackApi';
 import type { ContinuousFeedback, ContinuousFeedbackCreateRequest } from '../../features/continuousFeedback/types';
 import axios from '../../app/axiosInstance';
 
 interface EmployeeOption {
-  employeeId: number;
-  employeeName: string;
-  employeeBusinessId: string;
+  id: number;
+  name: string;
+  department?: string;
+  position?: string;
 }
 
 const CATEGORIES = [
@@ -31,12 +36,21 @@ const CATEGORY_LABELS: Record<string, string> = {
 
 export default function ContinuousFeedbackPage() {
   const navigate = useNavigate();
+  const { pathname } = useLocation();
+  const { user } = useSelector((state: RootState) => state.auth);
+  const roleGroup = user ? getRoleGroup(user) : null;
+  const canCreateFeedback = roleGroup === 'MANAGER';
+  const feedbackBasePath = useMemo(() => {
+    const match = pathname.match(/^\/(hr|manager|audit)\/continuous-feedback/);
+    return match ? `/${match[1]}/continuous-feedback` : '/manager/continuous-feedback';
+  }, [pathname]);
   const [feedbacks, setFeedbacks] = useState<ContinuousFeedback[]>([]);
   const [employees, setEmployees] = useState<EmployeeOption[]>([]);
   const [loading, setLoading] = useState(true);
 
   const [showForm, setShowForm] = useState(false);
-  const [selectedEmployeeId, setSelectedEmployeeId] = useState('');
+  const [selectedEmployeeId, setSelectedEmployeeId] = useState<number | null>(null);
+  const [employeeQuery, setEmployeeQuery] = useState('');
   const [category, setCategory] = useState('PRAISE');
   const [feedbackMessage, setFeedbackMessage] = useState('');
   const [privateNote, setPrivateNote] = useState('');
@@ -45,8 +59,10 @@ export default function ContinuousFeedbackPage() {
 
   useEffect(() => {
     loadData();
-    loadEmployees();
-  }, []);
+    if (canCreateFeedback) {
+      loadEmployees();
+    }
+  }, [canCreateFeedback]);
 
   const loadData = async () => {
     try {
@@ -64,17 +80,30 @@ export default function ContinuousFeedbackPage() {
     try {
       const resp = await axios.get('/meetings/eligible-employees');
       const data = resp.data?.data || resp.data || [];
-      setEmployees(
-        data.map((e: EmployeeOption) => ({
-          employeeId: e.employeeId,
-          employeeName: e.employeeName,
-          employeeBusinessId: e.employeeBusinessId,
-        }))
-      );
+      setEmployees(data);
     } catch {
       setEmployees([]);
     }
   };
+
+  const selectedEmployee = useMemo(
+    () => employees.find((emp) => emp.id === selectedEmployeeId) ?? null,
+    [employees, selectedEmployeeId],
+  );
+
+  const filteredEmployees = useMemo(() => {
+    const q = employeeQuery.trim().toLowerCase();
+    if (!q) return employees;
+    return employees.filter(
+      (emp) =>
+        emp.name.toLowerCase().includes(q) ||
+        (emp.position?.toLowerCase().includes(q) ?? false) ||
+        (emp.department?.toLowerCase().includes(q) ?? false),
+    );
+  }, [employees, employeeQuery]);
+
+  const formatEmployeeLabel = (emp: EmployeeOption) =>
+    emp.position ? `${emp.name} (${emp.position})` : emp.name;
 
   const handleCreate = async () => {
     if (!selectedEmployeeId) {
@@ -93,7 +122,7 @@ export default function ContinuousFeedbackPage() {
     setSubmitting(true);
     try {
       const request: ContinuousFeedbackCreateRequest = {
-        employeeId: Number(selectedEmployeeId),
+        employeeId: selectedEmployeeId,
         category,
         feedbackMessage: isPrivateOnly ? undefined : feedbackMessage,
         privateManagerNote: privateNote || undefined,
@@ -102,7 +131,8 @@ export default function ContinuousFeedbackPage() {
       await continuousFeedbackApi.createFeedback(request);
       toast.success('Feedback created successfully');
       setShowForm(false);
-      setSelectedEmployeeId('');
+      setSelectedEmployeeId(null);
+      setEmployeeQuery('');
       setCategory('PRAISE');
       setFeedbackMessage('');
       setPrivateNote('');
@@ -131,24 +161,30 @@ export default function ContinuousFeedbackPage() {
       <div className="flex items-center justify-between mb-6">
         <div>
           <h1 className="text-2xl font-bold text-gray-800">Continuous Feedback</h1>
-          <p className="text-sm text-gray-500 mt-1">Create and manage feedback for your team</p>
+          <p className="text-sm text-gray-500 mt-1">
+            {canCreateFeedback
+              ? 'Create and manage feedback for your team'
+              : 'Review continuous feedback across the organization'}
+          </p>
         </div>
-        <button
-          onClick={() => setShowForm(!showForm)}
-          className="flex items-center gap-2 px-4 py-2 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 transition-colors"
-        >
-          {showForm ? (
-            <>
-              <MessageSquare size={18} />
-              View Feedback
-            </>
-          ) : (
-            <>
-              <Plus size={18} />
-              New Feedback
-            </>
-          )}
-        </button>
+        {canCreateFeedback && (
+          <button
+            onClick={() => setShowForm(!showForm)}
+            className="flex items-center gap-2 px-4 py-2 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 transition-colors"
+          >
+            {showForm ? (
+              <>
+                <MessageSquare size={18} />
+                View Feedback
+              </>
+            ) : (
+              <>
+                <Plus size={18} />
+                New Feedback
+              </>
+            )}
+          </button>
+        )}
       </div>
 
       {showForm && (
@@ -157,18 +193,52 @@ export default function ContinuousFeedbackPage() {
           <div className="space-y-4">
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-1">Employee *</label>
-              <select
-                value={selectedEmployeeId}
-                onChange={(e) => setSelectedEmployeeId(e.target.value)}
-                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500"
-              >
-                <option value="">Select employee...</option>
-                {employees.map((emp) => (
-                  <option key={emp.employeeId} value={emp.employeeId}>
-                    {emp.employeeName} ({emp.employeeBusinessId})
-                  </option>
-                ))}
-              </select>
+              <div className="relative">
+                <Combobox
+                  value={selectedEmployee}
+                  onChange={(emp: EmployeeOption | null) => {
+                    setSelectedEmployeeId(emp ? emp.id : null);
+                    setEmployeeQuery('');
+                  }}
+                  nullable
+                >
+                  <div className="relative flex rounded-lg border border-gray-300 bg-white focus-within:border-indigo-500 focus-within:ring-2 focus-within:ring-indigo-500">
+                    <ComboboxInput
+                      className="w-full rounded-lg border-0 bg-transparent px-3 py-2 pr-10 text-sm text-gray-900 focus:ring-0 outline-none placeholder:text-gray-400"
+                      displayValue={(emp: EmployeeOption | null) =>
+                        emp ? formatEmployeeLabel(emp) : ''
+                      }
+                      onChange={(e) => setEmployeeQuery(e.target.value)}
+                      placeholder="Select employee..."
+                      autoComplete="off"
+                    />
+                    <ComboboxButton className="absolute inset-y-0 right-0 flex items-center px-3 text-gray-400">
+                      <ChevronDown size={16} aria-hidden />
+                    </ComboboxButton>
+                  </div>
+                  <ComboboxOptions
+                    anchor="bottom start"
+                    className="z-50 mt-1 max-h-60 w-(--anchor-width) overflow-auto rounded-lg border border-gray-200 bg-white py-1 shadow-lg focus:outline-none"
+                  >
+                    {filteredEmployees.length === 0 ? (
+                      <div className="px-3 py-2 text-sm text-gray-500">No employees found</div>
+                    ) : (
+                      filteredEmployees.map((emp) => (
+                        <ComboboxOption
+                          key={emp.id}
+                          value={emp}
+                          className="cursor-pointer px-3 py-2 text-sm text-gray-800 data-focus:bg-indigo-50 data-selected:bg-indigo-100 data-selected:text-indigo-800"
+                        >
+                          <span className="font-medium">{emp.name}</span>
+                          {emp.position && (
+                            <span className="text-gray-500"> ({emp.position})</span>
+                          )}
+                        </ComboboxOption>
+                      ))
+                    )}
+                  </ComboboxOptions>
+                </Combobox>
+              </div>
             </div>
 
             <div>
@@ -247,7 +317,9 @@ export default function ContinuousFeedbackPage() {
 
       <div className="bg-white rounded-xl shadow-sm border border-gray-200">
         <div className="p-4 border-b border-gray-200">
-          <h2 className="text-lg font-semibold text-gray-800">Team Feedback Timeline</h2>
+          <h2 className="text-lg font-semibold text-gray-800">
+            {canCreateFeedback ? 'Team Feedback Timeline' : 'Organization Feedback Timeline'}
+          </h2>
         </div>
         {loading ? (
           <div className="p-8 text-center text-gray-500">Loading...</div>
@@ -300,13 +372,13 @@ export default function ContinuousFeedbackPage() {
                   </div>
                   <div className="flex items-center gap-2 ml-4">
                     <button
-                      onClick={() => navigate(`/manager/continuous-feedback/${fb.feedbackId}`)}
+                      onClick={() => navigate(`${feedbackBasePath}/${fb.feedbackId}`)}
                       className="p-2 text-gray-400 hover:text-indigo-600 transition-colors"
                       title="View details"
                     >
                       <Eye size={18} />
                     </button>
-                    {!fb.shared && (
+                    {canCreateFeedback && !fb.shared && (
                       <button
                         onClick={() => handleShare(fb.feedbackId)}
                         className="p-2 text-gray-400 hover:text-green-600 transition-colors"

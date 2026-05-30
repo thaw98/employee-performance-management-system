@@ -236,9 +236,16 @@ public class ContinuousFeedbackService {
 
     @Transactional(readOnly = true)
     public List<ContinuousFeedbackDto> getTeamFeedback(User currentUser) {
-        validateManager(currentUser);
-        Employee manager = getManagerEmployee(currentUser);
-        List<ContinuousFeedback> feedbackList = feedbackRepository.findByManagerIdOrderByCreatedAtDesc(manager.getId());
+        List<ContinuousFeedback> feedbackList;
+        if (isHr(currentUser) || isAudit(currentUser)) {
+            feedbackList = feedbackRepository.findAll().stream()
+                    .sorted((a, b) -> b.getCreatedAt().compareTo(a.getCreatedAt()))
+                    .collect(Collectors.toList());
+        } else {
+            validateManager(currentUser);
+            Employee manager = getManagerEmployee(currentUser);
+            feedbackList = feedbackRepository.findByManagerIdOrderByCreatedAtDesc(manager.getId());
+        }
         return feedbackList.stream()
                 .map(f -> toDto(f, currentUser))
                 .collect(Collectors.toList());

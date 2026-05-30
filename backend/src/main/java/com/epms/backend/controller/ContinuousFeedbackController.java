@@ -96,7 +96,7 @@ public class ContinuousFeedbackController {
     }
 
     @GetMapping("/my-team")
-    @PreAuthorize("hasAnyRole('DEPARTMENT_HEAD', 'TEAM_HEAD', 'MANAGER')")
+    @PreAuthorize("hasAnyRole('DEPARTMENT_HEAD', 'TEAM_HEAD', 'MANAGER', 'HR', 'AUDIT')")
     public ResponseEntity<ApiResponse<List<ContinuousFeedbackDto>>> getTeamFeedback(
             @AuthenticationPrincipal UserPrincipal principal) {
         User currentUser = userRepository.findById(principal.getId()).orElseThrow();

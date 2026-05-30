@@ -81,6 +81,7 @@ public class HrEmployeeService {
     private final AuditService auditService;
     private final KpiRepository kpiRepository;
     private final ReportingManagerResolver reportingManagerResolver;
+    private final ProfilePictureStorageService profilePictureStorageService;
 
     private static final SecureRandom RANDOM = new SecureRandom();
     private static final String TEMP_PASSWORD_ALPHABET = "ABCDEFGHJKLMNPQRSTUVWXYZabcdefghijkmnpqrstuvwxyz23456789";
@@ -726,7 +727,7 @@ public class HrEmployeeService {
                 .staffTypeId(employee.getStaffType() != null ? employee.getStaffType().getId() : null)
                 .staffTypeName(employee.getStaffType() != null ? employee.getStaffType().getName() : null)
                 .phoneNumber(employee.getPhoneNo())
-                .profilePictureUrl(employee.getProfilePictureUrl())
+                .profilePictureUrl(profilePictureStorageService.toPublicUrl(employee.getProfilePictureUrl()))
                 .email(employee.getEmail())
                 .mustChangePassword(user != null ? user.isMustChangePassword() : null)
                 .hasUserAccount(user != null)
@@ -791,7 +792,7 @@ public class HrEmployeeService {
                 .fatherOccupation(employee.getFather() != null ? employee.getFather().getFatherOccupation() : null)
                 .emergencyPhone(employee.getEmergencyContact() != null ? employee.getEmergencyContact().getEmergencyPhone() : null)
                 .emergencyRelation(employee.getEmergencyContact() != null ? employee.getEmergencyContact().getRelation() : null)
-                .profilePictureUrl(employee.getProfilePictureUrl())
+                .profilePictureUrl(profilePictureStorageService.toPublicUrl(employee.getProfilePictureUrl()))
                 .maritalStatus(employee.getMaritalStatus() == null ? null : employee.getMaritalStatus().name())
                 .spouseId(employee.getSpouse() != null ? employee.getSpouse().getSpouseId() : null)
                 .spouseName(employee.getSpouse() != null ? employee.getSpouse().getSpouseName() : null)
@@ -1001,7 +1002,7 @@ public class HrEmployeeService {
                 .dateOfBirth(employee.getDateOfBirth())
                 .hireDate(employee.getDateOfJoining())
                 .status(statusDisplay)
-                .profilePictureUrl(employee.getProfilePictureUrl())
+                .profilePictureUrl(profilePictureStorageService.toPublicUrl(employee.getProfilePictureUrl()))
                 .staffNrcNumber(employee.getStaffNrcNo())
                 .address(employee.getAddress())
                 .race(employee.getRace())

@@ -5,22 +5,37 @@ function apiBaseUrl(): string {
 
 /** Origin for static files (no /api suffix), e.g. http://localhost:8080 */
 export function backendOrigin(): string {
-  const base = apiBaseUrl()
-  if (base.startsWith('http://') || base.startsWith('https://')) {
-    if (base.endsWith('/api')) {
-      return base.slice(0, -4)
+  const configured = (import.meta.env.VITE_API_BASE_URL as string | undefined)?.replace(/\/$/, '')
+  if (configured?.startsWith('http://') || configured?.startsWith('https://')) {
+    if (configured.endsWith('/api')) {
+      return configured.slice(0, -4)
     }
-    return base.replace(/\/$/, '')
+    return configured.replace(/\/$/, '')
   }
   if (typeof window !== 'undefined' && window.location?.origin) {
     return window.location.origin
   }
-  return ''
+  return 'http://localhost:8080'
 }
 
 /**
  * Turns a stored media path or inline image into a URL suitable for <img src>.
  */
+const PROFILE_PICTURE_FILE = /\.(png|jpe?g|gif|webp)$/i
+
+function normalizeProfilePicturePath(pathOrUrl: string): string {
+  if (
+    pathOrUrl.startsWith('/api/public/profile-pictures/') ||
+    pathOrUrl.startsWith('/uploads/profile-pictures/')
+  ) {
+    return pathOrUrl
+  }
+  if (PROFILE_PICTURE_FILE.test(pathOrUrl) && !pathOrUrl.includes('/')) {
+    return `/uploads/profile-pictures/${pathOrUrl}`
+  }
+  return pathOrUrl
+}
+
 export function resolveProfilePictureSrc(pathOrUrl: string | undefined | null): string | undefined {
   if (pathOrUrl == null || pathOrUrl === '') return undefined
   const s = pathOrUrl.trim()
@@ -29,8 +44,9 @@ export function resolveProfilePictureSrc(pathOrUrl: string | undefined | null): 
   if (/^[A-Za-z0-9+/=\s]+$/.test(s) && s.length > 120) {
     return `data:image/png;base64,${s.replace(/\s/g, '')}`
   }
-  if (s.startsWith('/')) return `${backendOrigin()}${s}`
-  return `${backendOrigin()}/${s}`
+  const normalized = normalizeProfilePicturePath(s)
+  if (normalized.startsWith('/')) return `${backendOrigin()}${normalized}`
+  return `${backendOrigin()}/${normalized}`
 }
 
 export function resolveMediaSrc(pathOrUrl: string | undefined | null): string | undefined {

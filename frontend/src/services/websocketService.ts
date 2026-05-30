@@ -5,11 +5,17 @@ import {
   type NotificationItem,
 } from '../features/notification/notificationSlice';
 
-const apiBaseUrl =
-  (import.meta.env.VITE_API_BASE_URL as string | undefined)?.replace(/\/$/, '') ||
-  'http://localhost:8080';
-
-const websocketBaseUrl = apiBaseUrl.replace(/^http/, 'ws');
+function resolveWebsocketBaseUrl(): string {
+  const configured = (import.meta.env.VITE_API_BASE_URL as string | undefined)?.replace(/\/$/, '');
+  if (configured) {
+    return configured.replace(/^http/, 'ws');
+  }
+  if (typeof window !== 'undefined' && window.location?.host) {
+    const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
+    return `${protocol}//${window.location.host}`;
+  }
+  return 'ws://localhost:8080';
+}
 
 class WebSocketService {
   private socket: WebSocket | null = null;
@@ -47,7 +53,7 @@ class WebSocketService {
       return;
     }
 
-    const socket = new WebSocket(`${websocketBaseUrl}/ws?token=${encodeURIComponent(this.token)}`);
+    const socket = new WebSocket(`${resolveWebsocketBaseUrl()}/ws?token=${encodeURIComponent(this.token)}`);
     this.socket = socket;
 
     socket.onopen = () => {
