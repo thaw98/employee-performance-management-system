@@ -2,7 +2,8 @@
 import { baseApi } from '../../app/baseApi';
 
 export interface AuditLog {
-  auditId: number;
+  id: number;
+  auditId?: number;
   actionType: string;
   targetType: string;
   targetId: number;
@@ -45,16 +46,29 @@ export const auditApi = baseApi.injectEndpoints({
     getAuditLogs: builder.query<PaginatedAuditResponse, AuditFilter>({
       query: (filters) => {
         const params = new URLSearchParams();
-        params.append('page', filters.page.toString());
-        params.append('size', filters.size.toString());
         if (filters.actionType) params.append('actionType', filters.actionType);
         if (filters.targetType) params.append('targetType', filters.targetType);
         if (filters.startDate) params.append('startDate', filters.startDate);
         if (filters.endDate) params.append('endDate', filters.endDate);
         if (filters.userId) params.append('userId', filters.userId.toString());
-        return `/audit/logs?${params.toString()}`;
+        return `/audit-logs?${params.toString()}`;
       },
-      transformResponse: (response: { success: boolean; data: PaginatedAuditResponse }) => response.data,
+      transformResponse: (response: { success: boolean; data: AuditLog[] }, _meta, filters) => {
+        let content = response.data ?? [];
+        if (filters.actionType) content = content.filter((log) => log.actionType === filters.actionType);
+        if (filters.startDate) content = content.filter((log) => log.createdAt >= `${filters.startDate}T00:00:00`);
+        if (filters.endDate) content = content.filter((log) => log.createdAt <= `${filters.endDate}T23:59:59`);
+        const page = filters.page ?? 0;
+        const size = filters.size ?? 20;
+        const start = page * size;
+        return {
+          content: content.slice(start, start + size),
+          totalElements: content.length,
+          totalPages: Math.max(1, Math.ceil(content.length / size)),
+          size,
+          number: page,
+        };
+      },
       providesTags: ['AuditLog'],
     }),
     getAuditSummary: builder.query<AuditSummary, void>({

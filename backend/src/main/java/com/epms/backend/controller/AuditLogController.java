@@ -36,4 +36,12 @@ public class AuditLogController {
         return ResponseEntity.ok(ApiResponse.ok("Fetched self-assessment audit logs",
                 auditService.getSelfAssessmentAuditLogs()));
     }
+
+    @GetMapping
+    public ResponseEntity<ApiResponse<List<AuditLogDto>>> getLogs(@RequestParam(required = false) String targetType) {
+        List<AuditLogDto> logs = targetType == null || targetType.isBlank()
+                ? auditService.getAllAuditLogs()
+                : auditService.getLogsByTargetType(targetType);
+        return ResponseEntity.ok(ApiResponse.ok("Fetched audit logs", logs));
+    }
 }

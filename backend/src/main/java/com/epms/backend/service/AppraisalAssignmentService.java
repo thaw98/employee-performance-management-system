@@ -3,6 +3,7 @@ package com.epms.backend.service;
 import com.epms.backend.StaffTypes;
 import com.epms.backend.entity.AppraisalAssignment;
 import com.epms.backend.entity.AppraisalStatus;
+import com.epms.backend.entity.ScoreExplanationModule;
 import com.epms.backend.repository.AppraisalAssignmentRepository;
 import com.epms.backend.repository.AppraisalAnswerRepository;
 import com.epms.backend.repository.AppraisalQuestionRepository;
@@ -10,6 +11,7 @@ import com.epms.backend.repository.UserRepository;
 import com.epms.backend.service.NotificationService;
 import com.epms.backend.entity.User;
 import lombok.RequiredArgsConstructor;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import java.time.Instant;
@@ -27,6 +29,8 @@ public class AppraisalAssignmentService {
     private final UserRepository userRepository;
     private final NotificationService notificationService;
     private final SignatureStorageService signatureStorageService;
+    @Autowired(required = false)
+    private ScoreExplanationResolver scoreExplanationResolver;
 
     public List<AppraisalAssignment> getAllAssignments() {
         List<AppraisalAssignment> list = appraisalAssignmentRepository.findAll().stream()
@@ -192,11 +196,7 @@ public class AppraisalAssignmentService {
             
             assignment.setTotalScore((sum / (assignment.getAnswers().size() * maxRating)) * 100);
 
-            // Basic Rating Category Logic
-            if (assignment.getTotalScore() >= 90) assignment.setRatingCategory("EXCEPTIONAL");
-            else if (assignment.getTotalScore() >= 75) assignment.setRatingCategory("GOOD");
-            else if (assignment.getTotalScore() >= 50) assignment.setRatingCategory("AVERAGE");
-            else assignment.setRatingCategory("NEEDS_IMPROVEMENT");
+            assignment.setRatingCategory(resolveRatingCategory(assignment.getTotalScore()));
         }
 
         assignment.setStatus(AppraisalStatus.HR_APPROVED);
@@ -422,10 +422,18 @@ public class AppraisalAssignmentService {
 
         assignment.setTotalScore((sum / (assignment.getAnswers().size() * maxRating)) * 100);
 
-        if (assignment.getTotalScore() >= 90) assignment.setRatingCategory("EXCEPTIONAL");
-        else if (assignment.getTotalScore() >= 75) assignment.setRatingCategory("GOOD");
-        else if (assignment.getTotalScore() >= 50) assignment.setRatingCategory("AVERAGE");
-        else assignment.setRatingCategory("NEEDS_IMPROVEMENT");
+        assignment.setRatingCategory(resolveRatingCategory(assignment.getTotalScore()));
+    }
+
+    private String resolveRatingCategory(Double score) {
+        double value = score == null ? 0.0 : score;
+        if (scoreExplanationResolver == null) {
+            return ScoreExplanationResolver.defaultTitle(value);
+        }
+        return scoreExplanationResolver.resolveTitle(
+                ScoreExplanationModule.APPRAISAL,
+                value,
+                ScoreExplanationResolver.defaultTitle(value));
     }
 
     private String persistSignatureIfNeeded(String signature) {

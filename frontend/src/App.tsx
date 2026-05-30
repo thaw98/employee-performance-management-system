@@ -40,6 +40,7 @@ import { CreateEmployeeAccountPage } from './pages/hr/CreateEmployeeAccountPage'
 import EmployeeListPage from './pages/hr/employees/EmployeeListPage';
 import { UserProfilePage } from './pages/UserProfilePage';
 import { SystemSettingsPage } from './pages/SystemSettingsPage';
+import { ScoreExplanationSettingsPage } from './pages/ScoreExplanationSettingsPage';
 import { TimeSettingsPage } from './pages/TimeSettingsPage';
 import { DefaultSignaturePage } from './pages/DefaultSignaturePage';
 import { FaqSupportPage } from './pages/hr/FaqSupportPage';
@@ -213,8 +214,9 @@ function App() {
             <Route path="profile" element={<UserProfilePage />} />
             <Route path="settings/profile" element={<Navigate to="/hr/profile" replace />} />
             <Route path="settings/signature" element={<DefaultSignaturePage />} />
-            <Route path="settings/system" element={<SystemSettingsPage />} />
-            <Route path="settings/system/time" element={<TimeSettingsPage />} />
+	            <Route path="settings/system" element={<SystemSettingsPage />} />
+	            <Route path="settings/system/time" element={<TimeSettingsPage />} />
+	            <Route path="settings/system/score-explanations" element={<ScoreExplanationSettingsPage />} />
             <Route path="settings/faq-support" element={<FaqSupportPage />} />
             <Route path="faq" element={<FaqPage />} />
             <Route path="self-assessment/templates" element={<SelfAssessmentFormTemplatePage />} />

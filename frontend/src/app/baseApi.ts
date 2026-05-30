@@ -65,6 +65,7 @@ export const baseApi = createApi({
     'KpiUnit',
     'KpiName',
     'AuditLog',
+    'ScoreExplanation',
     'FaqSupport',
     'Permission',
   ],

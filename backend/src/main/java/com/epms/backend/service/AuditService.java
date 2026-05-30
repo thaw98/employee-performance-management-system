@@ -83,6 +83,13 @@ public class AuditService {
 				.collect(Collectors.toList());
 	}
 
+	public List<AuditLogDto> getLogsByTargetType(String targetType) {
+		return auditLogRepository.findByTargetTypeInOrderByCreatedAtDesc(List.of(targetType))
+				.stream()
+				.map(this::convertToDto)
+				.collect(Collectors.toList());
+	}
+
 	private AuditLogDto convertToDto(AuditLog log) {
 		String userName = "System";
 		if (log.getPerformedByUserId() != null) {

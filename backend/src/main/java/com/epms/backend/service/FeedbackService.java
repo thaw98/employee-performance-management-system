@@ -60,6 +60,7 @@ public class FeedbackService {
     private final ReviewCycleRepository reviewCycleRepository;
     private final AuditService auditService;
     private final FeedbackChatMessageRepository feedbackChatMessageRepository;
+    private final ScoreExplanationResolver scoreExplanationResolver;
 
     @Autowired
     public FeedbackService(
@@ -74,7 +75,8 @@ public class FeedbackService {
             ReviewCycleService reviewCycleService,
             ReviewCycleRepository reviewCycleRepository,
             AuditService auditService,
-            FeedbackChatMessageRepository feedbackChatMessageRepository) {
+            FeedbackChatMessageRepository feedbackChatMessageRepository,
+            ScoreExplanationResolver scoreExplanationResolver) {
         this.feedbackRepository = feedbackRepository;
         this.feedbackDraftRepository = feedbackDraftRepository;
         this.employeeRepository = employeeRepository;
@@ -87,6 +89,7 @@ public class FeedbackService {
         this.reviewCycleRepository = reviewCycleRepository;
         this.auditService = auditService;
         this.feedbackChatMessageRepository = feedbackChatMessageRepository;
+        this.scoreExplanationResolver = scoreExplanationResolver;
     }
 
     public FeedbackService(
@@ -103,7 +106,7 @@ public class FeedbackService {
             AuditService auditService) {
         this(feedbackRepository, feedbackDraftRepository, employeeRepository, reportingManagerResolver,
                 criteriaRepository, userRepository, notificationService, timeSettingService, reviewCycleService,
-                reviewCycleRepository, auditService, null);
+                reviewCycleRepository, auditService, null, null);
     }
 
     /* Reporting helpers */
@@ -776,15 +779,13 @@ public class FeedbackService {
     }
 
     private String calculateRemark(double score) {
-        if (score >= 86)
-            return "Outstanding";
-        if (score >= 71)
-            return "Good";
-        if (score >= 60)
-            return "Meet Requirement";
-        if (score >= 40)
-            return "Need Improvement";
-        return "Unsatisfactory";
+        if (scoreExplanationResolver == null) {
+            return ScoreExplanationResolver.defaultTitle(score);
+        }
+        return scoreExplanationResolver.resolveTitle(
+                ScoreExplanationModule.FEEDBACK_360,
+                score,
+                ScoreExplanationResolver.defaultTitle(score));
     }
 
     private FeedbackHistoryDto mapToHistoryDto(Feedback entity) {
@@ -809,7 +810,7 @@ public class FeedbackService {
         dto.setPosition(dto.getEvaluateePosition());
         dto.setRole(entity.getRole());
         dto.setScore(entity.getScore());
-        dto.setRemark(entity.getRemark());
+        dto.setRemark(entity.getScore() != null ? calculateRemark(entity.getScore()) : entity.getRemark());
         dto.setAnonymous(Boolean.TRUE.equals(entity.getAnonymous()));
         dto.setAdditionalComments(entity.getAdditionalComments());
         dto.setStatus("SUBMITTED");
