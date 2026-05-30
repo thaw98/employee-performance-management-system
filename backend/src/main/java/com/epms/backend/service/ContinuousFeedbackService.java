@@ -569,7 +569,11 @@ public class ContinuousFeedbackService {
             totalRecords = feedbackRepository.count();
             List<Object[]> categoryCounts = feedbackRepository.countByCategory();
             for (Object[] row : categoryCounts) {
-                byCategory.put((String) row[0], (Long) row[1]);
+                String categoryKey = row[0] instanceof ContinuousFeedbackCategory category
+                        ? category.name()
+                        : String.valueOf(row[0]);
+                long count = row[1] instanceof Number number ? number.longValue() : (Long) row[1];
+                byCategory.put(categoryKey, count);
             }
             openItems = actionItemRepository.countOpenActionItems();
             overdueItems = actionItemRepository.countOverdueActionItems(LocalDate.now());

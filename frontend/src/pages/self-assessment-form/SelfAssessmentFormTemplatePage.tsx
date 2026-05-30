@@ -1,4 +1,4 @@
-import React, { useEffect, useMemo, useState } from 'react';
+import React, { useEffect, useMemo, useRef, useState } from 'react';
 import {
   Plus,
   CalendarRange,
@@ -84,7 +84,26 @@ export const SelfAssessmentFormTemplatePage: React.FC = () => {
   const [copyingTemplateId, setCopyingTemplateId] = useState<number | null>(null);
   const [sorting, setSorting] = useState<SortingState>([]);
   const [importModalOpen, setImportModalOpen] = useState(false);
+  const [moreMenuOpen, setMoreMenuOpen] = useState(false);
+  const moreMenuRef = useRef<HTMLDivElement>(null);
   const token = useSelector((state: RootState) => state.auth.token);
+
+  useEffect(() => {
+    function handleClickOutside(event: MouseEvent) {
+      if (moreMenuRef.current && !moreMenuRef.current.contains(event.target as Node)) {
+        setMoreMenuOpen(false);
+      }
+    }
+    function handleEscape(event: KeyboardEvent) {
+      if (event.key === 'Escape') setMoreMenuOpen(false);
+    }
+    document.addEventListener('mousedown', handleClickOutside);
+    document.addEventListener('keydown', handleEscape);
+    return () => {
+      document.removeEventListener('mousedown', handleClickOutside);
+      document.removeEventListener('keydown', handleEscape);
+    };
+  }, []);
 
   const { data: allTemplates = [] } = useGetAllTemplatesQuery();
   const { data: copiedTemplate } = useGetCopiedTemplateQuery(undefined, { skip: isManager });
@@ -555,51 +574,85 @@ export const SelfAssessmentFormTemplatePage: React.FC = () => {
             </p>
           </div>
         </div>
-        <div className="flex items-center gap-3">
-          {!isManager && (
-            <button
-              type="button"
-              onClick={() => navigate('/hr/self-assessment/settings')}
-              className="group inline-flex items-center gap-2.5 rounded-xl border-2 border-[#2463eb]/30 bg-white px-5 py-2.5 text-sm font-bold text-[#2463eb] shadow-sm transition-all hover:border-[#2463eb]/50 hover:bg-[#2463eb]/5 hover:shadow-md active:scale-[0.97] dark:border-[#2463eb]/40 dark:bg-slate-800 dark:text-[#60a5fa] dark:hover:bg-[#2463eb]/10"
-            >
-              <Settings size={16} strokeWidth={2.5} />
-              Settings
-            </button>
-          )}
+        <div className="flex flex-wrap items-center gap-2 sm:justify-end">
           <button
             type="button"
             onClick={() => navigate(`${routeBase.replace('/templates', '/question-bank')}`)}
-            className="group inline-flex items-center gap-2.5 rounded-xl border-2 border-[#2463eb]/30 bg-white px-5 py-2.5 text-sm font-bold text-[#2463eb] shadow-sm transition-all hover:border-[#2463eb]/50 hover:bg-[#2463eb]/5 hover:shadow-md active:scale-[0.97] dark:border-[#2463eb]/40 dark:bg-slate-800 dark:text-[#60a5fa] dark:hover:bg-[#2463eb]/10"
+            className="inline-flex items-center gap-2 rounded-xl border border-[#2463eb]/30 bg-white px-3.5 py-2 text-sm font-semibold text-[#2463eb] shadow-sm transition-all hover:border-[#2463eb]/50 hover:bg-[#2463eb]/5 active:scale-[0.97] dark:border-[#2463eb]/40 dark:bg-slate-800 dark:text-[#60a5fa] dark:hover:bg-[#2463eb]/10"
           >
-            <BookOpen size={16} strokeWidth={2.5} />
-            Question Bank
+            <BookOpen size={16} strokeWidth={2.25} aria-hidden />
+            <span className="hidden sm:inline">Question Bank</span>
+            <span className="sm:hidden">Bank</span>
           </button>
           {!isManager && (
             <>
-              <button
-                type="button"
-                onClick={handleDownloadImportTemplate}
-                className="group inline-flex items-center gap-2.5 rounded-xl border-2 border-[#2463eb]/30 bg-white px-5 py-2.5 text-sm font-bold text-[#2463eb] shadow-sm transition-all hover:border-[#2463eb]/50 hover:bg-[#2463eb]/5 hover:shadow-md active:scale-[0.97]"
-              >
-                <Download size={16} strokeWidth={2.5} />
-                Download Template
-              </button>
-              <button
-                type="button"
-                onClick={() => setImportModalOpen(true)}
-                className="group inline-flex items-center gap-2.5 rounded-xl border-2 border-emerald-500/30 bg-white px-5 py-2.5 text-sm font-bold text-emerald-600 shadow-sm transition-all hover:border-emerald-500/50 hover:bg-emerald-50 hover:shadow-md active:scale-[0.97]"
-              >
-                <Upload size={16} strokeWidth={2.5} />
-                Import Template
-              </button>
+              <div className="relative" ref={moreMenuRef}>
+                <button
+                  type="button"
+                  onClick={() => setMoreMenuOpen((open) => !open)}
+                  aria-expanded={moreMenuOpen}
+                  aria-haspopup="menu"
+                  className="inline-flex items-center gap-2 rounded-xl border border-slate-200 bg-white px-3.5 py-2 text-sm font-semibold text-slate-700 shadow-sm transition-all hover:border-slate-300 hover:bg-slate-50 active:scale-[0.97] dark:border-slate-600 dark:bg-slate-800 dark:text-slate-200 dark:hover:bg-slate-700/80"
+                >
+                  More
+                  <ChevronDown
+                    size={14}
+                    className={`transition-transform ${moreMenuOpen ? 'rotate-180' : ''}`}
+                    aria-hidden
+                  />
+                </button>
+                {moreMenuOpen && (
+                  <div
+                    className="absolute right-0 top-full z-50 mt-2 min-w-[200px] overflow-hidden rounded-xl border border-slate-200 bg-white py-1 shadow-lg dark:border-slate-600 dark:bg-slate-800"
+                    role="menu"
+                  >
+                    <button
+                      type="button"
+                      role="menuitem"
+                      onClick={() => {
+                        navigate('/hr/self-assessment/settings');
+                        setMoreMenuOpen(false);
+                      }}
+                      className="flex w-full items-center gap-2.5 px-4 py-2.5 text-left text-sm font-medium text-slate-700 transition-colors hover:bg-slate-50 dark:text-slate-200 dark:hover:bg-slate-700/60"
+                    >
+                      <Settings size={16} className="text-[#2463eb]" aria-hidden />
+                      Settings
+                    </button>
+                    <button
+                      type="button"
+                      role="menuitem"
+                      onClick={() => {
+                        void handleDownloadImportTemplate();
+                        setMoreMenuOpen(false);
+                      }}
+                      className="flex w-full items-center gap-2.5 px-4 py-2.5 text-left text-sm font-medium text-slate-700 transition-colors hover:bg-slate-50 dark:text-slate-200 dark:hover:bg-slate-700/60"
+                    >
+                      <Download size={16} className="text-[#2463eb]" aria-hidden />
+                      Download Template
+                    </button>
+                    <button
+                      type="button"
+                      role="menuitem"
+                      onClick={() => {
+                        setImportModalOpen(true);
+                        setMoreMenuOpen(false);
+                      }}
+                      className="flex w-full items-center gap-2.5 px-4 py-2.5 text-left text-sm font-medium text-slate-700 transition-colors hover:bg-slate-50 dark:text-slate-200 dark:hover:bg-slate-700/60"
+                    >
+                      <Upload size={16} className="text-emerald-600" aria-hidden />
+                      Import Template
+                    </button>
+                  </div>
+                )}
+              </div>
               <button
                 type="button"
                 onClick={() => navigate('/hr/self-assessment/templates/create')}
-                className="group inline-flex items-center gap-2.5 rounded-xl bg-gradient-to-r from-[#2463eb] to-[#1d4ed8] px-5 py-2.5 text-sm font-bold text-white shadow-lg shadow-[#2463eb]/25 transition-all hover:shadow-xl hover:shadow-[#2463eb]/30 hover:brightness-110 active:scale-[0.97]"
+                className="group inline-flex items-center gap-2 rounded-xl bg-gradient-to-r from-[#2463eb] to-[#1d4ed8] px-3.5 py-2 text-sm font-semibold text-white shadow-md shadow-[#2463eb]/20 transition-all hover:shadow-lg hover:brightness-110 active:scale-[0.97]"
               >
-                <Plus size={16} strokeWidth={2.5} />
+                <Plus size={16} strokeWidth={2.25} aria-hidden />
                 Create Template
-                <ArrowRight size={14} className="transition-transform group-hover:translate-x-0.5" />
+                <ArrowRight size={14} className="hidden transition-transform group-hover:translate-x-0.5 sm:block" aria-hidden />
               </button>
             </>
           )}

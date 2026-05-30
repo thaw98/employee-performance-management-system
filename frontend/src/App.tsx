@@ -112,6 +112,7 @@ import PerformanceReportDetailPage from './pages/hr/PerformanceReportDetailPage'
 
 // Continuous Feedback
 import ContinuousFeedbackPage from './pages/continuous-feedback/ContinuousFeedbackPage';
+import ContinuousFeedbackCreatePage from './pages/continuous-feedback/ContinuousFeedbackCreatePage';
 import ContinuousFeedbackDetailPage from './pages/continuous-feedback/ContinuousFeedbackDetailPage';
 import ContinuousFeedbackDashboardPage from './pages/continuous-feedback/ContinuousFeedbackDashboardPage';
 import EmployeeContinuousFeedbackPage from './pages/continuous-feedback/EmployeeContinuousFeedbackPage';
@@ -262,8 +263,8 @@ function App() {
             <Route path="performance-reports" element={<PerformanceReportPage />} />
             <Route path="performance-reports/:employeeId" element={<PerformanceReportDetailPage />} />
             <Route path="continuous-feedback" element={<ContinuousFeedbackPage />} />
-            <Route path="continuous-feedback/:feedbackId" element={<ContinuousFeedbackDetailPage />} />
             <Route path="continuous-feedback/dashboard" element={<ContinuousFeedbackDashboardPage />} />
+            <Route path="continuous-feedback/:feedbackId" element={<ContinuousFeedbackDetailPage />} />
             <Route path="*" element={<Navigate to="/hr/dashboard" replace />} />
           </Route>
         </Route>
@@ -317,6 +318,7 @@ function App() {
             <Route path="reports/appraisal" element={<AppraisalReportsPage mode="manager" />} />
             <Route path="reports/self-assessment" element={<SelfAssessmentReportPage mode="manager" />} />
             <Route path="continuous-feedback" element={<ContinuousFeedbackPage />} />
+            <Route path="continuous-feedback/create" element={<ContinuousFeedbackCreatePage />} />
             <Route path="continuous-feedback/:feedbackId" element={<ContinuousFeedbackDetailPage />} />
             <Route path="*" element={<Navigate to="/manager/dashboard" replace />} />
           </Route>
@@ -396,8 +398,8 @@ function App() {
             <Route path="performance-reports" element={<PerformanceReportPage basePath="/audit/performance-reports" readOnly />} />
             <Route path="performance-reports/:employeeId" element={<PerformanceReportDetailPage basePath="/audit/performance-reports" readOnly />} />
             <Route path="continuous-feedback" element={<ContinuousFeedbackPage />} />
-            <Route path="continuous-feedback/:feedbackId" element={<ContinuousFeedbackDetailPage />} />
             <Route path="continuous-feedback/dashboard" element={<ContinuousFeedbackDashboardPage />} />
+            <Route path="continuous-feedback/:feedbackId" element={<ContinuousFeedbackDetailPage />} />
             <Route path="logs" element={<AuditLogsPage />} />
             <Route path="activity-monitor" element={<AuditActivityPage />} />
             <Route path="permissions" element={<PermissionMatrixPage />} />
