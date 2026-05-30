@@ -1,4 +1,5 @@
 import { useRef, useState, useCallback, useMemo, useEffect } from 'react'
+import { createPortal } from 'react-dom'
 import { Download, Upload, X, Trash2, Plus, CheckCircle2, AlertCircle, FileSpreadsheet, Building2, BriefcaseBusiness, Search, Layers3, Save } from 'lucide-react'
 import toast from 'react-hot-toast'
 import {
@@ -478,8 +479,8 @@ export default function SelfAssessmentTemplateImportModal({ isOpen, onClose, onI
     })
   }
 
-  return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm">
+  return createPortal(
+    <div className="fixed inset-0 z-[100] flex items-center justify-center bg-black/50 backdrop-blur-sm">
       <div className="relative bg-white rounded-2xl shadow-2xl w-full max-w-5xl mx-4 max-h-[90vh] flex flex-col overflow-hidden">
         {/* Header */}
         <div className="flex items-center justify-between px-6 py-4 border-b border-gray-100 bg-gradient-to-r from-[#eff6ff] to-white">
@@ -921,6 +922,7 @@ export default function SelfAssessmentTemplateImportModal({ isOpen, onClose, onI
           )}
         </div>
       </div>
-    </div>
+    </div>,
+    document.body,
   )
 }
