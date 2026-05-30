@@ -12,6 +12,8 @@ import {
   XCircle,
   Rocket,
   User,
+  Download,
+  FileSpreadsheet,
 } from 'lucide-react';
 import {
   useGetEmployeePerformanceSummaryQuery,
@@ -19,6 +21,11 @@ import {
 import { useState } from 'react';
 import { resolveProfilePictureSrc } from '../../utils/mediaUrl';
 import { PromotionModal } from './PromotionModal';
+import * as XLSX from 'xlsx-js-style';
+import jsPDF from 'jspdf';
+import autoTable from 'jspdf-autotable';
+import { format } from 'date-fns';
+import { addPdfFooterBranding, addPdfHeaderBranding, addPdfHeaderLogo, loadPdfLogo } from '../../utils/pdfBranding';
 
 /* ── Helpers ─────────────────────────────────────────── */
 
@@ -199,16 +206,170 @@ export const PerformanceReportDetailPage: React.FC<PerformanceReportDetailPagePr
 
   const overallInfo = getScoreInfo(report.overallRating);
 
+  const handleExportExcel = () => {
+    if (!report) return;
+    try {
+      const data: any[] = [];
+      data.push(['EMPLOYEE PERFORMANCE REPORT', '']);
+      data.push(['', '']);
+      data.push(['Employee Information', '']);
+      data.push(['Name', report.employeeName]);
+      data.push(['Staff No', report.staffNo || '—']);
+      data.push(['Position', report.positionName || 'No Position']);
+      data.push(['Department', report.departmentName || 'No Department']);
+      data.push(['Joined Date', report.joinedDate ? formatDuration(report.joinedDate) : '—']);
+      data.push(['', '']);
+      data.push(['Performance Summary', '']);
+      data.push(['Overall Rating', `${formatScore(report.overallRating)} / 5.0`]);
+      data.push(['Performance Level', report.performanceLevel || '—']);
+      data.push(['KPI Score', `${formatScore(report.kpiScore)} (${report.kpiPeriod || 'N/A'})`]);
+      data.push(['Appraisal Score', `${formatScore(report.appraisalScore)} (${report.appraisalPeriod || 'N/A'})`]);
+      data.push(['Self Assessment', `${formatScore(report.selfAssessmentScore)} (${report.selfAssessmentCycle || 'N/A'})`]);
+      data.push(['Feedback Score', `${formatScore(report.feedbackScore)} (${report.feedbackCount} feedbacks)`]);
+      data.push(['', '']);
+      data.push(['Status & Eligibility', '']);
+      data.push(['PIP Status', report.hasActivePip ? `Active (${report.pipStatus || ''})` : 'No Active PIP']);
+      data.push(['Promotion Eligibility', report.promotionEligible ? 'Eligible' : 'Not Eligible']);
+      
+      const ws = XLSX.utils.aoa_to_sheet(data);
+      ws['!merges'] = [
+        { s: { r: 0, c: 0 }, e: { r: 0, c: 1 } },
+        { s: { r: 2, c: 0 }, e: { r: 2, c: 1 } },
+        { s: { r: 9, c: 0 }, e: { r: 9, c: 1 } },
+        { s: { r: 17, c: 0 }, e: { r: 17, c: 1 } }
+      ];
+      ws['!cols'] = [{ wch: 25 }, { wch: 45 }];
+
+      for (let r = 0; r < data.length; r++) {
+        for (let c = 0; c < 2; c++) {
+          const cellRef = `${['A', 'B'][c]}${r + 1}`;
+          if (!ws[cellRef]) ws[cellRef] = { t: 's', v: '' };
+          
+          if (r === 0) {
+            ws[cellRef].s = {
+              font: { name: 'Segoe UI', sz: 14, bold: true, color: { rgb: 'FFFFFF' } },
+              fill: { fgColor: { rgb: '2463EB' } },
+              alignment: { horizontal: 'center', vertical: 'center' }
+            };
+          } else if (r === 2 || r === 9 || r === 17) {
+             ws[cellRef].s = {
+               font: { name: 'Segoe UI', sz: 12, bold: true, color: { rgb: '1E40AF' } },
+               fill: { fgColor: { rgb: 'DBEAFE' } },
+               alignment: { horizontal: 'left', vertical: 'center' }
+             };
+          } else if (data[r][0] !== '') {
+             ws[cellRef].s = {
+               font: { name: 'Segoe UI', sz: 11, bold: c === 0 },
+               alignment: { vertical: 'top', wrapText: true },
+               border: {
+                 bottom: { style: 'thin', color: { rgb: 'E2E8F0' } },
+               }
+             };
+          }
+        }
+      }
+
+      const wb = XLSX.utils.book_new();
+      XLSX.utils.book_append_sheet(wb, ws, "Performance Report");
+      XLSX.writeFile(wb, `Performance_Report_${report.employeeName.replace(/\s+/g, '_')}_${format(new Date(), 'yyyyMMdd')}.xlsx`);
+    } catch (e) {
+      console.error(e);
+    }
+  };
+
+  const handleExportPdf = async () => {
+    if (!report) return;
+    try {
+      const doc = new jsPDF('p', 'mm', 'a4');
+      
+      const logoDataUrl = await loadPdfLogo();
+      if (logoDataUrl) {
+        addPdfHeaderLogo(doc, logoDataUrl, { x: 14, y: 5, width: 24, height: 12 });
+      }
+
+      doc.setFontSize(16);
+      doc.text('Employee Performance Report', 14, 18);
+      doc.setFontSize(10);
+      doc.text(`Export Date: ${format(new Date(), 'dd MMM yyyy')}`, 140, 18);
+      addPdfHeaderBranding(doc, { margin: 14, y: 14 });
+
+      autoTable(doc, {
+        startY: 30,
+        head: [['Employee Information', '']],
+        body: [
+          ['Name', report.employeeName],
+          ['Staff No', report.staffNo || '—'],
+          ['Position', report.positionName || 'No Position'],
+          ['Department', report.departmentName || 'No Department'],
+          ['Joined Date', report.joinedDate ? formatDuration(report.joinedDate) || '—' : '—'],
+        ],
+        styles: { fontSize: 10, cellPadding: 3 },
+        headStyles: { fillColor: [36, 99, 235], textColor: 255 },
+        columnStyles: { 0: { fontStyle: 'bold', cellWidth: 50 }, 1: { cellWidth: 'auto' } }
+      });
+
+      autoTable(doc, {
+        startY: (doc as any).lastAutoTable.finalY + 10,
+        head: [['Performance Summary', '']],
+        body: [
+          ['Overall Rating', `${formatScore(report.overallRating)} / 5.0`],
+          ['Performance Level', report.performanceLevel || '—'],
+          ['KPI Score', `${formatScore(report.kpiScore)} (${report.kpiPeriod || 'N/A'})`],
+          ['Appraisal Score', `${formatScore(report.appraisalScore)} (${report.appraisalPeriod || 'N/A'})`],
+          ['Self Assessment', `${formatScore(report.selfAssessmentScore)} (${report.selfAssessmentCycle || 'N/A'})`],
+          ['Feedback Score', `${formatScore(report.feedbackScore)} (${report.feedbackCount} feedbacks)`],
+        ],
+        styles: { fontSize: 10, cellPadding: 3 },
+        headStyles: { fillColor: [36, 99, 235], textColor: 255 },
+        columnStyles: { 0: { fontStyle: 'bold', cellWidth: 50 }, 1: { cellWidth: 'auto' } }
+      });
+
+      autoTable(doc, {
+        startY: (doc as any).lastAutoTable.finalY + 10,
+        head: [['Status & Eligibility', '']],
+        body: [
+          ['PIP Status', report.hasActivePip ? `Active (${report.pipStatus || ''})` : 'No Active PIP'],
+          ['Promotion Eligibility', report.promotionEligible ? 'Eligible' : 'Not Eligible'],
+        ],
+        styles: { fontSize: 10, cellPadding: 3 },
+        headStyles: { fillColor: [36, 99, 235], textColor: 255 },
+        columnStyles: { 0: { fontStyle: 'bold', cellWidth: 50 }, 1: { cellWidth: 'auto' } }
+      });
+      
+      addPdfFooterBranding(doc, { align: 'left', margin: 14, y: doc.internal.pageSize.getHeight() - 8 });
+      doc.save(`Performance_Report_${report.employeeName.replace(/\s+/g, '_')}_${format(new Date(), 'yyyyMMdd')}.pdf`);
+    } catch (e) {
+      console.error(e);
+    }
+  };
+
   return (
     <div className="space-y-6 max-w-5xl">
-      {/* Back */}
-      <button
-        onClick={() => navigate(basePath)}
-        className="flex items-center gap-2 text-sm font-semibold text-slate-500 hover:text-slate-700 dark:text-slate-400 dark:hover:text-slate-200 transition-colors"
-      >
-        <ArrowLeft size={18} />
-        Back to Performance Reports
-      </button>
+      {/* Back & Export */}
+      <div className="flex items-center justify-between">
+        <button
+          onClick={() => navigate(basePath)}
+          className="flex items-center gap-2 text-sm font-semibold text-slate-500 hover:text-slate-700 dark:text-slate-400 dark:hover:text-slate-200 transition-colors"
+        >
+          <ArrowLeft size={18} />
+          Back to Performance Reports
+        </button>
+
+        <div className="flex items-center gap-3">
+          <button
+            onClick={handleExportPdf}
+            className="flex h-10 items-center justify-center gap-2 rounded-xl bg-slate-900 px-4 text-xs font-bold text-white shadow-sm transition-all hover:bg-slate-800 hover:scale-[1.02] active:scale-[0.98]"
+          >
+            <Download size={14} /> Export PDF
+          </button>
+          <button
+            onClick={handleExportExcel}
+            className="flex h-10 items-center justify-center gap-2 rounded-xl bg-gradient-to-r from-blue-600 to-blue-700 px-4 text-xs font-bold text-white shadow-sm shadow-blue-500/20 transition-all hover:scale-[1.02] hover:shadow-md hover:shadow-blue-500/30 active:scale-[0.98]"
+          >
+            <FileSpreadsheet size={14} /> Export Excel
+          </button>
+        </div>
+      </div>
 
       {/* Employee Header */}
       <div className="bg-white dark:bg-slate-900 rounded-xl border border-slate-200 dark:border-slate-800 p-6">

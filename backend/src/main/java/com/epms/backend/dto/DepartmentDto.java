@@ -11,7 +11,7 @@ import java.math.BigDecimal;
 @Builder
 @NoArgsConstructor
 @AllArgsConstructor
-public class DepartmentComparisonDto {
+public class DepartmentDto {
     private Long departmentId;
     private String departmentName;
     private Long totalStaff;
