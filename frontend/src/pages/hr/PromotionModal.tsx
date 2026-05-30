@@ -25,7 +25,7 @@ export const PromotionModal: React.FC<PromotionModalProps> = ({
 
   const [proposePromotion, { isLoading: isSubmitting }] = useProposePromotionMutation();
 
-  const [selectedPositionId, setSelectedPositionId] = useState<string>('');
+  const [selectedKey, setSelectedKey] = useState<string>(''); // format: "positionId-departmentId"
   const [effectiveDate, setEffectiveDate] = useState<string>(new Date().toISOString().split('T')[0]);
   const [remarks, setRemarks] = useState<string>('');
   const [error, setError] = useState<string>('');
@@ -35,7 +35,7 @@ export const PromotionModal: React.FC<PromotionModalProps> = ({
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!selectedPositionId) {
+    if (!selectedKey) {
       setError('Please select a target position');
       return;
     }
@@ -44,11 +44,16 @@ export const PromotionModal: React.FC<PromotionModalProps> = ({
       return;
     }
 
+    const [posIdStr, deptIdStr] = selectedKey.split('-');
+    const newPositionId = Number(posIdStr);
+    const targetDepartmentId = deptIdStr ? Number(deptIdStr) : undefined;
+
     setError('');
     try {
       await proposePromotion({
         employeeId,
-        newPositionId: Number(selectedPositionId),
+        newPositionId,
+        targetDepartmentId,
         effectiveDate,
         remarks: remarks || undefined,
       }).unwrap();
@@ -127,16 +132,20 @@ export const PromotionModal: React.FC<PromotionModalProps> = ({
               ) : (
                 <select
                   required
-                  value={selectedPositionId}
-                  onChange={(e) => setSelectedPositionId(e.target.value)}
+                  value={selectedKey}
+                  onChange={(e) => setSelectedKey(e.target.value)}
                   className="w-full bg-white dark:bg-slate-950 border border-slate-200 dark:border-slate-800 rounded-xl px-4 py-2.5 text-sm font-semibold text-slate-800 dark:text-slate-100 focus:outline-none focus:ring-2 focus:ring-indigo-500/25 focus:border-indigo-500"
                 >
                   <option value="">Select Target Position</option>
-                  {positions.map((pos) => (
-                    <option key={pos.positionId} value={pos.positionId}>
-                      {pos.positionName} {pos.levelCodeName ? `(${pos.levelCodeName})` : ''}
-                    </option>
-                  ))}
+                  {positions.map((pos) => {
+                    const optionValue = `${pos.positionId}-${pos.departmentId || ''}`;
+                    const label = `${pos.recommended ? '⭐ [Recommended] ' : ''}${pos.positionName} (${pos.levelCodeName || 'N/A'})`;
+                    return (
+                      <option key={optionValue} value={optionValue}>
+                        {label}
+                      </option>
+                    );
+                  })}
                 </select>
               )}
             </div>
@@ -181,7 +190,7 @@ export const PromotionModal: React.FC<PromotionModalProps> = ({
               </button>
               <button
                 type="submit"
-                disabled={isSubmitting || !selectedPositionId}
+                disabled={isSubmitting || !selectedKey}
                 className="flex items-center gap-2 px-5 py-2.5 bg-gradient-to-r from-indigo-600 to-violet-600 hover:from-indigo-700 hover:to-violet-700 text-white rounded-xl font-bold text-sm shadow-md transition-all disabled:opacity-50 active:scale-[0.98]"
               >
                 {isSubmitting ? (

@@ -210,6 +210,7 @@ export const PromotionApprovalsPage = () => {
                         <span className="text-xs font-bold text-slate-400 uppercase">Current Position</span>
                         <div className="font-bold text-slate-700 dark:text-slate-300">
                           {proposal.oldPositionName || 'N/A'}
+                          <span className="block text-xs text-slate-400 font-medium">({proposal.departmentName})</span>
                         </div>
                       </div>
                       <div className="sm:col-span-1 flex justify-center text-indigo-500">
@@ -219,6 +220,9 @@ export const PromotionApprovalsPage = () => {
                         <span className="text-xs font-bold text-indigo-500 dark:text-indigo-400 uppercase">Target Position</span>
                         <div className="font-extrabold text-indigo-600 dark:text-indigo-400">
                           {proposal.targetPositionName}
+                          <span className="block text-xs text-indigo-500 dark:text-indigo-400 font-bold">
+                            ({proposal.targetDepartmentName || proposal.departmentName})
+                          </span>
                         </div>
                       </div>
                     </div>
@@ -311,10 +315,15 @@ export const PromotionApprovalsPage = () => {
                             </div>
                           </td>
                           <td className="px-6 py-4.5">
-                            <div className="flex items-center gap-2 text-xs font-semibold">
-                              <span className="text-slate-500">{proposal.oldPositionName}</span>
-                              <ArrowRight size={12} className="text-slate-300" />
-                              <span className="text-indigo-600 dark:text-indigo-400 font-extrabold">{proposal.targetPositionName}</span>
+                            <div className="flex flex-col gap-0.5 text-xs font-semibold">
+                              <div className="flex items-center gap-1.5">
+                                <span className="text-slate-500">{proposal.oldPositionName} ({proposal.departmentName})</span>
+                                <ArrowRight size={12} className="text-slate-300" />
+                                <span className="text-indigo-600 dark:text-indigo-400 font-extrabold">{proposal.targetPositionName}</span>
+                              </div>
+                              <span className="text-[10px] text-slate-400 font-bold">
+                                to Department: {proposal.targetDepartmentName || proposal.departmentName}
+                              </span>
                             </div>
                           </td>
                           <td className="px-6 py-4.5 font-semibold text-slate-600 dark:text-slate-350">

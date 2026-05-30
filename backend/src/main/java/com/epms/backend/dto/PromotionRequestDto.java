@@ -19,4 +19,6 @@ public class PromotionRequestDto {
     private LocalDate effectiveDate;
     
     private String remarks;
+
+    private Long targetDepartmentId;
 }

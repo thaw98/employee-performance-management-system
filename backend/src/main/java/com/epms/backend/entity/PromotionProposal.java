@@ -47,6 +47,10 @@ public class PromotionProposal {
     @JoinColumn(name = "department_id", nullable = false)
     private Department department;
 
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "target_department_id")
+    private Department targetDepartment;
+
     @Column(name = "effective_date", nullable = false)
     private LocalDate effectiveDate;
 
