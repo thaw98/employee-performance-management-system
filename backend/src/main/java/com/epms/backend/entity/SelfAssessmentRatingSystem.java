@@ -66,12 +66,14 @@ public enum SelfAssessmentRatingSystem {
         if (value == null) {
             return DEFAULT_FIVE_POINT_YES_MIN_RATING;
         }
-        return value;
+        return Math.min(MAX_FIVE_POINT_YES_MIN_RATING, Math.max(MIN_FIVE_POINT_YES_MIN_RATING, value));
     }
 
     public static void validateFivePointYesMinRating(Integer value) {
-        int threshold = normalizeFivePointYesMinRating(value);
-        if (threshold < MIN_FIVE_POINT_YES_MIN_RATING || threshold > MAX_FIVE_POINT_YES_MIN_RATING) {
+        if (value == null) {
+            return;
+        }
+        if (value < MIN_FIVE_POINT_YES_MIN_RATING || value > MAX_FIVE_POINT_YES_MIN_RATING) {
             throw new RuntimeException("Five-point Yes minimum rating must be between 2 and 5");
         }
     }
@@ -80,12 +82,14 @@ public enum SelfAssessmentRatingSystem {
         if (value == null) {
             return DEFAULT_TEN_POINT_YES_MIN_RATING;
         }
-        return value;
+        return Math.min(MAX_TEN_POINT_YES_MIN_RATING, Math.max(MIN_TEN_POINT_YES_MIN_RATING, value));
     }
 
     public static void validateTenPointYesMinRating(Integer value) {
-        int threshold = normalizeTenPointYesMinRating(value);
-        if (threshold < MIN_TEN_POINT_YES_MIN_RATING || threshold > MAX_TEN_POINT_YES_MIN_RATING) {
+        if (value == null) {
+            return;
+        }
+        if (value < MIN_TEN_POINT_YES_MIN_RATING || value > MAX_TEN_POINT_YES_MIN_RATING) {
             throw new RuntimeException("Ten-point Yes minimum rating must be between 2 and 10");
         }
     }

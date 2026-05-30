@@ -35,16 +35,17 @@ export const SelfAssessmentTemplatePreviewModal: React.FC<SelfAssessmentTemplate
   ratingSystem,
   tenPointYesMinRating,
   fivePointYesMinRating,
-  includeYesNo = true,
+  includeYesNo,
   questions,
 }) => {
+  const showYesNo = includeYesNo !== false;
   const visibleQuestions = useMemo(
     () => questions.map((question) => question.questionText.trim()).filter(Boolean),
     [questions],
   );
   const normalizedRatingSystem = ratingSystem === 'TEN_POINT' ? 'TEN_POINT' : 'FIVE_POINT';
-  const yesRatings = includeYesNo ? getRatingOptions(normalizedRatingSystem, 'Yes', tenPointYesMinRating, fivePointYesMinRating) : [];
-  const noRatings = includeYesNo ? getRatingOptions(normalizedRatingSystem, 'No', tenPointYesMinRating, fivePointYesMinRating) : [];
+  const yesRatings = showYesNo ? getRatingOptions(normalizedRatingSystem, 'Yes', tenPointYesMinRating, fivePointYesMinRating) : [];
+  const noRatings = showYesNo ? getRatingOptions(normalizedRatingSystem, 'No', tenPointYesMinRating, fivePointYesMinRating) : [];
   const allRatings = getRatingOptions(normalizedRatingSystem, null, tenPointYesMinRating, fivePointYesMinRating, false);
   const displayTitle = title.trim() || 'Untitled Template';
   const displayAudience = audienceLabels.filter((label) => label.trim());
@@ -112,24 +113,24 @@ export const SelfAssessmentTemplatePreviewModal: React.FC<SelfAssessmentTemplate
         </div>
 
         <div className="overflow-y-auto px-6 py-5">
-          <div className={`mb-5 grid gap-3 ${includeYesNo ? 'sm:grid-cols-3' : 'sm:grid-cols-1'}`}>
+          <div className={`mb-5 grid gap-3 ${showYesNo ? 'sm:grid-cols-3' : 'sm:grid-cols-1'}`}>
             <div className="rounded-xl border border-slate-200 bg-slate-50/70 px-4 py-3 dark:border-slate-700 dark:bg-slate-900/30">
               <p className="text-[10px] font-bold uppercase tracking-wider text-slate-400 dark:text-slate-500">
                 Rating System
               </p>
               <p className="mt-1 text-sm font-bold text-slate-800 dark:text-slate-100">
                 {ratingSystemLabels[normalizedRatingSystem]}
-                {!includeYesNo && (
+                {!showYesNo && (
                   <span className="ml-2 text-xs font-medium text-slate-500 dark:text-slate-400">(Rating Only)</span>
                 )}
               </p>
-              {!includeYesNo && (
+              {!showYesNo && (
                 <p className="mt-1 text-xs text-slate-500 dark:text-slate-400">
                   Available ratings: {allRatings.join(', ')}
                 </p>
               )}
             </div>
-            {includeYesNo && (
+            {showYesNo && (
               <>
                 <div className="rounded-xl border border-emerald-200/70 bg-emerald-50/80 px-4 py-3 dark:border-emerald-800/40 dark:bg-emerald-950/20">
                   <p className="text-[10px] font-bold uppercase tracking-wider text-emerald-600 dark:text-emerald-400">
@@ -193,8 +194,8 @@ export const SelfAssessmentTemplatePreviewModal: React.FC<SelfAssessmentTemplate
                       {questionText}
                     </p>
                   </div>
-                  <div className={`grid gap-4 px-5 py-4 ${includeYesNo ? 'md:grid-cols-[1fr_1fr]' : ''}`}>
-                    {includeYesNo && (
+                  <div className={`grid gap-4 px-5 py-4 ${showYesNo ? 'md:grid-cols-[1fr_1fr]' : ''}`}>
+                    {showYesNo && (
                       <div>
                         <p className="mb-2 text-xs font-bold uppercase tracking-wider text-slate-400 dark:text-slate-500">
                           Answer
@@ -217,7 +218,7 @@ export const SelfAssessmentTemplatePreviewModal: React.FC<SelfAssessmentTemplate
                         Rating
                       </p>
                       <div className="flex flex-wrap gap-1.5">
-                        {(includeYesNo ? [...yesRatings, ...noRatings] : allRatings).map((rating) => (
+                        {(showYesNo ? [...yesRatings, ...noRatings] : allRatings).map((rating) => (
                           <span
                             key={rating}
                             className="flex h-8 min-w-8 items-center justify-center rounded-lg border border-slate-200 bg-slate-50 px-2 text-xs font-bold tabular-nums text-slate-400 dark:border-slate-600 dark:bg-slate-800 dark:text-slate-500"

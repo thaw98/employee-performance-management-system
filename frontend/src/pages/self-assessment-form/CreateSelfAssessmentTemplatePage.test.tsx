@@ -64,6 +64,13 @@ vi.mock('../../features/hrEmployeeList/hrEmployeeApi', () => ({
   }),
 }))
 
+let selfAssessmentSettings = {
+  ratingSystem: 'TEN_POINT',
+  tenPointYesMinRating: 6,
+  fivePointYesMinRating: 3,
+  includeYesNo: true,
+}
+
 vi.mock('../../features/selfAssessmentForm/api/selfAssessmentFormApi', () => ({
   useCreateQuestionBankItemMutation: () => [vi.fn(), { isLoading: false }],
   useCreateTemplateMutation: () => [createTemplateMock, { isLoading: false }],
@@ -72,7 +79,7 @@ vi.mock('../../features/selfAssessmentForm/api/selfAssessmentFormApi', () => ({
   useGetCopiedTemplateQuery: () => ({ data: undefined }),
   useGetQuestionBankQuery: () => ({ data: [], isLoading: false }),
   useGetSelfAssessmentSettingsQuery: () => ({
-    data: { ratingSystem: 'TEN_POINT', tenPointYesMinRating: 6, fivePointYesMinRating: 3, includeYesNo: true },
+    data: selfAssessmentSettings,
     isLoading: false,
     isError: false,
   }),
@@ -89,10 +96,35 @@ describe('CreateSelfAssessmentTemplatePage preview', () => {
   })
 
   beforeEach(() => {
+    selfAssessmentSettings = {
+      ratingSystem: 'TEN_POINT',
+      tenPointYesMinRating: 6,
+      fivePointYesMinRating: 3,
+      includeYesNo: true,
+    }
     navigateMock.mockReset()
     createTemplateMock.mockReset()
     checkConflictsMock.mockReset()
     checkConflictsMock.mockReturnValue({ unwrap: () => Promise.resolve([]) })
+  })
+
+  it('hides Yes/No in preview when self-assessment settings disable it', async () => {
+    const user = userEvent.setup()
+    selfAssessmentSettings = {
+      ...selfAssessmentSettings,
+      includeYesNo: false,
+    }
+
+    render(<CreateSelfAssessmentTemplatePage />)
+
+    await user.type(screen.getByPlaceholderText('e.g. Q1 Performance Self-Evaluation'), 'Rating Only Preview')
+    await user.type(screen.getByPlaceholderText('Question 1'), 'Delivery quality question')
+    await user.click(screen.getByRole('button', { name: 'Preview Template' }))
+
+    const dialog = screen.getByRole('dialog', { name: 'Rating Only Preview' })
+    expect(within(dialog).queryByText('Yes Scores')).not.toBeInTheDocument()
+    expect(within(dialog).queryByText('Answer')).not.toBeInTheDocument()
+    expect(within(dialog).getByText('(Rating Only)')).toBeInTheDocument()
   })
 
   it('opens a preview from unsaved form data without creating a template', async () => {

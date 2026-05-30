@@ -259,6 +259,17 @@ describe('MySelfAssessmentFormPage autosave', () => {
     expect(screen.queryByText('Total Mark')).toBeNull()
   })
 
+  it('hides Yes/No controls when includeYesNo is false', async () => {
+    mocks.editableFormData.includeYesNo = false
+
+    renderPage()
+
+    expect(await screen.findByText('Did you meet your goals?')).toBeTruthy()
+    expect(screen.queryByRole('button', { name: 'Yes' })).toBeNull()
+    expect(screen.queryByRole('button', { name: 'No' })).toBeNull()
+    expect(screen.queryByText('Your Response (required)')).toBeNull()
+  })
+
   it('configures react-hook-form autosave for editable drafts', async () => {
     renderPage()
 

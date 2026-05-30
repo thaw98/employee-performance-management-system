@@ -44,7 +44,7 @@ export const getRatingOptions = (
 ) => {
   const system = ratingSystem === 'TEN_POINT' ? 'TEN_POINT' : 'FIVE_POINT'
   const max = system === 'TEN_POINT' ? 10 : 5
-  if (!includeYesNo) {
+  if (includeYesNo === false) {
     return Array.from({ length: max }, (_, index) => max - index)
   }
   if (yesNoAnswer === 'Yes') {
@@ -83,7 +83,7 @@ export const isRatingValidForAnswer = (
   fivePointYesMinRating?: number | null,
   includeYesNo?: boolean,
 ) => {
-  if (!includeYesNo) {
+  if (includeYesNo === false) {
     if (rating == null) return true
     const max = ratingSystem === 'TEN_POINT' ? 10 : 5
     return rating >= 1 && rating <= max
