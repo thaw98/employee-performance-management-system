@@ -55,6 +55,7 @@ export const ManagerAppraisalsPage: React.FC = () => {
     const [allDepartmentPositions, setAllDepartmentPositions] = useState<string[]>([]);
     const [showTopOnly, setShowTopOnly] = useState(false);
     const [showBottomOnly, setShowBottomOnly] = useState(false);
+    const [filterAction, setFilterAction] = useState<'ALL' | 'PENDING' | 'DRAFT' | 'COMPLETED'>('ALL');
     
     // Pagination
     const [currentPage, setCurrentPage] = useState(1);
@@ -246,7 +247,17 @@ export const ManagerAppraisalsPage: React.FC = () => {
                              a.employee.employeeId.toLowerCase().includes(searchTerm.toLowerCase());
         const matchesStatus = filterStatus === 'ALL' || a.status === filterStatus;
         const matchesPosition = filterPosition === 'ALL' || a.employee.position?.name === filterPosition;
-        return matchesSearch && matchesStatus && matchesPosition;
+        
+        let matchesAction = true;
+        if (filterAction === 'PENDING') {
+            matchesAction = a.status === 'PENDING_MANAGER' || a.status === 'RETURNED';
+        } else if (filterAction === 'DRAFT') {
+            matchesAction = a.status === 'DRAFT';
+        } else if (filterAction === 'COMPLETED') {
+            matchesAction = a.status === 'SUBMITTED' || a.status === 'HR_APPROVED' || a.status === 'LOCKED' || a.status === 'REJECTED';
+        }
+        
+        return matchesSearch && matchesStatus && matchesPosition && matchesAction;
     }).sort((a, b) => {
         const scoreA = a.totalScore ?? 0;
         const scoreB = b.totalScore ?? 0;
@@ -276,7 +287,7 @@ export const ManagerAppraisalsPage: React.FC = () => {
     // Reset pagination when filters change
     useEffect(() => {
         setCurrentPage(1);
-    }, [searchTerm, filterStatus, filterPosition]);
+    }, [searchTerm, filterStatus, filterPosition, filterAction]);
 
     return (
         <div className="space-y-8 animate-in fade-in slide-in-from-bottom-4 duration-700">
@@ -343,6 +354,34 @@ export const ManagerAppraisalsPage: React.FC = () => {
                             </button>
                         </div>
                     )}
+
+                    {/* Action Filter */}
+                    <div className="flex bg-slate-100 p-1.5 rounded-2xl border border-slate-200/60 shadow-inner">
+                        <button
+                            onClick={() => setFilterAction('ALL')}
+                            className={`px-4 py-2.5 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all ${filterAction === 'ALL' ? `${appraisalGradientBtn} text-white shadow-md` : 'text-slate-400 hover:text-slate-600'}`}
+                        >
+                            All
+                        </button>
+                        <button
+                            onClick={() => setFilterAction('PENDING')}
+                            className={`px-4 py-2.5 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all ${filterAction === 'PENDING' ? 'bg-amber-500 text-white shadow-md shadow-amber-200' : 'text-slate-400 hover:text-slate-600'}`}
+                        >
+                            Active
+                        </button>
+                        <button
+                            onClick={() => setFilterAction('DRAFT')}
+                            className={`px-4 py-2.5 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all ${filterAction === 'DRAFT' ? 'bg-indigo-600 text-white shadow-md shadow-indigo-200' : 'text-slate-400 hover:text-slate-600'}`}
+                        >
+                            Drafts
+                        </button>
+                        <button
+                            onClick={() => setFilterAction('COMPLETED')}
+                            className={`px-4 py-2.5 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all ${filterAction === 'COMPLETED' ? 'bg-emerald-500 text-white shadow-md shadow-emerald-200' : 'text-slate-400 hover:text-slate-600'}`}
+                        >
+                            Completed
+                        </button>
+                    </div>
 
                     {/* Position Filter */}
                     <div className="relative">
@@ -417,12 +456,12 @@ export const ManagerAppraisalsPage: React.FC = () => {
                                             ID: {assignment.employee.employeeId}
                                         </p>
                                         <div className="flex gap-2 mt-2">
-                                            {assignment.totalScore && assignment.totalScore > 0 && assignment.totalScore === maxScoreAcrossFiltered && (
+                                            {assignment.totalScore !== undefined && assignment.totalScore > 0 && assignment.totalScore === maxScoreAcrossFiltered && (
                                                 <span className="px-2 py-0.5 bg-amber-100 text-amber-700 text-[8px] font-black rounded-md border border-amber-200 animate-bounce shadow-sm">
                                                     🏆 TOP PERFORMER
                                                 </span>
                                             )}
-                                            {assignment.totalScore && assignment.totalScore > 0 && assignment.totalScore === minScoreAcrossFiltered && (
+                                            {assignment.totalScore !== undefined && assignment.totalScore > 0 && assignment.totalScore === minScoreAcrossFiltered && (
                                                 <span className="px-2 py-0.5 bg-red-100 text-red-700 text-[8px] font-black rounded-md border border-red-200 shadow-sm">
                                                     ⚠️ NEEDS SUPPORT
                                                 </span>

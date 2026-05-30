@@ -8,8 +8,6 @@ import com.epms.backend.dto.FeedbackAuditSummaryPageDto;
 import com.epms.backend.dto.FeedbackHistoryFilter;
 import com.epms.backend.dto.FeedbackHistoryDto;
 import com.epms.backend.dto.FeedbackDetailPageDto;
-import com.epms.backend.dto.FeedbackChatMessageDto;
-import com.epms.backend.dto.FeedbackChatMessageRequest;
 import com.epms.backend.dto.FeedbackSubmissionRequest;
 import com.epms.backend.entity.Employee;
 import com.epms.backend.entity.Department;
@@ -308,29 +306,7 @@ public class FeedbackController {
         }
     }
 
-    @GetMapping("/{id}/chat")
-    public ResponseEntity<ApiResponse<List<FeedbackChatMessageDto>>> getFeedbackChat(@PathVariable Long id) {
-        try {
-            User user = getCurrentUser();
-            List<FeedbackChatMessageDto> messages = feedbackService.getFeedbackChatMessages(id, user.getEmployee().getId());
-            return ResponseEntity.ok(new ApiResponse<>(true, "Feedback chat messages fetched", messages));
-        } catch (Exception e) {
-            return ResponseEntity.badRequest().body(new ApiResponse<>(false, e.getMessage(), null));
-        }
-    }
 
-    @PostMapping("/{id}/chat")
-    public ResponseEntity<ApiResponse<FeedbackChatMessageDto>> addFeedbackChat(
-            @PathVariable Long id,
-            @RequestBody FeedbackChatMessageRequest request) {
-        try {
-            User user = getCurrentUser();
-            FeedbackChatMessageDto message = feedbackService.addFeedbackChatMessage(id, user.getEmployee().getId(), request);
-            return ResponseEntity.ok(new ApiResponse<>(true, "Feedback chat message sent", message));
-        } catch (Exception e) {
-            return ResponseEntity.badRequest().body(new ApiResponse<>(false, e.getMessage(), null));
-        }
-    }
 
     // Reports
     @GetMapping("/reports/manager-departments")
