@@ -221,7 +221,7 @@ export default function KpiTemplateImportModal({ isOpen, onClose, onImportSucces
               <div className="flex items-center gap-3 p-4 bg-[#eff6ff] rounded-xl border border-[#bfdbfe]">
                 <AlertCircle className="text-[#2463eb] flex-shrink-0" size={18} />
                 <p className="text-sm text-[#1e40af]">
-                  Download the template, fill in your KPI data, then upload it. Columns: KPI Name, Category, Target, Unit (optional), Weight.
+                  Download the template (Instructions, Sample Data, and KPI Template sheets), fill in the KPI Template sheet, then upload it here.
                 </p>
                 <button
                   onClick={handleDownloadTemplate}
