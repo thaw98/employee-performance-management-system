@@ -1,4 +1,4 @@
-﻿import React, { useEffect, useMemo, useState } from 'react';
+﻿import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
 import { toast } from 'react-hot-toast';
 import {
@@ -34,7 +34,6 @@ import {
   ChevronRight,
   BadgeCheck,
   ThumbsUp,
-  ThumbsDown,
   KeyRound,
 } from 'lucide-react';
 import {
@@ -62,6 +61,10 @@ import { SelfAssessmentSignatureGrid } from '../../features/selfAssessmentForm/c
 import { YesNoRatingDisplay } from '../../features/selfAssessmentForm/components/YesNoRatingDisplay';
 import { exportSelfAssessmentReviewPdf } from '../../features/selfAssessmentForm/exportSelfAssessmentReviewPdf';
 import { useGetDefaultSignatureQuery } from '../../features/user/userApi';
+import {
+  InlineDefaultSignaturePad,
+  type InlineDefaultSignaturePadHandle,
+} from '../../components/signature/InlineDefaultSignaturePad';
 import { resolveMediaSrc } from '../../utils/mediaUrl';
 import { formatDateDayMonthYear, formatDateTimeWithSeconds } from '../../utils/dateUtils';
 import { RemarkCommentHeader } from '../../features/selfAssessmentForm/components/RemarkCommentHeader';
@@ -449,14 +452,23 @@ export const SelfAssessmentFormReviewPage: React.FC<SelfAssessmentFormReviewPage
   const [showManagerApproveRetakeModal, setShowManagerApproveRetakeModal] = useState(false);
   const [showManagerRetakeModal, setShowManagerRetakeModal] = useState(false);
   const [approvalMode, setApprovalMode] = useState<'adjustment' | 'final'>('final');
-  const { data: defaultSigResponse, isLoading: isDefaultSigLoading } = useGetDefaultSignatureQuery(undefined, {
+  const [retakeHasPadDrawing, setRetakeHasPadDrawing] = useState(false);
+  const [retakeNeedsInlineSignature, setRetakeNeedsInlineSignature] = useState(false);
+  const [isSavingRetakeInlineSignature, setIsSavingRetakeInlineSignature] = useState(false);
+  const retakeInlineSignaturePadRef = useRef<InlineDefaultSignaturePadHandle>(null);
+  const [approveHasPadDrawing, setApproveHasPadDrawing] = useState(false);
+  const [approveNeedsInlineSignature, setApproveNeedsInlineSignature] = useState(false);
+  const [isSavingApproveInlineSignature, setIsSavingApproveInlineSignature] = useState(false);
+  const approveInlineSignaturePadRef = useRef<InlineDefaultSignaturePadHandle>(null);
+  const { data: defaultSigResponse, isLoading: isDefaultSigLoading, refetch: refetchDefaultSig } = useGetDefaultSignatureQuery(undefined, {
     skip: isEmployeeDetail || isReadOnly,
   });
   const defaultSignature = defaultSigResponse?.data ?? null;
-  const hasDefaultSignature = Boolean(defaultSignature);
+  const hasDefaultSignature = Boolean(defaultSignature?.signatureData);
   const isMissingDefaultSignature = !isDefaultSigLoading && !hasDefaultSignature;
   const portalRoot = typeof document !== 'undefined' ? document.body : null;
   const isManagerSelfAssessment = selectedForm?.employee?.roleId === 2;
+  const includeYesNo = selectedForm?.includeYesNo ?? true;
   const isRetakeRequesting = isRequestingRetake || isRequestingHrRetake;
   const canHrRequestManagerRetake = canHrAct
     && isManagerSelfAssessment
@@ -468,8 +480,12 @@ export const SelfAssessmentFormReviewPage: React.FC<SelfAssessmentFormReviewPage
     && Boolean(selectedForm.retakeSubmittedAt);
   const canHrReturnBack = canHrAct
     && !isEmployeeDetail
+    && !isManagerSelfAssessment
     && (selectedForm?.status === 'PENDING_FINAL_APPROVAL'
       || selectedForm?.status === 'PENDING_HR_CALIBRATION_REVIEW');
+  const canHrReject = canHrAct
+    && !isEmployeeDetail
+    && selectedForm?.status === 'PENDING_FINAL_APPROVAL';
   const isManagerReviewActionable = selectedForm?.status === 'SUBMITTED'
     || selectedForm?.status === 'PENDING_MANAGER_REVIEW'
     || selectedForm?.status === 'RETURNED_BY_HR';
@@ -507,10 +523,32 @@ export const SelfAssessmentFormReviewPage: React.FC<SelfAssessmentFormReviewPage
 
   const hasPendingManagerAdjustments = useMemo(
     () => selectedForm?.answers?.some(
-      (a) => a.managerProposedYesNo && a.hrAdjustmentApproved == null,
+      (a) => (a.managerProposedYesNo || a.managerProposedRating) && a.hrAdjustmentApproved == null,
     ) ?? false,
     [selectedForm?.answers],
   );
+
+  useEffect(() => {
+    if (!showManagerRetakeModal) {
+      setRetakeHasPadDrawing(false);
+      setRetakeNeedsInlineSignature(false);
+      return;
+    }
+    if (!isDefaultSigLoading && !hasDefaultSignature) {
+      setRetakeNeedsInlineSignature(true);
+    }
+  }, [showManagerRetakeModal, isDefaultSigLoading, hasDefaultSignature]);
+
+  useEffect(() => {
+    if (!showManagerApproveModal) {
+      setApproveHasPadDrawing(false);
+      setApproveNeedsInlineSignature(false);
+      return;
+    }
+    if (!isDefaultSigLoading && !hasDefaultSignature) {
+      setApproveNeedsInlineSignature(true);
+    }
+  }, [showManagerApproveModal, isDefaultSigLoading, hasDefaultSignature]);
 
   useEffect(() => {
     if (selectedForm?.status !== 'PENDING_RETAKE_MANAGER_REVIEW') {
@@ -522,7 +560,7 @@ export const SelfAssessmentFormReviewPage: React.FC<SelfAssessmentFormReviewPage
       .filter(answer => answer.retakeRequested)
       .forEach(answer => {
         next[answer.id] = {
-          yesNoAnswer: answer.finalApprovedYesNo ?? answer.retakeYesNoAnswer ?? answer.yesNoAnswer ?? '',
+          yesNoAnswer: includeYesNo ? (answer.finalApprovedYesNo ?? answer.retakeYesNoAnswer ?? answer.yesNoAnswer ?? '') : '',
           rating: answer.finalApprovedRating ?? answer.retakeRating ?? answer.rating ?? null,
           reason: answer.managerForceChangeReason ?? '',
         };
@@ -546,27 +584,29 @@ export const SelfAssessmentFormReviewPage: React.FC<SelfAssessmentFormReviewPage
     });
   };
 
-  const requireManagerReviewComments = () => {
-    if (!managerComments.trim()) {
-      toast.error('Comments are required');
-      return false;
-    }
-    return true;
-  };
-
   const handleApproveReview = async () => {
     if (!selectedFormId) return;
-    if (!requireManagerReviewComments()) return;
-    if (!hasDefaultSignature) {
-      toast.error('Set a default signature in Signature Settings before approving.');
-      return;
-    }
 
     try {
+      if (approveNeedsInlineSignature && !hasDefaultSignature) {
+        const pad = approveInlineSignaturePadRef.current;
+        if (!pad) {
+          toast.error('Signature pad is not ready. Please try again.');
+          return;
+        }
+        setIsSavingApproveInlineSignature(true);
+        const saved = await pad.saveAsDefault();
+        if (!saved) return;
+        await refetchDefaultSig();
+      } else if (!hasDefaultSignature) {
+        toast.error('Set a default signature in Signature Settings before approving.');
+        return;
+      }
+
       await managerReview({
         formId: selectedFormId,
         request: {
-          comments: managerComments.trim(),
+          comments: managerComments.trim() || undefined,
           adjustments: [],
         },
       }).unwrap();
@@ -581,6 +621,8 @@ export const SelfAssessmentFormReviewPage: React.FC<SelfAssessmentFormReviewPage
       }
     } catch (error: any) {
       toast.error(error?.data?.message || 'Failed to approve review');
+    } finally {
+      setIsSavingApproveInlineSignature(false);
     }
   };
 
@@ -591,7 +633,6 @@ export const SelfAssessmentFormReviewPage: React.FC<SelfAssessmentFormReviewPage
     }));
 
   const openManagerRetakeModal = () => {
-    if (!requireManagerReviewComments()) return;
     const retakeRequests = buildRetakeRequests();
     if (retakeRequests.length === 0) {
       toast.error('Select at least one question for retake');
@@ -606,11 +647,6 @@ export const SelfAssessmentFormReviewPage: React.FC<SelfAssessmentFormReviewPage
 
   const handleSubmitRetakeRequest = async () => {
     if (!selectedFormId) return;
-    if (!requireManagerReviewComments()) return;
-    if (!hasDefaultSignature) {
-      toast.error('Set a default signature in Signature Settings before requesting a retake.');
-      return;
-    }
 
     const retakeRequests = buildRetakeRequests();
     if (retakeRequests.length === 0) {
@@ -623,15 +659,30 @@ export const SelfAssessmentFormReviewPage: React.FC<SelfAssessmentFormReviewPage
     }
 
     try {
+      if (retakeNeedsInlineSignature && !hasDefaultSignature) {
+        const pad = retakeInlineSignaturePadRef.current;
+        if (!pad) {
+          toast.error('Signature pad is not ready. Please try again.');
+          return;
+        }
+        setIsSavingRetakeInlineSignature(true);
+        const saved = await pad.saveAsDefault();
+        if (!saved) return;
+        await refetchDefaultSig();
+      } else if (!hasDefaultSignature) {
+        toast.error('Set a default signature in Signature Settings before requesting a retake.');
+        return;
+      }
+
       if (canHrAct && isManagerSelfAssessment) {
         await hrRequestRetake({
           formId: selectedFormId,
-          request: { comments: managerComments.trim(), retakeRequests },
+          request: { comments: managerComments.trim() || undefined, retakeRequests },
         }).unwrap();
       } else {
         await managerRequestRetake({
           formId: selectedFormId,
-          request: { comments: managerComments.trim(), retakeRequests },
+          request: { comments: managerComments.trim() || undefined, retakeRequests },
         }).unwrap();
       }
       toast.success(canHrAct && isManagerSelfAssessment
@@ -647,6 +698,8 @@ export const SelfAssessmentFormReviewPage: React.FC<SelfAssessmentFormReviewPage
       }
     } catch (error: any) {
       toast.error(error?.data?.message || 'Failed to request retake');
+    } finally {
+      setIsSavingRetakeInlineSignature(false);
     }
   };
 
@@ -683,8 +736,8 @@ export const SelfAssessmentFormReviewPage: React.FC<SelfAssessmentFormReviewPage
   const hasForceChangeDifference = (answer: any) => {
     const current = forceChangeAnswers[answer.id];
     if (!current) return false;
-    return current.yesNoAnswer !== (answer.retakeYesNoAnswer ?? '')
-      || current.rating !== (answer.retakeRating ?? null);
+    if (includeYesNo && current.yesNoAnswer !== (answer.retakeYesNoAnswer ?? '')) return true;
+    return current.rating !== (answer.retakeRating ?? null);
   };
 
   const handleManagerForceChangeRetake = async () => {
@@ -699,20 +752,27 @@ export const SelfAssessmentFormReviewPage: React.FC<SelfAssessmentFormReviewPage
       const finalValue = forceChangeAnswers[answer.id];
       return {
         answerId: answer.id,
-        finalYesNoAnswer: finalValue?.yesNoAnswer ?? '',
+        finalYesNoAnswer: includeYesNo ? (finalValue?.yesNoAnswer ?? '') : 'Yes',
         finalRating: finalValue?.rating ?? null,
         reason: finalValue?.reason?.trim() || null,
       };
     });
 
-    if (answers.some(answer => !answer.finalYesNoAnswer || answer.finalRating == null)) {
+    if (includeYesNo && answers.some(answer => !answer.finalYesNoAnswer || answer.finalRating == null)) {
       toast.error('Choose a final answer and rating for every warned question');
+      return;
+    }
+    if (!includeYesNo && answers.some(answer => answer.finalRating == null)) {
+      toast.error('Choose a final rating for every warned question');
       return;
     }
     if (flaggedAnswers.some(answer => {
       const finalValue = forceChangeAnswers[answer.id];
-      return finalValue
-        && !isRatingValidForAnswer(selectedForm.ratingSystem, finalValue.yesNoAnswer, finalValue.rating, selectedForm.tenPointYesMinRating);
+      if (!finalValue) return false;
+      if (includeYesNo) {
+        return !isRatingValidForAnswer(selectedForm.ratingSystem, finalValue.yesNoAnswer, finalValue.rating, selectedForm.tenPointYesMinRating, selectedForm.fivePointYesMinRating, includeYesNo);
+      }
+      return finalValue.rating != null && (finalValue.rating < 1 || finalValue.rating > (selectedForm.ratingSystem === 'TEN_POINT' ? 10 : 5));
     })) {
       toast.error('Choose a valid rating for each final answer');
       return;
@@ -1572,6 +1632,7 @@ Review Submissions
                               {answer.questionText}
                             </p>
                             <div className="flex flex-wrap items-center gap-2.5">
+                              {includeYesNo && (
                               <div className="inline-flex items-center gap-2 rounded-lg border border-slate-100 bg-slate-50/80 px-3 py-1.5 dark:border-slate-700/40 dark:bg-slate-800/50">
                                 <span className="text-[10px] font-bold uppercase tracking-widest text-slate-400 dark:text-slate-500">Response</span>
                                 <span className={`h-3.5 w-px bg-slate-200 dark:bg-slate-700`} />
@@ -1585,6 +1646,7 @@ Review Submissions
                                   {answer.yesNoAnswer || '-'}
                                 </span>
                               </div>
+                            )}
                               {answer.rating != null && (
                                 <div className="inline-flex items-center gap-2 rounded-lg border border-amber-200/55 bg-amber-50/80 px-3 py-1.5 dark:border-amber-600/45 dark:bg-amber-900/20">
                                   <Star size={12} className="text-amber-500 fill-amber-500" />
@@ -1601,7 +1663,7 @@ Review Submissions
                           </div>
                         </div>
 
-	                        {answer.managerProposedYesNo && (
+	                        {(answer.managerProposedYesNo || answer.managerProposedRating) && (
 	                          <div className="mt-3 ml-10 rounded-xl border border-amber-300/50 bg-amber-50/40 p-3.5 dark:border-amber-600/40 dark:bg-amber-900/15">
                             <div className="flex items-center gap-2 mb-2">
                               <Edit3 size={13} className="text-amber-600 dark:text-amber-400" />
@@ -1625,7 +1687,7 @@ Review Submissions
                                   size="sm"
                                 />
                               </div>
-                              {answer.finalApprovedYesNo && (
+                              {(answer.finalApprovedYesNo || answer.finalApprovedRating) && (
                                 <>
                                   <div className="flex items-center text-slate-300 dark:text-slate-600">
                                     <ArrowLeft size={12} className="rotate-180" />
@@ -1633,7 +1695,7 @@ Review Submissions
                                   <div className="inline-flex items-center gap-2 rounded-lg border border-emerald-300/50 bg-emerald-100/80 px-2.5 py-1.5 dark:border-emerald-600/45 dark:bg-emerald-800/30">
                                     <span className="text-[10px] font-bold uppercase tracking-widest text-emerald-600 dark:text-emerald-400">Final</span>
                                     <YesNoRatingDisplay
-                                      yesNo={answer.finalApprovedYesNo}
+                                      yesNo={includeYesNo ? answer.finalApprovedYesNo : null}
                                       rating={answer.finalApprovedRating}
                                       size="sm"
                                     />
@@ -1665,10 +1727,10 @@ Review Submissions
 	                                <span className="text-[10px] font-bold uppercase tracking-widest text-sky-700 dark:text-sky-300">Retake</span>
 	                                <YesNoRatingDisplay yesNo={answer.retakeYesNoAnswer} rating={answer.retakeRating} size="sm" />
 	                              </div>
-	                              {answer.finalApprovedYesNo && (
+	                              {(answer.finalApprovedYesNo || answer.finalApprovedRating) && (
 	                                <div className="inline-flex items-center gap-2 rounded-lg border border-emerald-300/50 bg-emerald-100/80 px-2.5 py-1.5 dark:border-emerald-600/45 dark:bg-emerald-800/30">
 	                                  <span className="text-[10px] font-bold uppercase tracking-widest text-emerald-600 dark:text-emerald-400">Final</span>
-	                                  <YesNoRatingDisplay yesNo={answer.finalApprovedYesNo} rating={answer.finalApprovedRating} size="sm" />
+	                                  <YesNoRatingDisplay yesNo={includeYesNo ? answer.finalApprovedYesNo : null} rating={answer.finalApprovedRating} size="sm" />
 	                                </div>
 	                              )}
 	                            </div>
@@ -1689,7 +1751,7 @@ Review Submissions
 		                            )}
 		                          </div>
 	                        )}
-                        {!answer.managerProposedYesNo && answer.finalApprovedYesNo && (
+                        {!answer.managerProposedYesNo && !answer.managerProposedRating && (answer.finalApprovedYesNo || answer.finalApprovedRating) && (
                           <div className="mt-3 ml-10 rounded-xl border border-emerald-300/50 bg-emerald-50/40 p-3 dark:border-emerald-600/40 dark:bg-emerald-900/15">
                             <div className="inline-flex items-center gap-2.5 rounded-lg border border-emerald-300/50 bg-emerald-100/80 px-3 py-2 dark:border-emerald-600/45 dark:bg-emerald-800/30">
                               <span className="text-[10px] font-bold uppercase tracking-widest text-emerald-600 dark:text-emerald-400">Final Approved</span>
@@ -1744,13 +1806,12 @@ Review Submissions
                     <div>
                       <label className="mb-2 flex items-center gap-2 text-xs font-bold uppercase tracking-widest text-slate-500 dark:text-slate-400">
                         <MessageSquare size={13} />
-                        Comments <span className="text-red-500">*</span>
+                        Comments
                       </label>
                       <textarea
                         value={managerComments}
                         onChange={(e) => setManagerComments(e.target.value)}
                         rows={4}
-                        required
                         className={`${filterControlClass} resize-none`}
                         placeholder="Share your assessment of this employee's self-evaluation..."
                       />
@@ -1890,7 +1951,6 @@ Review Submissions
                       <button
                         type="button"
                         onClick={() => {
-                          if (!requireManagerReviewComments()) return;
                           setShowManagerApproveModal(true);
                         }}
                         disabled={showAdjustments}
@@ -1971,7 +2031,7 @@ Review Submissions
                             <AlertCircle size={14} className="text-amber-700 dark:text-amber-300" />
                           </div>
                           <p className="text-sm font-semibold text-amber-800 dark:text-amber-300">
-                            Manager has proposed adjustments. Please approve or reject them.
+                            Manager has proposed adjustments. Please approve them or return the form for revision.
                           </p>
                         </div>
                         <div className="flex flex-wrap gap-3">
@@ -1986,19 +2046,6 @@ Review Submissions
                           >
                             <ThumbsUp size={16} />
                             Approve Adjustments
-                          </button>
-                          <button
-                            type="button"
-                            onClick={() => {
-                              setRejectReasonType(HR_ADJUSTMENT_REJECTION_REASONS[0]);
-                              setRejectReason('');
-                              setShowRejectModal(true);
-                            }}
-                            disabled={isDefaultSigLoading || !hasDefaultSignature}
-                            className="inline-flex items-center gap-2 rounded-xl bg-gradient-to-r from-red-600 to-rose-600 px-4 py-2.5 text-sm font-bold text-white shadow-md shadow-red-500/20 transition-all hover:from-red-700 hover:to-rose-700 disabled:cursor-not-allowed disabled:opacity-50"
-                          >
-                            <ThumbsDown size={16} />
-                            Reject Adjustments
                           </button>
                         </div>
                       </div>
@@ -2164,15 +2211,33 @@ Review Submissions
                             Schedule Meeting
                           </button>
                         )}
-                        <button
-                          type="button"
-                          onClick={() => setShowHrReturnModal(true)}
-                          disabled={!canHrReturnBack || isHrReturningBack}
-                          className="inline-flex items-center gap-2 px-5 py-2.5 text-sm font-bold text-white rounded-xl bg-gradient-to-r from-amber-500 to-orange-500 shadow-md shadow-amber-500/20 hover:shadow-lg disabled:opacity-50 disabled:cursor-not-allowed transition-all"
-                        >
-                          {isHrReturningBack ? <Loader2 size={16} className="animate-spin" /> : <RotateCcw size={16} />}
-                          Return Back
-                        </button>
+                        {canHrReturnBack && (
+                          <button
+                            type="button"
+                            onClick={() => setShowHrReturnModal(true)}
+                            disabled={isHrReturningBack}
+                            className="inline-flex items-center gap-2 px-5 py-2.5 text-sm font-bold text-white rounded-xl bg-gradient-to-r from-amber-500 to-orange-500 shadow-md shadow-amber-500/20 hover:shadow-lg disabled:opacity-50 disabled:cursor-not-allowed transition-all"
+                          >
+                            {isHrReturningBack ? <Loader2 size={16} className="animate-spin" /> : <RotateCcw size={16} />}
+                            Return Back
+                          </button>
+                        )}
+                        {canHrReject && (
+                          <button
+                            type="button"
+                            onClick={() => {
+                              setRejectReasonType(HR_ADJUSTMENT_REJECTION_REASONS[0]);
+                              setRejectReason('');
+                              setShowRejectModal(true);
+                            }}
+                            disabled={isDefaultSigLoading || !hasDefaultSignature || showAdjustments}
+                            title={showAdjustments ? 'Turn off Request Retake to reject' : 'Reject and require full retake'}
+                            className="inline-flex items-center gap-2 px-5 py-2.5 text-sm font-bold text-white rounded-xl bg-gradient-to-r from-red-600 to-rose-600 shadow-md shadow-red-500/20 hover:shadow-lg disabled:opacity-50 disabled:cursor-not-allowed transition-all"
+                          >
+                            <XCircle size={16} />
+                            Reject
+                          </button>
+                        )}
                         <button
                           onClick={() => {
                             setApprovalMode('final');
@@ -2248,7 +2313,7 @@ Review Submissions
         <div className="fixed inset-0 z-50 flex items-center justify-center px-4">
           <div
             className="absolute inset-0 bg-black/40 backdrop-blur-sm"
-            onClick={() => !isRetakeRequesting && setShowManagerRetakeModal(false)}
+            onClick={() => !isRetakeRequesting && !isSavingRetakeInlineSignature && setShowManagerRetakeModal(false)}
           />
           <div className="relative w-full max-w-md rounded-2xl border border-slate-200/60 bg-white p-6 shadow-2xl dark:border-slate-700/60 dark:bg-slate-800 animate-fade-in-up">
             <div className="mb-5 flex items-center gap-3">
@@ -2272,25 +2337,33 @@ Review Submissions
               for {buildRetakeRequests().length} selected question{buildRetakeRequests().length === 1 ? '' : 's'}.
               {isHr && isManagerSelfAssessment ? ' The manager' : ' The employee'} will receive a notification to update only the warned questions.
             </p>
-            <div className="mb-5 rounded-xl border border-slate-200/80 bg-slate-50/50 p-3 dark:border-slate-700/60 dark:bg-slate-700/20">
-              <p className="flex items-center gap-1.5 text-xs text-slate-500 dark:text-slate-400">
-                <PenLine size={12} />
-                Your default signature will be recorded for this action.
-              </p>
-              {isMissingDefaultSignature && (
-                <p className="mt-2 text-xs font-semibold text-amber-700 dark:text-amber-400">
-                  No default signature set.{' '}
-                  <Link to={isHr ? '/hr/settings/signature' : '/manager/settings/signature'} className="text-[#2463eb] underline">
-                    Open Signature Settings
-                  </Link>
+            {retakeNeedsInlineSignature ? (
+              <div className="mb-5 rounded-xl border border-amber-200 bg-amber-50/90 px-4 py-3.5 dark:border-amber-800/60 dark:bg-amber-900/20">
+                <p className="text-sm font-semibold text-amber-900 dark:text-amber-100">
+                  Signature required for this action.
                 </p>
-              )}
-            </div>
+                <p className="mt-1 text-xs text-amber-800 dark:text-amber-200">
+                  Sign below. Your signature will be saved as your default when you confirm the retake request.
+                </p>
+                <InlineDefaultSignaturePad
+                  ref={retakeInlineSignaturePadRef}
+                  onDrawingChange={setRetakeHasPadDrawing}
+                  disabled={isSavingRetakeInlineSignature || isRetakeRequesting}
+                />
+              </div>
+            ) : (
+              <div className="mb-5 rounded-xl border border-slate-200/80 bg-slate-50/50 p-3 dark:border-slate-700/60 dark:bg-slate-700/20">
+                <p className="flex items-center gap-1.5 text-xs text-slate-500 dark:text-slate-400">
+                  <PenLine size={12} />
+                  Your default signature will be recorded for this action.
+                </p>
+              </div>
+            )}
             <div className="flex justify-end gap-3">
               <button
                 type="button"
                 onClick={() => setShowManagerRetakeModal(false)}
-                disabled={isRetakeRequesting}
+                disabled={isRetakeRequesting || isSavingRetakeInlineSignature}
                 className="px-5 py-2.5 text-sm font-semibold text-slate-600 dark:text-slate-300 rounded-xl border border-slate-200 dark:border-slate-700 hover:bg-slate-50 dark:hover:bg-slate-700/60 transition-all disabled:opacity-50"
               >
                 Cancel
@@ -2298,15 +2371,20 @@ Review Submissions
               <button
                 type="button"
                 onClick={() => void handleSubmitRetakeRequest()}
-                disabled={isRetakeRequesting || isDefaultSigLoading || !hasDefaultSignature}
+                disabled={
+                  isRetakeRequesting
+                  || isSavingRetakeInlineSignature
+                  || isDefaultSigLoading
+                  || (!hasDefaultSignature && (!retakeNeedsInlineSignature || !retakeHasPadDrawing))
+                }
                 className="inline-flex items-center gap-2 px-6 py-2.5 text-sm font-bold text-white rounded-xl bg-gradient-to-r from-[#2463eb] to-[#1d4ed8] shadow-lg shadow-[#2463eb]/25 disabled:opacity-50 disabled:cursor-not-allowed transition-all"
               >
-                {isRetakeRequesting ? (
+                {isRetakeRequesting || isSavingRetakeInlineSignature ? (
                   <Loader2 size={16} className="animate-spin" />
                 ) : (
                   <Send size={16} />
                 )}
-                Confirm Retake
+                {isSavingRetakeInlineSignature ? 'Saving signature…' : 'Confirm Retake'}
               </button>
             </div>
           </div>
@@ -2347,8 +2425,10 @@ Review Submissions
                   const changed = editable && hasForceChangeDifference(answer);
                   const ratingOptions = getRatingOptions(
                     selectedForm.ratingSystem,
-                    current.yesNoAnswer,
+                    includeYesNo ? current.yesNoAnswer : null,
                     selectedForm.tenPointYesMinRating,
+                    selectedForm.fivePointYesMinRating,
+                    includeYesNo,
                   );
 
                   return (
@@ -2381,22 +2461,24 @@ Review Submissions
                       </div>
 
                       {editable ? (
-                        <div className="grid gap-3 md:grid-cols-[10rem_1fr]">
-                          <label className="space-y-1">
-                            <span className="text-xs font-bold text-slate-600 dark:text-slate-300">Final answer</span>
-                            <select
-                              value={current.yesNoAnswer}
-                              onChange={(event) => handleForceChangeAnswer(answer.id, {
-                                yesNoAnswer: event.target.value,
-                                rating: null,
-                              })}
-                              className="w-full rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm font-semibold text-slate-800 dark:border-slate-600 dark:bg-slate-900 dark:text-slate-100"
-                            >
-                              <option value="">Select</option>
-                              <option value="Yes">Yes</option>
-                              <option value="No">No</option>
-                            </select>
-                          </label>
+                        <div className={`grid gap-3 ${includeYesNo ? 'md:grid-cols-[10rem_1fr]' : ''}`}>
+                          {includeYesNo && (
+                            <label className="space-y-1">
+                              <span className="text-xs font-bold text-slate-600 dark:text-slate-300">Final answer</span>
+                              <select
+                                value={current.yesNoAnswer}
+                                onChange={(event) => handleForceChangeAnswer(answer.id, {
+                                  yesNoAnswer: event.target.value,
+                                  rating: null,
+                                })}
+                                className="w-full rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm font-semibold text-slate-800 dark:border-slate-600 dark:bg-slate-900 dark:text-slate-100"
+                              >
+                                <option value="">Select</option>
+                                <option value="Yes">Yes</option>
+                                <option value="No">No</option>
+                              </select>
+                            </label>
+                          )}
                           <div className="space-y-1">
                             <span className="text-xs font-bold text-slate-600 dark:text-slate-300">Final rating</span>
                             <div className="flex flex-wrap gap-2">
@@ -2526,7 +2608,7 @@ Review Submissions
         <div className="fixed inset-0 z-50 flex items-center justify-center px-4">
           <div
             className="absolute inset-0 bg-black/40 backdrop-blur-sm"
-            onClick={() => !isApprovingReview && setShowManagerApproveModal(false)}
+            onClick={() => !isApprovingReview && !isSavingApproveInlineSignature && setShowManagerApproveModal(false)}
           />
           <div className="relative w-full max-w-md rounded-2xl border border-slate-200/60 bg-white p-6 shadow-2xl dark:border-slate-700/60 dark:bg-slate-800 animate-fade-in-up">
             <div className="mb-5 flex items-center gap-3">
@@ -2546,25 +2628,33 @@ Review Submissions
               </span>
               &apos;s self-assessment. Active HR users will receive a notification to complete final approval.
             </p>
-            <div className="mb-5 rounded-xl border border-slate-200/80 bg-slate-50/50 p-3 dark:border-slate-700/60 dark:bg-slate-700/20">
-              <p className="flex items-center gap-1.5 text-xs text-slate-500 dark:text-slate-400">
-                <PenLine size={12} />
-                Your default signature will be recorded for this action.
-              </p>
-              {isMissingDefaultSignature && (
-                <p className="mt-2 text-xs font-semibold text-amber-700 dark:text-amber-400">
-                  No default signature set.{' '}
-                  <Link to="/manager/settings/signature" className="text-[#2463eb] underline">
-                    Open Signature Settings
-                  </Link>
+            {approveNeedsInlineSignature ? (
+              <div className="mb-5 rounded-xl border border-amber-200 bg-amber-50/90 px-4 py-3.5 dark:border-amber-800/60 dark:bg-amber-900/20">
+                <p className="text-sm font-semibold text-amber-900 dark:text-amber-100">
+                  Signature required for this action.
                 </p>
-              )}
-            </div>
+                <p className="mt-1 text-xs text-amber-800 dark:text-amber-200">
+                  Sign below. Your signature will be saved as your default when you confirm approval.
+                </p>
+                <InlineDefaultSignaturePad
+                  ref={approveInlineSignaturePadRef}
+                  onDrawingChange={setApproveHasPadDrawing}
+                  disabled={isSavingApproveInlineSignature || isApprovingReview}
+                />
+              </div>
+            ) : (
+              <div className="mb-5 rounded-xl border border-slate-200/80 bg-slate-50/50 p-3 dark:border-slate-700/60 dark:bg-slate-700/20">
+                <p className="flex items-center gap-1.5 text-xs text-slate-500 dark:text-slate-400">
+                  <PenLine size={12} />
+                  Your default signature will be recorded for this action.
+                </p>
+              </div>
+            )}
             <div className="flex justify-end gap-3">
               <button
                 type="button"
                 onClick={() => setShowManagerApproveModal(false)}
-                disabled={isApprovingReview}
+                disabled={isApprovingReview || isSavingApproveInlineSignature}
                 className="px-5 py-2.5 text-sm font-semibold text-slate-600 dark:text-slate-300 rounded-xl border border-slate-200 dark:border-slate-700 hover:bg-slate-50 dark:hover:bg-slate-700/60 transition-all disabled:opacity-50"
               >
                 Cancel
@@ -2572,15 +2662,20 @@ Review Submissions
               <button
                 type="button"
                 onClick={() => void handleApproveReview()}
-                disabled={isApprovingReview || isDefaultSigLoading || !hasDefaultSignature}
+                disabled={
+                  isApprovingReview
+                  || isSavingApproveInlineSignature
+                  || isDefaultSigLoading
+                  || (!hasDefaultSignature && (!approveNeedsInlineSignature || !approveHasPadDrawing))
+                }
                 className="inline-flex items-center gap-2 px-6 py-2.5 text-sm font-bold text-white rounded-xl bg-gradient-to-r from-emerald-600 to-teal-600 shadow-md shadow-emerald-500/20 disabled:opacity-50 disabled:cursor-not-allowed transition-all"
               >
-                {isApprovingReview ? (
+                {isApprovingReview || isSavingApproveInlineSignature ? (
                   <Loader2 size={16} className="animate-spin" />
                 ) : (
                   <CheckCircle2 size={16} />
                 )}
-                Confirm Approval
+                {isSavingApproveInlineSignature ? 'Saving signature…' : 'Confirm Approval'}
               </button>
             </div>
           </div>
@@ -2641,7 +2736,7 @@ Review Submissions
         </div>
       , portalRoot)}
 
-      {canHrAct && !isEmployeeDetail && showHrReturnModal && portalRoot && createPortal(
+      {canHrReturnBack && showHrReturnModal && portalRoot && createPortal(
         <div className="fixed inset-0 z-50 flex items-center justify-center px-4">
           <div
             className="absolute inset-0 bg-black/40 backdrop-blur-sm"
@@ -2808,7 +2903,7 @@ Review Submissions
         </div>
       , portalRoot)}
 
-      {showRejectModal && portalRoot && createPortal(
+      {canHrReject && showRejectModal && portalRoot && createPortal(
         <div className="fixed inset-0 z-50 flex items-center justify-center px-4">
           <div className="absolute inset-0 bg-black/40 backdrop-blur-sm" onClick={resetRejectModal} />
           <div className="relative w-full max-w-md overflow-hidden rounded-2xl border border-slate-200/60 bg-white shadow-2xl dark:border-slate-700/60 dark:bg-slate-800 animate-fade-in-up">

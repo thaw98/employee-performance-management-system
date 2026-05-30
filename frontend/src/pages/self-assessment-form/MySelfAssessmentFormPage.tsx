@@ -515,10 +515,13 @@ export const MySelfAssessmentFormPage: React.FC = () => {
 
   const ratingSystem = formData?.ratingSystem ?? 'FIVE_POINT';
   const tenPointYesMinRating = formData?.tenPointYesMinRating ?? 5;
+  const fivePointYesMinRating = formData?.fivePointYesMinRating ?? 3;
+  const includeYesNo = formData?.includeYesNo ?? true;
 
   const answeredCount =
-    watchAnswers?.filter((a) => (a.yesNoAnswer === 'Yes' || a.yesNoAnswer === 'No') && a.rating != null)
-      .length ?? 0;
+    includeYesNo
+      ? watchAnswers?.filter((a) => (a.yesNoAnswer === 'Yes' || a.yesNoAnswer === 'No') && a.rating != null).length ?? 0
+      : watchAnswers?.filter((a) => a.rating != null).length ?? 0;
 
 	  const totalCount = formData?.answers?.length ?? 0;
 	  const retakeCount = formData?.answers?.filter(a => a.retakeRequested).length ?? 0;
@@ -540,8 +543,9 @@ export const MySelfAssessmentFormPage: React.FC = () => {
     || (!isReadOnly && totalCount > 0);
 
   const handleYesNoChange = (index: number, value: string, currentRating: number | null) => {
+    if (!includeYesNo) return;
     setValue(`answers.${index}.yesNoAnswer`, value, { shouldDirty: true, shouldTouch: true });
-    if (isRatingValidForAnswer(ratingSystem, value, currentRating, tenPointYesMinRating)) {
+    if (isRatingValidForAnswer(ratingSystem, value, currentRating, tenPointYesMinRating, fivePointYesMinRating, includeYesNo)) {
       setValue(`answers.${index}.rating`, currentRating, { shouldDirty: true, shouldTouch: true });
     } else {
       setValue(`answers.${index}.rating`, null as any, { shouldDirty: true, shouldTouch: true });
@@ -599,11 +603,13 @@ export const MySelfAssessmentFormPage: React.FC = () => {
 
   const onSubmitForm = async (data: AnswerFormData) => {
     try {
-      const incompleteAnswers = data.answers.filter(
-        (a) => (a.yesNoAnswer !== 'Yes' && a.yesNoAnswer !== 'No') || a.rating == null,
-      );
+      const incompleteAnswers = includeYesNo
+        ? data.answers.filter(
+            (a) => (a.yesNoAnswer !== 'Yes' && a.yesNoAnswer !== 'No') || a.rating == null,
+          )
+        : data.answers.filter((a) => a.rating == null);
       if (incompleteAnswers.length > 0) {
-        toast.error('Each question requires both a Yes/No response and a rating');
+        toast.error(includeYesNo ? 'Each question requires both a Yes/No response and a rating' : 'Each question requires a rating');
         setShowSubmitConfirm(false);
         return;
       }
@@ -612,7 +618,14 @@ export const MySelfAssessmentFormPage: React.FC = () => {
         await autosave.flush();
       }
 
-      await submitForm(toSaveDraftRequest(data, formData?.overallRemarks)).unwrap();
+      const saveRequest = includeYesNo
+        ? toSaveDraftRequest(data, formData?.overallRemarks)
+        : {
+            ...toSaveDraftRequest(data, formData?.overallRemarks),
+            answers: data.answers.map((a) => ({ id: a.id, yesNoAnswer: null, rating: a.rating, remarks: a.remarks })),
+          };
+
+      await submitForm(saveRequest).unwrap();
       toast.success('Form submitted successfully');
       setShowSubmitConfirm(false);
       refetch();
@@ -621,43 +634,48 @@ export const MySelfAssessmentFormPage: React.FC = () => {
     }
   };
 
-	  const onRetakeSubmit = async (data: AnswerFormData) => {
-	    if (!formData?.id) return;
-	    const retakeAnswers = formData.answers
-	      .map((answer, index) => ({ answer, value: data.answers[index] }))
-	      .filter(item => item.answer.retakeRequested);
-	    if (retakeAnswers.length === 0) {
-	      toast.error('No questions are marked for retake');
-	      return;
-	    }
-	    const incomplete = retakeAnswers.some(({ value }) =>
-	      (value?.yesNoAnswer !== 'Yes' && value?.yesNoAnswer !== 'No')
-	      || value?.rating == null
-	      || !value?.retakeReason?.trim(),
-	    );
-	    if (incomplete) {
-	      toast.error('Each warned question requires Yes/No, rating, and reason');
-	      return;
-	    }
-	    try {
-	      await employeeRetakeSubmit({
-	        formId: formData.id,
-	        request: {
-	          answers: retakeAnswers.map(({ answer, value }) => ({
-	            answerId: answer.id,
-	            yesNoAnswer: value.yesNoAnswer as string,
-	            rating: value.rating as number,
-	            reason: value.retakeReason?.trim() ?? '',
-	          })),
-	        },
-	      }).unwrap();
-	      toast.success('Retake submitted');
-	      setShowRetakeSubmitConfirm(false);
-	      refetch();
-	    } catch (error: any) {
-	      toast.error(error?.data?.message || 'Failed to submit retake');
-	    }
-		  };
+  const onRetakeSubmit = async (data: AnswerFormData) => {
+    if (!formData?.id) return;
+    const retakeAnswers = formData.answers
+      .map((answer, index) => ({ answer, value: data.answers[index] }))
+      .filter(item => item.answer.retakeRequested);
+    if (retakeAnswers.length === 0) {
+      toast.error('No questions are marked for retake');
+      return;
+    }
+    const incomplete = includeYesNo
+      ? retakeAnswers.some(({ value }) =>
+          (value?.yesNoAnswer !== 'Yes' && value?.yesNoAnswer !== 'No')
+          || value?.rating == null
+          || !value?.retakeReason?.trim(),
+        )
+      : retakeAnswers.some(({ value }) =>
+          value?.rating == null
+          || !value?.retakeReason?.trim(),
+        );
+    if (incomplete) {
+      toast.error(includeYesNo ? 'Each warned question requires Yes/No, rating, and reason' : 'Each warned question requires rating and reason');
+      return;
+    }
+    try {
+      await employeeRetakeSubmit({
+        formId: formData.id,
+        request: {
+          answers: retakeAnswers.map(({ answer, value }) => ({
+            answerId: answer.id,
+            yesNoAnswer: includeYesNo ? (value.yesNoAnswer as string) : 'Yes',
+            rating: value.rating as number,
+            reason: value.retakeReason?.trim() ?? '',
+          })),
+        },
+      }).unwrap();
+      toast.success('Retake submitted');
+      setShowRetakeSubmitConfirm(false);
+      refetch();
+    } catch (error: any) {
+      toast.error(error?.data?.message || 'Failed to submit retake');
+    }
+  };
 
   const onRequestUnlock = async () => {
     if (!formData?.id || !unlockReasonCode) return;
@@ -1095,16 +1113,18 @@ export const MySelfAssessmentFormPage: React.FC = () => {
 	                      </div>
 	                    )}
                     {/* Yes / No */}
-                    <div>
-                      <label className="mb-2.5 block text-[11px] font-bold uppercase tracking-[0.14em] text-slate-500 dark:text-slate-400">
-                        Your Response (required)
-                      </label>
-                      <YesNoToggle
-                        value={watchAnswers?.[index]?.yesNoAnswer}
-                        onChange={(v) => handleYesNoChange(index, v, watchAnswers?.[index]?.rating)}
-                        disabled={!canEditQuestion}
-                      />
-                    </div>
+                    {includeYesNo && (
+                      <div>
+                        <label className="mb-2.5 block text-[11px] font-bold uppercase tracking-[0.14em] text-slate-500 dark:text-slate-400">
+                          Your Response (required)
+                        </label>
+                        <YesNoToggle
+                          value={watchAnswers?.[index]?.yesNoAnswer}
+                          onChange={(v) => handleYesNoChange(index, v, watchAnswers?.[index]?.rating)}
+                          disabled={!canEditQuestion}
+                        />
+                      </div>
+                    )}
 
                     {/* Rating */}
                     <div>
@@ -1118,12 +1138,14 @@ export const MySelfAssessmentFormPage: React.FC = () => {
                           <SelfAssessmentRatingPicker
                             fivePointVariant="numeric"
                             ratingSystem={ratingSystem}
-                            tenPointYesMinRating={tenPointYesMinRating}
+                              tenPointYesMinRating={tenPointYesMinRating}
+                              fivePointYesMinRating={fivePointYesMinRating}
+                            includeYesNo={includeYesNo}
                             yesNoAnswer={watchAnswers?.[index]?.yesNoAnswer}
                             value={field.value}
                             onChange={(rating) => {
                               const yn2 = watchAnswers?.[index]?.yesNoAnswer ?? null;
-                              if (!isRatingValidForAnswer(ratingSystem, yn2, rating, tenPointYesMinRating)) {
+                              if (!isRatingValidForAnswer(ratingSystem, yn2, rating, tenPointYesMinRating, fivePointYesMinRating, includeYesNo)) {
                                 toast.error('Rating does not match the selected response');
                                 return;
                               }
@@ -1184,7 +1206,7 @@ export const MySelfAssessmentFormPage: React.FC = () => {
 	                  </div>
 
                   {/* Score Revisions */}
-                  {(answer.managerProposedYesNo || answer.finalApprovedYesNo) && (
+                  {(answer.managerProposedYesNo || answer.managerProposedRating || answer.finalApprovedYesNo || answer.finalApprovedRating) && (
                     <div className="border-t border-amber-200/70 bg-gradient-to-br from-amber-50/80 to-orange-50/40 px-6 py-5 dark:border-amber-800/60 dark:from-amber-900/15 dark:to-orange-900/10">
                       <div className="mb-3 flex items-center gap-2">
                         <div className="flex h-6 w-6 items-center justify-center rounded-md bg-amber-200/70 text-amber-700 dark:bg-amber-900/40 dark:text-amber-300">

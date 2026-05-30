@@ -53,6 +53,12 @@ public class SelfAssessmentFormTemplate {
     @Column(name = "ten_point_yes_min_rating", nullable = false)
     private Integer tenPointYesMinRating = SelfAssessmentRatingSystem.DEFAULT_TEN_POINT_YES_MIN_RATING;
 
+    @Column(name = "five_point_yes_min_rating", nullable = false)
+    private Integer fivePointYesMinRating = SelfAssessmentRatingSystem.DEFAULT_FIVE_POINT_YES_MIN_RATING;
+
+    @Column(name = "include_yes_no", nullable = false)
+    private boolean includeYesNo = true;
+
     @Column(name = "created_by")
     private Long createdBy;
 

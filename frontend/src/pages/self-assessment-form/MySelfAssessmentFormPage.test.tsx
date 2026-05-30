@@ -23,6 +23,7 @@ const mocks = vi.hoisted(() => {
     title: 'Employee Self Assessment',
     ratingSystem: 'FIVE_POINT',
     tenPointYesMinRating: 5,
+    fivePointYesMinRating: 3,
     deadlineDate: '2026-05-30',
     managerReviewDeadlineDate: null,
     finalApprovalDeadlineDate: null,
@@ -84,8 +85,9 @@ const mocks = vi.hoisted(() => {
     hrReviewRequired: null,
     hrReviewReason: null,
     hrReturnComments: null,
-    hrReviewReasonAt: null,
-  }
+  hrReviewReasonAt: null,
+  includeYesNo: true,
+}
 
   return {
     autosaveOptions: undefined as any,
@@ -255,6 +257,17 @@ describe('MySelfAssessmentFormPage autosave', () => {
 
     expect(await screen.findByText('Did you meet your goals?')).toBeTruthy()
     expect(screen.queryByText('Total Mark')).toBeNull()
+  })
+
+  it('hides Yes/No controls when includeYesNo is false', async () => {
+    mocks.editableFormData.includeYesNo = false
+
+    renderPage()
+
+    expect(await screen.findByText('Did you meet your goals?')).toBeTruthy()
+    expect(screen.queryByRole('button', { name: 'Yes' })).toBeNull()
+    expect(screen.queryByRole('button', { name: 'No' })).toBeNull()
+    expect(screen.queryByText('Your Response (required)')).toBeNull()
   })
 
   it('configures react-hook-form autosave for editable drafts', async () => {

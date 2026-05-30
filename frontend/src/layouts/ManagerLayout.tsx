@@ -21,6 +21,7 @@ import {
   ClipboardCheck,
   Briefcase,
   MessageSquare,
+  Plus,
 } from 'lucide-react';
 import { Outlet } from 'react-router-dom';
 import { useSelector } from 'react-redux';
@@ -108,6 +109,10 @@ const ManagerLayout: React.FC = () => {
           path: '/manager/continuous-feedback',
           icon: <MessageSquare size={18} />,
           isActive: (pathname) => pathname.startsWith('/manager/continuous-feedback'),
+          subItems: [
+            { label: 'Team Feedback', path: '/manager/continuous-feedback', icon: <MessageSquare size={16} /> },
+            { label: 'New Feedback', path: '/manager/continuous-feedback/create', icon: <Plus size={16} /> },
+          ],
         },
         {
           label: 'Team PIPs',

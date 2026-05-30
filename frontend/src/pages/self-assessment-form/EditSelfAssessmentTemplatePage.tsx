@@ -46,6 +46,7 @@ import { useGetDepartmentsQuery } from '../../features/department/api/department
 import { useGetPositionsByDepartmentQuery } from '../../features/position/api/positionApi';
 import {
   useCreateQuestionBankItemMutation,
+  useGetSelfAssessmentSettingsQuery,
   useGetTemplateByIdQuery,
   useGetQuestionBankQuery,
   useUpdateTemplateMutation,
@@ -495,7 +496,10 @@ export const EditSelfAssessmentTemplatePage: React.FC = () => {
     loadedTemplate?.positionName?.trim() ||
     positions.find((position) => position.id === selectedPositionId)?.name ||
     null;
+  const { data: selfAssessmentSettings } = useGetSelfAssessmentSettingsQuery();
   const editPreviewRatingSystem = loadedTemplate?.ratingSystem ?? 'FIVE_POINT';
+  const editPreviewIncludeYesNo =
+    selfAssessmentSettings?.includeYesNo ?? loadedTemplate?.includeYesNo;
 
   if (!idValid) {
     return (
@@ -1011,6 +1015,8 @@ export const EditSelfAssessmentTemplatePage: React.FC = () => {
           reviewCycleDetail={previewReviewCycleDetail}
           ratingSystem={editPreviewRatingSystem}
           tenPointYesMinRating={loadedTemplate?.tenPointYesMinRating}
+          fivePointYesMinRating={loadedTemplate?.fivePointYesMinRating}
+          includeYesNo={editPreviewIncludeYesNo}
           questions={watchedQuestions ?? []}
         />
 

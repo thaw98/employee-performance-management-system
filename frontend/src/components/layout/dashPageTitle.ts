@@ -15,6 +15,7 @@ export function getDashPageTitle(pathname: string): string {
   if (pathname.includes('/self-assessment')) return 'Self-Assessment'
   if (pathname.includes('/meetings')) return 'Meetings'
   if (pathname.includes('/reports')) return 'Reports'
-  if (pathname.includes('/dashboard')) return 'Dashboard'
+  if (pathname.includes('/continuous-feedback/create')) return 'Create Feedback'
+  if (pathname.includes('/continuous-feedback')) return 'Continuous Feedback'
   return 'Dashboard'
 }

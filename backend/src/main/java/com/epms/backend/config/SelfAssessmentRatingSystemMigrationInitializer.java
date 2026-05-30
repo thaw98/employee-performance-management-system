@@ -1,5 +1,6 @@
 package com.epms.backend.config;
 
+import com.epms.backend.entity.SelfAssessmentRatingSystem;
 import org.springframework.beans.BeansException;
 import org.springframework.beans.factory.BeanCreationException;
 import org.springframework.beans.factory.config.BeanPostProcessor;
@@ -35,32 +36,53 @@ public class SelfAssessmentRatingSystemMigrationInitializer implements BeanPostP
         if (tableExists(jdbc, "self_assessment_form_template")) {
             addColumnIfMissing(jdbc, "self_assessment_form_template", "rating_system", "VARCHAR(20) NOT NULL DEFAULT 'FIVE_POINT'");
             addColumnIfMissing(jdbc, "self_assessment_form_template", "ten_point_yes_min_rating", "INT NOT NULL DEFAULT 5");
+            addColumnIfMissing(
+                    jdbc,
+                    "self_assessment_form_template",
+                    "five_point_yes_min_rating",
+                    "INT NOT NULL DEFAULT " + SelfAssessmentRatingSystem.DEFAULT_FIVE_POINT_YES_MIN_RATING);
+            addColumnIfMissing(jdbc, "self_assessment_form_template", "include_yes_no", "TINYINT(1) NOT NULL DEFAULT 1");
             jdbc.update("""
                     UPDATE self_assessment_form_template
                     SET rating_system = 'FIVE_POINT'
                     WHERE rating_system IS NULL OR TRIM(rating_system) = ''
                     """);
-            normalizeThreshold(jdbc, "self_assessment_form_template");
+            normalizeTenPointThreshold(jdbc, "self_assessment_form_template");
+            normalizeFivePointThreshold(jdbc, "self_assessment_form_template");
         }
         if (tableExists(jdbc, "self_assessment_form")) {
             addColumnIfMissing(jdbc, "self_assessment_form", "rating_system", "VARCHAR(20) NOT NULL DEFAULT 'FIVE_POINT'");
             addColumnIfMissing(jdbc, "self_assessment_form", "ten_point_yes_min_rating", "INT NOT NULL DEFAULT 5");
+            addColumnIfMissing(
+                    jdbc,
+                    "self_assessment_form",
+                    "five_point_yes_min_rating",
+                    "INT NOT NULL DEFAULT " + SelfAssessmentRatingSystem.DEFAULT_FIVE_POINT_YES_MIN_RATING);
+            addColumnIfMissing(jdbc, "self_assessment_form", "include_yes_no", "TINYINT(1) NOT NULL DEFAULT 1");
             jdbc.update("""
                     UPDATE self_assessment_form
                     SET rating_system = 'FIVE_POINT'
                     WHERE rating_system IS NULL OR TRIM(rating_system) = ''
                     """);
-            normalizeThreshold(jdbc, "self_assessment_form");
+            normalizeTenPointThreshold(jdbc, "self_assessment_form");
+            normalizeFivePointThreshold(jdbc, "self_assessment_form");
         }
         if (tableExists(jdbc, "copied_self_assessment_form_template")) {
             addColumnIfMissing(jdbc, "copied_self_assessment_form_template", "rating_system", "VARCHAR(20) NOT NULL DEFAULT 'FIVE_POINT'");
             addColumnIfMissing(jdbc, "copied_self_assessment_form_template", "ten_point_yes_min_rating", "INT NOT NULL DEFAULT 5");
+            addColumnIfMissing(
+                    jdbc,
+                    "copied_self_assessment_form_template",
+                    "five_point_yes_min_rating",
+                    "INT NOT NULL DEFAULT " + SelfAssessmentRatingSystem.DEFAULT_FIVE_POINT_YES_MIN_RATING);
+            addColumnIfMissing(jdbc, "copied_self_assessment_form_template", "include_yes_no", "TINYINT(1) NOT NULL DEFAULT 1");
             jdbc.update("""
                     UPDATE copied_self_assessment_form_template
                     SET rating_system = 'FIVE_POINT'
                     WHERE rating_system IS NULL OR TRIM(rating_system) = ''
                     """);
-            normalizeThreshold(jdbc, "copied_self_assessment_form_template");
+            normalizeTenPointThreshold(jdbc, "copied_self_assessment_form_template");
+            normalizeFivePointThreshold(jdbc, "copied_self_assessment_form_template");
         }
     }
 
@@ -70,11 +92,18 @@ public class SelfAssessmentRatingSystemMigrationInitializer implements BeanPostP
                     id BIGINT NOT NULL PRIMARY KEY,
                     rating_system VARCHAR(20) NOT NULL DEFAULT 'FIVE_POINT',
                     ten_point_yes_min_rating INT NOT NULL DEFAULT 5,
+                    five_point_yes_min_rating INT NOT NULL DEFAULT %d,
                     updated_by BIGINT NULL,
                     updated_on DATETIME(6) NULL
                 )
-                """);
+                """.formatted(SelfAssessmentRatingSystem.DEFAULT_FIVE_POINT_YES_MIN_RATING));
         addColumnIfMissing(jdbc, "self_assessment_settings", "ten_point_yes_min_rating", "INT NOT NULL DEFAULT 5");
+        addColumnIfMissing(
+                jdbc,
+                "self_assessment_settings",
+                "five_point_yes_min_rating",
+                "INT NOT NULL DEFAULT " + SelfAssessmentRatingSystem.DEFAULT_FIVE_POINT_YES_MIN_RATING);
+        addColumnIfMissing(jdbc, "self_assessment_settings", "include_yes_no", "TINYINT(1) NOT NULL DEFAULT 1");
         jdbc.update("""
                 INSERT INTO self_assessment_settings (id, rating_system, ten_point_yes_min_rating)
                 SELECT 1, 'FIVE_POINT', 5
@@ -85,17 +114,42 @@ public class SelfAssessmentRatingSystemMigrationInitializer implements BeanPostP
                 SET rating_system = 'FIVE_POINT'
                 WHERE rating_system IS NULL OR TRIM(rating_system) = ''
                 """);
-        normalizeThreshold(jdbc, "self_assessment_settings");
+        normalizeTenPointThreshold(jdbc, "self_assessment_settings");
+        normalizeFivePointThreshold(jdbc, "self_assessment_settings");
     }
 
-    private static void normalizeThreshold(JdbcTemplate jdbc, String tableName) {
+    private static void normalizeTenPointThreshold(JdbcTemplate jdbc, String tableName) {
+        if (!columnExists(jdbc, tableName, "ten_point_yes_min_rating")) {
+            return;
+        }
         jdbc.update("""
                 UPDATE `%s`
-                SET ten_point_yes_min_rating = 5
+                SET ten_point_yes_min_rating = %d
                 WHERE ten_point_yes_min_rating IS NULL
-                   OR ten_point_yes_min_rating < 2
-                   OR ten_point_yes_min_rating > 10
-                """.formatted(tableName));
+                   OR ten_point_yes_min_rating < %d
+                   OR ten_point_yes_min_rating > %d
+                """.formatted(
+                tableName,
+                SelfAssessmentRatingSystem.DEFAULT_TEN_POINT_YES_MIN_RATING,
+                SelfAssessmentRatingSystem.MIN_TEN_POINT_YES_MIN_RATING,
+                SelfAssessmentRatingSystem.MAX_TEN_POINT_YES_MIN_RATING));
+    }
+
+    private static void normalizeFivePointThreshold(JdbcTemplate jdbc, String tableName) {
+        if (!columnExists(jdbc, tableName, "five_point_yes_min_rating")) {
+            return;
+        }
+        jdbc.update("""
+                UPDATE `%s`
+                SET five_point_yes_min_rating = %d
+                WHERE five_point_yes_min_rating IS NULL
+                   OR five_point_yes_min_rating < %d
+                   OR five_point_yes_min_rating > %d
+                """.formatted(
+                tableName,
+                SelfAssessmentRatingSystem.DEFAULT_FIVE_POINT_YES_MIN_RATING,
+                SelfAssessmentRatingSystem.MIN_FIVE_POINT_YES_MIN_RATING,
+                SelfAssessmentRatingSystem.MAX_FIVE_POINT_YES_MIN_RATING));
     }
 
     private static void addColumnIfMissing(JdbcTemplate jdbc, String tableName, String columnName, String definition) {

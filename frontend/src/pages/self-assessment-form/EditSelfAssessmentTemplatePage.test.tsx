@@ -1,4 +1,4 @@
-import { cleanup, render, screen, waitFor } from '@testing-library/react'
+import { cleanup, render, screen, waitFor, within } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { EditSelfAssessmentTemplatePage } from './EditSelfAssessmentTemplatePage'
@@ -19,6 +19,7 @@ let templateData = {
   isActive: true,
   ratingSystem: 'FIVE_POINT',
   tenPointYesMinRating: 5,
+  fivePointYesMinRating: 3,
   isLocked: false,
   createdOn: '',
   createdBy: 1,
@@ -39,6 +40,7 @@ let templateData = {
     },
   ],
   deletedQuestions: [],
+  includeYesNo: true,
 }
 
 vi.mock('react-redux', () => ({
@@ -69,8 +71,16 @@ vi.mock('../../features/position/api/positionApi', () => ({
   }),
 }))
 
+let selfAssessmentSettings = {
+  ratingSystem: 'FIVE_POINT',
+  tenPointYesMinRating: 5,
+  fivePointYesMinRating: 3,
+  includeYesNo: true,
+}
+
 vi.mock('../../features/selfAssessmentForm/api/selfAssessmentFormApi', () => ({
   useCreateQuestionBankItemMutation: () => [vi.fn(), { isLoading: false }],
+  useGetSelfAssessmentSettingsQuery: () => ({ data: selfAssessmentSettings }),
   useGetTemplateByIdQuery: () => ({
     currentData: templateData,
     refetch: vi.fn(),
@@ -108,6 +118,12 @@ describe('EditSelfAssessmentTemplatePage manager question permissions', () => {
   })
 
   beforeEach(() => {
+    selfAssessmentSettings = {
+      ratingSystem: 'FIVE_POINT',
+      tenPointYesMinRating: 5,
+      fivePointYesMinRating: 3,
+      includeYesNo: true,
+    }
     roleId = 2
     templateData = {
       ...templateData,
@@ -214,6 +230,27 @@ describe('EditSelfAssessmentTemplatePage manager question permissions', () => {
     expect(dialog).toHaveTextContent('Manager unsaved preview question')
     expect(dialog).not.toHaveTextContent('Question 3')
     expect(updateTemplateMock).not.toHaveBeenCalled()
+  })
+
+  it('hides Yes/No in preview when self-assessment settings disable it', async () => {
+    const user = userEvent.setup()
+    selfAssessmentSettings = {
+      ...selfAssessmentSettings,
+      includeYesNo: false,
+    }
+    templateData = {
+      ...templateData,
+      includeYesNo: true,
+    }
+
+    render(<EditSelfAssessmentTemplatePage />)
+
+    await user.click(await screen.findByRole('button', { name: 'Preview Template' }))
+
+    const dialog = screen.getByRole('dialog', { name: 'Engineering Self Assessment' })
+    expect(within(dialog).queryByText('Yes Scores')).not.toBeInTheDocument()
+    expect(within(dialog).queryByText('Answer')).not.toBeInTheDocument()
+    expect(within(dialog).getByText('(Rating Only)')).toBeInTheDocument()
   })
 
   it('lets locked templates open the preview', async () => {

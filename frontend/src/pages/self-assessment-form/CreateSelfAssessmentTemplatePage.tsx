@@ -386,6 +386,8 @@ export const CreateSelfAssessmentTemplatePage: React.FC = () => {
   const [copiedDeletedQuestions, setCopiedDeletedQuestions] = useState<QuestionRequest[]>([]);
   const [copiedRatingSystem, setCopiedRatingSystem] = useState<SelfAssessmentRatingSystem | undefined>(undefined);
   const [copiedTenPointYesMinRating, setCopiedTenPointYesMinRating] = useState<number | undefined>(undefined);
+  const [copiedFivePointYesMinRating, setCopiedFivePointYesMinRating] = useState<number | undefined>(undefined);
+  const [copiedIncludeYesNo, setCopiedIncludeYesNo] = useState<boolean | undefined>(undefined);
   const [isPreviewOpen, setIsPreviewOpen] = useState(false);
 
   const { data: reviewCycles = [], isLoading: reviewCyclesLoading } = useGetReviewCyclesQuery({
@@ -681,6 +683,10 @@ export const CreateSelfAssessmentTemplatePage: React.FC = () => {
   const previewRatingSystem = copiedRatingSystem ?? selfAssessmentSettings?.ratingSystem;
   const previewTenPointYesMinRating =
     copiedTenPointYesMinRating ?? selfAssessmentSettings?.tenPointYesMinRating;
+  const previewFivePointYesMinRating =
+    copiedFivePointYesMinRating ?? selfAssessmentSettings?.fivePointYesMinRating;
+  const previewIncludeYesNo =
+    selfAssessmentSettings?.includeYesNo ?? copiedIncludeYesNo;
 
   const [createTemplate, { isLoading: isCreating }] = useCreateTemplateMutation();
   const [checkActiveTemplateConflicts] = useCheckActiveTemplateConflictsMutation();
@@ -740,6 +746,8 @@ export const CreateSelfAssessmentTemplatePage: React.FC = () => {
     );
     setCopiedRatingSystem(copiedTemplate.ratingSystem);
     setCopiedTenPointYesMinRating(copiedTemplate.tenPointYesMinRating);
+    setCopiedFivePointYesMinRating(copiedTemplate.fivePointYesMinRating);
+    setCopiedIncludeYesNo(copiedTemplate.includeYesNo);
 
     const copiedDeptId =
       typeof copiedTemplate.departmentId === 'number' && copiedTemplate.departmentId > 0
@@ -1034,6 +1042,8 @@ export const CreateSelfAssessmentTemplatePage: React.FC = () => {
             manualEndDate: timelineMode === 'MANUAL' ? manualEndDate : null,
             ratingSystem: copiedRatingSystem,
             tenPointYesMinRating: copiedTenPointYesMinRating,
+            fivePointYesMinRating: copiedFivePointYesMinRating,
+            includeYesNo: copiedIncludeYesNo,
           }).unwrap();
           createdCount += 1;
         } catch (error: unknown) {
@@ -1209,14 +1219,29 @@ export const CreateSelfAssessmentTemplatePage: React.FC = () => {
                   <div className="min-w-0 flex-1">
                     <h3 className="text-sm font-bold text-slate-900 dark:text-white">Rating Scale Preview</h3>
                     <p className="mt-0.5 text-xs text-slate-500 dark:text-slate-400">
-                      Employees answer Yes/No then pick a score. Matches{' '}
-                      <Link
-                        to="/hr/self-assessment/settings"
-                        className="font-semibold text-[#2463eb] hover:underline dark:text-[#60a5fa]"
-                      >
-                        Self Assessment Settings
-                      </Link>
-                      .
+                      {previewIncludeYesNo !== false ? (
+                        <>
+                          Employees answer Yes/No then pick a score. Matches{' '}
+                          <Link
+                            to="/hr/self-assessment/settings"
+                            className="font-semibold text-[#2463eb] hover:underline dark:text-[#60a5fa]"
+                          >
+                            Self Assessment Settings
+                          </Link>
+                          .
+                        </>
+                      ) : (
+                        <>
+                          Employees pick a score from the full scale only (no Yes/No). Matches{' '}
+                          <Link
+                            to="/hr/self-assessment/settings"
+                            className="font-semibold text-[#2463eb] hover:underline dark:text-[#60a5fa]"
+                          >
+                            Self Assessment Settings
+                          </Link>
+                          .
+                        </>
+                      )}
                     </p>
                     {selfAssessmentSettingsLoading ? (
                       <p className="mt-2 text-xs text-slate-400">Loading...</p>
@@ -1229,32 +1254,53 @@ export const CreateSelfAssessmentTemplatePage: React.FC = () => {
                         <div className="text-xs font-semibold text-slate-600 dark:text-slate-300">
                           Scale: <span className="text-slate-900 dark:text-white">{ratingSystemLabels[previewRatingSystem]}</span>
                         </div>
-                        <div className="grid gap-2 sm:grid-cols-2">
-                          <div className="rounded-lg border border-emerald-200/60 bg-emerald-50/80 px-3 py-2 dark:border-emerald-800/40 dark:bg-emerald-950/20">
-                            <dt className="text-[11px] font-bold uppercase tracking-wider text-emerald-600 dark:text-emerald-400">
-                              Yes — scores
+                        {previewIncludeYesNo !== false ? (
+                          <div className="grid gap-2 sm:grid-cols-2">
+                            <div className="rounded-lg border border-emerald-200/60 bg-emerald-50/80 px-3 py-2 dark:border-emerald-800/40 dark:bg-emerald-950/20">
+                              <dt className="text-[11px] font-bold uppercase tracking-wider text-emerald-600 dark:text-emerald-400">
+                                Yes — scores
+                              </dt>
+                              <dd className="mt-0.5 text-sm font-semibold tabular-nums text-emerald-800 dark:text-emerald-200">
+                                {getRatingOptions(
+                                  previewRatingSystem,
+                                  'Yes',
+                                  previewTenPointYesMinRating,
+                                  previewFivePointYesMinRating,
+                                  true,
+                                ).join(', ')}
+                              </dd>
+                            </div>
+                            <div className="rounded-lg border border-rose-200/60 bg-rose-50/80 px-3 py-2 dark:border-rose-800/40 dark:bg-rose-950/20">
+                              <dt className="text-[11px] font-bold uppercase tracking-wider text-rose-600 dark:text-rose-400">
+                                No — scores
+                              </dt>
+                              <dd className="mt-0.5 text-sm font-semibold tabular-nums text-rose-800 dark:text-rose-200">
+                                {getRatingOptions(
+                                  previewRatingSystem,
+                                  'No',
+                                  previewTenPointYesMinRating,
+                                  previewFivePointYesMinRating,
+                                  true,
+                                ).join(', ')}
+                              </dd>
+                            </div>
+                          </div>
+                        ) : (
+                          <div className="rounded-lg border border-slate-200/60 bg-slate-50/80 px-3 py-2 dark:border-slate-700/40 dark:bg-slate-800/40">
+                            <dt className="text-[11px] font-bold uppercase tracking-wider text-slate-500 dark:text-slate-400">
+                              Available scores
                             </dt>
-                            <dd className="mt-0.5 text-sm font-semibold tabular-nums text-emerald-800 dark:text-emerald-200">
+                            <dd className="mt-0.5 text-sm font-semibold tabular-nums text-slate-800 dark:text-slate-200">
                               {getRatingOptions(
                                 previewRatingSystem,
-                                'Yes',
+                                null,
                                 previewTenPointYesMinRating,
+                                previewFivePointYesMinRating,
+                                false,
                               ).join(', ')}
                             </dd>
                           </div>
-                          <div className="rounded-lg border border-rose-200/60 bg-rose-50/80 px-3 py-2 dark:border-rose-800/40 dark:bg-rose-950/20">
-                            <dt className="text-[11px] font-bold uppercase tracking-wider text-rose-600 dark:text-rose-400">
-                              No — scores
-                            </dt>
-                            <dd className="mt-0.5 text-sm font-semibold tabular-nums text-rose-800 dark:text-rose-200">
-                              {getRatingOptions(
-                                previewRatingSystem,
-                                'No',
-                                previewTenPointYesMinRating,
-                              ).join(', ')}
-                            </dd>
-                          </div>
-                        </div>
+                        )}
                       </div>
                     ) : null}
                   </div>
@@ -1721,6 +1767,8 @@ export const CreateSelfAssessmentTemplatePage: React.FC = () => {
           reviewCycleDetail={previewReviewCycleDetail}
           ratingSystem={previewRatingSystem}
           tenPointYesMinRating={previewTenPointYesMinRating}
+          fivePointYesMinRating={previewFivePointYesMinRating}
+          includeYesNo={previewIncludeYesNo}
           questions={watchedQuestions ?? []}
         />
 

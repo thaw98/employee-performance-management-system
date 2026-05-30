@@ -9,6 +9,8 @@ public record CopiedSelfAssessmentFormTemplateDto(
         String title,
         String ratingSystem,
         Integer tenPointYesMinRating,
+        Integer fivePointYesMinRating,
+        boolean includeYesNo,
         Long departmentId,
         Long positionId,
         String departmentName,

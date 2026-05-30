@@ -131,7 +131,7 @@ class SelfAssessmentFormHrRejectArchiveTest {
         form.setEmployee(employee);
         form.setTemplate(template);
         form.setCycle(cycle);
-        form.setStatus(SelfAssessmentFormStatus.MANAGER_REVIEWED);
+        form.setStatus(SelfAssessmentFormStatus.PENDING_FINAL_APPROVAL);
         form.setTotalScore(75.0);
         form.setManagerRevisedTotalScore(80.0);
         form.setDeadlineDate(LocalDate.of(2026, 5, 30));
@@ -183,7 +183,7 @@ class SelfAssessmentFormHrRejectArchiveTest {
         assertEquals("Developer", savedSnapshot.getPositionName());
         assertEquals("Q1 Review Template", savedSnapshot.getTemplateTitle());
         assertEquals("Cycle 1", savedSnapshot.getCycleName());
-        assertEquals(SelfAssessmentFormStatus.MANAGER_REVIEWED, savedSnapshot.getArchivedStatus());
+        assertEquals(SelfAssessmentFormStatus.PENDING_FINAL_APPROVAL, savedSnapshot.getArchivedStatus());
         assertEquals("Needs complete redo", savedSnapshot.getRejectionReason());
         assertEquals(hrUserId, savedSnapshot.getHrUserId());
         assertEquals(retakeDeadline, savedSnapshot.getRetakeDeadline());
@@ -204,7 +204,7 @@ class SelfAssessmentFormHrRejectArchiveTest {
         SelfAssessmentForm form = new SelfAssessmentForm();
         form.setId(formId);
         form.setEmployee(employee);
-        form.setStatus(SelfAssessmentFormStatus.MANAGER_REVIEWED);
+        form.setStatus(SelfAssessmentFormStatus.PENDING_FINAL_APPROVAL);
         form.setTotalScore(75.0);
         form.setManagerRevisedTotalScore(80.0);
         form.setFinalApprovedTotalScore(85.0);
@@ -314,7 +314,7 @@ class SelfAssessmentFormHrRejectArchiveTest {
         SelfAssessmentForm form = new SelfAssessmentForm();
         form.setId(formId);
         form.setEmployee(employee);
-        form.setStatus(SelfAssessmentFormStatus.MANAGER_REVIEWED);
+        form.setStatus(SelfAssessmentFormStatus.PENDING_FINAL_APPROVAL);
 
         when(formRepository.findById(formId)).thenReturn(Optional.of(form));
 
@@ -349,7 +349,7 @@ class SelfAssessmentFormHrRejectArchiveTest {
 
         RuntimeException ex = assertThrows(RuntimeException.class, () ->
                 service.hrRejectManagerReview(formId, request, hrUserId));
-        assertTrue(ex.getMessage().contains("not eligible"));
+        assertTrue(ex.getMessage().contains("pending final approval"));
     }
 
     @Test
@@ -375,7 +375,7 @@ class SelfAssessmentFormHrRejectArchiveTest {
         form.setId(formId);
         form.setEmployee(employee);
         form.setTemplate(template);
-        form.setStatus(SelfAssessmentFormStatus.PENDING_HR_CALIBRATION_REVIEW);
+        form.setStatus(SelfAssessmentFormStatus.PENDING_FINAL_APPROVAL);
         form.setDeadlineDate(LocalDate.of(2026, 5, 30));
 
         User hrUser = hrUser(hrUserId);
@@ -409,52 +409,90 @@ class SelfAssessmentFormHrRejectArchiveTest {
     }
 
     @Test
-    void hrRejectManagerReview_eligibleStatuses_includeAllFour() {
+    void hrRejectManagerReview_throwsWhenStatusIsNotPendingFinalApproval() {
+        Long formId = 10L;
+        Long hrUserId = 1L;
+
+        SelfAssessmentForm form = new SelfAssessmentForm();
+        form.setId(formId);
+        form.setStatus(SelfAssessmentFormStatus.PENDING_HR_CALIBRATION_REVIEW);
+
+        when(formRepository.findById(formId)).thenReturn(Optional.of(form));
+
+        HrRejectManagerReviewRequest request = new HrRejectManagerReviewRequest(
+                "Reason",
+                LocalDate.of(2026, 6, 15),
+                null);
+
+        RuntimeException ex = assertThrows(RuntimeException.class,
+                () -> service.hrRejectManagerReview(formId, request, hrUserId));
+        assertTrue(ex.getMessage().contains("pending final approval"));
+    }
+
+    @Test
+    void hrRejectManagerReview_eligibleOnlyWhenPendingFinalApproval() {
         for (SelfAssessmentFormStatus status : List.of(
                 SelfAssessmentFormStatus.MANAGER_REVIEWED,
                 SelfAssessmentFormStatus.PENDING_HR_CALIBRATION_REVIEW,
-                SelfAssessmentFormStatus.PENDING_EMPLOYEE_REVIEW,
-                SelfAssessmentFormStatus.PENDING_FINAL_APPROVAL)) {
+                SelfAssessmentFormStatus.PENDING_EMPLOYEE_REVIEW)) {
 
             Long formId = 10L + status.ordinal();
             Long hrUserId = 1L;
 
-            Employee employee = new Employee();
-            employee.setId(100L);
-
             SelfAssessmentForm form = new SelfAssessmentForm();
             form.setId(formId);
-            form.setEmployee(employee);
             form.setStatus(status);
 
-            SelfAssessmentFormTemplate template = new SelfAssessmentFormTemplate();
-            template.setId(50L);
-            template.setTitle("Q1 Review Template");
-            form.setTemplate(template);
-
-            User hrUser = hrUser(hrUserId);
-
-            Signature sig = new Signature();
-            sig.setId(99L);
-
             when(formRepository.findById(formId)).thenReturn(Optional.of(form));
-            when(userRepository.findByIdWithEmployeeDepartment(hrUserId)).thenReturn(Optional.of(hrUser));
-            when(signatureRepository.findByUserAndIsDefaultTrue(hrUser)).thenReturn(Optional.of(sig));
-            when(archiveSnapshotRepository.save(any())).thenAnswer(invocation -> {
-                SelfAssessmentArchiveSnapshot snapshot = invocation.getArgument(0);
-                snapshot.setId(1L);
-                return snapshot;
-            });
-            when(formRepository.save(any())).thenAnswer(invocation -> invocation.getArgument(0));
 
             HrRejectManagerReviewRequest request = new HrRejectManagerReviewRequest(
                     "Reason",
                     LocalDate.of(2026, 6, 15),
                     null);
 
-            assertDoesNotThrow(() -> service.hrRejectManagerReview(formId, request, hrUserId));
+            assertThrows(RuntimeException.class,
+                    () -> service.hrRejectManagerReview(formId, request, hrUserId));
 
-            reset(formRepository, userRepository, signatureRepository, archiveSnapshotRepository);
+            reset(formRepository);
         }
+
+        SelfAssessmentFormStatus status = SelfAssessmentFormStatus.PENDING_FINAL_APPROVAL;
+        Long formId = 10L + status.ordinal();
+        Long hrUserId = 1L;
+
+        Employee employee = new Employee();
+        employee.setId(100L);
+
+        SelfAssessmentForm form = new SelfAssessmentForm();
+        form.setId(formId);
+        form.setEmployee(employee);
+        form.setStatus(status);
+
+        SelfAssessmentFormTemplate template = new SelfAssessmentFormTemplate();
+        template.setId(50L);
+        template.setTitle("Q1 Review Template");
+        form.setTemplate(template);
+
+        User hrUser = hrUser(hrUserId);
+
+        Signature sig = new Signature();
+        sig.setId(99L);
+
+        when(formRepository.findById(formId)).thenReturn(Optional.of(form));
+        when(userRepository.findByIdWithEmployeeDepartment(hrUserId)).thenReturn(Optional.of(hrUser));
+        when(signatureRepository.findByUserAndIsDefaultTrue(hrUser)).thenReturn(Optional.of(sig));
+        when(archiveSnapshotRepository.save(any())).thenAnswer(invocation -> {
+            SelfAssessmentArchiveSnapshot snapshot = invocation.getArgument(0);
+            snapshot.setId(1L);
+            return snapshot;
+        });
+        when(formRepository.save(any())).thenAnswer(invocation -> invocation.getArgument(0));
+
+        HrRejectManagerReviewRequest request = new HrRejectManagerReviewRequest(
+                "Reason",
+                LocalDate.of(2026, 6, 15),
+                null);
+
+        assertDoesNotThrow(() -> service.hrRejectManagerReview(formId, request, hrUserId));
     }
 }

@@ -124,6 +124,26 @@ function getStatusConfig(status: string) {
       cardAccent: 'border-l-sky-500',
     };
   }
+  if (s === 'PENDING_EMPLOYEE_RETAKE') {
+    return {
+      label: 'Pending Employee Retake',
+      bg: 'bg-amber-100 dark:bg-amber-900/30',
+      text: 'text-amber-700 dark:text-amber-400',
+      dot: 'bg-amber-500',
+      icon: RotateCcw,
+      cardAccent: 'border-l-amber-500',
+    };
+  }
+  if (s === 'PENDING_RETAKE_MANAGER_REVIEW') {
+    return {
+      label: 'Pending Retake Review',
+      bg: 'bg-sky-100 dark:bg-sky-900/30',
+      text: 'text-sky-700 dark:text-sky-400',
+      dot: 'bg-sky-500',
+      icon: Hourglass,
+      cardAccent: 'border-l-sky-500',
+    };
+  }
   if (s === 'PENDING_FINAL_APPROVAL') {
     return {
       label: 'Pending Final Approval',
@@ -200,7 +220,7 @@ function getStatusConfig(status: string) {
     };
   }
   return {
-    label: status,
+    label: status.replace(/_/g, ' '),
     bg: 'bg-slate-100 dark:bg-slate-700/60',
     text: 'text-slate-600 dark:text-slate-300',
     dot: 'bg-slate-400',

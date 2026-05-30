@@ -10,12 +10,12 @@ const NUMERIC_10_TO_1 = [10, 9, 8, 7, 6, 5, 4, 3, 2, 1] as const;
 
 export interface SelfAssessmentRatingPickerProps {
   title?: string;
-  /** Omit header + divider (e.g. when the question line is already shown above). */
   compact?: boolean;
-  /** Five-point UI: star buttons vs numeric 5–1 (ten-point unchanged). */
   fivePointVariant?: 'stars' | 'numeric';
   ratingSystem: SelfAssessmentRatingSystem | null | undefined;
   tenPointYesMinRating?: number | null;
+  fivePointYesMinRating?: number | null;
+  includeYesNo?: boolean;
   yesNoAnswer: string | null | undefined;
   value: number | null | undefined;
   onChange: (rating: number) => void;
@@ -184,14 +184,16 @@ export function SelfAssessmentRatingPicker({
   fivePointVariant = 'stars',
   ratingSystem,
   tenPointYesMinRating,
+  fivePointYesMinRating,
+  includeYesNo = true,
   yesNoAnswer,
   value,
   onChange,
   disabled = false,
 }: SelfAssessmentRatingPickerProps) {
   const system: SelfAssessmentRatingSystem = ratingSystem === 'TEN_POINT' ? 'TEN_POINT' : 'FIVE_POINT';
-  const allowed = getRatingOptions(system, yesNoAnswer, tenPointYesMinRating);
-  const pickerDisabled = disabled || !yesNoAnswer;
+  const allowed = getRatingOptions(system, yesNoAnswer, tenPointYesMinRating, fivePointYesMinRating, includeYesNo);
+  const pickerDisabled = disabled || (includeYesNo && !yesNoAnswer);
 
   const body =
     system === 'TEN_POINT' ? (
