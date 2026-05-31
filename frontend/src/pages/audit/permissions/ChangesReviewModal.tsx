@@ -1,4 +1,3 @@
-import { useState } from 'react';
 import { Shield, Check, X, Loader2, AlertTriangle, Save } from 'lucide-react';
 import type { PendingChange } from './permissionHooks';
 

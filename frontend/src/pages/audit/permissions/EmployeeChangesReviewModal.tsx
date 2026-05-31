@@ -1,4 +1,3 @@
-import { useState } from 'react';
 import { Shield, Check, X, Minus, Loader2, AlertTriangle, Save } from 'lucide-react';
 import type { EmployeePendingChange } from './permissionHooks';
 

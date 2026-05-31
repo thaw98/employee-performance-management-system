@@ -11,6 +11,7 @@ import lombok.RequiredArgsConstructor;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.web.bind.annotation.*;
 
@@ -27,6 +28,7 @@ public class MeetingController {
     private final UserRepository userRepository;
 
     @PostMapping
+    @PreAuthorize("@permissionGuard.has('MEETINGS', 'schedule')")
     public ResponseEntity<ApiResponse<MeetingResponse>> scheduleMeeting(@RequestBody MeetingRequest request) {
         try {
             User user = getCurrentUser();
@@ -38,6 +40,7 @@ public class MeetingController {
     }
 
     @PostMapping("/request")
+    @PreAuthorize("@permissionGuard.has('MEETINGS', 'request')")
     public ResponseEntity<ApiResponse<MeetingResponse>> requestMeeting(@RequestBody MeetingRequest request) {
         try {
             User user = getCurrentUser();
@@ -49,6 +52,7 @@ public class MeetingController {
     }
 
     @GetMapping("/requestable-managers")
+    @PreAuthorize("@permissionGuard.has('MEETINGS', 'request')")
     public ResponseEntity<ApiResponse<List<Map<String, Object>>>> getRequestableManagers() {
         try {
             User user = getCurrentUser();
@@ -66,6 +70,7 @@ public class MeetingController {
     }
 
     @GetMapping("/history")
+    @PreAuthorize("@permissionGuard.has('MEETINGS', 'history')")
     public ResponseEntity<ApiResponse<Page<MeetingResponse>>> getMeetingHistory(
             @RequestParam(required = false) String statuses,
             @RequestParam(required = false) String searchName,
@@ -97,6 +102,7 @@ public class MeetingController {
     }
 
     @GetMapping("/manager")
+    @PreAuthorize("@permissionGuard.has('MEETINGS', 'view')")
     public ResponseEntity<ApiResponse<Page<MeetingResponse>>> getManagerMeetings(
             @RequestParam(required = false) String statuses,
             @RequestParam(required = false) String searchName,
@@ -150,6 +156,7 @@ public class MeetingController {
     }
 
     @GetMapping("/employee")
+    @PreAuthorize("@permissionGuard.has('MEETINGS', 'view')")
     public ResponseEntity<ApiResponse<Page<MeetingResponse>>> getEmployeeMeetings(
             @RequestParam(required = false) String statuses,
             @RequestParam(required = false) String searchName,
@@ -203,6 +210,7 @@ public class MeetingController {
     }
 
     @GetMapping("/eligible-employees")
+    @PreAuthorize("@permissionGuard.has('MEETINGS', 'schedule')")
     public ResponseEntity<ApiResponse<List<Map<String, Object>>>> getEligibleEmployees() {
         try {
             User user = getCurrentUser();
@@ -220,6 +228,7 @@ public class MeetingController {
     }
 
     @GetMapping("/hr-employees")
+    @PreAuthorize("@permissionGuard.has('MEETINGS', 'request')")
     public ResponseEntity<ApiResponse<List<Map<String, Object>>>> getHrEmployees() {
         try {
             User user = getCurrentUser();
@@ -238,6 +247,7 @@ public class MeetingController {
     }
 
     @GetMapping("/pip-follow-ups/{pipId}")
+    @PreAuthorize("@permissionGuard.has('MEETINGS', 'view')")
     public ResponseEntity<ApiResponse<List<PipFollowUpMeetingResponse>>> getPipFollowUpMeetings(@PathVariable Long pipId) {
         try {
             User user = getCurrentUser();
@@ -249,6 +259,7 @@ public class MeetingController {
     }
 
     @GetMapping("/{id}")
+    @PreAuthorize("@permissionGuard.has('MEETINGS', 'view')")
     public ResponseEntity<ApiResponse<MeetingResponse>> getMeetingDetails(@PathVariable Long id) {
         try {
             User user = getCurrentUser();
@@ -260,6 +271,7 @@ public class MeetingController {
     }
 
     @PutMapping("/{id}/accept")
+    @PreAuthorize("@permissionGuard.has('MEETINGS', 'view')")
     public ResponseEntity<ApiResponse<MeetingResponse>> acceptMeeting(@PathVariable Long id) {
         try {
             User user = getCurrentUser();
@@ -271,6 +283,7 @@ public class MeetingController {
     }
 
     @PutMapping("/{id}/decline")
+    @PreAuthorize("@permissionGuard.has('MEETINGS', 'view')")
     public ResponseEntity<ApiResponse<MeetingResponse>> declineMeeting(@PathVariable Long id) {
         try {
             User user = getCurrentUser();
@@ -282,6 +295,7 @@ public class MeetingController {
     }
 
     @PutMapping("/{id}/reschedule")
+    @PreAuthorize("@permissionGuard.has('MEETINGS', 'reschedule')")
     public ResponseEntity<ApiResponse<MeetingResponse>> requestReschedule(@PathVariable Long id,
             @RequestBody MeetingRescheduleRequest request) {
         try {
@@ -294,6 +308,7 @@ public class MeetingController {
     }
 
     @PutMapping("/{id}/accept-reschedule")
+    @PreAuthorize("@permissionGuard.has('MEETINGS', 'reschedule')")
     public ResponseEntity<ApiResponse<MeetingResponse>> acceptReschedule(@PathVariable Long id) {
         try {
             User user = getCurrentUser();
@@ -305,6 +320,7 @@ public class MeetingController {
     }
 
     @PutMapping("/{id}/status")
+    @PreAuthorize("@permissionGuard.has('MEETINGS', 'finish')")
     public ResponseEntity<ApiResponse<MeetingResponse>> updateStatus(@PathVariable Long id,
             @RequestBody MeetingStatusUpdateRequest request) {
         try {
@@ -317,6 +333,7 @@ public class MeetingController {
     }
 
     @PutMapping("/{id}/cancel")
+    @PreAuthorize("@permissionGuard.has('MEETINGS', 'cancel')")
     public ResponseEntity<ApiResponse<MeetingResponse>> cancelMeeting(@PathVariable Long id,
             @RequestBody MeetingCancelRequest request) {
         try {
@@ -329,6 +346,7 @@ public class MeetingController {
     }
 
     @PutMapping("/{id}/request-cancel")
+    @PreAuthorize("@permissionGuard.has('MEETINGS', 'cancel')")
     public ResponseEntity<ApiResponse<MeetingResponse>> requestCancel(@PathVariable Long id,
             @RequestBody MeetingCancelRequest request) {
         try {
@@ -341,6 +359,7 @@ public class MeetingController {
     }
 
     @PutMapping("/{id}/approve-cancel")
+    @PreAuthorize("@permissionGuard.has('MEETINGS', 'approve_cancel')")
     public ResponseEntity<ApiResponse<MeetingResponse>> approveCancel(@PathVariable Long id) {
         try {
             User user = getCurrentUser();
@@ -352,6 +371,7 @@ public class MeetingController {
     }
 
     @PutMapping("/{id}/reject-cancel")
+    @PreAuthorize("@permissionGuard.has('MEETINGS', 'approve_cancel')")
     public ResponseEntity<ApiResponse<MeetingResponse>> rejectCancel(@PathVariable Long id) {
         try {
             User user = getCurrentUser();
@@ -363,6 +383,7 @@ public class MeetingController {
     }
 
     @PutMapping("/{id}/finish")
+    @PreAuthorize("@permissionGuard.has('MEETINGS', 'finish')")
     public ResponseEntity<ApiResponse<MeetingResponse>> finishMeeting(@PathVariable Long id,
             @RequestBody MeetingFinishRequest request) {
         try {
@@ -375,6 +396,7 @@ public class MeetingController {
     }
 
     @GetMapping("/{id}/notes")
+    @PreAuthorize("@permissionGuard.has('MEETINGS', 'notes')")
     public ResponseEntity<ApiResponse<List<MeetingNoteResponse>>> getMeetingNotes(@PathVariable Long id) {
         try {
             User user = getCurrentUser();
@@ -386,6 +408,7 @@ public class MeetingController {
     }
 
     @PostMapping("/{id}/notes")
+    @PreAuthorize("@permissionGuard.has('MEETINGS', 'notes')")
     public ResponseEntity<ApiResponse<MeetingNoteResponse>> addMeetingNote(@PathVariable Long id,
             @RequestBody MeetingNoteRequest request) {
         try {

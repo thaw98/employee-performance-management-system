@@ -351,4 +351,101 @@ class PermissionServiceTest {
                 "Cannot modify permissions for audit-role employees"
         );
     }
+
+    @Test
+    void getUserPermissionsReturnsPositionPermissions() {
+        Position position = new Position();
+        position.setId(10L);
+        Employee employee = new Employee();
+        employee.setId(1L);
+        employee.setPosition(position);
+        Role role = new Role();
+        role.setId(4L);
+        User user = new User();
+        user.setRole(role);
+        user.setEmployee(employee);
+
+        PositionPermission posPerm = new PositionPermission();
+        posPerm.setAllowed(true);
+
+        when(userRepository.findById(99L)).thenReturn(Optional.of(user));
+        when(positionPermissionRepository.findByPositionIdOrderByModuleKeyAscActionKeyAsc(10L))
+                .thenReturn(java.util.List.of(posPerm));
+        posPerm.setModuleKey("KPI");
+        posPerm.setActionKey("view");
+        when(employeePermissionRepository.findByEmployeeId(1L)).thenReturn(java.util.Collections.emptyList());
+
+        com.epms.backend.dto.UserPermissionDto result = permissionService.getUserPermissions(99L);
+
+        assertThat(result.getPermissions()).containsKey("KPI");
+        assertThat(result.getPermissions().get("KPI")).containsEntry("view", true);
+    }
+
+    @Test
+    void getUserPermissionsMergesEmployeeAllowOverrideOnTopOfPositionDeny() {
+        Position position = new Position();
+        position.setId(10L);
+        Employee employee = new Employee();
+        employee.setId(1L);
+        employee.setPosition(position);
+        Role role = new Role();
+        role.setId(4L);
+        User user = new User();
+        user.setRole(role);
+        user.setEmployee(employee);
+
+        PositionPermission posPerm = new PositionPermission();
+        posPerm.setAllowed(false);
+        posPerm.setModuleKey("KPI");
+        posPerm.setActionKey("view");
+
+        EmployeePermission empOverride = new EmployeePermission();
+        empOverride.setAllowed(true);
+        empOverride.setModuleKey("KPI");
+        empOverride.setActionKey("view");
+
+        when(userRepository.findById(99L)).thenReturn(Optional.of(user));
+        when(positionPermissionRepository.findByPositionIdOrderByModuleKeyAscActionKeyAsc(10L))
+                .thenReturn(java.util.List.of(posPerm));
+        when(employeePermissionRepository.findByEmployeeId(1L))
+                .thenReturn(java.util.List.of(empOverride));
+
+        com.epms.backend.dto.UserPermissionDto result = permissionService.getUserPermissions(99L);
+
+        assertThat(result.getPermissions().get("KPI")).containsEntry("view", true);
+    }
+
+    @Test
+    void getUserPermissionsMergesEmployeeDenyOverrideOnTopOfPositionAllow() {
+        Position position = new Position();
+        position.setId(10L);
+        Employee employee = new Employee();
+        employee.setId(1L);
+        employee.setPosition(position);
+        Role role = new Role();
+        role.setId(4L);
+        User user = new User();
+        user.setRole(role);
+        user.setEmployee(employee);
+
+        PositionPermission posPerm = new PositionPermission();
+        posPerm.setAllowed(true);
+        posPerm.setModuleKey("KPI");
+        posPerm.setActionKey("view");
+
+        EmployeePermission empOverride = new EmployeePermission();
+        empOverride.setAllowed(false);
+        empOverride.setModuleKey("KPI");
+        empOverride.setActionKey("view");
+
+        when(userRepository.findById(99L)).thenReturn(Optional.of(user));
+        when(positionPermissionRepository.findByPositionIdOrderByModuleKeyAscActionKeyAsc(10L))
+                .thenReturn(java.util.List.of(posPerm));
+        when(employeePermissionRepository.findByEmployeeId(1L))
+                .thenReturn(java.util.List.of(empOverride));
+
+        com.epms.backend.dto.UserPermissionDto result = permissionService.getUserPermissions(99L);
+
+        assertThat(result.getPermissions().get("KPI")).containsEntry("view", false);
+    }
 }

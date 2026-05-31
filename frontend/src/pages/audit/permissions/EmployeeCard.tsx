@@ -1,7 +1,7 @@
 import { CheckSquare, XSquare, RotateCcw } from 'lucide-react';
 import { TriStateToggle } from './TriStateToggle';
 import { useEmployeePendingChanges } from './permissionHooks';
-import type { PermissionActionDto, EmployeePermissionRow, EmployeePermissionToggle } from '../../../features/permission/permissionApi';
+import type { PermissionActionDto, EmployeePermissionRow } from '../../../features/permission/permissionApi';
 
 interface EmployeeCardProps {
   employee: EmployeePermissionRow;
@@ -138,7 +138,7 @@ export function EmployeeCard({
               );
               const positionAllowed = perm?.positionAllowed ?? null;
               const currentOverride = perm?.override ?? null;
-              const effective = getEffective(
+              getEffective(
                 employee.employeeId,
                 action.moduleKey,
                 action.actionKey,

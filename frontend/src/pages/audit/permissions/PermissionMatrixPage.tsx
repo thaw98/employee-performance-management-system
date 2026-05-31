@@ -26,7 +26,6 @@ export default function PermissionMatrixPage() {
   const [showReviewModal, setShowReviewModal] = useState(false);
 
   const isAuthorized = user?.roleId === 1 || user?.roleId === 5;
-  const isAudit = user?.roleId === 5;
 
   const { changes, hasChanges, getEffective, toggle, setAll, clear, getChangesForModule } = usePendingChanges();
 
@@ -170,16 +169,51 @@ export default function PermissionMatrixPage() {
   const otherModuleChangesCount = changes.length - moduleChanges.length;
   const hasOtherModuleChanges = otherModuleChangesCount > 0;
 
+  const tabs = (
+    <div className="flex border-b border-slate-200 dark:border-slate-700">
+      <button
+        onClick={() => setActiveTab('groups')}
+        className={`flex items-center gap-2 px-5 py-3 text-sm font-medium border-b-2 transition-colors ${
+          activeTab === 'groups'
+            ? 'border-indigo-500 text-indigo-600 dark:text-indigo-400 dark:border-indigo-400'
+            : 'border-transparent text-slate-500 hover:text-slate-700 dark:text-slate-400 dark:hover:text-slate-300'
+        }`}
+      >
+        <Shield className="h-4 w-4" />
+        Groups
+      </button>
+      <button
+        onClick={() => setActiveTab('employees')}
+        className={`flex items-center gap-2 px-5 py-3 text-sm font-medium border-b-2 transition-colors ${
+          activeTab === 'employees'
+            ? 'border-indigo-500 text-indigo-600 dark:text-indigo-400 dark:border-indigo-400'
+            : 'border-transparent text-slate-500 hover:text-slate-700 dark:text-slate-400 dark:hover:text-slate-300'
+        }`}
+      >
+        <Users className="h-4 w-4" />
+        Employees
+      </button>
+    </div>
+  );
+
   if (activeTab === 'employees') {
-    return <EmployeePermissionTab />;
+    return (
+      <div className="space-y-5">
+        {tabs}
+        <EmployeePermissionTab />
+      </div>
+    );
   }
 
   if (isLoading) {
     return (
-      <div className="flex items-center justify-center min-h-[500px]">
-        <div className="flex flex-col items-center gap-3">
-          <Loader2 className="h-10 w-10 animate-spin text-indigo-500" />
-          <p className="text-sm text-slate-500 dark:text-slate-400">Loading permission matrix...</p>
+      <div className="space-y-5">
+        {tabs}
+        <div className="flex items-center justify-center min-h-[500px]">
+          <div className="flex flex-col items-center gap-3">
+            <Loader2 className="h-10 w-10 animate-spin text-indigo-500" />
+            <p className="text-sm text-slate-500 dark:text-slate-400">Loading permission matrix...</p>
+          </div>
         </div>
       </div>
     );
@@ -187,11 +221,14 @@ export default function PermissionMatrixPage() {
 
   if (!matrix) {
     return (
-      <div className="flex flex-col items-center justify-center py-24">
-        <div className="bg-white dark:bg-slate-800 rounded-xl border border-slate-200 dark:border-slate-700 p-12 text-center shadow-sm">
-          <AlertCircle className="h-16 w-16 text-slate-300 dark:text-slate-600 mx-auto mb-4" />
-          <h3 className="text-lg font-semibold text-slate-700 dark:text-slate-300 mb-1">No Data Available</h3>
-          <p className="text-sm text-slate-500 dark:text-slate-400">Permission data is not available</p>
+      <div className="space-y-5">
+        {tabs}
+        <div className="flex flex-col items-center justify-center py-24">
+          <div className="bg-white dark:bg-slate-800 rounded-xl border border-slate-200 dark:border-slate-700 p-12 text-center shadow-sm">
+            <AlertCircle className="h-16 w-16 text-slate-300 dark:text-slate-600 mx-auto mb-4" />
+            <h3 className="text-lg font-semibold text-slate-700 dark:text-slate-300 mb-1">No Data Available</h3>
+            <p className="text-sm text-slate-500 dark:text-slate-400">Permission data is not available</p>
+          </div>
         </div>
       </div>
     );
@@ -199,31 +236,7 @@ export default function PermissionMatrixPage() {
 
   return (
     <div className="space-y-5">
-      {/* Tabs */}
-      <div className="flex border-b border-slate-200 dark:border-slate-700">
-        <button
-          onClick={() => setActiveTab('groups')}
-          className={`flex items-center gap-2 px-5 py-3 text-sm font-medium border-b-2 transition-colors ${
-            activeTab === 'groups'
-              ? 'border-indigo-500 text-indigo-600 dark:text-indigo-400 dark:border-indigo-400'
-              : 'border-transparent text-slate-500 hover:text-slate-700 dark:text-slate-400 dark:hover:text-slate-300'
-          }`}
-        >
-          <Shield className="h-4 w-4" />
-          Groups
-        </button>
-        <button
-          onClick={() => setActiveTab('employees')}
-          className={`flex items-center gap-2 px-5 py-3 text-sm font-medium border-b-2 transition-colors ${
-            activeTab === 'employees'
-              ? 'border-indigo-500 text-indigo-600 dark:text-indigo-400 dark:border-indigo-400'
-              : 'border-transparent text-slate-500 hover:text-slate-700 dark:text-slate-400 dark:hover:text-slate-300'
-          }`}
-        >
-          <Users className="h-4 w-4" />
-          Employees
-        </button>
-      </div>
+      {tabs}
 
       {/* Sticky header bar */}
       <div className="sticky top-0 z-10 bg-slate-50/80 dark:bg-slate-900/80 backdrop-blur-md -mx-4 sm:-mx-6 lg:-mx-8 px-4 sm:px-6 lg:px-8 py-4 border-b border-slate-200/60 dark:border-slate-700/60">

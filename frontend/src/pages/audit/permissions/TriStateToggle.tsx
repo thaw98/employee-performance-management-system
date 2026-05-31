@@ -3,7 +3,7 @@ import { Check, X, Minus } from 'lucide-react';
 interface TriStateToggleProps {
   displayName: string;
   positionAllowed: boolean | null;
-  override: boolean | null;
+  override: boolean | null | undefined;
   isChanged: boolean;
   disabled?: boolean;
   onCycle: () => void;
