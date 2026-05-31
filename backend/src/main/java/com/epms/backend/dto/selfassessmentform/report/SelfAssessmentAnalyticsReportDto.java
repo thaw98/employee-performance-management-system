@@ -5,7 +5,6 @@ import java.util.List;
 public record SelfAssessmentAnalyticsReportDto(
         String role,
         CycleMetadata selectedCycle,
-        CycleMetadata previousCycle,
         OverallTotals overallTotals,
         GroupSummary highestDepartment,
         GroupSummary lowestDepartment,
@@ -84,8 +83,6 @@ public record SelfAssessmentAnalyticsReportDto(
             String positionName,
             double selectedCycleScore,
             String performance,
-            String status,
-            Double previousCycleScore,
-            Double previousCycleDelta
+            String status
     ) {}
 }

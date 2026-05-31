@@ -70,14 +70,11 @@ export interface EmployeeDirectoryRow {
   selectedCycleScore: number
   performance: string
   status: string
-  previousCycleScore: number | null
-  previousCycleDelta: number | null
 }
 
 export interface SelfAssessmentReportDto {
   role: 'hr' | 'manager' | string
   selectedCycle: CycleMetadata
-  previousCycle: CycleMetadata | null
   overallTotals: OverallTotals
   highestDepartment: GroupSummary | null
   lowestDepartment: GroupSummary | null

@@ -1,7 +1,7 @@
 import jsPDF from 'jspdf';
 import autoTable from 'jspdf-autotable';
 import { type PerformanceReportSummary } from '../features/performanceReport/performanceReportApi';
-import { addPdfFooterBranding, addPdfHeaderBranding, addPdfHeaderLogo, loadPdfLogo } from './pdfBranding';
+import { addPdfFooterBranding, addPdfHeaderBranding, addPdfHeaderLogo, getPdfHeaderTextX, loadPdfLogo } from './pdfBranding';
 
 const pageMargin = 0.3 * 25.4; // 7.62 mm
 const navy: [number, number, number] = [28, 40, 65];
@@ -25,20 +25,23 @@ export async function exportPerformanceReportListPdf(data: PerformanceReportSumm
   const pageHeight = doc.internal.pageSize.getHeight();
 
   const logoDataUrl = await loadPdfLogo();
+  const logoWidth = 24;
+  const logoHeight = 12;
+  const headerTextX = getPdfHeaderTextX(pageMargin, !!logoDataUrl, { logoWidth });
 
   // Header Banner
   doc.setFillColor(...navy);
   doc.rect(0, 0, pageWidth, 26, 'F');
   if (logoDataUrl) {
-    addPdfHeaderLogo(doc, logoDataUrl, { x: pageMargin, y: 5, width: 24, height: 12 });
+    addPdfHeaderLogo(doc, logoDataUrl, { x: pageMargin, y: 5, width: logoWidth, height: logoHeight });
   }
   doc.setTextColor(255, 255, 255);
   doc.setFont('helvetica', 'bold');
   doc.setFontSize(14);
-  doc.text('Performance Report Summary', pageMargin, 11);
+  doc.text('Performance Report Summary', headerTextX, 11);
   doc.setFont('helvetica', 'normal');
   doc.setFontSize(8);
-  doc.text('Official Employee Performance & Promotion Eligibility Record', pageMargin, 17);
+  doc.text('Official Employee Performance & Promotion Eligibility Record', headerTextX, 17);
 
   doc.setFont('helvetica', 'bold');
   doc.setFontSize(8.5);

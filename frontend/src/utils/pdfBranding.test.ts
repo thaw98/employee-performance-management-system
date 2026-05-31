@@ -1,5 +1,5 @@
 import { describe, expect, it, vi } from 'vitest'
-import { addPdfFooterBranding, addPdfHeaderBranding, addPdfHeaderLogo, PDF_CONFIDENTIAL_LABEL } from './pdfBranding'
+import { addPdfFooterBranding, addPdfHeaderBranding, addPdfHeaderLogo, getPdfHeaderTextX, PDF_CONFIDENTIAL_LABEL } from './pdfBranding'
 
 function createDocMock(width = 210, height = 297) {
   return {
@@ -32,6 +32,17 @@ describe('pdfBranding', () => {
     addPdfFooterBranding(doc as never, { margin: 14, y: 289 })
 
     expect(doc.text).toHaveBeenCalledWith(PDF_CONFIDENTIAL_LABEL, 105, 289, { align: 'center' })
+  })
+
+  describe('getPdfHeaderTextX', () => {
+    it('returns margin when no logo is present', () => {
+      expect(getPdfHeaderTextX(14, false)).toBe(14)
+    })
+
+    it('offsets text by logo width and gap when logo is present', () => {
+      expect(getPdfHeaderTextX(14, true)).toBe(41)
+      expect(getPdfHeaderTextX(14, true, { logoWidth: 30, gap: 5 })).toBe(49)
+    })
   })
 
   describe('addPdfHeaderLogo', () => {

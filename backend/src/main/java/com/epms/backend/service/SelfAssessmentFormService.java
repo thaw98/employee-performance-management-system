@@ -649,16 +649,13 @@ Instant now = Instant.now();
                             + request.deadlineDate().format(NOTIFICATION_DEADLINE_FORMAT),
                     "SELF_ASSESSMENT_FORM");
 
-            Employee manager = reportingManagerResolver.resolve(employee);
-            if (manager != null && manager.getUserAccount() != null) {
-                notificationService.send(
-                        manager.getUserAccount(),
-                        "New Self-Assessment Pending Your Review",
-                        "Employee " + employee.getEmployeeName() + " has a self-assessment form assigned. "
-                                + "Start Date: " + request.startDate().format(NOTIFICATION_DEADLINE_FORMAT)
-                                + ". Manager Review Deadline: " + request.managerReviewDeadlineDate().format(NOTIFICATION_DEADLINE_FORMAT),
-                        "SELF_ASSESSMENT_FORM");
-            }
+            resolveManagerRecipient(employee).ifPresent(manager -> notificationService.send(
+                    manager.getUserAccount(),
+                    "New Self-Assessment Pending Your Review",
+                    "Employee " + employee.getEmployeeName() + " has a self-assessment form assigned. "
+                            + "Start Date: " + request.startDate().format(NOTIFICATION_DEADLINE_FORMAT)
+                            + ". Manager Review Deadline: " + request.managerReviewDeadlineDate().format(NOTIFICATION_DEADLINE_FORMAT),
+                    "SELF_ASSESSMENT_FORM"));
         }
 
         auditService.record(
@@ -783,16 +780,13 @@ Instant now = Instant.now();
                             + request.deadlineDate().format(NOTIFICATION_DEADLINE_FORMAT),
                     "SELF_ASSESSMENT_FORM");
 
-            Employee manager = reportingManagerResolver.resolve(employee);
-            if (manager != null && manager.getUserAccount() != null) {
-                notificationService.send(
-                        manager.getUserAccount(),
-                        "New Self-Assessment Pending Your Review",
-                        "Employee " + employee.getEmployeeName() + " has a self-assessment form assigned. "
-                                + "Start Date: " + request.startDate().format(NOTIFICATION_DEADLINE_FORMAT)
-                                + ". Manager Review Deadline: " + request.managerReviewDeadlineDate().format(NOTIFICATION_DEADLINE_FORMAT),
-                        "SELF_ASSESSMENT_FORM");
-            }
+            resolveManagerRecipient(employee).ifPresent(manager -> notificationService.send(
+                    manager.getUserAccount(),
+                    "New Self-Assessment Pending Your Review",
+                    "Employee " + employee.getEmployeeName() + " has a self-assessment form assigned. "
+                            + "Start Date: " + request.startDate().format(NOTIFICATION_DEADLINE_FORMAT)
+                            + ". Manager Review Deadline: " + request.managerReviewDeadlineDate().format(NOTIFICATION_DEADLINE_FORMAT),
+                    "SELF_ASSESSMENT_FORM"));
         }
 
         if (assignmentMode == AssignmentMode.SPECIFIC_EMPLOYEES) {
@@ -3277,18 +3271,22 @@ Instant now = Instant.now();
             return Optional.empty();
         }
 
-        Employee directManager = employee.getManager();
-        if (directManager != null) {
-            return hasActiveUserAccount(directManager) ? Optional.of(directManager) : Optional.empty();
+        Employee reportingManager = reportingManagerResolver.resolve(employee);
+        if (reportingManager != null && hasActiveUserAccount(reportingManager)) {
+            return Optional.of(reportingManager);
         }
 
-        Long departmentManagerId = employee.getDepartment() != null
-                ? employee.getDepartment().getManagerId()
-                : null;
-        if (departmentManagerId == null) {
+        return resolveDepartmentManagerRecipient(employee);
+    }
+
+    private Optional<Employee> resolveDepartmentManagerRecipient(Employee employee) {
+        if (employee == null || employee.getDepartment() == null) {
             return Optional.empty();
         }
-
+        Long departmentManagerId = employee.getDepartment().getManagerId();
+        if (departmentManagerId == null || Objects.equals(employee.getId(), departmentManagerId)) {
+            return Optional.empty();
+        }
         return employeeRepository.findById(departmentManagerId)
                 .filter(this::hasActiveUserAccount);
     }

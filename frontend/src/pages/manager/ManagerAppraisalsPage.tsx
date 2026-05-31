@@ -19,7 +19,7 @@ import {
 } from 'lucide-react';
 import { formatCycleDate } from '../self-assessment-form/SelfAssessmentReviewCycleInfo';
 import { exportAppraisalPdf } from '../../utils/exportAppraisalPdf';
-import { addPdfFooterBranding, addPdfHeaderBranding, addPdfHeaderLogo, loadPdfLogo } from '../../utils/pdfBranding';
+import { addPdfFooterBranding, addPdfHeaderBranding, addPdfHeaderLogo, getPdfHeaderTextX, loadPdfLogo } from '../../utils/pdfBranding';
 import {
     appraisalGradientIcon,
     appraisalGradientBtn,
@@ -114,23 +114,26 @@ export const ManagerAppraisalsPage: React.FC = () => {
         const dateStr = formatCycleDate(new Date().toISOString().split('T')[0]);
 
         const logoDataUrl = await loadPdfLogo();
+        const margin = 15;
+        const logoWidth = 24;
+        const headerTextX = getPdfHeaderTextX(margin, !!logoDataUrl, { logoWidth });
 
         // Header
         doc.setFillColor(36, 99, 235);
         doc.rect(0, 0, 297, 40, 'F');
         if (logoDataUrl) {
-            addPdfHeaderLogo(doc, logoDataUrl, { x: 15, y: 5, width: 24, height: 12 });
+            addPdfHeaderLogo(doc, logoDataUrl, { x: margin, y: 5, width: logoWidth, height: 12 });
         }
         
         doc.setTextColor(255, 255, 255);
         doc.setFontSize(24);
         doc.setFont('helvetica', 'bold');
-        doc.text('PERFORMANCE SUMMARY REPORT', 15, 20);
+        doc.text('PERFORMANCE SUMMARY REPORT', headerTextX, 20);
         
         doc.setFontSize(10);
         doc.setFont('helvetica', 'normal');
-        doc.text(`Department: ${deptName.toUpperCase()}`, 15, 30);
-        doc.text(`Generated on: ${dateStr}`, 15, 35);
+        doc.text(`Department: ${deptName.toUpperCase()}`, headerTextX, 30);
+        doc.text(`Generated on: ${dateStr}`, headerTextX, 35);
         doc.text(`Filter: ${targetStatus === 'LOCKED' ? 'FINALIZED' : 'APPROVED'} | Position: ${filterPosition === 'ALL' ? 'ALL POSITIONS' : filterPosition.toUpperCase()}`, 282, 35, { align: 'right' });
         addPdfHeaderBranding(doc, { margin: 15, y: 12, textColor: [255, 255, 255] });
 

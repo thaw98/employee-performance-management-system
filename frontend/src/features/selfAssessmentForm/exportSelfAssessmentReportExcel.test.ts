@@ -65,7 +65,6 @@ vi.mock('xlsx-js-style', () => ({
 const report: SelfAssessmentReportDto = {
   role: 'manager',
   selectedCycle: { id: 7, name: 'Q2 2026 Review', startDate: '2026-04-01', endDate: '2026-06-30' },
-  previousCycle: { id: 6, name: 'Q1 2026 Review', startDate: '2026-01-01', endDate: '2026-03-31' },
   overallTotals: { recordCount: 3, averageScore: 72.25, highestScore: 95, lowestScore: 40, missedCount: 1 },
   highestDepartment: null,
   lowestDepartment: null,
@@ -86,8 +85,8 @@ const report: SelfAssessmentReportDto = {
     },
   ],
   employeeDirectory: [
-    { employeeId: 1, staffNo: 'EMP-1', employeeName: 'Alice', departmentId: 10, departmentName: 'Engineering', positionId: 20, positionName: 'Developer', selectedCycleScore: 95, performance: 'Outstanding', status: 'FINALIZED_LOCKED', previousCycleScore: 90, previousCycleDelta: 5 },
-    { employeeId: 2, staffNo: '', employeeName: 'Bob', departmentId: 10, departmentName: 'Engineering', positionId: 20, positionName: 'Developer', selectedCycleScore: 40, performance: '', status: 'NOT_SUBMITTED', previousCycleScore: null, previousCycleDelta: null },
+    { employeeId: 1, staffNo: 'EMP-1', employeeName: 'Alice', departmentId: 10, departmentName: 'Engineering', positionId: 20, positionName: 'Developer', selectedCycleScore: 95, performance: 'Outstanding', status: 'FINALIZED_LOCKED' },
+    { employeeId: 2, staffNo: '', employeeName: 'Bob', departmentId: 10, departmentName: 'Engineering', positionId: 20, positionName: 'Developer', selectedCycleScore: 40, performance: '', status: 'NOT_SUBMITTED' },
   ],
 }
 
@@ -116,12 +115,11 @@ describe('exportSelfAssessmentReportExcel', () => {
 
     expect(xlsxMock.appended.find((sheet) => sheet.name === 'Overview')?.rows).toContainEqual(['Cycle Name', 'Q2 2026 Review'])
     expect(xlsxMock.appended.find((sheet) => sheet.name === 'Overview')?.rows).toContainEqual(['Average', '72.3%'])
-    expect(xlsxMock.appended.find((sheet) => sheet.name === 'Overview')?.rows).toContainEqual(['Previous Cycle', 'Q1 2026 Review'])
     expect(xlsxMock.appended.find((sheet) => sheet.name === 'Department Summary')?.rows).toContainEqual(['Engineering', 2, '80.0%', '95.0%', '65.0%', 0])
     expect(xlsxMock.appended.find((sheet) => sheet.name === 'Position Summary')?.rows).toContainEqual(['Engineering', 'Developer', 2, '80.0%', '95.0%', '65.0%', 0])
     expect(xlsxMock.appended.find((sheet) => sheet.name === 'Performance Bands')?.rows).toContainEqual(['Engineering', 1, '33.3%', 1, '33.3%', 0, '0.0%', 0, '0.0%', 1, '33.3%'])
     expect(xlsxMock.appended.find((sheet) => sheet.name === 'Performer Highlights')?.rows).toContainEqual(['Engineering', 'Alice (95.0%)', 'Bob (40.0%)'])
-    expect(xlsxMock.appended.find((sheet) => sheet.name === 'Employee Directory')?.rows).toContainEqual(['EMP-1', 'Alice', 'Engineering', 'Developer', '95.0%', 'Outstanding', 'Finalized Locked', '90.0%', '+5.0%'])
-    expect(xlsxMock.appended.find((sheet) => sheet.name === 'Employee Directory')?.rows).toContainEqual(['-', 'Bob', 'Engineering', 'Developer', '40.0%', '-', 'Not Submitted', '-', '-'])
+    expect(xlsxMock.appended.find((sheet) => sheet.name === 'Employee Directory')?.rows).toContainEqual(['EMP-1', 'Alice', 'Engineering', 'Developer', '95.0%', 'Outstanding', 'Finalized Locked'])
+    expect(xlsxMock.appended.find((sheet) => sheet.name === 'Employee Directory')?.rows).toContainEqual(['-', 'Bob', 'Engineering', 'Developer', '40.0%', '-', 'Not Submitted'])
   })
 })

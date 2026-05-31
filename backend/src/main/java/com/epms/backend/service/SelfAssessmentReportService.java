@@ -68,7 +68,6 @@ public class SelfAssessmentReportService {
 
         ReviewCycle cycle = reviewCycleRepository.findById(cycleId)
                 .orElseThrow(() -> new IllegalArgumentException("Unknown review cycle"));
-        ReviewCycle previousCycle = findPreviousEmployeeSubmissionCycle(cycle);
 
         List<ReportRecord> records = selfAssessmentFormService.getScoreRecords(employee, roleId).stream()
                 .filter(record -> Objects.equals(record.cycleId(), cycleId))
@@ -77,17 +76,6 @@ public class SelfAssessmentReportService {
                 .sorted(Comparator.comparing(ReportRecord::groupName, Comparator.nullsLast(String::compareToIgnoreCase))
                         .thenComparing(ReportRecord::employeeName, Comparator.nullsLast(String::compareToIgnoreCase)))
                 .toList();
-
-        Map<Long, ReportRecord> previousByEmployeeId = previousCycle == null ? Map.of()
-                : selfAssessmentFormService.getScoreRecords(employee, roleId).stream()
-                .filter(record -> Objects.equals(record.cycleId(), previousCycle.getId()))
-                .filter(record -> roleId == 1L || roleId == 5L || isInManagerCurrentDepartment(record, employee))
-                .map(this::toReportRecord)
-                .filter(record -> record.employeeId() != null)
-                .collect(java.util.stream.Collectors.toMap(
-                        ReportRecord::employeeId,
-                        Function.identity(),
-                        (left, right) -> left));
 
         boolean isCompanyWide = roleId == 1L || roleId == 5L;
         List<SelfAssessmentAnalyticsReportDto.GroupSummary> departmentSummaries = buildGroupSummaries(
@@ -112,7 +100,6 @@ public class SelfAssessmentReportService {
         return new SelfAssessmentAnalyticsReportDto(
                 isCompanyWide ? "hr" : "manager",
                 toCycleMetadata(cycle),
-                previousCycle == null ? null : toCycleMetadata(previousCycle),
                 buildOverallTotals(records),
                 isCompanyWide && !rankedDepartments.isEmpty() ? rankedDepartments.get(0) : null,
                 isCompanyWide && !rankedDepartments.isEmpty() ? rankedDepartments.get(rankedDepartments.size() - 1) : null,
@@ -120,7 +107,7 @@ public class SelfAssessmentReportService {
                 positionSummaries,
                 buildRadar(records, isCompanyWide ? ReportRecord::departmentName : ReportRecord::positionName),
                 buildHighlights(records, isCompanyWide ? ReportRecord::departmentName : ReportRecord::positionName),
-                buildEmployeeDirectory(records, previousByEmployeeId));
+                buildEmployeeDirectory(records));
     }
 
     @Transactional
@@ -158,26 +145,6 @@ public class SelfAssessmentReportService {
                 Double.isNaN(highest) ? "" : formatScore(highest),
                 Double.isNaN(lowest) ? "" : formatScore(lowest),
                 rows);
-    }
-
-    private ReviewCycle findPreviousEmployeeSubmissionCycle(ReviewCycle selectedCycle) {
-        return reviewCycleRepository.findAll().stream()
-                .filter(ReviewCycle::isRequiresEmployeeSubmission)
-                .filter(c -> !Objects.equals(c.getId(), selectedCycle.getId()))
-                .filter(c -> {
-                    if (selectedCycle.getStartDate() != null && c.getEndDate() != null) {
-                        return c.getEndDate().isBefore(selectedCycle.getStartDate());
-                    }
-                    if (selectedCycle.getStartDate() != null && c.getStartDate() != null) {
-                        return c.getStartDate().isBefore(selectedCycle.getStartDate());
-                    }
-                    return c.getId() != null && selectedCycle.getId() != null && c.getId() < selectedCycle.getId();
-                })
-                .max(Comparator
-                        .comparing(ReviewCycle::getEndDate, Comparator.nullsFirst(Comparator.naturalOrder()))
-                        .thenComparing(ReviewCycle::getStartDate, Comparator.nullsFirst(Comparator.naturalOrder()))
-                        .thenComparing(ReviewCycle::getId, Comparator.nullsFirst(Comparator.naturalOrder())))
-                .orElse(null);
     }
 
     private boolean isInManagerCurrentDepartment(ScoreRecordDto record, Employee manager) {
@@ -286,26 +253,19 @@ public class SelfAssessmentReportService {
     }
 
     private List<SelfAssessmentAnalyticsReportDto.EmployeeDirectoryRow> buildEmployeeDirectory(
-            List<ReportRecord> records,
-            Map<Long, ReportRecord> previousByEmployeeId) {
+            List<ReportRecord> records) {
         return records.stream()
-                .map(record -> {
-                    ReportRecord previous = previousByEmployeeId.get(record.employeeId());
-                    Double previousScore = previous == null ? null : previous.score();
-                    return new SelfAssessmentAnalyticsReportDto.EmployeeDirectoryRow(
-                            record.employeeId(),
-                            record.staffNo(),
-                            record.employeeName(),
-                            record.departmentId(),
-                            record.departmentName(),
-                            record.positionId(),
-                            record.positionName(),
-                            record.score(),
-                            record.performance(),
-                            record.status(),
-                            previousScore,
-                            previousScore == null ? null : round1(record.score() - previousScore));
-                })
+                .map(record -> new SelfAssessmentAnalyticsReportDto.EmployeeDirectoryRow(
+                        record.employeeId(),
+                        record.staffNo(),
+                        record.employeeName(),
+                        record.departmentId(),
+                        record.departmentName(),
+                        record.positionId(),
+                        record.positionName(),
+                        record.score(),
+                        record.performance(),
+                        record.status()))
                 .sorted(Comparator.comparing(SelfAssessmentAnalyticsReportDto.EmployeeDirectoryRow::employeeName, Comparator.nullsLast(String::compareToIgnoreCase)))
                 .toList();
     }

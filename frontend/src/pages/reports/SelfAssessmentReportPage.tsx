@@ -32,11 +32,6 @@ function statusLabel(value: string) {
   return value.replace(/_/g, ' ').toLowerCase().replace(/\b\w/g, (char) => char.toUpperCase())
 }
 
-function deltaLabel(value: number | null) {
-  if (value == null) return '-'
-  return `${value >= 0 ? '+' : ''}${value.toFixed(1)}%`
-}
-
 type MetricTone = 'blue' | 'violet' | 'green' | 'amber' | 'rose' | 'indigo' | 'cyan'
 
 const METRIC_TONE_CLASSNAMES: Record<MetricTone, string> = {
@@ -134,12 +129,11 @@ function EmployeeDirectoryTable({ rows }: { rows: EmployeeDirectoryRow[] }) {
               <th className="px-4 py-3 text-right">Score</th>
               <th className="px-4 py-3 text-left">Performance</th>
               <th className="px-4 py-3 text-left">Status</th>
-              <th className="px-4 py-3 text-right">Previous Data</th>
             </tr>
           </thead>
           <tbody className="divide-y divide-slate-100 dark:divide-slate-800">
             {rows.length === 0 ? (
-              <tr><td colSpan={8} className="px-4 py-8 text-center text-slate-400">No employees match the current filters.</td></tr>
+              <tr><td colSpan={7} className="px-4 py-8 text-center text-slate-400">No employees match the current filters.</td></tr>
             ) : rows.map((row) => (
               <tr key={`${row.employeeId}-${row.staffNo}`}>
                 <td className="px-4 py-3">{row.staffNo || '-'}</td>
@@ -149,7 +143,6 @@ function EmployeeDirectoryTable({ rows }: { rows: EmployeeDirectoryRow[] }) {
                 <td className="px-4 py-3 text-right font-semibold">{formatScore(row.selectedCycleScore)}</td>
                 <td className="px-4 py-3">{row.performance || '-'}</td>
                 <td className="px-4 py-3">{statusLabel(row.status)}</td>
-                <td className="px-4 py-3 text-right font-semibold">{deltaLabel(row.previousCycleDelta)}</td>
               </tr>
             ))}
           </tbody>
