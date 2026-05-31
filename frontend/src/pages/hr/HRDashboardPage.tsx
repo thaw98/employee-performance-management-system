@@ -12,6 +12,7 @@ import {
 
 import axios from '../../app/axiosInstance'
 import { getNotificationSourceLabel } from '../../features/notification/notificationSourceLabels'
+import { usePermissionState } from '../../features/permission'
 
 type NameValue = {
   name: string
@@ -142,7 +143,10 @@ function SummaryCardView({ card }: { card: SummaryCard }) {
   )
 }
 
+const UPCOMING_MEETING_STATUSES = 'PENDING,ACCEPTED,RESCHEDULE_REQUESTED,RESCHEDULE_MGR,CANCEL_REQUESTED,ONGOING'
+
 export function HRDashboardPage() {
+  const { isReady, canViewMeetings } = usePermissionState()
   const [summary, setSummary] = useState<HrDashboardSummary | null>(null)
   const [meetings, setMeetings] = useState<MeetingItem[]>([])
   const [activities, setActivities] = useState<ActivityItem[]>([])
@@ -152,6 +156,8 @@ export function HRDashboardPage() {
   const [activityError, setActivityError] = useState('')
 
   useEffect(() => {
+    if (!isReady) return
+
     let active = true
 
     const loadDashboard = async () => {
@@ -160,42 +166,61 @@ export function HRDashboardPage() {
       setMeetingError('')
       setActivityError('')
 
-      const meetingStatuses = 'PENDING,ACCEPTED,RESCHEDULE_REQUESTED,RESCHEDULE_MGR,CANCEL_REQUESTED,ONGOING'
-      const [summaryResult, managerMeetingsResult, employeeMeetingsResult, activityResult] = await Promise.allSettled([
+      const showMeetings = canViewMeetings()
+      const requests: Promise<unknown>[] = [
         axios.get('/hr/dashboard'),
-        axios.get(`/meetings/manager?statuses=${meetingStatuses}&page=0&size=8&sortBy=oldest`),
-        axios.get(`/meetings/employee?statuses=${meetingStatuses}&page=0&size=8&sortBy=oldest`),
         axios.get('/notifications?status=all&page=0&size=10'),
-      ])
+      ]
+      if (showMeetings) {
+        requests.splice(
+          1,
+          0,
+          axios.get(`/meetings/manager?statuses=${UPCOMING_MEETING_STATUSES}&page=0&size=8&sortBy=oldest`),
+          axios.get(`/meetings/employee?statuses=${UPCOMING_MEETING_STATUSES}&page=0&size=8&sortBy=oldest`),
+        )
+      }
+
+      const results = await Promise.allSettled(requests)
+      const summaryResult = results[0]
+      const managerMeetingsResult = showMeetings ? results[1] : null
+      const employeeMeetingsResult = showMeetings ? results[2] : null
+      const activityResult = results[showMeetings ? 3 : 1]
 
       if (!active) return
 
       if (summaryResult.status === 'fulfilled') {
         setSummary(summaryResult.value.data?.data ?? null)
       } else {
-        setSummaryError(summaryResult.reason?.response?.data?.message || 'Unable to load HR dashboard summary.')
+        const reason = summaryResult.reason as { response?: { data?: { message?: string } } }
+        setSummaryError(reason?.response?.data?.message || 'Unable to load HR dashboard summary.')
       }
 
-      const loadedMeetings: MeetingItem[] = []
-      if (managerMeetingsResult.status === 'fulfilled') {
-        loadedMeetings.push(...(managerMeetingsResult.value.data?.data?.content ?? []))
+      if (showMeetings) {
+        const loadedMeetings: MeetingItem[] = []
+        if (managerMeetingsResult?.status === 'fulfilled' && managerMeetingsResult.value.data?.success !== false) {
+          loadedMeetings.push(...(managerMeetingsResult.value.data?.data?.content ?? []))
+        }
+        if (employeeMeetingsResult?.status === 'fulfilled' && employeeMeetingsResult.value.data?.success !== false) {
+          loadedMeetings.push(...(employeeMeetingsResult.value.data?.data?.content ?? []))
+        }
+        if (managerMeetingsResult?.status === 'rejected' && employeeMeetingsResult?.status === 'rejected') {
+          const reason = managerMeetingsResult.reason as { response?: { data?: { message?: string } } }
+          setMeetingError(reason?.response?.data?.message || 'Unable to load your upcoming meetings.')
+        }
+        setMeetings(
+          Array.from(new Map(loadedMeetings.map((meeting) => [meeting.id, meeting])).values())
+            .sort((a, b) => new Date(a.scheduledTime || a.meetingTime || '').getTime() - new Date(b.scheduledTime || b.meetingTime || '').getTime())
+            .slice(0, 5),
+        )
+      } else {
+        setMeetings([])
       }
-      if (employeeMeetingsResult.status === 'fulfilled') {
-        loadedMeetings.push(...(employeeMeetingsResult.value.data?.data?.content ?? []))
-      }
-      if (managerMeetingsResult.status === 'rejected' && employeeMeetingsResult.status === 'rejected') {
-        setMeetingError('Unable to load your upcoming meetings.')
-      }
-      setMeetings(
-        Array.from(new Map(loadedMeetings.map((meeting) => [meeting.id, meeting])).values())
-          .sort((a, b) => new Date(a.scheduledTime || a.meetingTime || '').getTime() - new Date(b.scheduledTime || b.meetingTime || '').getTime())
-          .slice(0, 5),
-      )
 
       if (activityResult.status === 'fulfilled') {
         setActivities(activityResult.value.data?.data?.content ?? [])
       } else {
-        setActivityError(activityResult.reason?.response?.data?.message || 'Unable to load recent activity.')
+        const reason = activityResult.reason as { response?: { data?: { message?: string } } }
+        setActivityError(reason?.response?.data?.message || 'Unable to load recent activity.')
       }
 
       setIsLoading(false)
@@ -205,7 +230,7 @@ export function HRDashboardPage() {
     return () => {
       active = false
     }
-  }, [])
+  }, [isReady, canViewMeetings])
 
   const summaryCards: SummaryCard[] = [
     {
