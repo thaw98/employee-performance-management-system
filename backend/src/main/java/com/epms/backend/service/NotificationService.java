@@ -26,7 +26,8 @@ public class NotificationService {
             "SELF_ASSESSMENT_FORM",
             "FAQ_SUPPORT",
             "TRANSFER",
-            "CONTINUOUS_FEEDBACK");
+            "CONTINUOUS_FEEDBACK",
+            "PROMOTION");
 
     private final NotificationRepository notificationRepository;
     private final WebSocketNotificationService webSocketNotificationService;

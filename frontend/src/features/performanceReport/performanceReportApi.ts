@@ -37,6 +37,8 @@ export interface PromotionProposalResponse {
   requesterName: string;
   departmentId: number;
   departmentName: string;
+  targetDepartmentId: number | null;
+  targetDepartmentName: string | null;
   effectiveDate: string;
   remarks: string;
   status: 'PENDING' | 'APPROVED' | 'REJECTED';
