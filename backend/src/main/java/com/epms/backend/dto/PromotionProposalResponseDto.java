@@ -24,6 +24,8 @@ public class PromotionProposalResponseDto {
     private String requesterName;
     private Long departmentId;
     private String departmentName;
+    private Long targetDepartmentId;
+    private String targetDepartmentName;
     private LocalDate effectiveDate;
     private String remarks;
     private String status;

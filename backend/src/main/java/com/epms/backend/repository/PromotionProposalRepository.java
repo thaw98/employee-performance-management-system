@@ -29,4 +29,12 @@ public interface PromotionProposalRepository extends JpaRepository<PromotionProp
            "JOIN FETCH p.requester " +
            "JOIN FETCH p.department")
     List<PromotionProposal> findAllWithDetails();
+    @Query("SELECT p FROM PromotionProposal p " +
+           "JOIN FETCH p.employee e " +
+           "JOIN FETCH p.targetPosition " +
+           "JOIN FETCH p.requester " +
+           "JOIN FETCH p.department " +
+           "WHERE p.employee.id = :employeeId AND p.status = 'APPROVED' " +
+           "ORDER BY p.updatedAt DESC")
+    List<PromotionProposal> findLatestApprovedByEmployee(@Param("employeeId") Long employeeId);
 }

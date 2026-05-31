@@ -46,7 +46,7 @@ public class PromotionController {
     }
 
     @GetMapping("/pending")
-    @PreAuthorize("hasRole('MANAGER')")
+    @PreAuthorize("hasAnyRole('DEPARTMENT_HEAD', 'MANAGER')")
     public ResponseEntity<ApiResponse<List<PromotionProposalResponseDto>>> getPendingProposals(
             @AuthenticationPrincipal UserPrincipal manager) {
         List<PromotionProposalResponseDto> proposals = promotionService.getPendingProposals(manager);
@@ -54,7 +54,7 @@ public class PromotionController {
     }
 
     @GetMapping("/proposals")
-    @PreAuthorize("hasAnyRole('HR', 'MANAGER')")
+    @PreAuthorize("hasAnyRole('HR', 'DEPARTMENT_HEAD', 'MANAGER')")
     public ResponseEntity<ApiResponse<List<PromotionProposalResponseDto>>> getProposalsHistory(
             @AuthenticationPrincipal UserPrincipal user) {
         List<PromotionProposalResponseDto> proposals = promotionService.getProposalsHistory(user);
@@ -62,7 +62,7 @@ public class PromotionController {
     }
 
     @PostMapping("/proposals/{id}/approve")
-    @PreAuthorize("hasRole('MANAGER')")
+    @PreAuthorize("hasAnyRole('DEPARTMENT_HEAD', 'MANAGER')")
     public ResponseEntity<ApiResponse<Void>> approveProposal(
             @PathVariable Long id,
             @AuthenticationPrincipal UserPrincipal actor) {
@@ -71,7 +71,7 @@ public class PromotionController {
     }
 
     @PostMapping("/proposals/{id}/reject")
-    @PreAuthorize("hasRole('MANAGER')")
+    @PreAuthorize("hasAnyRole('DEPARTMENT_HEAD', 'MANAGER')")
     public ResponseEntity<ApiResponse<Void>> rejectProposal(
             @PathVariable Long id,
             @AuthenticationPrincipal UserPrincipal actor) {
@@ -85,5 +85,12 @@ public class PromotionController {
             @PathVariable Long employeeId) {
         List<PositionDto> positions = promotionService.getAvailablePositions(employeeId);
         return ResponseEntity.ok(ApiResponse.ok("Success", positions));
+    }
+
+    @GetMapping("/latest-approved")
+    public ResponseEntity<ApiResponse<PromotionProposalResponseDto>> getLatestApprovedPromotion(
+            @AuthenticationPrincipal UserPrincipal user) {
+        PromotionProposalResponseDto proposal = promotionService.getLatestApprovedPromotionForEmployee(user.getEmployeeDbId());
+        return ResponseEntity.ok(ApiResponse.ok("Success", proposal));
     }
 }

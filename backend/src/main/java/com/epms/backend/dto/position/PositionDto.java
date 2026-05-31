@@ -22,4 +22,7 @@ public class PositionDto {
 	private String roleName;
 	private Instant createdDate;
 	private Instant updatedDate;
+	private Long departmentId;
+	private String departmentName;
+	private Boolean recommended;
 }
