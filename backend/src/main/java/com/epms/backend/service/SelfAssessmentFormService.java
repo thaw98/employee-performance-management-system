@@ -4,12 +4,15 @@ import com.epms.backend.StaffTypes;
 import com.epms.backend.audit.AuditActionType;
 import com.epms.backend.audit.AuditTargetType;
 import com.epms.backend.dto.selfassessmentform.*;
+import com.epms.backend.dto.score.ScoreExplanationDto;
 import com.epms.backend.entity.*;
 import com.epms.backend.repository.*;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import com.fasterxml.jackson.core.JsonProcessingException;
+import com.fasterxml.jackson.databind.ObjectMapper;
 import java.time.Instant;
 import java.time.LocalDate;
 import java.time.ZoneId;
@@ -19,6 +22,7 @@ import java.util.Comparator;
 import java.util.EnumSet;
 import java.util.HashMap;
 import java.util.HashSet;
+import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
@@ -69,6 +73,8 @@ public class SelfAssessmentFormService {
 	    private final ReportingManagerResolver reportingManagerResolver;
 	    private final SelfAssessmentUnlockRequestRepository unlockRequestRepository;
 	    private final SelfAssessmentArchiveSnapshotRepository archiveSnapshotRepository;
+    private final ScoreExplanationRepository scoreExplanationRepository;
+    private static final ObjectMapper SNAPSHOT_MAPPER = new ObjectMapper();
 	    @Autowired(required = false)
 	    private ScoreExplanationResolver scoreExplanationResolver;
 	    @Autowired(required = false)
@@ -92,7 +98,8 @@ public class SelfAssessmentFormService {
 	            SelfAssessmentSettingsRepository settingsRepository,
 	            ReportingManagerResolver reportingManagerResolver,
 	            SelfAssessmentUnlockRequestRepository unlockRequestRepository,
-	            SelfAssessmentArchiveSnapshotRepository archiveSnapshotRepository) {
+	            SelfAssessmentArchiveSnapshotRepository archiveSnapshotRepository,
+	            ScoreExplanationRepository scoreExplanationRepository) {
         this.templateRepository = templateRepository;
         this.copiedTemplateRepository = copiedTemplateRepository;
         this.formRepository = formRepository;
@@ -111,6 +118,7 @@ public class SelfAssessmentFormService {
 	        this.reportingManagerResolver = reportingManagerResolver;
 	        this.unlockRequestRepository = unlockRequestRepository;
 	        this.archiveSnapshotRepository = archiveSnapshotRepository;
+        this.scoreExplanationRepository = scoreExplanationRepository;
 	    }
 
     @Transactional
@@ -2377,6 +2385,7 @@ Instant now = Instant.now();
         form.setAssignedBy(assignedBy);
         form.setStatus(SelfAssessmentFormStatus.DRAFT);
         form.setCreatedDate(assignedAt);
+        form.setScoreBandSnapshot(buildScoreBandSnapshot());
 
         List<SelfAssessmentFormTemplateQuestion> activeQuestions = template.getQuestions().stream()
                 .filter(q -> q.getDeletedAt() == null)
@@ -2389,6 +2398,26 @@ Instant now = Instant.now();
             form.addAnswer(answer);
         }
         return form;
+    }
+
+    private String buildScoreBandSnapshot() {
+        try {
+            List<ScoreExplanation> rows = scoreExplanationRepository
+                    .findByModuleOrderBySortOrderAsc(ScoreExplanationModule.SELF_ASSESSMENT);
+            List<Map<String, Object>> snapshot = rows.stream().map(row -> {
+                Map<String, Object> entry = new LinkedHashMap<>();
+                entry.put("sortOrder", row.getSortOrder());
+                entry.put("minScore", row.getMinScore());
+                entry.put("maxScore", row.getMaxScore());
+                entry.put("title", row.getTitle());
+                entry.put("details", row.getDetails());
+                entry.put("module", row.getModule().name());
+                return entry;
+            }).collect(Collectors.toList());
+            return SNAPSHOT_MAPPER.writeValueAsString(snapshot);
+        } catch (JsonProcessingException e) {
+            throw new RuntimeException("Failed to serialize score band snapshot", e);
+        }
     }
 
     private enum AssignmentMode {
@@ -3818,8 +3847,36 @@ Instant now = Instant.now();
                 form.getHrReviewReasonAt(),
                 hrName,
                 buildSubmissionAttempts(form),
-                pendingUnlockRequestDto(form)
+                pendingUnlockRequestDto(form),
+                parseScoreBandSnapshot(form.getScoreBandSnapshot())
         );
+    }
+
+    private List<ScoreExplanationDto> parseScoreBandSnapshot(String json) {
+        if (json == null || json.isBlank()) {
+            return null;
+        }
+        try {
+            List<Map<String, Object>> rows = SNAPSHOT_MAPPER.readValue(json,
+                    SNAPSHOT_MAPPER.getTypeFactory().constructCollectionType(List.class, Map.class));
+            return rows.stream()
+                    .map(row -> new ScoreExplanationDto(
+                            null,
+                            (String) row.get("module"),
+                            (Integer) row.get("sortOrder"),
+                            (Integer) row.get("minScore"),
+                            (Integer) row.get("maxScore"),
+                            (String) row.get("title"),
+                            (String) row.get("details"),
+                            null,
+                            null,
+                            null,
+                            null
+                    ))
+                    .collect(Collectors.toList());
+        } catch (JsonProcessingException e) {
+            throw new RuntimeException("Failed to parse score band snapshot", e);
+        }
     }
 
     private SelfAssessmentUnlockRequestDto pendingUnlockRequestDto(SelfAssessmentForm form) {

@@ -57,6 +57,7 @@ import {
   type SelfAssessmentUnlockHrApproveReasonCode,
 } from '../../features/selfAssessmentForm/api/selfAssessmentFormApi';
 import { getRatingOptions, isRatingValidForAnswer } from '../../features/selfAssessmentForm/ratingSystem';
+import { SelfAssessmentScoreBandTable } from '../../features/selfAssessmentForm/components/SelfAssessmentScoreBandTable';
 import { SelfAssessmentSignatureGrid } from '../../features/selfAssessmentForm/components/SelfAssessmentSignatureGrid';
 import { YesNoRatingDisplay } from '../../features/selfAssessmentForm/components/YesNoRatingDisplay';
 import { exportSelfAssessmentReviewPdf } from '../../features/selfAssessmentForm/exportSelfAssessmentReviewPdf';
@@ -70,6 +71,7 @@ import { formatDateDayMonthYear, formatDateTimeWithSeconds } from '../../utils/d
 import { RemarkCommentHeader } from '../../features/selfAssessmentForm/components/RemarkCommentHeader';
 import { useSelector } from 'react-redux';
 import { Link, useLocation, useNavigate, useParams } from 'react-router-dom';
+import { useGetScoreExplanationsQuery } from '../../features/scoreExplanation/scoreExplanationApi';
 import type { RootState } from '../../app/store';
 
 function getStatusConfig(status: string) {
@@ -444,6 +446,13 @@ export const SelfAssessmentFormReviewPage: React.FC<SelfAssessmentFormReviewPage
   const [hrApproveForm, { isLoading: isApproving }] = useHrApproveFormMutation();
   const [hrReopenForm, { isLoading: isReopening }] = useHrReopenFormMutation();
   const [unlockSelfAssessmentRequest, { isLoading: isUnlocking }] = useUnlockSelfAssessmentRequestMutation();
+
+  const { data: scoreExplanationsByModule, isLoading: scoreBandsLoading, isError: scoreBandsError } = useGetScoreExplanationsQuery();
+  const scoreBands = useMemo(() => {
+    if (selectedForm?.scoreBandSnapshot) return selectedForm.scoreBandSnapshot
+    if (scoreExplanationsByModule?.SELF_ASSESSMENT) return scoreExplanationsByModule.SELF_ASSESSMENT
+    return null
+  }, [selectedForm?.scoreBandSnapshot, scoreExplanationsByModule])
 
   const [showRejectModal, setShowRejectModal] = useState(false);
   const [showApprovalModal, setShowApprovalModal] = useState(false);
@@ -1403,6 +1412,12 @@ Review Submissions
                   )}
                 </div>
               )}
+
+              <SelfAssessmentScoreBandTable
+                bands={scoreBands}
+                loading={scoreBandsLoading}
+                error={scoreBandsError}
+              />
 
               <div className="rounded-xl border border-slate-200/60 bg-white p-5 shadow-sm dark:border-slate-700/60 dark:bg-slate-800/80 animate-fade-in-up" style={{ animationDelay: '120ms' }}>
                 <div className="flex items-center gap-2 mb-4">

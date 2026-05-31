@@ -206,6 +206,15 @@ export interface AdjustmentDto {
   adjustedBy: number
 }
 
+export interface ScoreExplanationSnapshot {
+  sortOrder: number
+  minScore: number
+  maxScore: number
+  title: string
+  details: string
+  module: string
+}
+
 export interface SelfAssessmentFormDto {
   id: number
   templateId: number
@@ -276,6 +285,7 @@ export interface SelfAssessmentFormDto {
   hrName: string | null
   submissionAttempts: SelfAssessmentSubmissionAttemptDto[]
   pendingUnlockRequest?: SelfAssessmentUnlockRequestDto | null
+  scoreBandSnapshot?: ScoreExplanationSnapshot[] | null
 }
 
 export interface FormListDto {
@@ -810,6 +820,15 @@ const normalizeUnlockRequest = (request: unknown): SelfAssessmentUnlockRequestDt
   }
 }
 
+const normalizeScoreExplanationSnapshot = (source: UnknownRecord): ScoreExplanationSnapshot => ({
+  sortOrder: getNumber(source.sortOrder),
+  minScore: getNumber(source.minScore),
+  maxScore: getNumber(source.maxScore),
+  title: getString(source.title),
+  details: getString(source.details),
+  module: getString(source.module),
+})
+
 const normalizeAdjustment = (source: UnknownRecord): AdjustmentDto => {
   return {
     id: getNumber(source.id),
@@ -899,6 +918,9 @@ const normalizeForm = (form: unknown): SelfAssessmentFormDto => {
     hrName: getOptionalString(source.hrName) ?? null,
     submissionAttempts: getArray(source.submissionAttempts).map(a => normalizeSubmissionAttempt(isRecord(a) ? a : {})),
     pendingUnlockRequest: source.pendingUnlockRequest ? normalizeUnlockRequest(source.pendingUnlockRequest) : null,
+    scoreBandSnapshot: source.scoreBandSnapshot != null
+      ? getArray(source.scoreBandSnapshot).map(s => normalizeScoreExplanationSnapshot(isRecord(s) ? s : {}))
+      : null,
   }
 }
 

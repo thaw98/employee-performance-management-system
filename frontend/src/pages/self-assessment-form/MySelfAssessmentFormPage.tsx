@@ -42,8 +42,10 @@ import {
   type SelfAssessmentUnlockReasonCode,
 } from '../../features/selfAssessmentForm/api/selfAssessmentFormApi';
 import { useGetDefaultSignatureQuery } from '../../features/user/userApi';
+import { useGetScoreExplanationsQuery } from '../../features/scoreExplanation/scoreExplanationApi';
 import { isRatingValidForAnswer } from '../../features/selfAssessmentForm/ratingSystem';
 import { SelfAssessmentRatingPicker } from '../../features/selfAssessmentForm/components/SelfAssessmentRatingPicker';
+import { SelfAssessmentScoreBandTable } from '../../features/selfAssessmentForm/components/SelfAssessmentScoreBandTable';
 import { SelfAssessmentSignatureGrid } from '../../features/selfAssessmentForm/components/SelfAssessmentSignatureGrid';
 import {
   InlineDefaultSignaturePad,
@@ -425,6 +427,13 @@ export const MySelfAssessmentFormPage: React.FC = () => {
   const [employeeDispute, { isLoading: isDisputing }] = useEmployeeDisputeMutation();
   const [employeeRetakeSubmit, { isLoading: isSubmittingRetake }] = useEmployeeRetakeSubmitMutation();
   const [requestUnlock, { isLoading: isRequestingUnlock }] = useRequestSelfAssessmentUnlockMutation();
+
+  const { data: scoreExplanationsByModule, isLoading: scoreBandsLoading, isError: scoreBandsError } = useGetScoreExplanationsQuery();
+  const scoreBands = useMemo(() => {
+    if (formData?.scoreBandSnapshot) return formData.scoreBandSnapshot
+    if (scoreExplanationsByModule?.SELF_ASSESSMENT) return scoreExplanationsByModule.SELF_ASSESSMENT
+    return null
+  }, [formData?.scoreBandSnapshot, scoreExplanationsByModule])
 
   const form = useForm<AnswerFormData>({
     defaultValues: {
@@ -870,6 +879,13 @@ export const MySelfAssessmentFormPage: React.FC = () => {
           <ProgressBar current={answeredCount} total={totalCount} />
         </div>
       )}
+
+      {/* ───── Score Band Reference ───── */}
+      <SelfAssessmentScoreBandTable
+        bands={scoreBands}
+        loading={scoreBandsLoading}
+        error={scoreBandsError}
+      />
 
       {/* ───── Read-only Banner ───── */}
       {isRetakeMode && (

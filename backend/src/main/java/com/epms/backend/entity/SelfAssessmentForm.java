@@ -185,6 +185,9 @@ public class SelfAssessmentForm {
     @Column(name = "assessment_date")
     private LocalDate assessmentDate;
 
+    @Column(name = "score_band_snapshot", columnDefinition = "TEXT")
+    private String scoreBandSnapshot;
+
     @OneToMany(mappedBy = "form", cascade = CascadeType.ALL, orphanRemoval = true)
     private List<SelfAssessmentFormAnswer> answers = new ArrayList<>();
 
