@@ -24,7 +24,7 @@ import { AuditDashboard } from './pages/audit/AuditDashboard';
 import { AuditLogsPage } from './pages/audit/AuditLogsPage';
 import { AuditActivityPage } from './pages/audit/AuditActivityPage';
 import { AuditFeedbackEvaluateeHistoryPage, AuditFeedbackHistoryPage } from './pages/audit/AuditFeedbackHistoryPage';
-import PermissionMatrixPage from './pages/audit/PermissionMatrixPage';
+import PermissionMatrixPage from './pages/audit/permissions';
 // Dashboard Pages - Using the correct file names from your project
 import { HRDashboardPage } from './pages/hr/HRDashboardPage';
 import { ManagerDashboardPage } from './pages/manager/ManagerDashboardPage';
