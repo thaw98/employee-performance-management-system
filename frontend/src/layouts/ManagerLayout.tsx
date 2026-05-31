@@ -22,6 +22,7 @@ import {
   Briefcase,
   MessageSquare,
   Plus,
+  ArrowUpRight,
 } from 'lucide-react';
 import { Outlet } from 'react-router-dom';
 import { useSelector } from 'react-redux';
@@ -114,6 +115,7 @@ const ManagerLayout: React.FC = () => {
           subItems: [
             { label: 'Team Feedback', path: '/manager/continuous-feedback', icon: <MessageSquare size={16} />, permission: { moduleKey: 'CONTINUOUS_FEEDBACK', actionKey: 'view' } },
             { label: 'New Feedback', path: '/manager/continuous-feedback/create', icon: <Plus size={16} />, permission: { moduleKey: 'CONTINUOUS_FEEDBACK', actionKey: 'create' } },
+            { label: 'Upward Feedback', path: '/manager/upward-feedback', icon: <ArrowUpRight size={16} />, permission: { moduleKey: 'CONTINUOUS_FEEDBACK', actionKey: 'view' } },
           ],
         },
         {

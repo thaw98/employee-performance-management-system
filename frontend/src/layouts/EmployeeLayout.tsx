@@ -12,6 +12,7 @@ import {
   ClipboardList,
   BarChart,
   MessageSquare,
+  ArrowUpRight,
 } from 'lucide-react';
 import { Outlet } from 'react-router-dom';
 import { useSelector } from 'react-redux';
@@ -83,6 +84,7 @@ const EmployeeLayout: React.FC = () => {
           ],
         },
         { label: 'My Continuous Feedback', path: '/employee/continuous-feedback', icon: <MessageSquare size={18} />, permission: { moduleKey: 'CONTINUOUS_FEEDBACK', actionKey: 'view' } },
+        { label: 'Upward Feedback', path: '/employee/upward-feedback', icon: <ArrowUpRight size={18} />, permission: { moduleKey: 'CONTINUOUS_FEEDBACK', actionKey: 'view' } },
         { label: 'My PIPs', path: '/employee/pip', icon: <TrendingUp size={18} />, permission: { moduleKey: 'PIP', actionKey: 'view' } },
         ...(isEmployeeRole ? [selfAssessmentItem] : []),
       ],

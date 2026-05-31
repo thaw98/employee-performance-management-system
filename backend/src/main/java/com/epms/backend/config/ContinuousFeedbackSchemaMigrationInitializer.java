@@ -132,6 +132,68 @@ public class ContinuousFeedbackSchemaMigrationInitializer implements BeanPostPro
                 """);
             log.info("Created continuous_feedback_pip_link table");
         }
+
+        if (!tableExists(jdbc, "upward_feedback")) {
+            jdbc.execute("""
+                CREATE TABLE upward_feedback (
+                    feedback_id BIGINT AUTO_INCREMENT PRIMARY KEY,
+                    employee_id BIGINT NOT NULL,
+                    manager_id BIGINT NOT NULL,
+                    message TEXT NOT NULL,
+                    status VARCHAR(20) NOT NULL DEFAULT 'OPEN',
+                    closed_at DATETIME(6) NULL,
+                    closed_by_user_id BIGINT NULL,
+                    created_at DATETIME(6) NOT NULL,
+                    updated_at DATETIME(6) NULL,
+                    created_by_user_id BIGINT NOT NULL,
+                    updated_by_user_id BIGINT NULL,
+                    CONSTRAINT fk_uf_employee FOREIGN KEY (employee_id) REFERENCES employee(employee_id),
+                    CONSTRAINT fk_uf_manager FOREIGN KEY (manager_id) REFERENCES employee(employee_id),
+                    CONSTRAINT fk_uf_created_by FOREIGN KEY (created_by_user_id) REFERENCES user_account(user_id),
+                    CONSTRAINT fk_uf_updated_by FOREIGN KEY (updated_by_user_id) REFERENCES user_account(user_id),
+                    CONSTRAINT fk_uf_closed_by FOREIGN KEY (closed_by_user_id) REFERENCES user_account(user_id),
+                    INDEX idx_uf_employee (employee_id),
+                    INDEX idx_uf_manager (manager_id),
+                    INDEX idx_uf_status (status),
+                    INDEX idx_uf_employee_status (employee_id, status),
+                    INDEX idx_uf_manager_status (manager_id, status)
+                ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
+                """);
+            log.info("Created upward_feedback table");
+        }
+
+        if (!tableExists(jdbc, "upward_feedback_reply")) {
+            jdbc.execute("""
+                CREATE TABLE upward_feedback_reply (
+                    reply_id BIGINT AUTO_INCREMENT PRIMARY KEY,
+                    feedback_id BIGINT NOT NULL,
+                    author_employee_id BIGINT NOT NULL,
+                    message TEXT NOT NULL,
+                    created_at DATETIME(6) NOT NULL,
+                    CONSTRAINT fk_ufr_feedback FOREIGN KEY (feedback_id) REFERENCES upward_feedback(feedback_id),
+                    CONSTRAINT fk_ufr_author FOREIGN KEY (author_employee_id) REFERENCES employee(employee_id),
+                    INDEX idx_ufr_feedback (feedback_id)
+                ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
+                """);
+            log.info("Created upward_feedback_reply table");
+        }
+
+        if (!tableExists(jdbc, "upward_feedback_history")) {
+            jdbc.execute("""
+                CREATE TABLE upward_feedback_history (
+                    history_id BIGINT AUTO_INCREMENT PRIMARY KEY,
+                    feedback_id BIGINT NOT NULL,
+                    actor_employee_id BIGINT NOT NULL,
+                    event_type VARCHAR(30) NOT NULL,
+                    description VARCHAR(500) NULL,
+                    created_at DATETIME(6) NOT NULL,
+                    CONSTRAINT fk_ufh_feedback FOREIGN KEY (feedback_id) REFERENCES upward_feedback(feedback_id),
+                    CONSTRAINT fk_ufh_actor FOREIGN KEY (actor_employee_id) REFERENCES employee(employee_id),
+                    INDEX idx_ufh_feedback (feedback_id)
+                ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
+                """);
+            log.info("Created upward_feedback_history table");
+        }
     }
 
     private static boolean tableExists(JdbcTemplate jdbc, String tableName) {
