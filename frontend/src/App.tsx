@@ -119,9 +119,6 @@ import ContinuousFeedbackCreatePage from './pages/continuous-feedback/Continuous
 import ContinuousFeedbackDetailPage from './pages/continuous-feedback/ContinuousFeedbackDetailPage';
 import ContinuousFeedbackDashboardPage from './pages/continuous-feedback/ContinuousFeedbackDashboardPage';
 import EmployeeContinuousFeedbackPage from './pages/continuous-feedback/EmployeeContinuousFeedbackPage';
-import UpwardFeedbackPage from './pages/continuous-feedback/UpwardFeedbackPage';
-import UpwardFeedbackCreatePage from './pages/continuous-feedback/UpwardFeedbackCreatePage';
-import UpwardFeedbackDetailPage from './pages/continuous-feedback/UpwardFeedbackDetailPage';
 import { usePermissionState } from './features/permission';
 
 const TOAST_DEDUP_MS = 600;
@@ -280,8 +277,6 @@ function App() {
             <Route path="continuous-feedback" element={gated('CONTINUOUS_FEEDBACK', 'view', <ContinuousFeedbackPage />)} />
             <Route path="continuous-feedback/dashboard" element={gated('CONTINUOUS_FEEDBACK', 'report', <ContinuousFeedbackDashboardPage />)} />
             <Route path="continuous-feedback/:feedbackId" element={gated('CONTINUOUS_FEEDBACK', 'view', <ContinuousFeedbackDetailPage />)} />
-            <Route path="upward-feedback" element={gated('CONTINUOUS_FEEDBACK', 'view', <UpwardFeedbackPage />)} />
-            <Route path="upward-feedback/:feedbackId" element={gated('CONTINUOUS_FEEDBACK', 'view', <UpwardFeedbackDetailPage />)} />
             <Route path="*" element={<Navigate to="/hr/dashboard" replace />} />
           </Route>
         </Route>
@@ -337,8 +332,6 @@ function App() {
             <Route path="continuous-feedback" element={gated('CONTINUOUS_FEEDBACK', 'view', <ContinuousFeedbackPage />)} />
             <Route path="continuous-feedback/create" element={gated('CONTINUOUS_FEEDBACK', 'create', <ContinuousFeedbackCreatePage />)} />
             <Route path="continuous-feedback/:feedbackId" element={gated('CONTINUOUS_FEEDBACK', 'view', <ContinuousFeedbackDetailPage />)} />
-            <Route path="upward-feedback" element={gated('CONTINUOUS_FEEDBACK', 'view', <UpwardFeedbackPage />)} />
-            <Route path="upward-feedback/:feedbackId" element={gated('CONTINUOUS_FEEDBACK', 'view', <UpwardFeedbackDetailPage />)} />
             <Route path="*" element={<Navigate to="/manager/dashboard" replace />} />
           </Route>
         </Route>
@@ -375,9 +368,6 @@ function App() {
             <Route path="reports/feedback" element={gated('REPORTS', 'feedback_report', <FeedbackReportPage mode="employee" />)} />
             <Route path="continuous-feedback" element={gated('CONTINUOUS_FEEDBACK', 'view', <EmployeeContinuousFeedbackPage />)} />
             <Route path="continuous-feedback/:feedbackId" element={gated('CONTINUOUS_FEEDBACK', 'view', <ContinuousFeedbackDetailPage />)} />
-            <Route path="upward-feedback" element={gated('CONTINUOUS_FEEDBACK', 'view', <UpwardFeedbackPage />)} />
-            <Route path="upward-feedback/create" element={gated('CONTINUOUS_FEEDBACK', 'create', <UpwardFeedbackCreatePage />)} />
-            <Route path="upward-feedback/:feedbackId" element={gated('CONTINUOUS_FEEDBACK', 'view', <UpwardFeedbackDetailPage />)} />
             <Route path="*" element={<Navigate to="/employee/dashboard" replace />} />
           </Route>
         </Route>
@@ -422,8 +412,6 @@ function App() {
             <Route path="continuous-feedback" element={<ContinuousFeedbackPage />} />
             <Route path="continuous-feedback/dashboard" element={<ContinuousFeedbackDashboardPage />} />
             <Route path="continuous-feedback/:feedbackId" element={<ContinuousFeedbackDetailPage />} />
-            <Route path="upward-feedback" element={<UpwardFeedbackPage />} />
-            <Route path="upward-feedback/:feedbackId" element={<UpwardFeedbackDetailPage />} />
             <Route path="logs" element={<AuditLogsPage />} />
             <Route path="activity-monitor" element={<AuditActivityPage />} />
             <Route path="permissions" element={<PermissionMatrixPage />} />
