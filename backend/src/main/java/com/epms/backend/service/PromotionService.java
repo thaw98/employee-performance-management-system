@@ -132,7 +132,7 @@ public class PromotionService {
                 employeeUser,
                 "Promotion Notification",
                 "Congratulations! You have been promoted to " + newPosition.getName() + " effective " + req.getEffectiveDate() + ".",
-                "GENERAL",
+                "PROMOTION",
                 employeeId
             );
         }
@@ -152,7 +152,7 @@ public class PromotionService {
                             deptMgr.getUserAccount(),
                             "Employee Promoted",
                             employee.getEmployeeName() + " has been promoted to " + newPosition.getName() + " effective " + req.getEffectiveDate() + ".",
-                            "GENERAL",
+                            "PROMOTION",
                             employeeId
                         );
                     }
@@ -163,7 +163,7 @@ public class PromotionService {
                 manager.getUserAccount(),
                 "Employee Promoted",
                 employee.getEmployeeName() + " has been promoted to " + newPosition.getName() + " effective " + req.getEffectiveDate() + ".",
-                "GENERAL",
+                "PROMOTION",
                 employeeId
             );
         }
@@ -301,7 +301,7 @@ public class PromotionService {
                     managerUser,
                     "New Promotion Proposal",
                     "A promotion proposal has been submitted for " + employee.getEmployeeName() + " to " + newPosition.getName() + ". Please review and action it.",
-                    "GENERAL",
+                    "PROMOTION",
                     proposal.getId()
                 );
             });
@@ -436,7 +436,7 @@ public class PromotionService {
                 proposal.getRequester(),
                 "Promotion Approved",
                 "The promotion proposal for " + employee.getEmployeeName() + " to " + newPosition.getName() + " has been APPROVED.",
-                "GENERAL",
+                "PROMOTION",
                 proposal.getId()
             );
         }
@@ -448,7 +448,7 @@ public class PromotionService {
                 employeeUser,
                 "Promotion Notification",
                 "Congratulations! You have been promoted to " + newPosition.getName() + " effective " + proposal.getEffectiveDate() + ".",
-                "GENERAL",
+                "PROMOTION",
                 employee.getId()
             );
         }
@@ -482,7 +482,7 @@ public class PromotionService {
                 proposal.getRequester(),
                 "Promotion Rejected",
                 "The promotion proposal for " + proposal.getEmployee().getEmployeeName() + " to " + proposal.getTargetPosition().getName() + " has been REJECTED.",
-                "GENERAL",
+                "PROMOTION",
                 proposal.getId()
             );
         }
@@ -530,14 +530,16 @@ public class PromotionService {
         }
         List<Employee> deptEmployees = employeeRepository.findByDepartmentId(dept.getId());
         for (Employee emp : deptEmployees) {
-            if (!emp.getId().equals(promotedEmployee.getId()) && emp.getUserAccount() != null) {
-                notificationService.send(
-                    emp.getUserAccount(),
-                    "Department Promotion Announcement",
-                    promotedEmployee.getEmployeeName() + " has been promoted to " + newPosition.getName() + " effective " + effectiveDate + ".",
-                    "GENERAL",
-                    proposalId
-                );
+            if (!emp.getId().equals(promotedEmployee.getId())) {
+                userRepository.findByEmployee_Id(emp.getId()).ifPresent(empUser -> {
+                    notificationService.send(
+                        empUser,
+                        "Department Promotion Announcement",
+                        promotedEmployee.getEmployeeName() + " has been promoted to " + newPosition.getName() + " effective " + effectiveDate + ".",
+                        "PROMOTION",
+                        proposalId
+                    );
+                });
             }
         }
     }

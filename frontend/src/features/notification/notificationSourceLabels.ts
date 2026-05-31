@@ -6,6 +6,7 @@ export const NOTIFICATION_SOURCE_LABELS: Record<string, string> = {
   PIP: 'PIP',
   SELF_ASSESSMENT_FORM: 'Self-Assessment',
   TRANSFER: 'Transfer',
+  PROMOTION: 'Promotion',
 };
 
 export function getNotificationSourceLabel(source: string): string {
