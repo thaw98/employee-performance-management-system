@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from 'react'
+import { useEffect, useMemo, useRef, useState } from 'react'
 import { useLocation, useNavigate, useParams, Link } from 'react-router-dom'
 import {
   useGetPipByIdQuery,
@@ -9,6 +9,7 @@ import {
   useEndActivePipSessionsMutation,
   useClosePipMutation,
   useManualClosePipMutation,
+  useExtendPipDateMutation,
   useEmployeeSignMutation,
   useManagerSignMutation,
   useMarkPipCompletedMutation,
@@ -62,6 +63,24 @@ const toDisplayDateFromIso = (value: string) => {
   return `${day}/${month}/${year}`
 }
 
+const PIP_HOURS_LIMIT_MESSAGE = 'Cannot update PIP hours because the total PIP hours exceed the allowed completion time. Please extend the PIP date instead.'
+
+const getPipDurationDays = (startDate?: string, endDate?: string) => {
+  if (!startDate || !endDate) return 1
+  const start = new Date(`${startDate}T00:00:00Z`).getTime()
+  const end = new Date(`${endDate}T00:00:00Z`).getTime()
+  if (!Number.isFinite(start) || !Number.isFinite(end)) return 1
+  return Math.max(1, Math.round((end - start) / 86400000))
+}
+
+const addDaysToIsoDate = (value?: string, days = 1) => {
+  if (!value) return ''
+  const date = new Date(`${value}T00:00:00Z`)
+  if (Number.isNaN(date.getTime())) return ''
+  date.setUTCDate(date.getUTCDate() + days)
+  return date.toISOString().slice(0, 10)
+}
+
 export default function PipDetailPage() {
   const { id } = useParams<{ id: string }>()
   const pipId = parseInt(id!)
@@ -88,6 +107,9 @@ export default function PipDetailPage() {
 
   const [showCloseModal, setShowCloseModal] = useState(false)
   const [closeData, setCloseData] = useState({ finalOutcome: '', closingRemarks: '' })
+  const [showExtendDateModal, setShowExtendDateModal] = useState(false)
+  const [pipExtendedEndDate, setPipExtendedEndDate] = useState('')
+  const extendDatePickerRef = useRef<HTMLInputElement | null>(null)
   const [showEmployeeSignModal, setShowEmployeeSignModal] = useState(false)
   const [showManagerSignModal, setShowManagerSignModal] = useState(false)
 
@@ -101,6 +123,7 @@ export default function PipDetailPage() {
   const [reviewReasonType, setReviewReasonType] = useState('Policy Not Met')
   const [reviewCustomReason, setReviewCustomReason] = useState('')
   const [actionError, setActionError] = useState<string | null>(null)
+  const [showHoursLimitModal, setShowHoursLimitModal] = useState(false)
   const [timerNow, setTimerNow] = useState(() => Date.now())
 
   const userRole = user?.role?.toUpperCase().replace(/\s+/g, '_') || ''
@@ -121,6 +144,11 @@ export default function PipDetailPage() {
 
   const selectedObjective = pip?.objectives.find((objective) => objective.id === showUpdateModal.objectiveId)
   const hasActivePipTimer = Boolean(isEmployee && pip?.objectives.some((objective) => objective.timerRunning))
+  const effectiveEndDate = pip?.extendedEndDate || pip?.endDate
+  const pipDurationDays = getPipDurationDays(pip?.startDate, effectiveEndDate)
+  const allowedPipHours = pipDurationDays * 5
+  const summedObjectiveHours = pip?.objectives.reduce((sum, objective) => sum + Number(objective.totalHours ?? 0), 0) ?? 0
+  const summaryAutoCloseDate = addDaysToIsoDate(pip?.extendedEndDate || pip?.originalEndDate || pip?.endDate)
 
   useEffect(() => {
     if (!hasActivePipTimer) return
@@ -223,6 +251,7 @@ export default function PipDetailPage() {
   }, [oneOnOnePipMeetings])
   const [closePip] = useClosePipMutation()
   const [manualClosePip, { isLoading: isManualClosing }] = useManualClosePipMutation()
+  const [extendPipDate, { isLoading: isExtendingPipDate }] = useExtendPipDateMutation()
   const [employeeSign, { isLoading: isSigningEmployee }] = useEmployeeSignMutation()
   const [managerSign, { isLoading: isSigningManager }] = useManagerSignMutation()
   const [markPipCompleted, { isLoading: isMarkingCompleted }] = useMarkPipCompletedMutation()
@@ -344,6 +373,7 @@ export default function PipDetailPage() {
     && Boolean(pip.employeeSignatureDate)
     && Boolean(pip.managerSignatureDate)
   const canAddCommunicationNote = pip.status === 'ACTIVE' && (isEmployee || isDirectManager)
+  const minPipExtendedDate = addDaysToIsoDate(effectiveEndDate)
   const goToPipMeetingScheduler = () => {
     const employeeRecordId = pip.employee.employee?.id
     const employeeName = pip.employee.employee?.employeeName
@@ -376,6 +406,10 @@ export default function PipDetailPage() {
         setActionError('A note is required when increasing PIP hours.')
         return
       }
+      if (summedObjectiveHours + updateValue.additionalHours > allowedPipHours) {
+        setShowHoursLimitModal(true)
+        return
+      }
 
       try {
         setActionError(null)
@@ -388,8 +422,15 @@ export default function PipDetailPage() {
         setUpdateValue({ additionalHours: 0, note: '' })
       } catch (error) {
         console.error('[PIP Detail] Increase objective hours failed:', error)
-        setActionError(getActionErrorMessage(error, 'Failed to increase objective hours.'))
+        const message = getActionErrorMessage(error, 'Failed to increase objective hours.')
+        if (message === PIP_HOURS_LIMIT_MESSAGE) {
+          setShowHoursLimitModal(true)
+        } else {
+          setActionError(message)
+        }
       }
+    } else {
+      setActionError('Select an objective before increasing PIP hours.')
     }
   }
 
@@ -439,6 +480,32 @@ export default function PipDetailPage() {
     } catch (error) {
       console.error('[PIP Detail] Manual close failed:', error)
       setActionError(getActionErrorMessage(error, 'Failed to manually close PIP.'))
+    }
+  }
+
+  const handleExtendPipDate = async () => {
+    const extendedEndDateIso = toIsoDate(pipExtendedEndDate)
+    if (!pipExtendedEndDate.trim()) {
+      setActionError('Extended end date is required.')
+      return
+    }
+    if (!extendedEndDateIso) {
+      setActionError('Extended end date must be in dd/mm/yyyy format.')
+      return
+    }
+    if (minPipExtendedDate && extendedEndDateIso < minPipExtendedDate) {
+      setActionError('Extended end date must be after the current PIP end date.')
+      return
+    }
+
+    try {
+      setActionError(null)
+      await extendPipDate({ pipId, extendedEndDate: extendedEndDateIso }).unwrap()
+      setShowExtendDateModal(false)
+      setPipExtendedEndDate('')
+    } catch (error) {
+      console.error('[PIP Detail] Extend PIP date failed:', error)
+      setActionError(getActionErrorMessage(error, 'Failed to extend PIP date.'))
     }
   }
 
@@ -555,20 +622,22 @@ export default function PipDetailPage() {
             <i className="bi bi-chevron-left" />
           </Link>
           <div>
-            <h1 className="text-2xl font-bold text-slate-900">PIP Details: {pip.employee.employee?.employeeName}</h1>
-            <p className="text-slate-500">
-              Employee ID: {pip.employee.employee?.id ?? '—'} |
-              Dept: {pip.employee.employee?.department?.departmentName || '—'} |
-              Position: {pip.employee.employee?.position?.positionName || '—'} |
-              Duration: {formatDate(pip.startDate)} – {formatDate(pip.endDate)} |
-              Status: <span className={`inline-flex rounded-md px-2 py-0.5 text-xs font-semibold uppercase ${getStatusClass(pip.status)}`}>{getStatusLabel(pip.status)}</span>
-            </p>
+            <h1 className="text-2xl font-bold text-slate-900">PIP Details</h1>
           </div>
         </div>
 
         <div className="flex gap-3">
           {isDirectManager && pip.status === 'ACTIVE' && (
             <>
+              <button
+                onClick={() => {
+                  setPipExtendedEndDate('')
+                  setShowExtendDateModal(true)
+                }}
+                className="flex items-center gap-2 rounded-lg bg-[#2463eb] px-4 py-2 text-sm font-medium text-white hover:bg-[#1d4ed8]"
+              >
+                <i className="bi bi-plus-circle" /> Extend PIP Date
+              </button>
               <button
                 onClick={goToPipMeetingScheduler}
                 className="flex items-center gap-2 rounded-lg border border-slate-200 bg-white px-4 py-2 text-sm font-medium text-slate-700 hover:bg-slate-50"
@@ -685,7 +754,7 @@ export default function PipDetailPage() {
                         }}
                         className="shrink-0 text-sm font-semibold text-[#2463eb] hover:text-[#1e40af]"
                       >
-                        Increase Hours
+                        Extend Hour
                       </button>
                     )}
                   </div>
@@ -881,6 +950,35 @@ export default function PipDetailPage() {
         {/* Sidebar Info Section */}
         <div className="space-y-8 lg:sticky lg:top-6 lg:self-start">
           <section className="rounded-xl border border-slate-200 bg-white p-6 shadow-sm">
+            <h2 className="mb-4 text-sm font-bold uppercase tracking-wider text-slate-400">PIP Person Details</h2>
+            <div className="rounded-lg border border-slate-100 bg-slate-50 p-4">
+              <div className="flex items-start gap-3">
+                <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-full bg-[#dbeafe] text-[#2463eb]">
+                  <i className="bi bi-person" />
+                </div>
+                <div className="min-w-0">
+                  <p className="break-words text-base font-bold text-slate-900">{pip.employee.employee?.employeeName || pip.employee.email || 'N/A'}</p>
+                  <p className="mt-1 text-xs text-slate-500">Staff ID: {pip.employee.employeeId || '-'}</p>
+                </div>
+              </div>
+              <div className="mt-4 grid grid-cols-1 gap-3 text-sm">
+                <div>
+                  <p className="text-xs text-slate-500">Department</p>
+                  <p className="font-medium text-slate-800">{pip.employee.employee?.department?.departmentName || '-'}</p>
+                </div>
+                <div>
+                  <p className="text-xs text-slate-500">Position</p>
+                  <p className="font-medium text-slate-800">{pip.employee.employee?.position?.positionName || pip.employee.employee?.positionName || '-'}</p>
+                </div>
+                <div>
+                  <p className="text-xs text-slate-500">Assigned Manager</p>
+                  <p className="font-medium text-slate-800">{pip.manager.employee?.employeeName || pip.manager.email || '-'}</p>
+                </div>
+              </div>
+            </div>
+          </section>
+
+          <section className="rounded-xl border border-slate-200 bg-white p-6 shadow-sm">
             <h2 className="mb-4 text-sm font-bold uppercase tracking-wider text-slate-400">PIP Summary</h2>
             <div className="space-y-4">
               <div>
@@ -903,16 +1001,16 @@ export default function PipDetailPage() {
                 <p className="text-xs text-slate-500">Original End Date</p>
                 <p className="font-medium text-slate-800">{formatDate(pip.originalEndDate || pip.endDate)}</p>
               </div>
-              {pip.autoCloseDate && (
-                <div>
-                  <p className="text-xs text-slate-500">Auto-Close Date</p>
-                  <p className="font-medium text-amber-700">{formatDate(pip.autoCloseDate)}</p>
-                </div>
-              )}
               {pip.extendedEndDate && (
                 <div>
                   <p className="text-xs text-slate-500">Extended End Date</p>
                   <p className="font-medium text-[#1d4ed8]">{formatDate(pip.extendedEndDate)}</p>
+                </div>
+              )}
+              {summaryAutoCloseDate && (
+                <div>
+                  <p className="text-xs text-slate-500">Auto-Close Date</p>
+                  <p className="font-medium text-amber-700">{formatDate(summaryAutoCloseDate)}</p>
                 </div>
               )}
               {pip.finalCloseDate && (
@@ -934,6 +1032,13 @@ export default function PipDetailPage() {
                   <p className="text-xs text-slate-500">Completed</p>
                   <p className="text-lg font-bold text-[#2463eb]">{pip.completedHours}</p>
                 </div>
+              </div>
+              <div className="rounded-lg border border-slate-100 bg-slate-50 p-3">
+                <div className="flex justify-between gap-3 text-sm">
+                  <span className="text-slate-500">Allowed Completion Time</span>
+                  <strong className="text-slate-900">{formatHours(allowedPipHours)} hours</strong>
+                </div>
+                <p className="mt-1 text-xs text-slate-500">{pipDurationDays} PIP days x 5 hours/day</p>
               </div>
               {pip.finalOutcome && (
                 <>
@@ -1015,8 +1120,31 @@ export default function PipDetailPage() {
       {showUpdateModal.open && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4">
           <div className="w-full max-w-md rounded-xl bg-white p-6 shadow-xl">
-            <h3 className="mb-4 text-lg font-bold">Increase Objective Hours</h3>
+            <h3 className="mb-4 text-lg font-bold">Extend Hour</h3>
             <div className="space-y-4">
+              <div className="rounded-lg border border-slate-200 bg-slate-50 p-3 text-xs text-slate-600">
+                <div className="flex justify-between gap-3">
+                  <span>Allowed PIP Hours</span>
+                  <strong className="text-slate-900">{formatHours(allowedPipHours)}</strong>
+                </div>
+                <div className="mt-1 flex justify-between gap-3">
+                  <span>Current Objective Hours</span>
+                  <strong className="text-slate-900">{formatHours(summedObjectiveHours)}</strong>
+                </div>
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-slate-700">Objective</label>
+                <select
+                  className="mt-1 block w-full rounded-lg border border-slate-300 px-4 py-2 text-sm focus:border-[#2463eb] focus:outline-none"
+                  value={showUpdateModal.objectiveId ?? ''}
+                  onChange={(e) => setShowUpdateModal({ open: true, objectiveId: Number(e.target.value) || null })}
+                >
+                  <option value="">Select objective...</option>
+                  {pip.objectives.map((objective) => (
+                    <option key={objective.id} value={objective.id}>{objective.description}</option>
+                  ))}
+                </select>
+              </div>
               <div>
                 <label className="block text-sm font-medium text-slate-700">Current Total Hours</label>
                 <div className="mt-1 rounded-lg border border-slate-200 bg-slate-50 px-4 py-2 text-sm font-bold text-slate-700">
@@ -1050,10 +1178,87 @@ export default function PipDetailPage() {
               <button onClick={() => setShowUpdateModal({ open: false, objectiveId: null })} className="px-4 py-2 text-sm font-medium text-slate-600">Cancel</button>
               <button
                 onClick={handleUpdateProgress}
-                disabled={updateValue.additionalHours <= 0 || !updateValue.note.trim()}
+                disabled={!showUpdateModal.objectiveId || updateValue.additionalHours <= 0 || !updateValue.note.trim()}
                 className="rounded-lg bg-[#2463eb] px-4 py-2 text-sm font-medium text-white hover:bg-[#1d4ed8] disabled:cursor-not-allowed disabled:bg-slate-300"
               >
-                Increase Hours
+                Extend Hour
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {showHoursLimitModal && (
+        <div className="fixed inset-0 z-[60] flex items-center justify-center bg-black/50 p-4">
+          <div className="w-full max-w-md rounded-xl bg-white p-6 text-center shadow-xl">
+            <div className="mx-auto mb-4 flex h-12 w-12 items-center justify-center rounded-full bg-red-50 text-red-600">
+              <i className="bi bi-exclamation-triangle text-xl" />
+            </div>
+            <p className="text-sm font-medium text-slate-800">{PIP_HOURS_LIMIT_MESSAGE}</p>
+            <button
+              type="button"
+              onClick={() => setShowHoursLimitModal(false)}
+              className="mt-6 rounded-lg bg-[#2463eb] px-5 py-2 text-sm font-semibold text-white hover:bg-[#1d4ed8]"
+            >
+              OK
+            </button>
+          </div>
+        </div>
+      )}
+
+      {showExtendDateModal && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4">
+          <div className="w-full max-w-md rounded-xl bg-white p-6 shadow-xl">
+            <h3 className="mb-4 text-lg font-bold">Extend PIP Date</h3>
+            <div>
+              <label className="block text-sm font-medium text-slate-700">Extended End Date</label>
+              <div className="relative mt-1">
+                <input
+                  type="text"
+                  placeholder="dd/mm/yyyy"
+                  inputMode="numeric"
+                  className="block w-full rounded-lg border border-slate-300 px-4 py-2 pr-12 focus:border-[#2463eb] focus:outline-none"
+                  value={pipExtendedEndDate}
+                  onChange={(e) => setPipExtendedEndDate(e.target.value)}
+                />
+                <button
+                  type="button"
+                  onClick={() => {
+                    const picker = extendDatePickerRef.current as (HTMLInputElement & { showPicker?: () => void }) | null
+                    if (picker?.showPicker) {
+                      picker.showPicker()
+                    } else {
+                      picker?.click()
+                    }
+                  }}
+                  className="absolute inset-y-0 right-0 flex w-11 items-center justify-center text-slate-400 hover:text-[#2463eb]"
+                  aria-label="Choose extended PIP end date"
+                >
+                  <i className="bi bi-calendar3" />
+                </button>
+                <input
+                  ref={extendDatePickerRef}
+                  type="date"
+                  min={minPipExtendedDate}
+                  value={toIsoDate(pipExtendedEndDate)}
+                  onChange={(e) => setPipExtendedEndDate(toDisplayDateFromIso(e.target.value))}
+                  className="sr-only"
+                  tabIndex={-1}
+                  aria-hidden="true"
+                />
+              </div>
+              <p className="mt-2 text-xs text-slate-500">
+                Current PIP end date: {formatDate(effectiveEndDate)}
+              </p>
+            </div>
+            <div className="mt-6 flex justify-end gap-3">
+              <button onClick={() => setShowExtendDateModal(false)} className="px-4 py-2 text-sm font-medium text-slate-600">Cancel</button>
+              <button
+                onClick={handleExtendPipDate}
+                disabled={isExtendingPipDate || !pipExtendedEndDate}
+                className="rounded-lg bg-[#2463eb] px-4 py-2 text-sm font-medium text-white hover:bg-[#1d4ed8] disabled:cursor-not-allowed disabled:bg-[#93c5fd]"
+              >
+                {isExtendingPipDate ? 'Extending...' : 'Extend Date'}
               </button>
             </div>
           </div>

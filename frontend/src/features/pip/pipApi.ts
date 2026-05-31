@@ -704,6 +704,15 @@ export const pipApi = baseApi.injectEndpoints({
       invalidatesTags: (_result, _error, pipId) => ['PIP', { type: 'PIP', id: pipId }],
       transformResponse: (response: unknown) => normalizePip(getResponseData(response)),
     }),
+    extendPipDate: builder.mutation<Pip, { pipId: number; extendedEndDate: string }>({
+      query: ({ pipId, extendedEndDate }) => ({
+        url: `/pips/${pipId}/extend-date`,
+        method: 'PUT',
+        body: { extendedEndDate },
+      }),
+      invalidatesTags: (_result, _error, { pipId }) => ['PIP', { type: 'PIP', id: pipId }],
+      transformResponse: (response: unknown) => normalizePip(getResponseData(response)),
+    }),
     employeeSign: builder.mutation<Pip, { pipId: number } & EmployeeSignRequest>({
       query: ({ pipId, ...body }) => ({
         url: `/pips/${pipId}/employee-sign`,
@@ -808,6 +817,7 @@ export const {
   useScheduleMeetingMutation,
   useClosePipMutation,
   useManualClosePipMutation,
+  useExtendPipDateMutation,
   useEmployeeSignMutation,
   useManagerSignMutation,
   useMarkPipCompletedMutation,
