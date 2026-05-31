@@ -41,13 +41,14 @@ import lombok.RequiredArgsConstructor;
 @RestController
 @RequestMapping("/api/continuous-feedback")
 @RequiredArgsConstructor
+@PreAuthorize("@permissionGuard.has('CONTINUOUS_FEEDBACK', 'view')")
 public class ContinuousFeedbackController {
 
     private final ContinuousFeedbackService service;
     private final UserRepository userRepository;
 
     @PostMapping
-    @PreAuthorize("hasAnyRole('DEPARTMENT_HEAD', 'TEAM_HEAD', 'MANAGER')")
+    @PreAuthorize("hasAnyRole('DEPARTMENT_HEAD', 'TEAM_HEAD', 'MANAGER') and @permissionGuard.has('CONTINUOUS_FEEDBACK', 'create')")
     public ResponseEntity<ApiResponse<ContinuousFeedbackDto>> createFeedback(
             @AuthenticationPrincipal UserPrincipal principal,
             @RequestBody ContinuousFeedbackCreateRequest request) {
@@ -57,7 +58,7 @@ public class ContinuousFeedbackController {
     }
 
     @PatchMapping("/{feedbackId}/private-note")
-    @PreAuthorize("hasAnyRole('DEPARTMENT_HEAD', 'TEAM_HEAD', 'MANAGER')")
+    @PreAuthorize("hasAnyRole('DEPARTMENT_HEAD', 'TEAM_HEAD', 'MANAGER') and @permissionGuard.has('CONTINUOUS_FEEDBACK', 'view_private_notes')")
     public ResponseEntity<ApiResponse<ContinuousFeedbackDto>> updatePrivateNote(
             @AuthenticationPrincipal UserPrincipal principal,
             @PathVariable Long feedbackId,
@@ -68,7 +69,7 @@ public class ContinuousFeedbackController {
     }
 
     @PostMapping("/{feedbackId}/share")
-    @PreAuthorize("hasAnyRole('DEPARTMENT_HEAD', 'TEAM_HEAD', 'MANAGER')")
+    @PreAuthorize("hasAnyRole('DEPARTMENT_HEAD', 'TEAM_HEAD', 'MANAGER') and @permissionGuard.has('CONTINUOUS_FEEDBACK', 'create')")
     public ResponseEntity<ApiResponse<ContinuousFeedbackDto>> shareFeedback(
             @AuthenticationPrincipal UserPrincipal principal,
             @PathVariable Long feedbackId) {
@@ -87,7 +88,7 @@ public class ContinuousFeedbackController {
     }
 
     @GetMapping("/my")
-    @PreAuthorize("hasRole('EMPLOYEE')")
+    @PreAuthorize("hasRole('EMPLOYEE') and @permissionGuard.has('CONTINUOUS_FEEDBACK', 'view')")
     public ResponseEntity<ApiResponse<List<ContinuousFeedbackDto>>> getMyFeedback(
             @AuthenticationPrincipal UserPrincipal principal) {
         User currentUser = userRepository.findById(principal.getId()).orElseThrow();
@@ -96,7 +97,7 @@ public class ContinuousFeedbackController {
     }
 
     @GetMapping("/my-team")
-    @PreAuthorize("hasAnyRole('DEPARTMENT_HEAD', 'TEAM_HEAD', 'MANAGER', 'HR', 'AUDIT')")
+    @PreAuthorize("hasAnyRole('DEPARTMENT_HEAD', 'TEAM_HEAD', 'MANAGER', 'HR', 'AUDIT') and @permissionGuard.has('CONTINUOUS_FEEDBACK', 'view')")
     public ResponseEntity<ApiResponse<List<ContinuousFeedbackDto>>> getTeamFeedback(
             @AuthenticationPrincipal UserPrincipal principal) {
         User currentUser = userRepository.findById(principal.getId()).orElseThrow();
@@ -114,7 +115,7 @@ public class ContinuousFeedbackController {
     }
 
     @PostMapping("/{feedbackId}/acknowledge")
-    @PreAuthorize("hasRole('EMPLOYEE')")
+    @PreAuthorize("hasRole('EMPLOYEE') and @permissionGuard.has('CONTINUOUS_FEEDBACK', 'acknowledge')")
     public ResponseEntity<ApiResponse<ContinuousFeedbackDto>> acknowledgeFeedback(
             @AuthenticationPrincipal UserPrincipal principal,
             @PathVariable Long feedbackId) {
@@ -124,7 +125,7 @@ public class ContinuousFeedbackController {
     }
 
     @PostMapping("/{feedbackId}/action-items")
-    @PreAuthorize("hasAnyRole('DEPARTMENT_HEAD', 'TEAM_HEAD', 'MANAGER', 'HR')")
+    @PreAuthorize("hasAnyRole('DEPARTMENT_HEAD', 'TEAM_HEAD', 'MANAGER', 'HR') and @permissionGuard.has('CONTINUOUS_FEEDBACK', 'manage_action_items')")
     public ResponseEntity<ApiResponse<ContinuousFeedbackActionItemDto>> addActionItem(
             @AuthenticationPrincipal UserPrincipal principal,
             @PathVariable Long feedbackId,
@@ -135,7 +136,7 @@ public class ContinuousFeedbackController {
     }
 
     @PatchMapping("/action-items/{actionItemId}/status")
-    @PreAuthorize("hasAnyRole('DEPARTMENT_HEAD', 'TEAM_HEAD', 'MANAGER', 'HR')")
+    @PreAuthorize("hasAnyRole('DEPARTMENT_HEAD', 'TEAM_HEAD', 'MANAGER', 'HR') and @permissionGuard.has('CONTINUOUS_FEEDBACK', 'manage_action_items')")
     public ResponseEntity<ApiResponse<ContinuousFeedbackActionItemDto>> updateActionItemStatus(
             @AuthenticationPrincipal UserPrincipal principal,
             @PathVariable Long actionItemId,
@@ -146,6 +147,7 @@ public class ContinuousFeedbackController {
     }
 
     @PostMapping("/{feedbackId}/comments")
+    @PreAuthorize("@permissionGuard.has('CONTINUOUS_FEEDBACK', 'comment')")
     public ResponseEntity<ApiResponse<ContinuousFeedbackCommentDto>> addComment(
             @AuthenticationPrincipal UserPrincipal principal,
             @PathVariable Long feedbackId,
@@ -165,7 +167,7 @@ public class ContinuousFeedbackController {
     }
 
     @PostMapping("/{feedbackId}/create-pip")
-    @PreAuthorize("hasAnyRole('DEPARTMENT_HEAD', 'TEAM_HEAD', 'MANAGER', 'HR')")
+    @PreAuthorize("hasAnyRole('DEPARTMENT_HEAD', 'TEAM_HEAD', 'MANAGER', 'HR') and @permissionGuard.has('CONTINUOUS_FEEDBACK', 'create_pip')")
     public ResponseEntity<ApiResponse<Pip>> createPipFromFeedback(
             @AuthenticationPrincipal UserPrincipal principal,
             @PathVariable Long feedbackId,
@@ -179,7 +181,7 @@ public class ContinuousFeedbackController {
     }
 
     @PostMapping("/{feedbackId}/create-meeting")
-    @PreAuthorize("hasAnyRole('DEPARTMENT_HEAD', 'TEAM_HEAD', 'MANAGER', 'HR')")
+    @PreAuthorize("hasAnyRole('DEPARTMENT_HEAD', 'TEAM_HEAD', 'MANAGER', 'HR') and @permissionGuard.has('CONTINUOUS_FEEDBACK', 'create_followup_meeting')")
     public ResponseEntity<ApiResponse<MeetingResponse>> createMeetingFromFeedback(
             @AuthenticationPrincipal UserPrincipal principal,
             @PathVariable Long feedbackId,
@@ -193,6 +195,7 @@ public class ContinuousFeedbackController {
     }
 
     @GetMapping("/dashboard")
+    @PreAuthorize("@permissionGuard.has('CONTINUOUS_FEEDBACK', 'report')")
     public ResponseEntity<ApiResponse<ContinuousFeedbackDashboardDto>> getDashboard(
             @AuthenticationPrincipal UserPrincipal principal) {
         User currentUser = userRepository.findById(principal.getId()).orElseThrow();

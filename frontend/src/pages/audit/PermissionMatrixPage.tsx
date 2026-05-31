@@ -16,7 +16,6 @@ import {
     useGetPermissionMatrixQuery,
     useUpdatePositionPermissionsMutation,
     type PermissionMatrixPositionRow,
-    type PermissionToggle,
 } from '../../features/permission/permissionApi';
 
 const PermissionMatrixPage: React.FC = () => {
@@ -127,28 +126,6 @@ const PermissionMatrixPage: React.FC = () => {
         []
     );
 
-    const toggleAllForModule = useCallback(
-        (moduleKey: string, positions: PermissionMatrixPositionRow[], allowed: boolean) => {
-            setPendingChanges((prev) => {
-                const next = new Map(prev);
-                for (const pos of positions) {
-                    const posKey = String(pos.positionId);
-                    if (!next.has(posKey)) {
-                        next.set(posKey, new Map());
-                    }
-                    const posMap = next.get(posKey)!;
-                    for (const perm of pos.permissions) {
-                        if (perm.moduleKey === moduleKey) {
-                            posMap.set(`${perm.moduleKey}:${perm.actionKey}`, allowed);
-                        }
-                    }
-                }
-                return next;
-            });
-        },
-        []
-    );
-
     const hasChanges = pendingChanges.size > 0;
 
     const getChangedPositionsCount = useCallback(() => {
@@ -203,6 +180,15 @@ const PermissionMatrixPage: React.FC = () => {
         return (
             <div className="flex items-center justify-center min-h-[400px]">
                 <Loader2 className="h-8 w-8 animate-spin text-indigo-500" />
+            </div>
+        );
+    }
+
+    if (!matrix) {
+        return (
+            <div className="flex flex-col items-center justify-center py-16">
+                <AlertCircle className="h-12 w-12 text-slate-300 dark:text-slate-600 mb-3" />
+                <p className="text-slate-500 dark:text-slate-400">Permission matrix is not available</p>
             </div>
         );
     }
@@ -316,8 +302,8 @@ const PermissionMatrixPage: React.FC = () => {
             <div className="bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-800 rounded-lg p-3 flex items-start gap-2">
                 <Info className="h-4 w-4 text-blue-500 mt-0.5 shrink-0" />
                 <p className="text-sm text-blue-700 dark:text-blue-300">
-                    Permissions are resolved by position. Missing permission rows default to <strong>allowed</strong>.
-                    Denying an action requires an explicit toggle to off. Audit role (ID 5) always has full access.
+                    Permissions are resolved by position. Missing permission rows are treated as <strong>denied</strong>.
+                    Green means the permission is explicitly allowed. Audit role (ID 5) always has full access.
                 </p>
             </div>
 

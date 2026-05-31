@@ -29,13 +29,13 @@ import lombok.RequiredArgsConstructor;
 @RestController
 @RequestMapping("/api/permissions")
 @RequiredArgsConstructor
-@PreAuthorize("principal.roleId == 5")
 public class PermissionController {
 
     private final PermissionService permissionService;
     private final UserRepository userRepository;
 
     @GetMapping("/matrix")
+    @PreAuthorize("principal.roleId == 5")
     public ResponseEntity<ApiResponse<PermissionMatrixDto>> getPermissionMatrix(
             @RequestParam(required = false) Long levelCodeId,
             @RequestParam(required = false) Long roleId,
@@ -45,6 +45,7 @@ public class PermissionController {
     }
 
     @GetMapping("/matrix/positions/{positionId}")
+    @PreAuthorize("principal.roleId == 5")
     public ResponseEntity<ApiResponse<List<PositionPermissionDto>>> getPositionPermissions(
             @PathVariable Long positionId) {
         List<PositionPermissionDto> permissions = permissionService.getPositionPermissions(positionId);
@@ -52,6 +53,7 @@ public class PermissionController {
     }
 
     @PutMapping("/matrix/positions/{positionId}")
+    @PreAuthorize("principal.roleId == 5")
     public ResponseEntity<ApiResponse<String>> updatePositionPermissions(
             @PathVariable Long positionId,
             @RequestBody UpdatePositionPermissionRequest request) {
@@ -67,6 +69,7 @@ public class PermissionController {
     }
 
     @GetMapping("/me")
+    @PreAuthorize("isAuthenticated()")
     public ResponseEntity<ApiResponse<UserPermissionDto>> getMyPermissions() {
         Authentication auth = SecurityContextHolder.getContext().getAuthentication();
         String username = auth.getName();

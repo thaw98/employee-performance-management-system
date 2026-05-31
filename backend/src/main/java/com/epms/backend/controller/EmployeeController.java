@@ -37,7 +37,7 @@ public class EmployeeController {
 	private final EmployeeExportService employeeExportService;
 
 	@GetMapping("/export")
-	@PreAuthorize("hasAnyRole('HR', 'MANAGER', 'DEPARTMENT_HEAD', 'TEAM_HEAD', 'AUDIT') or principal.roleId == 5")
+	@PreAuthorize("(hasAnyRole('HR', 'MANAGER', 'DEPARTMENT_HEAD', 'TEAM_HEAD', 'AUDIT') or principal.roleId == 5) and @permissionGuard.has('EMPLOYEE_PROFILE', 'view_employee')")
 	public ResponseEntity<byte[]> exportEmployees() {
 		byte[] bytes = employeeExportService.exportEmployees();
 		String filename = "employees_export_" + LocalDate.now() + ".xlsx";
@@ -49,7 +49,7 @@ public class EmployeeController {
 	}
 
 	@PostMapping
-	@PreAuthorize("principal.roleId == 1 or principal.roleId == 5")
+	@PreAuthorize("(principal.roleId == 1 or principal.roleId == 5) and @permissionGuard.has('EMPLOYEE_PROFILE', 'manage_employee')")
 	public ResponseEntity<ApiResponse<EmployeeInfoResponseDto>> createCompleted(
 			@AuthenticationPrincipal UserPrincipal principal,
 			@Valid @RequestBody EmployeeInfoRequestDto request) {
@@ -61,7 +61,7 @@ public class EmployeeController {
 	}
 
 	@PostMapping("/draft")
-	@PreAuthorize("principal.roleId == 1 or principal.roleId == 5")
+	@PreAuthorize("(principal.roleId == 1 or principal.roleId == 5) and @permissionGuard.has('EMPLOYEE_PROFILE', 'manage_employee')")
 	public ResponseEntity<ApiResponse<EmployeeInfoResponseDto>> createDraft(
 			@AuthenticationPrincipal UserPrincipal principal,
 			@RequestBody EmployeeDraftRequestDto request) {
@@ -73,7 +73,7 @@ public class EmployeeController {
 	}
 
 	@PutMapping("/{id}")
-	@PreAuthorize("principal.roleId == 1 or principal.roleId == 5")
+	@PreAuthorize("(principal.roleId == 1 or principal.roleId == 5) and @permissionGuard.has('EMPLOYEE_PROFILE', 'manage_employee')")
 	public ResponseEntity<ApiResponse<EmployeeInfoResponseDto>> updateCompleted(
 			@PathVariable Long id,
 			@AuthenticationPrincipal UserPrincipal principal,
@@ -86,7 +86,7 @@ public class EmployeeController {
 	}
 
 	@PutMapping("/{id}/draft")
-	@PreAuthorize("principal.roleId == 1 or principal.roleId == 5")
+	@PreAuthorize("(principal.roleId == 1 or principal.roleId == 5) and @permissionGuard.has('EMPLOYEE_PROFILE', 'manage_employee')")
 	public ResponseEntity<ApiResponse<EmployeeInfoResponseDto>> updateDraft(
 			@PathVariable Long id,
 			@AuthenticationPrincipal UserPrincipal principal,
@@ -99,7 +99,7 @@ public class EmployeeController {
 	}
 
 	@GetMapping("/{id}")
-	@PreAuthorize("principal.roleId == 1 or principal.roleId == 5")
+	@PreAuthorize("(principal.roleId == 1 or principal.roleId == 5) and @permissionGuard.has('EMPLOYEE_PROFILE', 'view_employee')")
 	public ResponseEntity<ApiResponse<EmployeeInfoResponseDto>> getById(@PathVariable Long id) {
 		try {
 			return ResponseEntity.ok(ApiResponse.ok("Employee retrieved", employeeService.getById(id)));
@@ -109,13 +109,13 @@ public class EmployeeController {
 	}
 
 	@GetMapping("/autocomplete")
-	@PreAuthorize("principal.roleId == 1 or principal.roleId == 5")
+	@PreAuthorize("(principal.roleId == 1 or principal.roleId == 5) and @permissionGuard.has('EMPLOYEE_PROFILE', 'view_employee')")
 	public ResponseEntity<ApiResponse<List<EmployeeInfoResponseDto>>> autocomplete(@RequestParam(defaultValue = "") String keyword) {
 		return ResponseEntity.ok(ApiResponse.ok("Employees", employeeService.autocomplete(keyword)));
 	}
 
 	@GetMapping("/check-staff-nrc")
-	@PreAuthorize("principal.roleId == 1 or principal.roleId == 5")
+	@PreAuthorize("(principal.roleId == 1 or principal.roleId == 5) and @permissionGuard.has('EMPLOYEE_PROFILE', 'view_employee')")
 	public ResponseEntity<ApiResponse<Boolean>> checkStaffNrc(
 			@RequestParam String staffNrcNo,
 			@RequestParam(required = false) Long excludeId) {

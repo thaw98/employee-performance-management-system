@@ -1,10 +1,12 @@
 // src/App.tsx
+import type { ReactNode } from 'react';
 import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-dom';
 import toast, { Toaster } from 'react-hot-toast';
 
 import { AuthBootstrap } from './components/auth/AuthBootstrap';
 import { ThemeBootstrap } from './components/layout/ThemeBootstrap';
 import { ProtectedRoute } from './routes/ProtectedRoute';
+import { PermissionGate } from './routes/PermissionGate';
 import { LoginPage } from './pages/auth/LoginPage';
 import { FirstLoginPasswordPage } from './pages/auth/FirstLoginPasswordPage';
 import { ForgotPasswordPage } from './pages/auth/ForgotPasswordPage';
@@ -116,6 +118,7 @@ import ContinuousFeedbackCreatePage from './pages/continuous-feedback/Continuous
 import ContinuousFeedbackDetailPage from './pages/continuous-feedback/ContinuousFeedbackDetailPage';
 import ContinuousFeedbackDashboardPage from './pages/continuous-feedback/ContinuousFeedbackDashboardPage';
 import EmployeeContinuousFeedbackPage from './pages/continuous-feedback/EmployeeContinuousFeedbackPage';
+import { usePermissionState } from './features/permission';
 
 const TOAST_DEDUP_MS = 600;
 const recentToastTimestamps = new Map<string, number>();
@@ -166,7 +169,13 @@ function patchToastDuplicateGuard() {
 
 patchToastDuplicateGuard();
 
+function gated(moduleKey: string, actionKey: string, element: ReactNode) {
+  return <PermissionGate moduleKey={moduleKey} actionKey={actionKey}>{element}</PermissionGate>;
+}
+
 function App() {
+  usePermissionState();
+
   return (
     <Router>
       <AuthBootstrap />
@@ -186,37 +195,37 @@ function App() {
         <Route element={<ProtectedRoute allowedRoleGroups={['HR']} />}>
           <Route path="/hr" element={<HrLayout />}>
             <Route path="dashboard" element={<HRDashboardPage />} />
-            <Route path="employees" element={<EmployeeListPage />} />
-            <Route path="employees/create-account" element={<CreateEmployeeAccountPage />} />
-            <Route path="departments" element={<DepartmentListPage />} />
+            <Route path="employees" element={gated('EMPLOYEE_PROFILE', 'view_employee', <EmployeeListPage />)} />
+            <Route path="employees/create-account" element={gated('EMPLOYEE_PROFILE', 'manage_employee', <CreateEmployeeAccountPage />)} />
+            <Route path="departments" element={gated('EMPLOYEE_PROFILE', 'view_org_setup', <DepartmentListPage />)} />
             <Route path="departments/:departmentId/employees" element={<DepartmentEmployeeListPage />} />
             <Route path="departments/:departmentId" element={<DepartmentDetailPage />} />
-            <Route path="positions" element={<PositionListPage />} />
-            <Route path="level-codes" element={<LevelCodeListPage />} />
+            <Route path="positions" element={gated('EMPLOYEE_PROFILE', 'view_org_setup', <PositionListPage />)} />
+            <Route path="level-codes" element={gated('EMPLOYEE_PROFILE', 'view_org_setup', <LevelCodeListPage />)} />
 
-            <Route path="pip-monitoring" element={<PipMonitoringPage />} />
-            <Route path="pip-monitoring/:id" element={<PipDetailPage />} />
-            <Route path="pip-notes" element={<PipNotesReviewPage />} />
-            <Route path="360-feedback/criteria" element={<CriteriaPage />} />
-            <Route path="360-feedback/give" element={<GiveFeedbackPage />} />
-            <Route path="360-feedback/received" element={<GetFeedbackPage />} />
+            <Route path="pip-monitoring" element={gated('PIP', 'view', <PipMonitoringPage />)} />
+            <Route path="pip-monitoring/:id" element={gated('PIP', 'view', <PipDetailPage />)} />
+            <Route path="pip-notes" element={gated('PIP', 'review_notes', <PipNotesReviewPage />)} />
+            <Route path="360-feedback/criteria" element={gated('360_FEEDBACK', 'configure', <CriteriaPage />)} />
+            <Route path="360-feedback/give" element={gated('360_FEEDBACK', 'give', <GiveFeedbackPage />)} />
+            <Route path="360-feedback/received" element={gated('360_FEEDBACK', 'view', <GetFeedbackPage />)} />
             <Route path="360-feedback/received/:feedbackId" element={<FeedbackDetailPage />} />
-            <Route path="360-feedback/history" element={<CombinedFeedbackHistoryPage />} />
+            <Route path="360-feedback/history" element={gated('360_FEEDBACK', 'review_history', <CombinedFeedbackHistoryPage />)} />
             <Route path="360-feedback/history/:feedbackId" element={<FeedbackDetailPage />} />
             <Route path="360-feedback/combined-history" element={<Navigate to="/hr/360-feedback/history" replace />} />
             <Route path="appraisals" element={<AppraisalsPage />} />
             <Route path="appraisals/submissions" element={<AppraisalSubmissionsPage />} />
             <Route path="appraisals/history" element={<AppraisalHistoryPage mode="hr" />} />
-            <Route path="kpi-management" element={<KpiManagementPage />} />
-            <Route path="kpi-assigned" element={<KpiAssignedPage />} />
-            <Route path="kpi-detail" element={<KpiDetailPage />} />
+            <Route path="kpi-management" element={gated('KPI', 'manage', <KpiManagementPage />)} />
+            <Route path="kpi-assigned" element={gated('KPI', 'assign', <KpiAssignedPage />)} />
+            <Route path="kpi-detail" element={gated('KPI', 'view', <KpiDetailPage />)} />
             <Route path="department-kpi-detail" element={<DepartmentKpiDetailPage />} />
             <Route path="position-kpi-detail" element={<PositionKpiDetailPage />} />
-            <Route path="kpi-categories" element={<KpiCategoryPage />} />
-            <Route path="kpi-units" element={<KpiUnitPage />} />
-            <Route path="kpi-names" element={<KpiNamePage />} />
-            <Route path="kpi-history" element={<KpiHistoryPage />} />
-            <Route path="kpi-reports" element={<KpiReportsPage />} />
+            <Route path="kpi-categories" element={gated('KPI', 'configure', <KpiCategoryPage />)} />
+            <Route path="kpi-units" element={gated('KPI', 'configure', <KpiUnitPage />)} />
+            <Route path="kpi-names" element={gated('KPI', 'configure', <KpiNamePage />)} />
+            <Route path="kpi-history" element={gated('KPI', 'history', <KpiHistoryPage />)} />
+            <Route path="kpi-reports" element={gated('KPI', 'report', <KpiReportsPage />)} />
             <Route path='AppraisalSubmissionsPage' element={<AppraisalSubmissionsPage />} />
             <Route path="profile" element={<UserProfilePage />} />
             <Route path="settings/profile" element={<Navigate to="/hr/profile" replace />} />
@@ -226,45 +235,45 @@ function App() {
 	            <Route path="settings/system/score-explanations" element={<ScoreExplanationSettingsPage />} />
             <Route path="settings/faq-support" element={<FaqSupportPage />} />
             <Route path="faq" element={<FaqPage />} />
-            <Route path="self-assessment/templates" element={<SelfAssessmentFormTemplatePage />} />
-            <Route path="self-assessment/templates/create" element={<CreateSelfAssessmentTemplatePage />} />
-            <Route path="self-assessment/templates/:templateId/edit" element={<EditSelfAssessmentTemplatePage />} />
-            <Route path="self-assessment/assignments" element={<SelfAssessmentAssignmentsPage />} />
+            <Route path="self-assessment/templates" element={gated('SELF_ASSESSMENT', 'manage_templates', <SelfAssessmentFormTemplatePage />)} />
+            <Route path="self-assessment/templates/create" element={gated('SELF_ASSESSMENT', 'manage_templates', <CreateSelfAssessmentTemplatePage />)} />
+            <Route path="self-assessment/templates/:templateId/edit" element={gated('SELF_ASSESSMENT', 'manage_templates', <EditSelfAssessmentTemplatePage />)} />
+            <Route path="self-assessment/assignments" element={gated('SELF_ASSESSMENT', 'assign', <SelfAssessmentAssignmentsPage />)} />
             <Route path="self-assessment/assignments/:templateId/assigned-employees" element={<SelfAssessmentAssignedEmployeesPage />} />
             <Route
               path="self-assessment/assign-forms"
-              element={<AssignSelfAssessmentFormsPage />}
+              element={gated('SELF_ASSESSMENT', 'assign', <AssignSelfAssessmentFormsPage />)}
             />
-            <Route path="self-assessment/forms" element={<SelfAssessmentActiveFormsPage />} />
+            <Route path="self-assessment/forms" element={gated('SELF_ASSESSMENT', 'view', <SelfAssessmentActiveFormsPage />)} />
             <Route
               path="self-assessment/forms/create"
               element={<Navigate to="/hr/self-assessment/templates/create" replace />}
             />
-            <Route path="self-assessment/question-bank" element={<QuestionBankPage />} />
-            <Route path="self-assessment/review-queue" element={<SelfAssessmentFormQueuePage />} />
-            <Route path="self-assessment/unlock-requests" element={<SelfAssessmentUnlockRequestsPage />} />
-            <Route path="self-assessment/reviews" element={<SelfAssessmentFormReviewPage />} />
-            <Route path="self-assessment/reviews/:formId" element={<SelfAssessmentFormReviewPage />} />
-            <Route path="self-assessment/settings" element={<SelfAssessmentSettingsPage />} />
-            <Route path="self-assessment/history" element={<SelfAssessmentScoreRecordsPage />} />
+            <Route path="self-assessment/question-bank" element={gated('SELF_ASSESSMENT', 'manage_templates', <QuestionBankPage />)} />
+            <Route path="self-assessment/review-queue" element={gated('SELF_ASSESSMENT', 'review', <SelfAssessmentFormQueuePage />)} />
+            <Route path="self-assessment/unlock-requests" element={gated('SELF_ASSESSMENT', 'unlock', <SelfAssessmentUnlockRequestsPage />)} />
+            <Route path="self-assessment/reviews" element={gated('SELF_ASSESSMENT', 'review', <SelfAssessmentFormReviewPage />)} />
+            <Route path="self-assessment/reviews/:formId" element={gated('SELF_ASSESSMENT', 'review', <SelfAssessmentFormReviewPage />)} />
+            <Route path="self-assessment/settings" element={gated('SELF_ASSESSMENT', 'configure', <SelfAssessmentSettingsPage />)} />
+            <Route path="self-assessment/history" element={gated('SELF_ASSESSMENT', 'history', <SelfAssessmentScoreRecordsPage />)} />
             <Route path="self-assessment/archive" element={<SelfAssessmentArchiveListPage basePath="/hr/self-assessment" />} />
             <Route path="self-assessment/archive/:archiveId" element={<SelfAssessmentArchiveDetailPage basePath="/hr/self-assessment" />} />
             <Route
               path="self-assessment/score-records"
               element={<Navigate to="/hr/self-assessment/history" replace />}
             />
-            <Route path="meetings" element={<MeetingsPage />} />
-            <Route path="meetings/:id" element={<MeetingDetailPage />} />
+            <Route path="meetings" element={gated('MEETINGS', 'view', <MeetingsPage />)} />
+            <Route path="meetings/:id" element={gated('MEETINGS', 'view', <MeetingDetailPage />)} />
             <Route path="notifications" element={<NotificationPage />} />
-            <Route path="reports" element={<HrReportsPage />} />
-            <Route path="reports/feedback" element={<FeedbackReportPage mode="hr" />} />
-            <Route path="reports/appraisal" element={<AppraisalReportsPage />} />
-            <Route path="reports/self-assessment" element={<SelfAssessmentReportPage mode="hr" />} />
-            <Route path="performance-reports" element={<PerformanceReportPage />} />
-            <Route path="performance-reports/:employeeId" element={<PerformanceReportDetailPage />} />
-            <Route path="continuous-feedback" element={<ContinuousFeedbackPage />} />
-            <Route path="continuous-feedback/dashboard" element={<ContinuousFeedbackDashboardPage />} />
-            <Route path="continuous-feedback/:feedbackId" element={<ContinuousFeedbackDetailPage />} />
+            <Route path="reports" element={gated('REPORTS', 'pip_report', <HrReportsPage />)} />
+            <Route path="reports/feedback" element={gated('REPORTS', 'feedback_report', <FeedbackReportPage mode="hr" />)} />
+            <Route path="reports/appraisal" element={gated('REPORTS', 'appraisal_report', <AppraisalReportsPage />)} />
+            <Route path="reports/self-assessment" element={gated('REPORTS', 'self_assessment_report', <SelfAssessmentReportPage mode="hr" />)} />
+            <Route path="performance-reports" element={gated('REPORTS', 'performance_report', <PerformanceReportPage />)} />
+            <Route path="performance-reports/:employeeId" element={gated('REPORTS', 'performance_report', <PerformanceReportDetailPage />)} />
+            <Route path="continuous-feedback" element={gated('CONTINUOUS_FEEDBACK', 'view', <ContinuousFeedbackPage />)} />
+            <Route path="continuous-feedback/dashboard" element={gated('CONTINUOUS_FEEDBACK', 'report', <ContinuousFeedbackDashboardPage />)} />
+            <Route path="continuous-feedback/:feedbackId" element={gated('CONTINUOUS_FEEDBACK', 'view', <ContinuousFeedbackDetailPage />)} />
             <Route path="*" element={<Navigate to="/hr/dashboard" replace />} />
           </Route>
         </Route>
@@ -273,22 +282,22 @@ function App() {
         <Route element={<ProtectedRoute allowedRoleGroups={['MANAGER']} />}>
           <Route path="/manager" element={<ManagerLayout />}>
             <Route path="dashboard" element={<ManagerDashboardPage />} />
-            <Route path="employees" element={<EmployeeListPage />} />
-            <Route path="positions" element={<ManagerPositionsPage />} />
+            <Route path="employees" element={gated('EMPLOYEE_PROFILE', 'view_employee', <EmployeeListPage />)} />
+            <Route path="positions" element={gated('EMPLOYEE_PROFILE', 'view_org_setup', <ManagerPositionsPage />)} />
             <Route path="promotions/approvals" element={<PromotionApprovalsPage />} />
-            <Route path="kpis" element={<ManagerKpisPage />} />
-            <Route path="kpi-history" element={<KpiHistoryPage />} />
-            <Route path="my-kpis" element={<MyKpisPage />} />
-            <Route path="pip" element={<PipMonitoringPage />} />
-            <Route path="pip/create" element={<PipCreatePage />} />
-            <Route path="pip/:id" element={<PipDetailPage />} />
+            <Route path="kpis" element={gated('KPI', 'view', <ManagerKpisPage />)} />
+            <Route path="kpi-history" element={gated('KPI', 'history', <KpiHistoryPage />)} />
+            <Route path="my-kpis" element={gated('KPI', 'view', <MyKpisPage />)} />
+            <Route path="pip" element={gated('PIP', 'view', <PipMonitoringPage />)} />
+            <Route path="pip/create" element={gated('PIP', 'create', <PipCreatePage />)} />
+            <Route path="pip/:id" element={gated('PIP', 'view', <PipDetailPage />)} />
             <Route path="appraisals" element={<ManagerAppraisalsPage />} />
             <Route path="appraisals/history" element={<AppraisalHistoryPage mode="manager" />} />
             <Route path="appraisals/:id/evaluate" element={<ManagerEvaluationPage />} />
-            <Route path="360-feedback/give" element={<GiveFeedbackPage />} />
-            <Route path="360-feedback/received" element={<GetFeedbackPage />} />
+            <Route path="360-feedback/give" element={gated('360_FEEDBACK', 'give', <GiveFeedbackPage />)} />
+            <Route path="360-feedback/received" element={gated('360_FEEDBACK', 'view', <GetFeedbackPage />)} />
             <Route path="360-feedback/received/:feedbackId" element={<FeedbackDetailPage />} />
-            <Route path="360-feedback/history" element={<CombinedFeedbackHistoryPage />} />
+            <Route path="360-feedback/history" element={gated('360_FEEDBACK', 'review_history', <CombinedFeedbackHistoryPage />)} />
             <Route path="360-feedback/history/:feedbackId" element={<FeedbackDetailPage />} />
             <Route path="360-feedback/combined-history" element={<Navigate to="/manager/360-feedback/history" replace />} />
             <Route path="profile" element={<UserProfilePage />} />
@@ -296,30 +305,30 @@ function App() {
             <Route path="settings/signature" element={<DefaultSignaturePage />} />
             <Route path="settings/system" element={<SystemSettingsPage />} />
             <Route path="faq" element={<FaqPage />} />
-            <Route path="self-assessment/templates" element={<SelfAssessmentFormTemplatePage />} />
-            <Route path="self-assessment/templates/:templateId/edit" element={<EditSelfAssessmentTemplatePage />} />
-            <Route path="self-assessment/question-bank" element={<QuestionBankPage />} />
-            <Route path="self-assessment/forms" element={<SelfAssessmentActiveFormsPage />} />
-            <Route path="self-assessment-forms/my-form" element={<MySelfAssessmentFormPage />} />
-            <Route path="self-assessment-forms/review-queue" element={<SelfAssessmentFormQueuePage />} />
-            <Route path="self-assessment-forms/reviews" element={<SelfAssessmentFormReviewPage />} />
-            <Route path="self-assessment-forms/reviews/:formId" element={<SelfAssessmentFormReviewPage />} />
-            <Route path="self-assessment-forms/history" element={<SelfAssessmentScoreRecordsPage />} />
+            <Route path="self-assessment/templates" element={gated('SELF_ASSESSMENT', 'manage_templates', <SelfAssessmentFormTemplatePage />)} />
+            <Route path="self-assessment/templates/:templateId/edit" element={gated('SELF_ASSESSMENT', 'manage_templates', <EditSelfAssessmentTemplatePage />)} />
+            <Route path="self-assessment/question-bank" element={gated('SELF_ASSESSMENT', 'manage_templates', <QuestionBankPage />)} />
+            <Route path="self-assessment/forms" element={gated('SELF_ASSESSMENT', 'view', <SelfAssessmentActiveFormsPage />)} />
+            <Route path="self-assessment-forms/my-form" element={gated('SELF_ASSESSMENT', 'view', <MySelfAssessmentFormPage />)} />
+            <Route path="self-assessment-forms/review-queue" element={gated('SELF_ASSESSMENT', 'review', <SelfAssessmentFormQueuePage />)} />
+            <Route path="self-assessment-forms/reviews" element={gated('SELF_ASSESSMENT', 'review', <SelfAssessmentFormReviewPage />)} />
+            <Route path="self-assessment-forms/reviews/:formId" element={gated('SELF_ASSESSMENT', 'review', <SelfAssessmentFormReviewPage />)} />
+            <Route path="self-assessment-forms/history" element={gated('SELF_ASSESSMENT', 'history', <SelfAssessmentScoreRecordsPage />)} />
             <Route
               path="self-assessment-forms/score-records"
               element={<Navigate to="/manager/self-assessment-forms/history" replace />}
             />
-            <Route path="meetings" element={<MeetingsPage />} />
-            <Route path="meetings/:id" element={<MeetingDetailPage />} />
+            <Route path="meetings" element={gated('MEETINGS', 'view', <MeetingsPage />)} />
+            <Route path="meetings/:id" element={gated('MEETINGS', 'view', <MeetingDetailPage />)} />
             <Route path="notifications" element={<NotificationPage />} />
-            <Route path="reports" element={<ManagerReportsPage />} />
-            <Route path="reports/kpi" element={<ManagerKpiReportsPage />} />
-            <Route path="reports/feedback" element={<FeedbackReportPage mode="manager" />} />
-            <Route path="reports/appraisal" element={<AppraisalReportsPage mode="manager" />} />
-            <Route path="reports/self-assessment" element={<SelfAssessmentReportPage mode="manager" />} />
-            <Route path="continuous-feedback" element={<ContinuousFeedbackPage />} />
-            <Route path="continuous-feedback/create" element={<ContinuousFeedbackCreatePage />} />
-            <Route path="continuous-feedback/:feedbackId" element={<ContinuousFeedbackDetailPage />} />
+            <Route path="reports" element={gated('REPORTS', 'pip_report', <ManagerReportsPage />)} />
+            <Route path="reports/kpi" element={gated('REPORTS', 'kpi_report', <ManagerKpiReportsPage />)} />
+            <Route path="reports/feedback" element={gated('REPORTS', 'feedback_report', <FeedbackReportPage mode="manager" />)} />
+            <Route path="reports/appraisal" element={gated('REPORTS', 'appraisal_report', <AppraisalReportsPage mode="manager" />)} />
+            <Route path="reports/self-assessment" element={gated('REPORTS', 'self_assessment_report', <SelfAssessmentReportPage mode="manager" />)} />
+            <Route path="continuous-feedback" element={gated('CONTINUOUS_FEEDBACK', 'view', <ContinuousFeedbackPage />)} />
+            <Route path="continuous-feedback/create" element={gated('CONTINUOUS_FEEDBACK', 'create', <ContinuousFeedbackCreatePage />)} />
+            <Route path="continuous-feedback/:feedbackId" element={gated('CONTINUOUS_FEEDBACK', 'view', <ContinuousFeedbackDetailPage />)} />
             <Route path="*" element={<Navigate to="/manager/dashboard" replace />} />
           </Route>
         </Route>
@@ -328,13 +337,13 @@ function App() {
         <Route element={<ProtectedRoute allowedRoleGroups={['EMPLOYEE']} />}>
           <Route path="/employee" element={<EmployeeLayout />}>
             <Route path="dashboard" element={<EmployeeDashboardPage />} />
-            <Route path="kpis" element={<MyKpisPage />} />
-            <Route path="pip" element={<PipMonitoringPage />} />
-            <Route path="pip/:id" element={<PipDetailPage />} />
-            <Route path="360-feedback/give" element={<GiveFeedbackPage />} />
-            <Route path="360-feedback/received" element={<GetFeedbackPage />} />
+            <Route path="kpis" element={gated('KPI', 'view', <MyKpisPage />)} />
+            <Route path="pip" element={gated('PIP', 'view', <PipMonitoringPage />)} />
+            <Route path="pip/:id" element={gated('PIP', 'view', <PipDetailPage />)} />
+            <Route path="360-feedback/give" element={gated('360_FEEDBACK', 'give', <GiveFeedbackPage />)} />
+            <Route path="360-feedback/received" element={gated('360_FEEDBACK', 'view', <GetFeedbackPage />)} />
             <Route path="360-feedback/received/:feedbackId" element={<FeedbackDetailPage />} />
-            <Route path="360-feedback/history" element={<CombinedFeedbackHistoryPage />} />
+            <Route path="360-feedback/history" element={gated('360_FEEDBACK', 'review_history', <CombinedFeedbackHistoryPage />)} />
             <Route path="360-feedback/history/:feedbackId" element={<FeedbackDetailPage />} />
             <Route path="360-feedback/combined-history" element={<Navigate to="/employee/360-feedback/history" replace />} />
             <Route path="profile" element={<UserProfilePage />} />
@@ -342,20 +351,20 @@ function App() {
             <Route path="settings/signature" element={<DefaultSignaturePage />} />
             <Route path="settings/system" element={<SystemSettingsPage />} />
             <Route path="faq" element={<FaqPage />} />
-            <Route path="self-assessment-forms" element={<EmployeeSelfAssessmentHubPage />} />
-            <Route path="self-assessment-forms/my-form" element={<MySelfAssessmentFormPage />} />
-            <Route path="self-assessment-forms/history" element={<SelfAssessmentScoreRecordsPage />} />
-            <Route path="self-assessment-forms/reviews/:formId" element={<SelfAssessmentFormReviewPage />} />
-            <Route path="meetings" element={<EmployeeMeetingsPage />} />
-            <Route path="meetings/:id" element={<MeetingDetailPage />} />
+            <Route path="self-assessment-forms" element={gated('SELF_ASSESSMENT', 'view', <EmployeeSelfAssessmentHubPage />)} />
+            <Route path="self-assessment-forms/my-form" element={gated('SELF_ASSESSMENT', 'view', <MySelfAssessmentFormPage />)} />
+            <Route path="self-assessment-forms/history" element={gated('SELF_ASSESSMENT', 'history', <SelfAssessmentScoreRecordsPage />)} />
+            <Route path="self-assessment-forms/reviews/:formId" element={gated('SELF_ASSESSMENT', 'review', <SelfAssessmentFormReviewPage />)} />
+            <Route path="meetings" element={gated('MEETINGS', 'view', <EmployeeMeetingsPage />)} />
+            <Route path="meetings/:id" element={gated('MEETINGS', 'view', <MeetingDetailPage />)} />
             <Route path="notifications" element={<NotificationPage />} />
             <Route path="appraisals" element={<EmployeeAppraisalsPage />} />
             <Route path="appraisals/history" element={<AppraisalHistoryPage mode="employee" />} />
             <Route path="appraisals/:id/view" element={<EmployeeAppraisalViewPage />} />
-            <Route path="reports" element={<EmployeeReportsPage />} />
-            <Route path="reports/feedback" element={<FeedbackReportPage mode="employee" />} />
-            <Route path="continuous-feedback" element={<EmployeeContinuousFeedbackPage />} />
-            <Route path="continuous-feedback/:feedbackId" element={<ContinuousFeedbackDetailPage />} />
+            <Route path="reports" element={gated('REPORTS', 'pip_report', <EmployeeReportsPage />)} />
+            <Route path="reports/feedback" element={gated('REPORTS', 'feedback_report', <FeedbackReportPage mode="employee" />)} />
+            <Route path="continuous-feedback" element={gated('CONTINUOUS_FEEDBACK', 'view', <EmployeeContinuousFeedbackPage />)} />
+            <Route path="continuous-feedback/:feedbackId" element={gated('CONTINUOUS_FEEDBACK', 'view', <ContinuousFeedbackDetailPage />)} />
             <Route path="*" element={<Navigate to="/employee/dashboard" replace />} />
           </Route>
         </Route>
