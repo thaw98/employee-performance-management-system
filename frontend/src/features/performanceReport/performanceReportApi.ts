@@ -71,7 +71,7 @@ export const performanceReportApi = baseApi.injectEndpoints({
         { type: 'PerformanceReport', id: employeeId },
       ],
     }),
-    proposePromotion: builder.mutation<void, { employeeId: number; newPositionId: number; effectiveDate: string; remarks?: string }>({
+    proposePromotion: builder.mutation<void, { employeeId: number; newPositionId: number; effectiveDate: string; remarks?: string; targetDepartmentId?: number }>({
       query: ({ employeeId, ...body }) => ({
         url: `/promotions/employee/${employeeId}/propose`,
         method: 'POST',

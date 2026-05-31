@@ -70,15 +70,18 @@ export function EmployeeDashboardPage() {
   const [appraisalError, setAppraisalError] = useState('')
   const [goalsError, setGoalsError] = useState('')
 
+  const [latestPromotion, setLatestPromotion] = useState<any>(null)
+
   useEffect(() => {
     let active = true
     const meetingStatuses = 'PENDING,ACCEPTED,RESCHEDULE_REQUESTED,RESCHEDULE_MGR,CANCEL_REQUESTED,ONGOING'
 
     const loadDashboard = async () => {
-      const [meetingResult, activityResult, appraisalResult] = await Promise.allSettled([
+      const [meetingResult, activityResult, appraisalResult, promoResult] = await Promise.allSettled([
         axios.get(`/meetings/employee?statuses=${meetingStatuses}&page=0&size=5&sortBy=oldest`),
         axios.get('/notifications?status=all&page=0&size=8'),
         axios.get('/appraisal-assignments/my-assignments'),
+        axios.get('/promotions/latest-approved')
       ])
 
       if (!active) return
@@ -101,6 +104,10 @@ export function EmployeeDashboardPage() {
         setAppraisalError('Unable to load your appraisals.')
       }
 
+      if (promoResult.status === 'fulfilled' && promoResult.value.data?.data) {
+        setLatestPromotion(promoResult.value.data.data)
+      }
+
       // Set default goals data
       setGoals([
         { id: 1, name: 'Quality of Work', progress: 95, color: 'bg-emerald-500' },
@@ -115,6 +122,13 @@ export function EmployeeDashboardPage() {
     }
   }, [])
 
+  const showCongrats = useMemo(() => {
+    if (!latestPromotion || !latestPromotion.updatedAt) return false
+    const approvedTime = new Date(latestPromotion.updatedAt).getTime()
+    const now = Date.now()
+    return now - approvedTime < 24 * 60 * 60 * 1000 // 24 hours
+  }, [latestPromotion])
+
   const submittedKpis = kpis.filter((kpi) => String(kpi.status ?? '').toUpperCase() === 'SUBMITTED')
   const averageKpiScore = useMemo(() => {
     const scored = kpis
@@ -128,6 +142,20 @@ export function EmployeeDashboardPage() {
 
   return (
     <div className="min-h-full space-y-6 bg-[#f5f9ff] text-slate-900 dark:bg-slate-950 dark:text-white">
+      {/* Custom Styles for Congrats Banner Particles */}
+      {showCongrats && (
+        <style dangerouslySetInnerHTML={{__html: `
+          @keyframes confettiFloat {
+            0% { transform: translateY(0px) rotate(0deg) scale(1); opacity: 0.8; }
+            50% { transform: translateY(-12px) rotate(180deg) scale(1.1); opacity: 1; }
+            100% { transform: translateY(0px) rotate(360deg) scale(1); opacity: 0.8; }
+          }
+          .animate-confetti {
+            animation: confettiFloat 4s ease-in-out infinite;
+          }
+        `}} />
+      )}
+
       <section className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
         <div>
           <h1 className="text-3xl font-black tracking-tight text-slate-950 dark:text-white">My Dashboard</h1>
@@ -137,6 +165,44 @@ export function EmployeeDashboardPage() {
           <Target size={18} /> View My KPIs
         </Link>
       </section>
+
+      {/* Congratulations Animated Banner */}
+      {showCongrats && (
+        <div className="relative overflow-hidden rounded-[2.5rem] bg-gradient-to-r from-violet-600 via-indigo-600 to-blue-600 p-8 text-white shadow-2xl shadow-indigo-150 animate-in slide-in-from-top-4 duration-1000 dark:shadow-none border border-white/10">
+          {/* Floating decorative gradient elements */}
+          <div className="absolute top-0 right-0 w-64 h-64 bg-white/10 rounded-full blur-3xl -mr-20 -mt-20 animate-pulse duration-[8000ms]" />
+          <div className="absolute bottom-0 left-0 w-48 h-48 bg-blue-400/20 rounded-full blur-2xl -ml-20 -mb-20 animate-pulse duration-[6000ms]" />
+
+          {/* Animated particle icons */}
+          <div className="absolute top-4 right-1/4 text-2xl opacity-40 animate-confetti" style={{ animationDelay: '0.5s' }}>✨</div>
+          <div className="absolute bottom-4 left-1/3 text-xl opacity-30 animate-confetti" style={{ animationDelay: '1.5s' }}>⭐</div>
+          <div className="absolute top-12 left-1/4 text-2xl opacity-45 animate-confetti" style={{ animationDelay: '2.2s' }}>🎉</div>
+          <div className="absolute bottom-8 right-1/3 text-lg opacity-35 animate-confetti" style={{ animationDelay: '0.8s' }}>✨</div>
+
+          <div className="relative flex flex-col md:flex-row items-center justify-between gap-6">
+            <div className="flex flex-col sm:flex-row items-center sm:items-start gap-6 text-center sm:text-left">
+              <div className="flex h-16 w-16 items-center justify-center rounded-[20px] bg-white/15 backdrop-blur-md border border-white/20 text-3xl shadow-lg animate-bounce duration-[3000ms] shrink-0">
+                🎉
+              </div>
+              <div className="space-y-1">
+                <span className="text-[10px] font-black uppercase tracking-[0.25em] text-indigo-200">Congratulations!</span>
+                <h2 className="text-2xl font-black tracking-tight leading-tight">
+                  Congratulations on Your Promotion!
+                </h2>
+                <p className="text-sm font-medium text-indigo-100 mt-1 max-w-2xl leading-relaxed">
+                  You have been successfully promoted to <span className="font-extrabold text-white underline decoration-yellow-300 decoration-2 underline-offset-4">{latestPromotion.targetPositionName}</span>. 
+                  Thank you for your valuable contributions, dedication, and impact to our team!
+                </p>
+              </div>
+            </div>
+            <div className="flex items-center shrink-0">
+              <span className="text-[10px] font-black tracking-widest text-center uppercase bg-white/15 text-white border border-white/20 px-4 py-2 rounded-2xl backdrop-blur-md shadow-sm">
+                ✨ New Milestone
+              </span>
+            </div>
+          </div>
+        </div>
+      )}
 
       <section className="grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-4">
         {[
