@@ -1,42 +1,33 @@
 import { useState, useMemo, useEffect } from 'react';
 import { useSelector } from 'react-redux';
-import { Shield, ClipboardList, Loader2, AlertCircle, Info, X, Users } from 'lucide-react';
+import { Shield, Users, Loader2, AlertCircle, Info, X, Search } from 'lucide-react';
 import toast from 'react-hot-toast';
 import type { RootState } from '../../../app/store';
 import {
-  useGetPermissionMatrixQuery,
-  useUpdatePositionPermissionsMutation,
+  useGetEmployeePermissionMatrixQuery,
+  useSaveEmployeePermissionsMutation,
   type PermissionActionDto,
 } from '../../../features/permission/permissionApi';
-import { usePendingChanges, usePositionSearch } from './permissionHooks';
-import { ModuleSidebar } from './ModuleSidebar';
-import { FilterBar } from './FilterBar';
-import { PositionCard } from './PositionCard';
-import { ChangesReviewModal } from './ChangesReviewModal';
-import { EmployeePermissionTab } from './EmployeePermissionTab';
+import { useEmployeePendingChanges } from './permissionHooks';
+import { EmployeeCard } from './EmployeeCard';
+import { EmployeeChangesReviewModal } from './EmployeeChangesReviewModal';
 
-type Tab = 'groups' | 'employees';
-
-export default function PermissionMatrixPage() {
+export function EmployeePermissionTab() {
   const { user } = useSelector((state: RootState) => state.auth);
-  const [activeTab, setActiveTab] = useState<Tab>('groups');
-  const [selectedLevelCode, setSelectedLevelCode] = useState<number | undefined>(undefined);
-  const [selectedRoleId, setSelectedRoleId] = useState<number | undefined>(undefined);
   const [selectedModuleKey, setSelectedModuleKey] = useState<string | undefined>(undefined);
+  const [search, setSearch] = useState('');
   const [showReviewModal, setShowReviewModal] = useState(false);
 
-  const isAuthorized = user?.roleId === 1 || user?.roleId === 5;
-  const isAudit = user?.roleId === 5;
+  const isAuthorized = user?.roleId === 5;
 
-  const { changes, hasChanges, getEffective, toggle, setAll, clear, getChangesForModule } = usePendingChanges();
+  const { changes, hasChanges, getEffective, cycle, setOverride, clear, getChangesForModule } = useEmployeePendingChanges();
 
-  const { data: matrixResponse, isLoading, isFetching } = useGetPermissionMatrixQuery({
-    levelCodeId: selectedLevelCode,
-    roleId: selectedRoleId,
+  const { data: matrixResponse, isLoading, isFetching } = useGetEmployeePermissionMatrixQuery({
+    search: search || undefined,
     moduleKey: undefined,
   });
 
-  const [updatePermissions, { isLoading: isSaving }] = useUpdatePositionPermissionsMutation();
+  const [savePermissions, { isLoading: isSaving }] = useSaveEmployeePermissionsMutation();
 
   const matrix = matrixResponse?.data;
 
@@ -74,43 +65,18 @@ export default function PermissionMatrixPage() {
     return actionsByModule.get(selectedModule.moduleKey) || [];
   }, [selectedModule, actionsByModule, matrix]);
 
-  const levelCodes = useMemo(() => {
+  const filteredEmployees = useMemo(() => {
     if (!matrix) return [];
-    const seen = new Map<number, { id: number; code: string; description: string }>();
-    for (const pos of matrix.positions) {
-      if (pos.levelCodeId && !seen.has(pos.levelCodeId)) {
-        seen.set(pos.levelCodeId, {
-          id: pos.levelCodeId,
-          code: pos.levelCode,
-          description: pos.levelCodeDescription,
-        });
-      }
-    }
-    return Array.from(seen.values()).sort((a, b) => a.code.localeCompare(b.code));
-  }, [matrix]);
-
-  const roles = useMemo(() => {
-    if (!matrix) return [];
-    const seen = new Map<number, { id: number; name: string }>();
-    for (const pos of matrix.positions) {
-      if (pos.roleId && !seen.has(pos.roleId)) {
-        seen.set(pos.roleId, { id: pos.roleId, name: pos.roleName });
-      }
-    }
-    return Array.from(seen.values()).sort((a, b) => a.name.localeCompare(b.name));
-  }, [matrix]);
-
-  const { search: positionSearch, setSearch: setPositionSearch, filtered: filteredPositions } =
-    usePositionSearch(matrix?.positions || []);
-
-  const positionNames = useMemo(() => {
-    const map = new Map<number, { name: string; code: string; roleName: string }>();
-    if (!matrix) return map;
-    for (const pos of matrix.positions) {
-      map.set(pos.positionId, { name: pos.positionName, code: pos.positionCode, roleName: pos.roleName });
-    }
-    return map;
-  }, [matrix]);
+    if (!search.trim()) return matrix.employees;
+    const q = search.toLowerCase();
+    return matrix.employees.filter(
+      (e) =>
+        e.employeeName.toLowerCase().includes(q) ||
+        (e.employeeCode && e.employeeCode.toLowerCase().includes(q)) ||
+        e.positionName.toLowerCase().includes(q) ||
+        e.departmentName.toLowerCase().includes(q)
+    );
+  }, [matrix, search]);
 
   const moduleChanges = useMemo(() => {
     if (!selectedModule) return [];
@@ -122,31 +88,40 @@ export default function PermissionMatrixPage() {
     return matrix.actions;
   }, [matrix]);
 
+  const employeeNames = useMemo(() => {
+    const map = new Map<number, { name: string; code: string }>();
+    if (!matrix) return map;
+    for (const emp of matrix.employees) {
+      map.set(emp.employeeId, { name: emp.employeeName, code: emp.employeeCode || '' });
+    }
+    return map;
+  }, [matrix]);
+
   const handleConfirmSave = async () => {
     if (!moduleChanges.length || !selectedModule) return;
 
-    const byPosition = new Map<number, { moduleKey: string; actionKey: string; allowed: boolean }[]>();
+    const byEmployee = new Map<number, { moduleKey: string; actionKey: string; override: boolean | null }[]>();
     for (const c of moduleChanges) {
-      if (!byPosition.has(c.positionId)) {
-        byPosition.set(c.positionId, []);
+      if (!byEmployee.has(c.employeeId)) {
+        byEmployee.set(c.employeeId, []);
       }
-      byPosition.get(c.positionId)!.push({ moduleKey: c.moduleKey, actionKey: c.actionKey, allowed: c.allowed });
+      byEmployee.get(c.employeeId)!.push({ moduleKey: c.moduleKey, actionKey: c.actionKey, override: c.override });
     }
 
     const moduleKey = selectedModule.moduleKey;
 
     try {
       const promises: Promise<unknown>[] = [];
-      for (const [positionId, permissions] of byPosition) {
+      for (const [employeeId, permissions] of byEmployee) {
         promises.push(
-          updatePermissions({
-            positionId,
+          savePermissions({
+            employeeId,
             request: { moduleKey, permissions },
           }).unwrap()
         );
       }
       await Promise.all(promises);
-      toast.success(`Permissions saved for ${byPosition.size} position(s) in "${selectedModule.displayName}"`);
+      toast.success(`Employee overrides saved for ${byEmployee.size} employee(s) in "${selectedModule.displayName}"`);
       clear();
       setShowReviewModal(false);
     } catch (err: unknown) {
@@ -170,16 +145,12 @@ export default function PermissionMatrixPage() {
   const otherModuleChangesCount = changes.length - moduleChanges.length;
   const hasOtherModuleChanges = otherModuleChangesCount > 0;
 
-  if (activeTab === 'employees') {
-    return <EmployeePermissionTab />;
-  }
-
   if (isLoading) {
     return (
       <div className="flex items-center justify-center min-h-[500px]">
         <div className="flex flex-col items-center gap-3">
           <Loader2 className="h-10 w-10 animate-spin text-indigo-500" />
-          <p className="text-sm text-slate-500 dark:text-slate-400">Loading permission matrix...</p>
+          <p className="text-sm text-slate-500 dark:text-slate-400">Loading employee permission matrix...</p>
         </div>
       </div>
     );
@@ -191,7 +162,7 @@ export default function PermissionMatrixPage() {
         <div className="bg-white dark:bg-slate-800 rounded-xl border border-slate-200 dark:border-slate-700 p-12 text-center shadow-sm">
           <AlertCircle className="h-16 w-16 text-slate-300 dark:text-slate-600 mx-auto mb-4" />
           <h3 className="text-lg font-semibold text-slate-700 dark:text-slate-300 mb-1">No Data Available</h3>
-          <p className="text-sm text-slate-500 dark:text-slate-400">Permission data is not available</p>
+          <p className="text-sm text-slate-500 dark:text-slate-400">Employee permission data is not available</p>
         </div>
       </div>
     );
@@ -199,42 +170,16 @@ export default function PermissionMatrixPage() {
 
   return (
     <div className="space-y-5">
-      {/* Tabs */}
-      <div className="flex border-b border-slate-200 dark:border-slate-700">
-        <button
-          onClick={() => setActiveTab('groups')}
-          className={`flex items-center gap-2 px-5 py-3 text-sm font-medium border-b-2 transition-colors ${
-            activeTab === 'groups'
-              ? 'border-indigo-500 text-indigo-600 dark:text-indigo-400 dark:border-indigo-400'
-              : 'border-transparent text-slate-500 hover:text-slate-700 dark:text-slate-400 dark:hover:text-slate-300'
-          }`}
-        >
-          <Shield className="h-4 w-4" />
-          Groups
-        </button>
-        <button
-          onClick={() => setActiveTab('employees')}
-          className={`flex items-center gap-2 px-5 py-3 text-sm font-medium border-b-2 transition-colors ${
-            activeTab === 'employees'
-              ? 'border-indigo-500 text-indigo-600 dark:text-indigo-400 dark:border-indigo-400'
-              : 'border-transparent text-slate-500 hover:text-slate-700 dark:text-slate-400 dark:hover:text-slate-300'
-          }`}
-        >
-          <Users className="h-4 w-4" />
-          Employees
-        </button>
-      </div>
-
       {/* Sticky header bar */}
       <div className="sticky top-0 z-10 bg-slate-50/80 dark:bg-slate-900/80 backdrop-blur-md -mx-4 sm:-mx-6 lg:-mx-8 px-4 sm:px-6 lg:px-8 py-4 border-b border-slate-200/60 dark:border-slate-700/60">
         <div className="flex items-center justify-between">
           <div>
             <h1 className="text-xl sm:text-2xl font-bold text-slate-900 dark:text-white flex items-center gap-2.5">
-              <Shield className="h-6 w-6 text-indigo-500" />
-              Permission Groups
+              <Users className="h-6 w-6 text-indigo-500" />
+              Employee Permissions
             </h1>
             <p className="text-sm text-slate-500 dark:text-slate-400 mt-0.5">
-              Manage permissions by group and position
+              Manage per-employee permission overrides
             </p>
           </div>
           {hasChanges && (
@@ -259,8 +204,7 @@ export default function PermissionMatrixPage() {
                 disabled={!isAuthorized}
                 className="px-4 py-2 text-sm font-medium bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-1.5 transition-colors shadow-sm shadow-indigo-200 dark:shadow-none"
               >
-                <ClipboardList className="h-4 w-4" />
-                <span className="hidden sm:inline">Changes</span>
+                <span>Changes</span>
                 {moduleChanges.length > 0 && (
                   <span className="inline-flex items-center justify-center w-5 h-5 text-[10px] font-bold bg-white/20 rounded-full">
                     {moduleChanges.length}
@@ -282,36 +226,99 @@ export default function PermissionMatrixPage() {
         )}
       </div>
 
-      {/* Filters */}
-      <FilterBar
-        levelCodes={levelCodes}
-        roles={roles}
-        selectedLevelCode={selectedLevelCode}
-        selectedRoleId={selectedRoleId}
-        positionSearch={positionSearch}
-        onLevelCodeChange={setSelectedLevelCode}
-        onRoleChange={setSelectedRoleId}
-        onPositionSearchChange={setPositionSearch}
-      />
+      {/* Search */}
+      <div className="bg-white dark:bg-slate-800 rounded-xl border border-slate-200 dark:border-slate-700 shadow-sm p-4">
+        <div className="relative">
+          <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-400" />
+          <input
+            type="text"
+            value={search}
+            onChange={(e) => setSearch(e.target.value)}
+            placeholder="Search by name, code, position, or department..."
+            className="w-full pl-9 pr-8 py-2 text-sm border border-slate-300 dark:border-slate-600 rounded-lg bg-white dark:bg-slate-700 text-slate-900 dark:text-white placeholder-slate-400 dark:placeholder-slate-500 focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 outline-none transition-shadow"
+          />
+          {search && (
+            <button
+              onClick={() => setSearch('')}
+              className="absolute right-2 top-1/2 -translate-y-1/2 p-0.5 rounded hover:bg-slate-100 dark:hover:bg-slate-600 text-slate-400"
+            >
+              <X className="h-3.5 w-3.5" />
+            </button>
+          )}
+        </div>
+      </div>
 
       {/* Info banner */}
       <div className="bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-800 rounded-xl p-3.5 flex items-start gap-2.5">
         <Info className="h-4 w-4 text-blue-500 mt-0.5 shrink-0" />
         <p className="text-sm text-blue-700 dark:text-blue-300 leading-relaxed">
-          Permissions are resolved by position. <strong>Green</strong> means the permission is explicitly
-          allowed. Admin (HR) and Audit roles can manage permissions. Use <strong>Changes</strong> to
-          review and confirm staged edits for the current module only.
+          Employee overrides take precedence over position permissions. Click a toggle to cycle through{' '}
+          <strong>Inherit</strong> (position default), <strong>Allow</strong> (override grant), and{' '}
+          <strong>Deny</strong> (override restriction). Only Audit users can manage overrides.
         </p>
       </div>
 
       {/* Two-pane layout */}
       <div className="flex flex-col lg:flex-row gap-5">
-        <ModuleSidebar
-          modules={modules}
-          actionsByModule={actionsByModule}
-          selectedModule={selectedModule}
-          onSelect={setSelectedModuleKey}
-        />
+        {/* Module sidebar */}
+        <div className="hidden lg:block w-64 shrink-0">
+          <div className="bg-white dark:bg-slate-800 rounded-xl border border-slate-200 dark:border-slate-700 shadow-sm overflow-hidden sticky top-24">
+            <div className="px-4 py-3 border-b border-slate-200 dark:border-slate-700 flex items-center gap-2">
+              <Shield className="h-4 w-4 text-slate-500" />
+              <span className="text-sm font-semibold text-slate-700 dark:text-slate-300">Modules</span>
+            </div>
+            <nav className="p-2 space-y-1 max-h-[calc(100vh-12rem)] overflow-y-auto">
+              {modules.map((mod) => {
+                const isActive = selectedModule?.moduleKey === mod.moduleKey;
+                const count = actionsByModule.get(mod.moduleKey)?.length || 0;
+                return (
+                  <button
+                    key={mod.moduleKey}
+                    onClick={() => setSelectedModuleKey(mod.moduleKey)}
+                    className={`w-full text-left px-3 py-2.5 rounded-lg text-sm transition-all duration-150 group ${
+                      isActive
+                        ? 'bg-indigo-50 dark:bg-indigo-900/20 text-indigo-700 dark:text-indigo-300 font-medium ring-1 ring-indigo-200 dark:ring-indigo-800'
+                        : 'text-slate-700 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-700/50'
+                    }`}
+                  >
+                    <div className="flex items-center justify-between">
+                      <span className="truncate">{mod.displayName}</span>
+                      <span className={`shrink-0 ml-2 text-xs px-1.5 py-0.5 rounded-full ${
+                        isActive
+                          ? 'bg-indigo-100 dark:bg-indigo-800/30 text-indigo-600 dark:text-indigo-300'
+                          : 'bg-slate-100 dark:bg-slate-700 text-slate-500 dark:text-slate-400 group-hover:bg-slate-200 dark:group-hover:bg-slate-600'
+                      }`}>
+                        {count}
+                      </span>
+                    </div>
+                  </button>
+                );
+              })}
+            </nav>
+          </div>
+        </div>
+
+        {/* Mobile horizontal scroll for modules */}
+        <div className="lg:hidden overflow-x-auto -mx-1 pb-1 scrollbar-thin">
+          <div className="flex gap-2">
+            {modules.map((mod) => {
+              const isActive = selectedModule?.moduleKey === mod.moduleKey;
+              return (
+                <button
+                  key={mod.moduleKey}
+                  onClick={() => setSelectedModuleKey(mod.moduleKey)}
+                  className={`shrink-0 px-3 py-2 rounded-lg text-sm whitespace-nowrap transition-all duration-150 ${
+                    isActive
+                      ? 'bg-indigo-50 dark:bg-indigo-900/20 text-indigo-700 dark:text-indigo-300 font-medium ring-1 ring-indigo-200 dark:ring-indigo-800'
+                      : 'text-slate-700 dark:text-slate-300 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 hover:bg-slate-50 dark:hover:bg-slate-700/50 shadow-sm'
+                  }`}
+                >
+                  {mod.displayName}
+                </button>
+              );
+            })}
+          </div>
+        </div>
 
         {/* Main pane */}
         <div className="flex-1 min-w-0">
@@ -324,13 +331,13 @@ export default function PermissionMatrixPage() {
           {!selectedModule ? (
             <div className="flex flex-col items-center justify-center py-20 bg-white dark:bg-slate-800 rounded-xl border border-slate-200 dark:border-slate-700 shadow-sm">
               <AlertCircle className="h-14 w-14 text-slate-300 dark:text-slate-600 mb-3" />
-              <p className="text-slate-500 dark:text-slate-400 font-medium">No permission groups available</p>
+              <p className="text-slate-500 dark:text-slate-400 font-medium">No permission modules available</p>
             </div>
-          ) : filteredPositions.length === 0 ? (
+          ) : filteredEmployees.length === 0 ? (
             <div className="flex flex-col items-center justify-center py-20 bg-white dark:bg-slate-800 rounded-xl border border-slate-200 dark:border-slate-700 shadow-sm">
               <AlertCircle className="h-14 w-14 text-slate-300 dark:text-slate-600 mb-3" />
               <p className="text-slate-500 dark:text-slate-400 font-medium">
-                {positionSearch ? 'No positions match your search' : 'No positions found matching the filters'}
+                {search ? 'No employees match your search' : 'No employees with user accounts found'}
               </p>
             </div>
           ) : (
@@ -354,15 +361,15 @@ export default function PermissionMatrixPage() {
                 </div>
               </div>
 
-              {/* Position cards */}
-              {filteredPositions.map((pos) => (
-                <PositionCard
-                  key={pos.positionId}
-                  position={pos}
+              {/* Employee cards */}
+              {filteredEmployees.map((emp) => (
+                <EmployeeCard
+                  key={emp.employeeId}
+                  employee={emp}
                   actions={actions}
                   getEffective={getEffective}
-                  onToggle={toggle}
-                  onSetAll={setAll}
+                  onCycle={cycle}
+                  setOverride={setOverride}
                   changes={changes}
                   disabled={!isAuthorized}
                 />
@@ -377,16 +384,16 @@ export default function PermissionMatrixPage() {
         <div className="bg-amber-50 dark:bg-amber-900/20 border border-amber-200 dark:border-amber-800 rounded-xl p-3.5 flex items-start gap-2.5">
           <AlertCircle className="h-4 w-4 text-amber-500 mt-0.5 shrink-0" />
           <p className="text-sm text-amber-700 dark:text-amber-300 leading-relaxed">
-            You do not have permission to edit permissions. Contact an Admin or Audit user to make changes.
+            Only Audit users can manage employee permission overrides.
           </p>
         </div>
       )}
 
       {/* Summary */}
-      {matrix && selectedModule && filteredPositions.length > 0 && (
+      {matrix && selectedModule && filteredEmployees.length > 0 && (
         <div className="text-xs text-slate-400 dark:text-slate-500 text-right border-t border-slate-200 dark:border-slate-700 pt-4 mt-2">
-          Showing <strong className="text-slate-500 dark:text-slate-400">{filteredPositions.length}</strong>{' '}
-          position{filteredPositions.length !== 1 ? 's' : ''},{' '}
+          Showing <strong className="text-slate-500 dark:text-slate-400">{filteredEmployees.length}</strong>{' '}
+          employee{filteredEmployees.length !== 1 ? 's' : ''},{' '}
           <strong className="text-slate-500 dark:text-slate-400">{actions.length}</strong> action
           {actions.length !== 1 ? 's' : ''} in &ldquo;{selectedModule.displayName}&rdquo;
         </div>
@@ -394,10 +401,10 @@ export default function PermissionMatrixPage() {
 
       {/* Changes Review Modal */}
       {showReviewModal && selectedModule && (
-        <ChangesReviewModal
+        <EmployeeChangesReviewModal
           changes={moduleChanges}
           moduleDisplayName={selectedModule.displayName}
-          positionNames={positionNames}
+          employeeNames={employeeNames}
           allActions={allActions}
           onConfirm={handleConfirmSave}
           onCancel={() => setShowReviewModal(false)}

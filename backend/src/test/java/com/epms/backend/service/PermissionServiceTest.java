@@ -1,21 +1,28 @@
 package com.epms.backend.service;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.eq;
+import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
+import java.util.Collections;
 import java.util.Optional;
 
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
+import org.mockito.ArgumentCaptor;
 import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 
 import com.epms.backend.entity.Employee;
+import com.epms.backend.entity.EmployeePermission;
 import com.epms.backend.entity.Position;
 import com.epms.backend.entity.PositionPermission;
 import com.epms.backend.entity.Role;
 import com.epms.backend.entity.User;
+import com.epms.backend.repository.EmployeePermissionRepository;
 import com.epms.backend.repository.PermissionActionRepository;
 import com.epms.backend.repository.PermissionModuleRepository;
 import com.epms.backend.repository.PositionPermissionRepository;
@@ -35,6 +42,8 @@ class PermissionServiceTest {
     private PositionRepository positionRepository;
     @Mock
     private UserRepository userRepository;
+    @Mock
+    private EmployeePermissionRepository employeePermissionRepository;
     @Mock
     private AuditService auditService;
 
@@ -111,5 +120,235 @@ class PermissionServiceTest {
                 .thenReturn(Optional.of(permission));
 
         assertThat(permissionService.hasPermissionForUserId(99L, "KPI", "view")).isTrue();
+    }
+
+    @Test
+    void positionPermissionAppliesWhenNoEmployeeOverrideExists() {
+        Position position = new Position();
+        position.setId(10L);
+        Employee employee = new Employee();
+        employee.setId(1L);
+        employee.setPosition(position);
+        Role role = new Role();
+        role.setId(4L);
+        User user = new User();
+        user.setRole(role);
+        user.setEmployee(employee);
+
+        when(userRepository.findById(99L)).thenReturn(Optional.of(user));
+        when(employeePermissionRepository.findByEmployeeIdAndModuleKeyAndActionKey(1L, "KPI", "view"))
+                .thenReturn(Optional.empty());
+        when(positionPermissionRepository.findByPositionIdAndModuleKeyAndActionKey(10L, "KPI", "view"))
+                .thenReturn(Optional.empty());
+
+        assertThat(permissionService.hasPermissionForUserId(99L, "KPI", "view")).isFalse();
+    }
+
+    @Test
+    void employeeAllowOverrideGrantsAccessWhenPositionDenies() {
+        Position position = new Position();
+        position.setId(10L);
+        Employee employee = new Employee();
+        employee.setId(1L);
+        employee.setPosition(position);
+        Role role = new Role();
+        role.setId(4L);
+        User user = new User();
+        user.setRole(role);
+        user.setEmployee(employee);
+
+        PositionPermission posPerm = new PositionPermission();
+        posPerm.setAllowed(false);
+
+        when(userRepository.findById(99L)).thenReturn(Optional.of(user));
+
+        EmployeePermission empOverride = new EmployeePermission();
+        empOverride.setAllowed(true);
+        when(employeePermissionRepository.findByEmployeeIdAndModuleKeyAndActionKey(1L, "KPI", "view"))
+                .thenReturn(Optional.of(empOverride));
+
+        // Position permission should NOT be queried since override exists
+        assertThat(permissionService.hasPermissionForUserId(99L, "KPI", "view")).isTrue();
+    }
+
+    @Test
+    void employeeDenyOverrideDeniesAccessWhenPositionAllows() {
+        Position position = new Position();
+        position.setId(10L);
+        Employee employee = new Employee();
+        employee.setId(1L);
+        employee.setPosition(position);
+        Role role = new Role();
+        role.setId(4L);
+        User user = new User();
+        user.setRole(role);
+        user.setEmployee(employee);
+
+        PositionPermission posPerm = new PositionPermission();
+        posPerm.setAllowed(true);
+
+        when(userRepository.findById(99L)).thenReturn(Optional.of(user));
+
+        EmployeePermission empOverride = new EmployeePermission();
+        empOverride.setAllowed(false);
+        when(employeePermissionRepository.findByEmployeeIdAndModuleKeyAndActionKey(1L, "KPI", "view"))
+                .thenReturn(Optional.of(empOverride));
+
+        assertThat(permissionService.hasPermissionForUserId(99L, "KPI", "view")).isFalse();
+    }
+
+    @Test
+    void clearingOverrideRestoresInheritedPositionBehavior() {
+        Position position = new Position();
+        position.setId(10L);
+        Employee employee = new Employee();
+        employee.setId(1L);
+        employee.setPosition(position);
+        Role role = new Role();
+        role.setId(4L);
+        User user = new User();
+        user.setRole(role);
+        user.setEmployee(employee);
+
+        when(userRepository.findById(99L)).thenReturn(Optional.of(user));
+        // No override row means inherit
+        when(employeePermissionRepository.findByEmployeeIdAndModuleKeyAndActionKey(1L, "KPI", "view"))
+                .thenReturn(Optional.empty());
+        when(positionPermissionRepository.findByPositionIdAndModuleKeyAndActionKey(10L, "KPI", "view"))
+                .thenReturn(Optional.empty());
+
+        assertThat(permissionService.hasPermissionForUserId(99L, "KPI", "view")).isFalse();
+    }
+
+    @Test
+    void auditRoleStillAlwaysHasPermission() {
+        User user = new User();
+        Role auditRole = new Role();
+        auditRole.setId(5L);
+        user.setRole(auditRole);
+        when(userRepository.findById(99L)).thenReturn(Optional.of(user));
+
+        assertThat(permissionService.hasPermissionForUserId(99L, "KPI", "something")).isTrue();
+    }
+
+    @Test
+    void saveEmployeePermissionsCreatesOverride() {
+        Employee employee = new Employee();
+        employee.setId(1L);
+        employee.setEmployeeName("Test User");
+        Position position = new Position();
+        position.setId(10L);
+        employee.setPosition(position);
+
+        User targetUser = new User();
+        Role role = new Role();
+        role.setId(4L);
+        targetUser.setRole(role);
+        targetUser.setEmployee(employee);
+
+        when(userRepository.findByEmployee_Id(1L)).thenReturn(Optional.of(targetUser));
+        when(employeePermissionRepository.findByEmployeeId(1L)).thenReturn(Collections.emptyList());
+
+        com.epms.backend.dto.UpdateEmployeePermissionRequest request =
+                com.epms.backend.dto.UpdateEmployeePermissionRequest.builder()
+                        .moduleKey("KPI")
+                        .permissions(java.util.List.of(
+                                com.epms.backend.dto.UpdateEmployeePermissionRequest.EmployeePermissionOverride.builder()
+                                        .moduleKey("KPI")
+                                        .actionKey("view")
+                                        .override(true)
+                                        .build()
+                        ))
+                        .build();
+
+        permissionService.saveEmployeePermissions(1L, request, 99L, 5L);
+
+        ArgumentCaptor<EmployeePermission> captor = ArgumentCaptor.forClass(EmployeePermission.class);
+        verify(employeePermissionRepository).save(captor.capture());
+        EmployeePermission saved = captor.getValue();
+        assertThat(saved.isAllowed()).isTrue();
+        assertThat(saved.getModuleKey()).isEqualTo("KPI");
+        assertThat(saved.getActionKey()).isEqualTo("view");
+        assertThat(saved.getEmployee().getId()).isEqualTo(1L);
+        verify(auditService).record(
+                eq(com.epms.backend.audit.AuditActionType.EMPLOYEE_PERMISSION_UPDATED),
+                eq(com.epms.backend.audit.AuditTargetType.EMPLOYEE_PERMISSION),
+                eq(1L), eq(99L), eq(5L),
+                eq("Updated employee permission overrides for: Test User ()"),
+                any(),
+                any(),
+                any()
+        );
+    }
+
+    @Test
+    void saveEmployeePermissionsClearsOverrideToInherit() {
+        Employee employee = new Employee();
+        employee.setId(1L);
+        employee.setEmployeeName("Test User");
+        Position position = new Position();
+        position.setId(10L);
+        employee.setPosition(position);
+
+        User targetUser = new User();
+        Role role = new Role();
+        role.setId(4L);
+        targetUser.setRole(role);
+        targetUser.setEmployee(employee);
+
+        // Existing override
+        EmployeePermission existing = new EmployeePermission();
+        existing.setEmployee(employee);
+        existing.setModuleKey("KPI");
+        existing.setActionKey("view");
+        existing.setAllowed(false);
+        existing.setId(100L);
+
+        when(userRepository.findByEmployee_Id(1L)).thenReturn(Optional.of(targetUser));
+        when(employeePermissionRepository.findByEmployeeId(1L))
+                .thenReturn(java.util.List.of(existing));
+
+        com.epms.backend.dto.UpdateEmployeePermissionRequest request =
+                com.epms.backend.dto.UpdateEmployeePermissionRequest.builder()
+                        .moduleKey("KPI")
+                        .permissions(java.util.List.of(
+                                com.epms.backend.dto.UpdateEmployeePermissionRequest.EmployeePermissionOverride.builder()
+                                        .moduleKey("KPI")
+                                        .actionKey("view")
+                                        .override(null)
+                                        .build()
+                        ))
+                        .build();
+
+        permissionService.saveEmployeePermissions(1L, request, 99L, 5L);
+
+        verify(employeePermissionRepository).delete(existing);
+    }
+
+    @Test
+    void auditCannotEditAuditRoleEmployeePermissions() {
+        Employee employee = new Employee();
+        employee.setId(1L);
+        employee.setEmployeeName("Auditor");
+
+        User targetUser = new User();
+        Role auditRole = new Role();
+        auditRole.setId(5L);
+        targetUser.setRole(auditRole);
+        targetUser.setEmployee(employee);
+
+        when(userRepository.findByEmployee_Id(1L)).thenReturn(Optional.of(targetUser));
+
+        com.epms.backend.dto.UpdateEmployeePermissionRequest request =
+                com.epms.backend.dto.UpdateEmployeePermissionRequest.builder()
+                        .moduleKey("KPI")
+                        .permissions(Collections.emptyList())
+                        .build();
+
+        org.junit.jupiter.api.Assertions.assertThrows(
+                IllegalArgumentException.class,
+                () -> permissionService.saveEmployeePermissions(1L, request, 99L, 5L),
+                "Cannot modify permissions for audit-role employees"
+        );
     }
 }
