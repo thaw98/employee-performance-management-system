@@ -1,4 +1,4 @@
-import * as XLSX from 'xlsx'
+﻿import * as XLSX from 'xlsx'
 import jsPDF from 'jspdf'
 import autoTable from 'jspdf-autotable'
 import { useGetPipsQuery, useLazyGetTrainingHistoryQuery } from '../features/pip/pipApi'
@@ -211,12 +211,6 @@ const isInvalidDateRange = (startDate: string, endDate: string) => {
   if (!start || !end) return false
   return end < start
 }
-
-const FILTER_LABEL_CLASS =
-  'mb-2 block min-h-[2rem] text-xs font-bold uppercase leading-tight tracking-wider text-slate-500'
-const FILTER_CONTROL_CLASS =
-  'h-11 w-full rounded-lg border border-slate-300 bg-slate-50 px-3 text-sm focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500'
-const FILTER_SELECT_CLASS = `${FILTER_CONTROL_CLASS} disabled:cursor-not-allowed disabled:bg-slate-100 disabled:text-slate-700`
 
 const buildPipExportRows = (bundles: PipExportBundle[]) => ({
   details: [
@@ -642,48 +636,67 @@ export default function PipMonitoringPage() {
     }
   }
 
-  if (isLoading) return <div className="p-8 flex items-center justify-center"><div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600"></div><span className="ml-3">Loading PIPs...</span></div>
+  const activePipsCount = useMemo(() => scopedPips.filter((p) => p.status === 'ACTIVE').length, [scopedPips])
+  const completedPipsCount = useMemo(() => scopedPips.filter((p) => p.status === 'COMPLETED' || (p.status === 'CLOSED' && p.finalOutcome === 'SUCCESSFUL')).length, [scopedPips])
+  const closedPipsCount = useMemo(() => scopedPips.filter((p) => p.status === 'CLOSED' || p.status === 'DENIED' || p.status === 'AUTO_CLOSED').length, [scopedPips])
+  const avgProgress = useMemo(() => {
+    if (scopedPips.length === 0) return 0
+    const total = scopedPips.reduce((sum, p) => sum + Number(p.overallProgressPercentage || 0), 0)
+    return Math.round(total / scopedPips.length)
+  }, [scopedPips])
+
+  if (isLoading) return (
+    <div className="flex min-h-[60vh] items-center justify-center">
+      <div className="flex flex-col items-center gap-4">
+        <div className="h-12 w-12 animate-spin rounded-full border-[3px] border-slate-200 border-t-blue-600" />
+        <p className="text-sm font-bold text-slate-400">Loading PIP records...</p>
+      </div>
+    </div>
+  )
 
   if (isError) {
     const apiError = error as ApiError | undefined
     const errorMessage = apiError?.data?.message || apiError?.error || 'Failed to load PIP records.'
     return (
       <div className="p-8">
-        <div className="rounded-xl border border-red-200 bg-red-50 p-6 text-red-700">
-          <h2 className="text-lg font-bold">Unable to load PIP Monitoring</h2>
-          <p className="mt-2 text-sm">{errorMessage}</p>
+        <div className="rounded-[2rem] border border-red-100 bg-red-50 p-8 text-red-700">
+          <div className="mb-4 flex h-14 w-14 items-center justify-center rounded-2xl bg-red-100 text-red-600">
+            <i className="bi bi-exclamation-triangle text-2xl" />
+          </div>
+          <h2 className="text-xl font-black text-slate-900">Unable to load PIP Monitoring</h2>
+          <p className="mt-2 text-sm font-medium">{errorMessage}</p>
         </div>
       </div>
     )
   }
 
   return (
-    <div className="p-4 sm:p-8 max-w-[1600px] mx-auto">
-      <div className="mb-8 flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
+    <div className="px-6 py-8 md:px-10 max-w-[1600px] mx-auto">
+      {/* Header */}
+      <div className="mb-10 flex flex-col gap-6 md:flex-row md:items-center md:justify-between">
         <div>
-          <h1 className="text-3xl font-extrabold text-slate-900 tracking-tight">PIP Monitoring</h1>
-          <p className="text-slate-500 mt-1">Manage and track performance improvement plans across your scope.</p>
+          <span className="mb-2 block text-[10px] font-black uppercase tracking-[0.2em] text-blue-600">Performance Improvement</span>
+          <h1 className="text-4xl font-black text-slate-900 tracking-tight leading-none">PIP Monitoring</h1>
+          <p className="mt-3 text-sm font-bold text-slate-400">Manage and track performance improvement plans across your scope.</p>
         </div>
-        <div className="flex flex-wrap items-center gap-3 lg:justify-end">
+        <div className="flex flex-wrap items-center gap-3">
           {(canViewAllPips || isManager) && (
             <>
               <button
                 type="button"
                 onClick={handleExportPips}
                 disabled={exportTargetPips.length === 0}
-                className="flex flex-1 items-center justify-center gap-2 rounded-xl bg-slate-900 px-5 py-3 text-sm font-bold text-white shadow-sm transition-all hover:bg-slate-700 disabled:cursor-not-allowed disabled:bg-slate-300 sm:flex-none"
+                className="inline-flex items-center gap-2 rounded-2xl border border-slate-200 bg-white px-6 py-3 text-sm font-black text-slate-700 shadow-sm transition-all hover:bg-slate-50 hover:shadow-md disabled:cursor-not-allowed disabled:opacity-40"
               >
-                <i className="bi bi-download" />
-                Export Excel
+                <i className="bi bi-download" /> Excel
               </button>
               <button
                 type="button"
                 onClick={handlePrintPips}
                 disabled={exportTargetPips.length === 0}
-                className="flex flex-1 items-center justify-center gap-2 rounded-xl border border-slate-200 bg-white px-5 py-3 text-sm font-bold text-slate-700 shadow-sm transition-all hover:bg-slate-50 disabled:cursor-not-allowed disabled:text-slate-300 sm:flex-none"
+                className="inline-flex items-center gap-2 rounded-2xl border border-slate-200 bg-white px-6 py-3 text-sm font-black text-slate-700 shadow-sm transition-all hover:bg-slate-50 hover:shadow-md disabled:cursor-not-allowed disabled:opacity-40"
               >
-                <i className="bi bi-printer" />
-                Export PDF
+                <i className="bi bi-printer" /> PDF
               </button>
             </>
           )}
@@ -691,10 +704,9 @@ export default function PipMonitoringPage() {
             <button
               type="button"
               onClick={() => setIsCreateModalOpen(true)}
-              className="flex flex-1 items-center justify-center gap-2 rounded-xl bg-blue-600 px-6 py-3 text-sm font-bold text-white shadow-lg shadow-blue-200 transition-all hover:bg-blue-700 hover:scale-105 active:scale-95 sm:flex-none"
+              className="inline-flex items-center gap-2 rounded-2xl bg-blue-600 px-7 py-3 text-sm font-black text-white shadow-[0_8px_20px_-4px_rgba(37,99,235,0.4)] transition-all hover:bg-blue-700 hover:shadow-blue-500/40 active:scale-95"
             >
-              <i className="bi bi-plus-lg" />
-              Create PIP
+              <i className="bi bi-plus-lg" /> Create PIP
             </button>
           )}
         </div>
@@ -702,17 +714,16 @@ export default function PipMonitoringPage() {
 
       {isCreateModalOpen && (
         <div className="fixed inset-0 z-50 flex items-start justify-center overflow-y-auto bg-slate-950/50 p-4 pt-8 backdrop-blur-sm sm:pt-12">
-          <div className="w-full max-w-3xl rounded-2xl bg-white p-6 shadow-2xl">
+          <div className="w-full max-w-3xl rounded-[2.5rem] bg-white p-8 shadow-2xl animate-scale-in">
             <div className="mb-6 flex items-start justify-between gap-4">
               <div>
-                <h2 className="text-2xl font-bold text-slate-900">Create New PIP</h2>
-                <p className="mt-1 text-sm text-slate-500">Create a respectful, measurable Performance Improvement Plan.</p>
+                <h2 className="text-2xl font-black text-slate-900 tracking-tight">Create New PIP</h2>
+                <p className="mt-1 text-sm font-bold text-slate-500">Create a respectful, measurable Performance Improvement Plan.</p>
               </div>
               <button
                 type="button"
                 onClick={() => setIsCreateModalOpen(false)}
-                className="rounded-lg p-2 text-slate-400 hover:bg-slate-100 hover:text-slate-700"
-                aria-label="Close create PIP"
+                className="flex h-10 w-10 items-center justify-center rounded-2xl bg-slate-100 text-slate-500 transition-all hover:bg-slate-200 hover:text-slate-900"
               >
                 <i className="bi bi-x-lg" />
               </button>
@@ -730,26 +741,78 @@ export default function PipMonitoringPage() {
       )}
 
       {exportError && (
-        <div className="mb-6 rounded-xl border border-red-200 bg-red-50 p-4 text-sm font-semibold text-red-700">
-          {exportError}
+        <div className="mb-8 rounded-2xl border border-red-100 bg-red-50 p-5 text-sm font-bold text-red-700">
+          <i className="bi bi-exclamation-circle mr-2" />{exportError}
+        </div>
+      )}
+
+      {/* Summary Stats Cards */}
+      {!isEmployee && scopedPips.length > 0 && (
+        <div className="mb-10 grid grid-cols-2 gap-4 sm:grid-cols-4">
+          <div className="group relative overflow-hidden rounded-[2rem] border border-white bg-white p-6 shadow-sm transition-all hover:shadow-xl hover:-translate-y-0.5">
+            <div className="relative z-10">
+              <div className="mb-4 flex h-12 w-12 items-center justify-center rounded-2xl bg-blue-50 text-blue-600">
+                <i className="bi bi-activity text-xl" />
+              </div>
+              <p className="text-3xl font-black text-slate-900 leading-none mb-1">{activePipsCount}</p>
+              <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Active</p>
+            </div>
+            <div className="absolute -right-6 -bottom-6 h-24 w-24 rounded-full bg-blue-50 opacity-50 transition-transform duration-700 group-hover:scale-150" />
+          </div>
+          <div className="group relative overflow-hidden rounded-[2rem] border border-white bg-white p-6 shadow-sm transition-all hover:shadow-xl hover:-translate-y-0.5">
+            <div className="relative z-10">
+              <div className="mb-4 flex h-12 w-12 items-center justify-center rounded-2xl bg-emerald-50 text-emerald-600">
+                <i className="bi bi-check2-circle text-xl" />
+              </div>
+              <p className="text-3xl font-black text-slate-900 leading-none mb-1">{completedPipsCount}</p>
+              <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Completed</p>
+            </div>
+            <div className="absolute -right-6 -bottom-6 h-24 w-24 rounded-full bg-emerald-50 opacity-50 transition-transform duration-700 group-hover:scale-150" />
+          </div>
+          <div className="group relative overflow-hidden rounded-[2rem] border border-white bg-white p-6 shadow-sm transition-all hover:shadow-xl hover:-translate-y-0.5">
+            <div className="relative z-10">
+              <div className="mb-4 flex h-12 w-12 items-center justify-center rounded-2xl bg-slate-50 text-slate-600">
+                <i className="bi bi-archive text-xl" />
+              </div>
+              <p className="text-3xl font-black text-slate-900 leading-none mb-1">{closedPipsCount}</p>
+              <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Closed</p>
+            </div>
+            <div className="absolute -right-6 -bottom-6 h-24 w-24 rounded-full bg-slate-50 opacity-50 transition-transform duration-700 group-hover:scale-150" />
+          </div>
+          <div className="group relative overflow-hidden rounded-[2rem] border border-white bg-white p-6 shadow-sm transition-all hover:shadow-xl hover:-translate-y-0.5">
+            <div className="relative z-10">
+              <div className="mb-4 flex h-12 w-12 items-center justify-center rounded-2xl bg-indigo-50 text-indigo-600">
+                <i className="bi bi-graph-up-arrow text-xl" />
+              </div>
+              <p className="text-3xl font-black text-slate-900 leading-none mb-1">{avgProgress}%</p>
+              <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Avg Progress</p>
+            </div>
+            <div className="absolute -right-6 -bottom-6 h-24 w-24 rounded-full bg-indigo-50 opacity-50 transition-transform duration-700 group-hover:scale-150" />
+          </div>
         </div>
       )}
 
       {/* Advanced Filters */}
-      <div className="mb-8 rounded-2xl border border-slate-200 bg-white p-6 shadow-sm">
-        <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
-          {/* Department Filter - Only for HR or if Manager has multiple (unlikely based on current backend) */}
+      <div className="mb-8 rounded-[2rem] border border-white bg-white p-8 shadow-sm">
+        <div className="mb-6 flex items-center gap-2">
+          <i className="bi bi-funnel text-blue-600 text-lg" />
+          <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Filters</span>
+          {hasActiveFilters && (
+            <span className="ml-auto text-xs font-bold text-blue-600">{exportTargetPips.length} result{exportTargetPips.length !== 1 ? 's' : ''}</span>
+          )}
+        </div>
+        <div className="grid grid-cols-1 gap-5 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
           {(canViewAllPips || isManager) && (
-            <div className="min-w-0">
-              <label className={FILTER_LABEL_CLASS}>Department</label>
+            <div>
+              <label className="mb-2 block text-[10px] font-black uppercase tracking-widest text-slate-400">Department</label>
               <select
                 value={filterDept || ''}
                 onChange={(e) => {
                   setFilterDept(e.target.value ? Number(e.target.value) : undefined)
-                  setFilterPos(undefined) // Reset position when department changes
+                  setFilterPos(undefined)
                 }}
                 disabled={!canViewAllPips}
-                className={FILTER_SELECT_CLASS}
+                className="h-12 w-full rounded-2xl border border-slate-200 bg-white px-4 text-sm font-bold text-slate-700 shadow-sm focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-200 disabled:cursor-not-allowed disabled:bg-slate-50 disabled:text-slate-400"
               >
                 {canViewAllPips ? <option value="">All Departments</option> : <option value="">{managerDepartmentName}</option>}
                 {canViewAllPips && departments.map((d) => (
@@ -761,14 +824,13 @@ export default function PipMonitoringPage() {
             </div>
           )}
 
-          {/* Position Filter */}
           {(canViewAllPips || isManager) && (
-            <div className="min-w-0">
-              <label className={FILTER_LABEL_CLASS}>Position</label>
+            <div>
+              <label className="mb-2 block text-[10px] font-black uppercase tracking-widest text-slate-400">Position</label>
               <select
                 value={filterPos || ''}
                 onChange={(e) => setFilterPos(e.target.value ? Number(e.target.value) : undefined)}
-                className={FILTER_SELECT_CLASS}
+                className="h-12 w-full rounded-2xl border border-slate-200 bg-white px-4 text-sm font-bold text-slate-700 shadow-sm focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-200"
               >
                 <option value="">All Positions</option>
                 {positions.map((p) => (
@@ -780,13 +842,12 @@ export default function PipMonitoringPage() {
             </div>
           )}
 
-          {/* Status Filter */}
-          <div className="min-w-0">
-            <label className={FILTER_LABEL_CLASS}>Status</label>
+          <div>
+            <label className="mb-2 block text-[10px] font-black uppercase tracking-widest text-slate-400">Status</label>
             <select
               value={filterStatus}
               onChange={(e) => setFilterStatus(e.target.value)}
-              className={FILTER_SELECT_CLASS}
+              className="h-12 w-full rounded-2xl border border-slate-200 bg-white px-4 text-sm font-bold text-slate-700 shadow-sm focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-200"
             >
               <option value="">All Statuses</option>
               {Object.keys(STATUS_COLORS).map((s) => (
@@ -795,44 +856,42 @@ export default function PipMonitoringPage() {
             </select>
           </div>
 
-          {/* Employee Name Search */}
           {(canViewAllPips || isManager) && (
-            <div className="min-w-0">
-              <label className={FILTER_LABEL_CLASS}>Employee Name</label>
+            <div>
+              <label className="mb-2 block text-[10px] font-black uppercase tracking-widest text-slate-400">Employee Name</label>
               <div className="relative">
-                <i className="bi bi-search pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" />
+                <i className="bi bi-search pointer-events-none absolute left-4 top-1/2 -translate-y-1/2 text-slate-400" />
                 <input
                   type="text"
-                  placeholder="Search..."
+                  placeholder="Search by name..."
                   value={searchName}
                   onChange={(e) => setSearchName(e.target.value)}
-                  className={`${FILTER_CONTROL_CLASS} pl-9 pr-4`}
+                  className="h-12 w-full rounded-2xl border border-slate-200 bg-white pl-10 pr-4 text-sm font-bold text-slate-700 shadow-sm placeholder:text-slate-300 focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-200"
                 />
               </div>
             </div>
           )}
 
           {(canViewAllPips || isManager) && (
-            <div className="min-w-0">
-              <label className={FILTER_LABEL_CLASS}>Employee</label>
+            <div>
+              <label className="mb-2 block text-[10px] font-black uppercase tracking-widest text-slate-400">Employee</label>
               <select
                 value={selectedEmployeeId || ''}
                 onChange={(e) => setSelectedEmployeeId(e.target.value ? Number(e.target.value) : undefined)}
-                className={FILTER_SELECT_CLASS}
+                className="h-12 w-full rounded-2xl border border-slate-200 bg-white px-4 text-sm font-bold text-slate-700 shadow-sm focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-200"
               >
                 <option value="">All Employees</option>
                 {employeeFilterOptions.map((employee) => (
                   <option key={employee.id} value={employee.id}>
-                    {employee.name} - {employee.staffNo} - {employee.department || 'No Department'}
+                    {employee.name} - {employee.staffNo}
                   </option>
                 ))}
               </select>
             </div>
           )}
 
-          {/* Start Date */}
-          <div className="min-w-0">
-            <label className={FILTER_LABEL_CLASS}>Start Date</label>
+          <div>
+            <label className="mb-2 block text-[10px] font-black uppercase tracking-widest text-slate-400">Start Date</label>
             <div className="relative">
               <input
                 type="text"
@@ -840,9 +899,9 @@ export default function PipMonitoringPage() {
                 onChange={(e) => setStartDate(e.target.value)}
                 placeholder="dd/mm/yyyy"
                 inputMode="numeric"
-                className={`${FILTER_CONTROL_CLASS} pr-11`}
+                className="h-12 w-full rounded-2xl border border-slate-200 bg-white pl-4 pr-12 text-sm font-bold text-slate-700 shadow-sm placeholder:text-slate-300 focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-200"
               />
-              <label className="absolute inset-y-0 right-0 flex w-11 cursor-pointer items-center justify-center text-slate-400 hover:text-blue-600">
+              <label className="absolute inset-y-0 right-0 flex w-12 cursor-pointer items-center justify-center text-slate-400 hover:text-blue-600">
                 <i className="bi bi-calendar3" />
                 <input
                   type="date"
@@ -855,9 +914,8 @@ export default function PipMonitoringPage() {
             </div>
           </div>
 
-          {/* End Date */}
-          <div className="min-w-0">
-            <label className={FILTER_LABEL_CLASS}>End Date</label>
+          <div>
+            <label className="mb-2 block text-[10px] font-black uppercase tracking-widest text-slate-400">End Date</label>
             <div className="relative">
               <input
                 type="text"
@@ -865,9 +923,9 @@ export default function PipMonitoringPage() {
                 onChange={(e) => setEndDate(e.target.value)}
                 placeholder="dd/mm/yyyy"
                 inputMode="numeric"
-                className={`${FILTER_CONTROL_CLASS} pr-11`}
+                className="h-12 w-full rounded-2xl border border-slate-200 bg-white pl-4 pr-12 text-sm font-bold text-slate-700 shadow-sm placeholder:text-slate-300 focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-200"
               />
-              <label className="absolute inset-y-0 right-0 flex w-11 cursor-pointer items-center justify-center text-slate-400 hover:text-blue-600">
+              <label className="absolute inset-y-0 right-0 flex w-12 cursor-pointer items-center justify-center text-slate-400 hover:text-blue-600">
                 <i className="bi bi-calendar3" />
                 <input
                   type="date"
@@ -881,15 +939,15 @@ export default function PipMonitoringPage() {
           </div>
 
           {(canViewAllPips || isManager) && (
-            <div className="min-w-0">
-              <label className={FILTER_LABEL_CLASS}>PIP</label>
+            <div>
+              <label className="mb-2 block text-[10px] font-black uppercase tracking-widest text-slate-400">PIP</label>
               <select
                 value={selectedPipId || ''}
                 onChange={(e) => {
                   const nextPipId = Number.parseInt(e.target.value, 10)
                   setSelectedPipId(Number.isFinite(nextPipId) ? nextPipId : undefined)
                 }}
-                className={FILTER_SELECT_CLASS}
+                className="h-12 w-full rounded-2xl border border-slate-200 bg-white px-4 text-sm font-bold text-slate-700 shadow-sm focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-200"
               >
                 <option value="">All PIPs</option>
                 {scopedPips.map((pip) => (
@@ -903,115 +961,141 @@ export default function PipMonitoringPage() {
         </div>
 
         {invalidDateRange && (
-          <div className="mt-4 rounded-lg border border-red-200 bg-red-50 px-4 py-3 text-sm font-semibold text-red-700">
+          <div className="mt-4 rounded-2xl border border-red-100 bg-red-50 px-5 py-3 text-sm font-bold text-red-700">
             Start date must be on or before end date.
           </div>
         )}
 
-        <div className="mt-4 flex justify-end">
-          <button
-            onClick={() => {
-              setFilterDept(undefined)
-              setFilterPos(undefined)
-              setFilterStatus('')
-              setSearchName('')
-              setSelectedEmployeeId(undefined)
-              setStartDate('')
-              setEndDate('')
-              setSelectedPipId(undefined)
-            }}
-            className="text-sm font-bold text-blue-600 hover:text-blue-800 transition-colors"
-          >
-            Clear Filters
-          </button>
+        <div className="mt-6 flex justify-between items-center">
+          {hasActiveFilters && (
+            <button
+              onClick={() => {
+                setFilterDept(undefined)
+                setFilterPos(undefined)
+                setFilterStatus('')
+                setSearchName('')
+                setSelectedEmployeeId(undefined)
+                setStartDate('')
+                setEndDate('')
+                setSelectedPipId(undefined)
+              }}
+              className="inline-flex items-center gap-2 rounded-2xl border border-slate-200 px-5 py-2.5 text-xs font-black text-slate-500 uppercase tracking-widest transition-all hover:bg-slate-50 hover:text-slate-800"
+            >
+              <i className="bi bi-x-circle" /> Clear All Filters
+            </button>
+          )}
         </div>
       </div>
 
-      <div className="overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-xl shadow-slate-100">
+      {/* Main Table */}
+      <div className="overflow-hidden rounded-[2rem] border border-white bg-white shadow-sm transition-all hover:shadow-xl">
         <div className="overflow-x-auto">
         <table className="min-w-[980px] w-full text-left">
-          <thead className="border-b border-slate-200 bg-slate-50/50">
-            <tr>
-              <th className="px-6 py-4 text-xs font-bold uppercase tracking-wider text-slate-500">Employee</th>
-              <th className="px-6 py-4 text-xs font-bold uppercase tracking-wider text-slate-500">Position</th>
-              {canViewAllPips && <th className="px-6 py-4 text-xs font-bold uppercase tracking-wider text-slate-500">Department</th>}
-              <th className="px-6 py-4 text-xs font-bold uppercase tracking-wider text-slate-500">KPI Score</th>
-              <th className="px-6 py-4 text-xs font-bold uppercase tracking-wider text-slate-500 text-center">Status</th>
-              <th className="px-6 py-4 text-xs font-bold uppercase tracking-wider text-slate-500">Start Date</th>
-              <th className="px-6 py-4 text-xs font-bold uppercase tracking-wider text-slate-500">End Date</th>
-              <th className="px-6 py-4 text-xs font-bold uppercase tracking-wider text-slate-500">Overall Progress</th>
-              <th className="px-6 py-4 text-xs font-bold uppercase tracking-wider text-slate-500 text-right">Actions</th>
+          <thead>
+            <tr className="border-b border-slate-100">
+              <th className="px-8 py-5 text-[10px] font-black uppercase tracking-widest text-slate-400">Employee</th>
+              <th className="px-8 py-5 text-[10px] font-black uppercase tracking-widest text-slate-400">Position</th>
+              {canViewAllPips && <th className="px-8 py-5 text-[10px] font-black uppercase tracking-widest text-slate-400">Department</th>}
+              <th className="px-8 py-5 text-[10px] font-black uppercase tracking-widest text-slate-400">KPI Score</th>
+              <th className="px-8 py-5 text-[10px] font-black uppercase tracking-widest text-slate-400 text-center">Status</th>
+              <th className="px-8 py-5 text-[10px] font-black uppercase tracking-widest text-slate-400">Start Date</th>
+              <th className="px-8 py-5 text-[10px] font-black uppercase tracking-widest text-slate-400">End Date</th>
+              <th className="px-8 py-5 text-[10px] font-black uppercase tracking-widest text-slate-400">Progress</th>
+              <th className="px-8 py-5 text-[10px] font-black uppercase tracking-widest text-slate-400 text-right">Actions</th>
             </tr>
           </thead>
           <tbody className="divide-y divide-slate-100">
             {paginatedPips.map((pip) => {
               const emp: EmployeeDisplay | undefined = pip.employee.employee
               return (
-                <tr key={pip.id} className="group hover:bg-slate-50 transition-all duration-200">
-                  <td className="px-6 py-5">
-                    <div className="flex flex-col">
-                      <span className="font-bold text-slate-900 group-hover:text-blue-600 transition-colors">{emp?.employeeName || 'N/A'}</span>
-                      <span className="text-xs text-slate-400">Staff ID: {getPipStaffNo(pip)}</span>
+                <tr key={pip.id} className="group transition-all duration-200 hover:bg-slate-50/80">
+                  <td className="px-8 py-5">
+                    <div className="flex items-center gap-3">
+                      <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-blue-50 text-xs font-black text-blue-600">
+                        {emp?.employeeName ? emp.employeeName.charAt(0).toUpperCase() : '?'}
+                      </div>
+                      <div className="flex flex-col">
+                        <span className="text-sm font-black text-slate-900 group-hover:text-blue-600 transition-colors">{emp?.employeeName || 'N/A'}</span>
+                        <span className="text-[10px] font-bold text-slate-400">Staff ID: {getPipStaffNo(pip)}</span>
+                      </div>
                     </div>
                   </td>
-                  <td className="px-6 py-5">
-                    <span className="text-sm text-slate-600 font-medium">{getPositionName(emp)}</span>
+                  <td className="px-8 py-5">
+                    <span className="text-sm font-bold text-slate-600">{getPositionName(emp)}</span>
                   </td>
                   {canViewAllPips && (
-                    <td className="px-6 py-5 text-sm text-slate-600">
-                      {getDepartmentName(emp)}
+                    <td className="px-8 py-5">
+                      <span className="inline-flex items-center gap-1.5 rounded-xl bg-slate-50 px-3 py-1.5 text-xs font-bold text-slate-600">
+                        <i className="bi bi-building text-slate-400" /> {getDepartmentName(emp)}
+                      </span>
                     </td>
                   )}
-                  <td className="px-6 py-5 text-sm font-bold text-slate-700">
-                    {formatKpiScore(pip.kpiScore)}
+                  <td className="px-8 py-5">
+                    <span className="text-sm font-black text-slate-800">{formatKpiScore(pip.kpiScore)}</span>
                   </td>
-                  <td className="px-6 py-5 text-center">
-                    <span className={`inline-flex items-center rounded-lg px-2.5 py-1 text-[10px] font-bold uppercase tracking-wide ${pip.status === 'CLOSED' && pip.finalOutcome === 'SUCCESSFUL' ? 'bg-green-100 text-green-700' :
-                      pip.status === 'CLOSED' && pip.finalOutcome === 'FAILED' ? 'bg-red-100 text-red-700' :
-                        (STATUS_COLORS[pip.status] || 'bg-slate-100 text-slate-700')
-                      }`}>
+                  <td className="px-8 py-5 text-center">
+                    <span className={`inline-flex items-center rounded-xl px-3 py-1.5 text-[10px] font-black uppercase tracking-wide ${
+                      pip.status === 'ACTIVE' ? 'bg-blue-50 text-blue-700' :
+                      pip.status === 'COMPLETED' ? 'bg-emerald-50 text-emerald-700' :
+                      pip.status === 'CLOSED' && pip.finalOutcome === 'SUCCESSFUL' ? 'bg-green-50 text-green-700' :
+                      pip.status === 'CLOSED' && pip.finalOutcome === 'FAILED' ? 'bg-red-50 text-red-700' :
+                      pip.status === 'AUTO_CLOSED' ? 'bg-amber-50 text-amber-700' :
+                      pip.status === 'REOPEN_REQUESTED' ? 'bg-orange-50 text-orange-700' :
+                      pip.status === 'DENIED' ? 'bg-red-50 text-red-700' :
+                      'bg-slate-50 text-slate-600'
+                    }`}>
+                      <span className={`mr-1.5 inline-block h-1.5 w-1.5 rounded-full ${
+                        pip.status === 'ACTIVE' ? 'bg-blue-600' :
+                        pip.status === 'COMPLETED' || (pip.status === 'CLOSED' && pip.finalOutcome === 'SUCCESSFUL') ? 'bg-emerald-600' :
+                        pip.status === 'CLOSED' && pip.finalOutcome === 'FAILED' ? 'bg-red-600' :
+                        pip.status === 'AUTO_CLOSED' ? 'bg-amber-600' :
+                        pip.status === 'REOPEN_REQUESTED' ? 'bg-orange-600' :
+                        'bg-slate-400'
+                      }`} />
                       {getStatusDisplayLabel(pip.status, pip.finalOutcome)}
                     </span>
                   </td>
-                  <td className="px-6 py-5 text-sm text-slate-600 font-medium">
-                    {formatDateValue(pip.startDate)}
+                  <td className="px-8 py-5">
+                    <span className="text-sm font-bold text-slate-600">{formatDateValue(pip.startDate)}</span>
                   </td>
-                  <td className="px-6 py-5 text-sm text-slate-600 font-medium">
-                    {formatDateValue(pip.endDate)}
+                  <td className="px-8 py-5">
+                    <span className="text-sm font-bold text-slate-600">{formatDateValue(pip.endDate)}</span>
                   </td>
-                  <td className="px-6 py-5">
-                    <div className="flex flex-col gap-1.5">
-                      <div className="h-2 w-24 overflow-hidden rounded-full bg-slate-100 shadow-inner">
-                        <div
-                          className={`h-full transition-all duration-500 ${pip.overallProgressPercentage >= 70 ? 'bg-green-500' : pip.overallProgressPercentage >= 30 ? 'bg-blue-500' : 'bg-orange-500'}`}
-                          style={{ width: `${pip.overallProgressPercentage}%` }}
-                        />
+                  <td className="px-8 py-5">
+                    <div className="flex flex-col gap-1.5 min-w-[140px]">
+                      <div className="flex items-center gap-3">
+                        <div className="h-2 flex-1 overflow-hidden rounded-full bg-slate-100">
+                          <div
+                            className={`h-full rounded-full transition-all duration-700 ${
+                              pip.overallProgressPercentage >= 70 ? 'bg-emerald-500' :
+                              pip.overallProgressPercentage >= 30 ? 'bg-blue-500' : 'bg-amber-500'
+                            }`}
+                            style={{ width: `${pip.overallProgressPercentage}%` }}
+                          />
+                        </div>
+                        <span className="min-w-[44px] text-right text-xs font-black text-slate-600">{pip.overallProgressPercentage}%</span>
                       </div>
-                      <span className="text-[10px] font-extrabold text-slate-400 uppercase tracking-tight">
-                        {pip.overallProgressPercentage}% COMPLETED
-                        {pip.updatedAt && (
-                          <span className="ml-2 border-l border-slate-200 pl-2">
-                            Updated {new Date(pip.updatedAt).toLocaleDateString('en-GB', { day: '2-digit', month: 'short' })}
-                          </span>
-                        )}
-                      </span>
+                      {pip.updatedAt && (
+                        <span className="text-[10px] font-bold text-slate-400">
+                          Updated {new Date(pip.updatedAt).toLocaleDateString('en-GB', { day: '2-digit', month: 'short' })}
+                        </span>
+                      )}
                     </div>
                   </td>
-                  <td className="px-6 py-5 text-right">
-                    <div className="flex items-center justify-end gap-3">
+                  <td className="px-8 py-5 text-right">
+                    <div className="flex items-center justify-end gap-2">
                       <button
                         onClick={() => setLogViewerPipId(pip.id)}
-                        className="p-2 rounded-lg text-slate-400 hover:bg-slate-100 hover:text-blue-600 transition-all"
+                        className="flex h-9 w-9 items-center justify-center rounded-xl border border-blue-100 bg-blue-50 text-blue-600 transition-all hover:border-blue-200 hover:bg-blue-100"
                         title="View Activity Log"
                       >
-                        <i className="bi bi-clock-history text-lg" />
+                        <i className="bi bi-clock-history" />
                       </button>
                       <Link
                         to={`${location.pathname}/${pip.id}`}
-                        className="inline-flex items-center gap-1 text-sm font-bold text-blue-600 hover:text-blue-800 transition-colors"
+                        className="inline-flex items-center gap-1.5 rounded-xl bg-blue-50 px-4 py-2 text-xs font-black text-blue-700 transition-all hover:bg-blue-100"
                       >
-                        View Details
-                        <i className="bi bi-chevron-right text-[10px]" />
+                        Details <i className="bi bi-chevron-right text-[9px]" />
                       </Link>
                     </div>
                   </td>
@@ -1020,11 +1104,13 @@ export default function PipMonitoringPage() {
             })}
             {tablePips.length === 0 && (
               <tr>
-                <td colSpan={canViewAllPips ? 9 : 8} className="px-6 py-20 text-center">
-                  <div className="flex flex-col items-center justify-center text-slate-400">
-                    <i className="bi bi-clipboard-x text-5xl mb-4 opacity-20" />
-                    <p className="text-lg font-medium">No PIP records found matching your criteria.</p>
-                    <p className="text-sm">Try adjusting your filters or search terms.</p>
+                <td colSpan={canViewAllPips ? 9 : 8} className="px-8 py-24 text-center">
+                  <div className="flex flex-col items-center justify-center">
+                    <div className="mb-6 flex h-20 w-20 items-center justify-center rounded-[2rem] bg-slate-50">
+                      <i className="bi bi-clipboard-x text-4xl text-slate-300" />
+                    </div>
+                    <p className="text-lg font-black text-slate-400">No PIP records found</p>
+                    <p className="mt-1 text-sm font-bold text-slate-400">Try adjusting your filters or search terms.</p>
                   </div>
                 </td>
               </tr>
@@ -1035,16 +1121,16 @@ export default function PipMonitoringPage() {
       </div>
 
       {(canViewAllPips || isManager) && hasActiveFilters && exportTargetPips.length > 0 && (
-        <section className="mt-8 rounded-2xl border border-slate-200 bg-white shadow-xl shadow-slate-100">
-          <div className="border-b border-slate-100 px-6 py-4">
-            <h2 className="text-lg font-black text-slate-900">Related PIP Detail Overview</h2>
+        <section className="mt-8 rounded-[2rem] border border-white bg-white shadow-sm">
+          <div className="border-b border-slate-100 px-8 py-5">
+            <h2 className="text-base font-black text-slate-900">Related PIP Detail Overview</h2>
           </div>
           <div className="max-h-[520px] overflow-auto">
             <table className="min-w-[2600px] text-left text-xs">
               <thead className="sticky top-0 z-10 bg-slate-50">
                 <tr>
                   {onePagePipDetailRows[0].map((heading) => (
-                    <th key={String(heading)} className="whitespace-nowrap border-b border-slate-200 px-4 py-3 font-black uppercase tracking-wider text-slate-500">
+                    <th key={String(heading)} className="whitespace-nowrap border-b border-slate-200 px-5 py-4 text-[10px] font-black uppercase tracking-widest text-slate-500">
                       {String(heading)}
                     </th>
                   ))}
@@ -1052,9 +1138,9 @@ export default function PipMonitoringPage() {
               </thead>
               <tbody className="divide-y divide-slate-100">
                 {onePagePipDetailRows.slice(1).map((row, rowIndex) => (
-                  <tr key={`${row[0]}-${rowIndex}`} className="align-top hover:bg-slate-50">
+                  <tr key={`${row[0]}-${rowIndex}`} className="align-top hover:bg-slate-50/80">
                     {row.map((cell, cellIndex) => (
-                      <td key={`${row[0]}-${cellIndex}`} className="max-w-[260px] whitespace-pre-wrap px-4 py-3 text-slate-600">
+                      <td key={`${row[0]}-${cellIndex}`} className="max-w-[260px] whitespace-pre-wrap px-5 py-4 text-xs font-bold text-slate-600">
                         {String(cell || '-')}
                       </td>
                     ))}
@@ -1066,18 +1152,18 @@ export default function PipMonitoringPage() {
         </section>
       )}
       {tablePips.length > 0 && (
-        <div className="mt-6 flex flex-col gap-4 rounded-2xl border border-slate-200 bg-white px-6 py-4 shadow-md shadow-slate-100 sm:flex-row sm:items-center sm:justify-between">
-          <div className="flex flex-wrap items-center gap-4 text-sm text-slate-500">
-            <span>
-              Showing <span className="font-bold text-slate-700">{startIndex} - {endIndex}</span> of{' '}
-              <span className="font-bold text-slate-700">{tablePips.length}</span> employees
+        <div className="mt-6 flex flex-col gap-4 rounded-[2rem] border border-white bg-white px-8 py-5 shadow-sm sm:flex-row sm:items-center sm:justify-between">
+          <div className="flex flex-wrap items-center gap-4 text-sm">
+            <span className="font-bold text-slate-500">
+              Showing <span className="text-slate-800">{startIndex} - {endIndex}</span> of{' '}
+              <span className="text-slate-800">{tablePips.length}</span> employees
             </span>
             <label className="flex items-center gap-2">
-              <span className="text-slate-400">Rows:</span>
+              <span className="text-[10px] font-black uppercase tracking-widest text-slate-400">Rows:</span>
               <select
                 value={rowsPerPage}
                 onChange={(e) => setRowsPerPage(Number(e.target.value))}
-                className="rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm font-semibold text-slate-700 shadow-sm focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500"
+                className="rounded-2xl border border-slate-200 bg-white px-4 py-2 text-sm font-black text-slate-700 shadow-sm focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-200"
               >
                 {[5, 10, 20, 50].map((rows) => (
                   <option key={rows} value={rows}>{rows}</option>
@@ -1085,27 +1171,25 @@ export default function PipMonitoringPage() {
               </select>
             </label>
           </div>
-          <div className="flex items-center gap-1">
+          <div className="flex items-center gap-1.5">
             <button
               type="button"
               onClick={() => setCurrentPage((page) => Math.max(1, page - 1))}
               disabled={safeCurrentPage === 1}
-              className="inline-flex items-center gap-2 rounded-xl border border-slate-200 px-4 py-2 text-sm font-semibold text-slate-400 transition-colors hover:text-slate-700 disabled:cursor-not-allowed disabled:opacity-50 disabled:hover:text-slate-400"
+              className="inline-flex items-center gap-2 rounded-2xl border border-slate-200 px-4 py-2.5 text-xs font-black text-slate-500 transition-all hover:bg-slate-50 hover:text-slate-800 disabled:cursor-not-allowed disabled:opacity-40"
             >
-              <i className="bi bi-chevron-left text-xs" />
-              Prev
+              <i className="bi bi-chevron-left text-[10px]" /> Prev
             </button>
-            <span className="flex h-11 min-w-11 items-center justify-center rounded-xl bg-blue-600 px-4 text-sm font-bold text-white shadow-sm shadow-blue-200">
+            <span className="flex h-11 min-w-11 items-center justify-center rounded-2xl bg-blue-600 px-4 text-sm font-black text-white shadow-[0_4px_10px_-2px_rgba(37,99,235,0.3)]">
               {safeCurrentPage}
             </span>
             <button
               type="button"
               onClick={() => setCurrentPage((page) => Math.min(totalPages, page + 1))}
               disabled={safeCurrentPage === totalPages}
-              className="inline-flex items-center gap-2 rounded-xl border border-slate-200 px-4 py-2 text-sm font-semibold text-slate-400 transition-colors hover:text-slate-700 disabled:cursor-not-allowed disabled:opacity-50 disabled:hover:text-slate-400"
+              className="inline-flex items-center gap-2 rounded-2xl border border-slate-200 px-4 py-2.5 text-xs font-black text-slate-500 transition-all hover:bg-slate-50 hover:text-slate-800 disabled:cursor-not-allowed disabled:opacity-40"
             >
-              Next
-              <i className="bi bi-chevron-right text-xs" />
+              Next <i className="bi bi-chevron-right text-[10px]" />
             </button>
           </div>
         </div>
@@ -1114,23 +1198,23 @@ export default function PipMonitoringPage() {
       {logViewerPipId && (
         <div className="fixed inset-0 z-[60] flex items-center justify-center p-4 sm:p-6">
           <div
-            className="absolute inset-0 bg-slate-900/40 backdrop-blur-sm"
+            className="absolute inset-0 bg-slate-950/40 backdrop-blur-sm"
             onClick={() => setLogViewerPipId(null)}
           />
-          <div className="relative w-full max-w-4xl max-h-[90vh] overflow-y-auto rounded-[2rem] bg-slate-50 shadow-2xl animate-in zoom-in-95 duration-200">
-            <div className="sticky top-0 z-10 flex items-center justify-between border-b border-slate-200 bg-white/80 px-8 py-5 backdrop-blur-md">
+          <div className="relative w-full max-w-4xl max-h-[90vh] overflow-y-auto rounded-[2.5rem] bg-white shadow-2xl animate-scale-in">
+            <div className="sticky top-0 z-10 flex items-center justify-between border-b border-slate-100 bg-white/90 px-10 py-6 backdrop-blur-md">
               <div>
-                <h3 className="text-xl font-black text-slate-900">PIP Activity History</h3>
-                <p className="text-xs font-bold text-slate-400 uppercase tracking-widest mt-1">Viewing Audit Log for PIP #{logViewerPipId}</p>
+                <h3 className="text-xl font-black text-slate-900 tracking-tight">PIP Activity History</h3>
+                <p className="mt-1 text-[10px] font-black uppercase tracking-widest text-slate-400">Viewing audit log for PIP #{logViewerPipId}</p>
               </div>
               <button
                 onClick={() => setLogViewerPipId(null)}
-                className="flex h-10 w-10 items-center justify-center rounded-full bg-slate-100 text-slate-500 transition-all hover:bg-slate-200 hover:text-slate-900"
+                className="flex h-10 w-10 items-center justify-center rounded-xl bg-slate-100 text-slate-500 transition-all hover:bg-slate-200 hover:text-slate-900"
               >
                 <i className="bi bi-x-lg" />
               </button>
             </div>
-            <div className="p-8">
+            <div className="p-10">
               <PipUnifiedLog pipId={logViewerPipId} />
             </div>
           </div>

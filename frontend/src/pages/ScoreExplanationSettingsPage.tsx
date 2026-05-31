@@ -129,10 +129,10 @@ export function ScoreExplanationSettingsPage() {
           applyToModules: form.applyToModules,
         },
       }).unwrap()
-      toast.success('Score explanation updated.')
+      toast.success('Score band updated.')
       setEditing(null)
     } catch (error: any) {
-      toast.error(error?.data?.message || 'Failed to update score explanation.')
+      toast.error(error?.data?.message || 'Failed to update score band.')
     }
   }
 
@@ -148,9 +148,9 @@ export function ScoreExplanationSettingsPage() {
               System Settings
             </Link>
             <ChevronRight size={14} />
-            <span className="text-slate-600 dark:text-slate-300">Score Explanations</span>
+            <span className="text-slate-600 dark:text-slate-300">Score Band Settings</span>
           </nav>
-          <h1 className="text-2xl font-black text-slate-900 dark:text-white tracking-tight">Score Explanation Settings</h1>
+          <h1 className="text-2xl font-black text-slate-900 dark:text-white tracking-tight">Score Band Settings</h1>
           <p className="mt-2 text-sm font-medium text-slate-500 dark:text-slate-400">
             Configure score bands and labels used across performance modules.
           </p>
@@ -247,7 +247,7 @@ export function ScoreExplanationSettingsPage() {
                       <TableProperties size={28} className="text-slate-300 dark:text-slate-600" />
                     </div>
                     <p className="text-sm font-bold text-slate-400 dark:text-slate-500">No score bands configured</p>
-                    <p className="text-xs text-slate-300 dark:text-slate-600 mt-1">Score explanations will appear here once created.</p>
+                    <p className="text-xs text-slate-300 dark:text-slate-600 mt-1">Score bands will appear here once created.</p>
                   </div>
                 ) : (
                   rows.map((row) => {
@@ -283,7 +283,7 @@ export function ScoreExplanationSettingsPage() {
                               type="button"
                               onClick={() => openEdit(row)}
                               className="flex-shrink-0 inline-flex items-center justify-center w-9 h-9 rounded-xl bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-slate-400 hover:text-blue-600 hover:border-blue-300 dark:hover:text-blue-400 dark:hover:border-blue-700 transition-all opacity-0 group-hover:opacity-100 focus:opacity-100"
-                              title="Edit score explanation"
+                              title="Edit score band"
                             >
                               <Edit3 size={14} />
                             </button>
@@ -308,7 +308,7 @@ export function ScoreExplanationSettingsPage() {
             {/* Modal header */}
             <div className="flex shrink-0 items-center justify-between px-8 py-6 border-b border-slate-100 dark:border-slate-800">
               <div>
-                <h2 className="text-lg font-black text-slate-900 dark:text-white tracking-tight">Edit Score Explanation</h2>
+                <h2 className="text-lg font-black text-slate-900 dark:text-white tracking-tight">Edit Score Band</h2>
                 <p className="text-[10px] font-bold text-slate-400 dark:text-slate-500 uppercase tracking-widest mt-1">
                   {modules.find((m) => m.key === editing.module)?.label}
                 </p>

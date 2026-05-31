@@ -1,7 +1,7 @@
 export function getDashPageTitle(pathname: string): string {
   if (pathname.includes('/profile')) return 'User Profile'
   if (pathname.includes('/settings/system/time')) return 'Time Settings'
-  if (pathname.includes('/settings/system/score-explanations')) return 'Score Explanation'
+  if (pathname.includes('/settings/system/score-explanations')) return 'Score Band Settings'
   if (pathname.includes('/settings')) return 'System Settings'
   if (pathname.includes('/employees/create-account')) return 'Create Employee Account'
   if (pathname.includes('/employees')) return 'Employees'

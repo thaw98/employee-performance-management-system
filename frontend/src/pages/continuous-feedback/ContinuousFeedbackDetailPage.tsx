@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { toast } from 'react-hot-toast';
-import { ArrowLeft, Check, ClipboardList, Calendar, AlertTriangle, Send } from 'lucide-react';
+import { ArrowLeft, Check, ClipboardList, Calendar, AlertTriangle, Send, MessageSquare, User, Lock, Clock, CheckCircle } from 'lucide-react';
 import { continuousFeedbackApi } from '../../features/continuousFeedback/continuousFeedbackApi';
 import type {
   ContinuousFeedback,
@@ -10,6 +10,13 @@ import type {
 import { FEEDBACK_CATEGORY_LABELS } from '../../features/continuousFeedback/types';
 
 const ACTION_ITEM_STATUSES = ['OPEN', 'IN_PROGRESS', 'COMPLETED', 'CANCELLED'];
+
+const statusStyles: Record<string, { bg: string; text: string; border: string; dot: string }> = {
+  OPEN: { bg: 'bg-slate-100', text: 'text-slate-700', border: 'border-slate-200', dot: 'bg-slate-400' },
+  IN_PROGRESS: { bg: 'bg-blue-50', text: 'text-[#1d4ed8]', border: 'border-[#bfdbfe]', dot: 'bg-[#2463eb]' },
+  COMPLETED: { bg: 'bg-emerald-50', text: 'text-emerald-700', border: 'border-emerald-200', dot: 'bg-emerald-500' },
+  CANCELLED: { bg: 'bg-rose-50', text: 'text-rose-700', border: 'border-rose-200', dot: 'bg-rose-400' },
+};
 
 export default function ContinuousFeedbackDetailPage() {
   const { feedbackId } = useParams<{ feedbackId: string }>();
@@ -126,15 +133,25 @@ export default function ContinuousFeedbackDetailPage() {
   };
 
   if (loading) {
-    return <div className="p-8 text-center text-gray-500">Loading...</div>;
+    return (
+      <div className="max-w-4xl mx-auto p-12 flex flex-col items-center justify-center gap-4">
+        <div className="w-10 h-10 border-4 border-slate-200 border-t-[#2463eb] rounded-full animate-spin"></div>
+        <p className="text-sm font-bold text-slate-400 animate-pulse">Loading feedback details...</p>
+      </div>
+    );
   }
 
   if (!feedback) {
-    return <div className="p-8 text-center text-gray-500">Feedback not found</div>;
+    return (
+      <div className="max-w-4xl mx-auto p-12 flex flex-col items-center justify-center gap-3">
+        <MessageSquare size={40} className="text-slate-200" />
+        <p className="text-sm font-bold text-slate-400">Feedback not found</p>
+        <button onClick={() => navigate(-1)} className="text-[#2463eb] text-sm font-bold hover:underline">Go back</button>
+      </div>
+    );
   }
 
   const isShared = feedback.shared;
-  const isEmployee = !feedback.privateManagerNote && !feedback.privateManagerNote; // simple check
   const rolePath = window.location.pathname.startsWith('/hr')
     ? '/hr'
     : window.location.pathname.startsWith('/audit')
@@ -143,77 +160,186 @@ export default function ContinuousFeedbackDetailPage() {
     ? '/employee'
     : '/manager';
 
+  const categoryColorMap: Record<string, string> = {
+    PRAISE: 'bg-emerald-50 text-emerald-700 border-emerald-200',
+    COACHING: 'bg-blue-50 text-[#1d4ed8] border-[#bfdbfe]',
+    IMPROVEMENT_NEEDED: 'bg-amber-50 text-amber-800 border-amber-200',
+    GOAL_PROGRESS: 'bg-violet-50 text-violet-700 border-violet-200',
+    BEHAVIORAL_NOTE: 'bg-sky-50 text-sky-700 border-sky-200',
+    ATTENDANCE: 'bg-orange-50 text-orange-700 border-orange-200',
+    COMMUNICATION: 'bg-cyan-50 text-cyan-700 border-cyan-200',
+    TEAMWORK: 'bg-pink-50 text-pink-700 border-pink-200',
+    PERFORMANCE_RISK: 'bg-rose-50 text-rose-700 border-rose-200',
+  };
+
   return (
-    <div className="p-6 max-w-4xl mx-auto">
+    <div className="max-w-4xl mx-auto space-y-6 pb-20 px-4">
+      {/* Back Button */}
       <button
         onClick={() => navigate(-1)}
-        className="flex items-center gap-2 text-gray-600 hover:text-gray-800 mb-4 transition-colors"
+        className="inline-flex items-center gap-2 text-slate-500 hover:text-slate-800 transition-colors font-bold text-sm bg-white px-4 py-2 rounded-xl border border-slate-100 shadow-sm w-fit"
       >
-        <ArrowLeft size={18} />
+        <ArrowLeft size={16} />
         Back
       </button>
 
-      <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-6 mb-6">
-        <div className="flex items-start justify-between mb-4">
-          <div>
-            <div className="flex items-center gap-2 mb-2">
-              <span className="px-3 py-1 text-sm font-medium rounded-full bg-indigo-100 text-indigo-700">
-                {FEEDBACK_CATEGORY_LABELS[feedback.category as keyof typeof FEEDBACK_CATEGORY_LABELS] || feedback.category}
+      {/* Main Detail Card */}
+      <div className="bg-white rounded-[32px] shadow-sm border border-slate-100 overflow-hidden relative">
+        <div className="absolute top-0 right-0 w-40 h-40 bg-[#dbeafe] rounded-bl-[120px] -mr-12 -mt-12 opacity-50"></div>
+        <div className="relative p-8">
+          {/* Badges Row */}
+          <div className="flex items-center gap-2 mb-4 flex-wrap">
+            <span className={`px-3 py-1 rounded-full text-[10px] font-black uppercase tracking-widest border ${categoryColorMap[feedback.category] || 'bg-slate-100 text-slate-700 border-slate-200'}`}>
+              {FEEDBACK_CATEGORY_LABELS[feedback.category as keyof typeof FEEDBACK_CATEGORY_LABELS] || feedback.category}
+            </span>
+            {isShared ? (
+              <span className="px-3 py-1 rounded-full text-[10px] font-black uppercase tracking-widest border bg-emerald-50 text-emerald-700 border-emerald-200">
+                <div className="flex items-center gap-1">
+                  <CheckCircle size={10} />
+                  Shared
+                </div>
               </span>
-              {isShared ? (
-                <span className="px-3 py-1 text-sm font-medium rounded-full bg-green-100 text-green-700">Shared</span>
-              ) : (
-                <span className="px-3 py-1 text-sm font-medium rounded-full bg-yellow-100 text-yellow-700">Private Note</span>
+            ) : (
+              <span className="px-3 py-1 rounded-full text-[10px] font-black uppercase tracking-widest border bg-amber-50 text-amber-800 border-amber-200">
+                <div className="flex items-center gap-1">
+                  <Lock size={10} />
+                  Private Note
+                </div>
+              </span>
+            )}
+            {feedback.acknowledged && (
+              <span className="px-3 py-1 rounded-full text-[10px] font-black uppercase tracking-widest border bg-blue-50 text-[#1d4ed8] border-[#bfdbfe]">
+                <div className="flex items-center gap-1">
+                  <Check size={10} />
+                  Acknowledged
+                </div>
+              </span>
+            )}
+          </div>
+
+          {/* Title & Meta */}
+          <div className="flex items-center gap-2 text-[#2463eb] mb-4">
+            <MessageSquare size={18} />
+            <span className="text-[10px] font-black uppercase tracking-[0.2em]">Feedback Details</span>
+          </div>
+          <h1 className="text-3xl font-black text-slate-800 tracking-tight mb-1">
+            Feedback for {feedback.employeeName}
+          </h1>
+          <p className="text-sm font-bold text-slate-500 mb-6">
+            <User size={14} className="inline mr-1" />
+            By {feedback.managerName}
+          </p>
+
+          {/* Detail Grid */}
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+            <div className="space-y-4">
+              <div className="flex items-center gap-3">
+                <div className="w-10 h-10 rounded-xl bg-slate-50 flex items-center justify-center text-slate-400 shrink-0">
+                  <User size={18} />
+                </div>
+                <div>
+                  <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Employee</p>
+                  <p className="text-sm font-bold text-slate-700">{feedback.employeeName}</p>
+                </div>
+              </div>
+              <div className="flex items-center gap-3">
+                <div className="w-10 h-10 rounded-xl bg-slate-50 flex items-center justify-center text-slate-400 shrink-0">
+                  <MessageSquare size={18} />
+                </div>
+                <div>
+                  <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Category</p>
+                  <p className="text-sm font-bold text-slate-700">{FEEDBACK_CATEGORY_LABELS[feedback.category as keyof typeof FEEDBACK_CATEGORY_LABELS]}</p>
+                </div>
+              </div>
+            </div>
+            <div className="space-y-4">
+              <div className="flex items-center gap-3">
+                <div className="w-10 h-10 rounded-xl bg-slate-50 flex items-center justify-center text-slate-400 shrink-0">
+                  <Clock size={18} />
+                </div>
+                <div>
+                  <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Created</p>
+                  <p className="text-sm font-bold text-slate-700">
+                    {new Date(feedback.createdAt).toLocaleDateString('en-US', {
+                      month: 'short', day: 'numeric', year: 'numeric', hour: '2-digit', minute: '2-digit'
+                    })}
+                  </p>
+                </div>
+              </div>
+              {feedback.sharedAt && (
+                <div className="flex items-center gap-3">
+                  <div className="w-10 h-10 rounded-xl bg-slate-50 flex items-center justify-center text-slate-400 shrink-0">
+                    <Send size={18} />
+                  </div>
+                  <div>
+                    <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Shared</p>
+                    <p className="text-sm font-bold text-slate-700">
+                      {new Date(feedback.sharedAt).toLocaleDateString('en-US', {
+                        month: 'short', day: 'numeric', year: 'numeric', hour: '2-digit', minute: '2-digit'
+                      })}
+                    </p>
+                  </div>
+                </div>
               )}
-              {feedback.acknowledged && (
-                <span className="px-3 py-1 text-sm font-medium rounded-full bg-blue-100 text-blue-700">Acknowledged</span>
+              {feedback.acknowledgedAt && (
+                <div className="flex items-center gap-3">
+                  <div className="w-10 h-10 rounded-xl bg-slate-50 flex items-center justify-center text-slate-400 shrink-0">
+                    <Check size={18} />
+                  </div>
+                  <div>
+                    <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Acknowledged</p>
+                    <p className="text-sm font-bold text-slate-700">
+                      {new Date(feedback.acknowledgedAt).toLocaleDateString('en-US', {
+                        month: 'short', day: 'numeric', year: 'numeric', hour: '2-digit', minute: '2-digit'
+                      })}
+                    </p>
+                  </div>
+                </div>
               )}
             </div>
-            <h1 className="text-xl font-bold text-gray-800">
-              Feedback for {feedback.employeeName}
-            </h1>
-            <p className="text-sm text-gray-500">By {feedback.managerName}</p>
           </div>
-        </div>
 
-        {feedback.feedbackMessage && (
-          <div className="mb-4">
-            <h3 className="text-sm font-medium text-gray-700 mb-1">Feedback Message</h3>
-            <p className="text-gray-600 bg-gray-50 rounded-lg p-3">{feedback.feedbackMessage}</p>
-          </div>
-        )}
+          {/* Feedback Message */}
+          {feedback.feedbackMessage && (
+            <div className="mt-6 bg-slate-50 rounded-2xl p-5 border border-slate-100">
+              <div className="flex items-center gap-2 text-slate-400 mb-3">
+                <MessageSquare size={14} />
+                <h3 className="text-[10px] font-black uppercase tracking-widest">Feedback Message</h3>
+              </div>
+              <p className="text-sm font-bold text-slate-700 leading-relaxed">{feedback.feedbackMessage}</p>
+            </div>
+          )}
 
-        {feedback.privateManagerNote !== null && (
-          <div className="mb-4">
-            <h3 className="text-sm font-medium text-gray-700 mb-1">
-              Private Manager Note
-              <span className="text-xs text-gray-400 ml-2">(visible to managers, HR, and audit only)</span>
-            </h3>
-            <p className="text-gray-600 bg-yellow-50 rounded-lg p-3 border border-yellow-200">
-              {feedback.privateManagerNote || '(empty)'}
-            </p>
-          </div>
-        )}
-
-        <div className="text-xs text-gray-400 space-y-1">
-          <p>Created: {new Date(feedback.createdAt).toLocaleString()}</p>
-          {feedback.sharedAt && <p>Shared: {new Date(feedback.sharedAt).toLocaleString()}</p>}
-          {feedback.acknowledgedAt && <p>Acknowledged: {new Date(feedback.acknowledgedAt).toLocaleString()}</p>}
+          {/* Private Manager Note */}
+          {feedback.privateManagerNote !== null && (
+            <div className="mt-4 bg-amber-50/50 rounded-2xl p-5 border border-amber-200">
+              <div className="flex items-center gap-2 text-amber-600 mb-3">
+                <Lock size={14} />
+                <h3 className="text-[10px] font-black uppercase tracking-widest">Private Manager Note</h3>
+                <span className="text-[10px] font-bold text-amber-500 normal-case tracking-normal">(visible to managers, HR, and audit only)</span>
+              </div>
+              <p className="text-sm font-bold text-slate-700 leading-relaxed">{feedback.privateManagerNote || <span className="text-slate-400 italic">(empty)</span>}</p>
+            </div>
+          )}
         </div>
       </div>
 
+      {/* PIP Warning */}
       {showPipWarning && (
-        <div className="bg-red-50 border border-red-200 rounded-xl p-4 mb-6">
-          <div className="flex items-start gap-3">
-            <AlertTriangle className="text-red-500 shrink-0 mt-0.5" size={20} />
+        <div className="bg-rose-50 border border-rose-200 rounded-[32px] p-6 relative overflow-hidden animate-fade-in-up">
+          <div className="absolute top-0 right-0 w-24 h-24 bg-rose-200/30 rounded-bl-[80px] -mr-6 -mt-6"></div>
+          <div className="relative flex items-start gap-4">
+            <div className="w-12 h-12 rounded-2xl bg-rose-100 flex items-center justify-center shrink-0">
+              <AlertTriangle className="text-rose-600" size={24} />
+            </div>
             <div className="flex-1">
-              <p className="text-sm font-medium text-red-800">PIP Warning</p>
-              <p className="text-sm text-red-600 mt-1">
+              <p className="text-sm font-black text-rose-800 uppercase tracking-widest">PIP Warning</p>
+              <p className="text-sm font-bold text-rose-600 mt-1">
                 This employee has received {pipCount} improvement/performance-risk feedback records within 30 days.
               </p>
               <button
                 onClick={handleCreatePip}
-                className="mt-3 px-4 py-2 bg-red-600 text-white text-sm rounded-lg hover:bg-red-700 transition-colors"
+                className="mt-4 px-5 py-2.5 bg-rose-600 hover:bg-rose-700 text-white rounded-xl font-bold text-xs uppercase tracking-widest transition-all shadow-lg shadow-rose-200 active:scale-95"
               >
                 Create PIP
               </button>
@@ -222,18 +348,19 @@ export default function ContinuousFeedbackDetailPage() {
         </div>
       )}
 
-      {!isEmployee && (
-        <div className="flex gap-3 mb-6">
+      {/* Action Buttons */}
+      {rolePath !== '/employee' && (
+        <div className="flex flex-wrap gap-3">
           <button
             onClick={() => setShowAiForm(!showAiForm)}
-            className="flex items-center gap-2 px-4 py-2 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 transition-colors text-sm"
+            className="flex items-center gap-2 px-5 py-2.5 bg-[#2463eb] hover:bg-[#1d4ed8] text-white rounded-xl font-bold text-sm transition-all shadow-lg shadow-[#dbeafe] active:scale-95"
           >
             <ClipboardList size={16} />
             Add Action Item
           </button>
           <button
             onClick={handleCreateMeeting}
-            className="flex items-center gap-2 px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 transition-colors text-sm"
+            className="flex items-center gap-2 px-5 py-2.5 bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl font-bold text-sm transition-all shadow-lg shadow-emerald-100 active:scale-95"
           >
             <Calendar size={16} />
             Create Follow-up Meeting
@@ -241,28 +368,37 @@ export default function ContinuousFeedbackDetailPage() {
         </div>
       )}
 
+      {/* Add Action Item Form */}
       {showAiForm && (
-        <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-4 mb-6">
-          <h3 className="text-sm font-semibold text-gray-800 mb-3">New Action Item</h3>
-          <div className="space-y-3">
+        <div className="bg-white rounded-[32px] shadow-sm border border-slate-100 p-6 animate-fade-in-up">
+          <div className="flex items-center gap-2 text-[#2463eb] mb-4">
+            <ClipboardList size={16} />
+            <h3 className="text-[10px] font-black uppercase tracking-widest">New Action Item</h3>
+          </div>
+          <div className="space-y-4">
             <textarea
               value={aiDescription}
               onChange={(e) => setAiDescription(e.target.value)}
               rows={2}
-              className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm"
+              className="w-full bg-slate-50 border border-slate-200 rounded-2xl px-5 py-3.5 text-sm font-bold focus:border-[#2463eb] focus:ring-1 focus:ring-[#dbeafe] outline-none transition-all resize-none shadow-inner"
               placeholder="Action item description..."
             />
-            <input
-              type="date"
-              value={aiDueDate}
-              onChange={(e) => setAiDueDate(e.target.value)}
-              className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm"
-            />
-            <div className="flex gap-2">
-              <button onClick={handleAddActionItem} className="px-4 py-2 bg-indigo-600 text-white rounded-lg text-sm hover:bg-indigo-700">
+            <div className="flex items-center gap-3">
+              <div className="relative flex-1">
+                <Calendar size={16} className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400" />
+                <input
+                  type="date"
+                  value={aiDueDate}
+                  onChange={(e) => setAiDueDate(e.target.value)}
+                  className="w-full bg-slate-50 border border-slate-200 rounded-2xl pl-10 pr-4 py-3 text-sm font-bold focus:border-[#2463eb] focus:ring-1 focus:ring-[#dbeafe] outline-none transition-all shadow-inner"
+                />
+              </div>
+            </div>
+            <div className="flex gap-3 pt-2">
+              <button onClick={handleAddActionItem} className="px-5 py-2.5 bg-[#2463eb] hover:bg-[#1d4ed8] text-white rounded-xl font-bold text-sm transition-all shadow-md active:scale-95">
                 Create
               </button>
-              <button onClick={() => setShowAiForm(false)} className="px-4 py-2 border border-gray-300 rounded-lg text-sm hover:bg-gray-50">
+              <button onClick={() => setShowAiForm(false)} className="px-5 py-2.5 bg-slate-100 text-slate-600 rounded-xl font-bold text-sm hover:bg-slate-200 transition-all active:scale-95">
                 Cancel
               </button>
             </div>
@@ -270,44 +406,67 @@ export default function ContinuousFeedbackDetailPage() {
         </div>
       )}
 
+      {/* Action Items List */}
       {feedback.actionItems && feedback.actionItems.length > 0 && (
-        <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-6 mb-6">
-          <h3 className="text-sm font-semibold text-gray-800 mb-3">Action Items</h3>
-          <div className="space-y-3">
-            {feedback.actionItems.map((ai) => (
-              <div key={ai.actionItemId} className="flex items-center justify-between bg-gray-50 rounded-lg p-3">
-                <div className="flex-1">
-                  <p className="text-sm text-gray-800">{ai.description}</p>
-                  <div className="flex gap-3 mt-1 text-xs text-gray-500">
-                    <span>Status: {ai.status}</span>
-                    {ai.dueDate && <span>Due: {new Date(ai.dueDate).toLocaleDateString()}</span>}
+        <div className="bg-white rounded-[32px] shadow-sm border border-slate-100 overflow-hidden animate-fade-in-up">
+          <div className="p-6 border-b border-slate-100 flex items-center gap-2 text-slate-400">
+            <ClipboardList size={16} />
+            <h3 className="text-[10px] font-black uppercase tracking-widest">Action Items</h3>
+            <span className="text-[10px] font-bold text-slate-400 bg-slate-100 px-2.5 py-0.5 rounded-full ml-auto">{feedback.actionItems.length}</span>
+          </div>
+          <div className="divide-y divide-slate-50">
+            {feedback.actionItems.map((ai) => {
+              const s = statusStyles[ai.status] || statusStyles['OPEN'];
+              return (
+                <div key={ai.actionItemId} className="p-5 flex items-center justify-between gap-4 hover:bg-slate-50/80 transition-colors">
+                  <div className="flex-1 min-w-0">
+                    <div className="flex items-center gap-2 mb-1">
+                      <span className={`w-2 h-2 rounded-full ${s.dot} shrink-0`} />
+                      <p className="text-sm font-bold text-slate-800">{ai.description}</p>
+                    </div>
+                    <div className="flex flex-wrap gap-3 mt-1.5 ml-4">
+                      <span className={`px-2.5 py-0.5 rounded-full text-[10px] font-black uppercase tracking-widest border ${s.bg} ${s.text} ${s.border}`}>
+                        {ai.status}
+                      </span>
+                      {ai.dueDate && (
+                        <span className="flex items-center gap-1 text-[10px] font-bold text-slate-400">
+                          <Calendar size={12} />
+                          Due: {new Date(ai.dueDate).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}
+                        </span>
+                      )}
+                    </div>
                   </div>
+                  <select
+                    value={ai.status}
+                    onChange={(e) => handleUpdateAiStatus(ai, e.target.value)}
+                    className="shrink-0 px-3 py-2 text-xs font-bold border border-slate-200 rounded-xl bg-white focus:border-[#2463eb] focus:ring-1 focus:ring-[#dbeafe] outline-none transition-all"
+                  >
+                    {ACTION_ITEM_STATUSES.map((s) => (
+                      <option key={s} value={s}>{s}</option>
+                    ))}
+                  </select>
                 </div>
-                <select
-                  value={ai.status}
-                  onChange={(e) => handleUpdateAiStatus(ai, e.target.value)}
-                  className="ml-3 px-2 py-1 text-xs border border-gray-300 rounded"
-                >
-                  {ACTION_ITEM_STATUSES.map((s) => (
-                    <option key={s} value={s}>
-                      {s}
-                    </option>
-                  ))}
-                </select>
-              </div>
-            ))}
+              );
+            })}
           </div>
         </div>
       )}
 
+      {/* Comments Section */}
       {isShared && (
-        <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-6 mb-6">
-          <div className="flex items-center justify-between mb-3">
-            <h3 className="text-sm font-semibold text-gray-800">Comments</h3>
+        <div className="bg-white rounded-[32px] shadow-sm border border-slate-100 overflow-hidden animate-fade-in-up">
+          <div className="p-6 border-b border-slate-100 flex items-center justify-between">
+            <div className="flex items-center gap-2 text-slate-400">
+              <MessageSquare size={16} />
+              <h3 className="text-[10px] font-black uppercase tracking-widest">Comments</h3>
+              {feedback.comments && feedback.comments.length > 0 && (
+                <span className="text-[10px] font-bold text-slate-400 bg-slate-100 px-2.5 py-0.5 rounded-full">{feedback.comments.length}</span>
+              )}
+            </div>
             {!feedback.acknowledged && rolePath === '/employee' && (
               <button
                 onClick={handleAcknowledge}
-                className="flex items-center gap-1 px-3 py-1.5 bg-blue-600 text-white text-sm rounded-lg hover:bg-blue-700"
+                className="flex items-center gap-1.5 px-4 py-2 bg-[#2463eb] hover:bg-[#1d4ed8] text-white rounded-xl font-bold text-xs transition-all shadow-md active:scale-95"
               >
                 <Check size={14} />
                 Acknowledge
@@ -315,57 +474,72 @@ export default function ContinuousFeedbackDetailPage() {
             )}
           </div>
 
-          <div className="space-y-3 mb-4">
+          <div className="p-6 space-y-4">
             {feedback.comments && feedback.comments.length > 0 ? (
               feedback.comments.map((c) => (
-                <div key={c.commentId} className="bg-gray-50 rounded-lg p-3">
-                  <div className="flex items-center gap-2 mb-1">
-                    <span className="text-sm font-medium text-gray-800">{c.authorEmployeeName}</span>
-                    <span className="text-xs text-gray-400">
-                      {c.commentType.replace(/_/g, ' ')}
+                <div key={c.commentId} className="bg-slate-50 rounded-2xl p-4 border border-slate-100">
+                  <div className="flex items-center justify-between mb-2">
+                    <div className="flex items-center gap-2">
+                      <span className="w-6 h-6 rounded-full bg-[#2463eb]/10 text-[#2463eb] flex items-center justify-center text-[10px] font-black uppercase">
+                        {c.authorEmployeeName?.charAt(0) || '?'}
+                      </span>
+                      <span className="text-sm font-bold text-slate-800">{c.authorEmployeeName}</span>
+                      <span className="text-[10px] font-bold text-slate-400 bg-slate-200/50 px-2 py-0.5 rounded-full">
+                        {c.commentType.replace(/_/g, ' ')}
+                      </span>
                       {!c.visibleToEmployee && (
-                        <span className="ml-1 text-yellow-600">(internal)</span>
+                        <span className="text-[10px] font-bold text-amber-600 bg-amber-50 px-2 py-0.5 rounded-full border border-amber-200">
+                          Internal
+                        </span>
                       )}
-                    </span>
+                    </div>
                   </div>
-                  <p className="text-sm text-gray-600">{c.commentText}</p>
-                  <p className="text-xs text-gray-400 mt-1">
-                    {new Date(c.createdAt).toLocaleString()}
+                  <p className="text-sm font-medium text-slate-700 ml-8">{c.commentText}</p>
+                  <p className="text-[10px] font-bold text-slate-400 mt-2 ml-8">
+                    {new Date(c.createdAt).toLocaleDateString('en-US', {
+                      month: 'short', day: 'numeric', year: 'numeric', hour: '2-digit', minute: '2-digit'
+                    })}
                   </p>
                 </div>
               ))
             ) : (
-              <p className="text-sm text-gray-400">No comments yet</p>
+              <div className="flex flex-col items-center justify-center py-8 opacity-40">
+                <MessageSquare size={32} className="text-slate-300 mb-2" />
+                <p className="text-[10px] font-black uppercase tracking-widest text-slate-400">No comments yet</p>
+              </div>
             )}
           </div>
 
-          <div className="flex gap-2">
-            <textarea
-              value={newComment}
-              onChange={(e) => setNewComment(e.target.value)}
-              rows={2}
-              className="flex-1 px-3 py-2 border border-gray-300 rounded-lg text-sm"
-              placeholder="Add a comment..."
-            />
-            <div className="flex flex-col gap-2">
-              <button
-                onClick={handleAddComment}
-                disabled={!newComment.trim()}
-                className="px-4 py-2 bg-indigo-600 text-white rounded-lg text-sm hover:bg-indigo-700 disabled:opacity-50"
-              >
-                <Send size={16} />
-              </button>
-              {rolePath === '/hr' && (
-                <label className="flex items-center gap-1 text-xs text-gray-500 cursor-pointer">
-                  <input
-                    type="checkbox"
-                    checked={commentVisible}
-                    onChange={(e) => setCommentVisible(e.target.checked)}
-                    className="rounded"
-                  />
-                  Visible to employee
-                </label>
-              )}
+          {/* Add Comment */}
+          <div className="p-6 border-t border-slate-100">
+            <div className="flex gap-3">
+              <textarea
+                value={newComment}
+                onChange={(e) => setNewComment(e.target.value)}
+                rows={2}
+                className="flex-1 bg-slate-50 border border-slate-200 rounded-2xl px-5 py-3.5 text-sm font-bold focus:border-[#2463eb] focus:ring-1 focus:ring-[#dbeafe] outline-none transition-all resize-none shadow-inner"
+                placeholder="Add a comment..."
+              />
+              <div className="flex flex-col gap-2">
+                <button
+                  onClick={handleAddComment}
+                  disabled={!newComment.trim()}
+                  className="px-4 py-3 bg-[#2463eb] hover:bg-[#1d4ed8] text-white rounded-2xl font-bold text-sm transition-all disabled:opacity-50 disabled:cursor-not-allowed shadow-md active:scale-95"
+                >
+                  <Send size={16} />
+                </button>
+                {rolePath === '/hr' && (
+                  <label className="flex items-center gap-1.5 text-[10px] font-bold text-slate-500 cursor-pointer bg-slate-50 px-3 py-1.5 rounded-xl border border-slate-200">
+                    <input
+                      type="checkbox"
+                      checked={commentVisible}
+                      onChange={(e) => setCommentVisible(e.target.checked)}
+                      className="w-3.5 h-3.5 rounded border-slate-300 text-[#2463eb] focus:ring-[#dbeafe]"
+                    />
+                    Visible
+                  </label>
+                )}
+              </div>
             </div>
           </div>
         </div>

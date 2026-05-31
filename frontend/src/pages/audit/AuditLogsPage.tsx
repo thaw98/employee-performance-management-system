@@ -43,7 +43,7 @@ export const AuditLogsPage: React.FC = () => {
                     <label className="text-xs font-bold uppercase tracking-wider text-slate-500">
                         Target
                         <select value={targetType} onChange={(e) => setTargetType(e.target.value)} className="mt-1 block w-full rounded-xl border-slate-200 bg-white text-sm normal-case tracking-normal dark:border-slate-700 dark:bg-slate-900">
-                            <option value="SCORE_EXPLANATION">Score Explanation</option>
+                            <option value="SCORE_EXPLANATION">Score Band Settings</option>
                             <option value="">All Targets</option>
                         </select>
                     </label>
