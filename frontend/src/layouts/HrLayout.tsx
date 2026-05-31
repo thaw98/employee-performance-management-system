@@ -222,7 +222,7 @@ const HrLayout: React.FC = () => {
           isActive: (pathname) => pathname.startsWith('/hr/settings/system'),
           subItems: [
             { label: 'Time Settings', path: '/hr/settings/system/time', icon: <Calendar size={16} /> },
-            { label: 'Score Explanation', path: '/hr/settings/system/score-explanations', icon: <TableProperties size={16} /> },
+            { label: 'Score Band Settings', path: '/hr/settings/system/score-explanations', icon: <TableProperties size={16} /> },
           ],
         },
       ],

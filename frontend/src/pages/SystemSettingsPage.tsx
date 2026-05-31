@@ -334,7 +334,7 @@ export function SystemSettingsPage() {
                   <TableProperties size={20} />
                 </div>
                 <div>
-                  <h2 className="text-lg font-black text-slate-900 dark:text-slate-200 tracking-tight">Score Explanation</h2>
+                  <h2 className="text-lg font-black text-slate-900 dark:text-slate-200 tracking-tight">Score Band Settings</h2>
                   <p className="text-sm text-slate-500 dark:text-slate-400 mt-1">
                     Configure score ranges and labels for assessments, appraisals, and feedback.
                   </p>
