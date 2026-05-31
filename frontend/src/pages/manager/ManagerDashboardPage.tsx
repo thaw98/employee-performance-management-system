@@ -5,6 +5,7 @@ import { Bar, BarChart, Cell, ResponsiveContainer, Tooltip, XAxis, YAxis } from 
 
 import axios from '../../app/axiosInstance'
 import { useGetManagerTeamQuery } from '../../features/kpi/kpiApi'
+import { usePermissionState } from '../../features/permission'
 import { getNotificationSourceLabel } from '../../features/notification/notificationSourceLabels'
 import { useGetDefaultSignatureQuery } from '../../features/user/userApi'
 
@@ -59,9 +60,12 @@ function EmptyPanel({ message }: { message: string }) {
   )
 }
 
+const UPCOMING_MEETING_STATUSES = 'PENDING,ACCEPTED,RESCHEDULE_REQUESTED,RESCHEDULE_MGR,CANCEL_REQUESTED,ONGOING'
+
 export function ManagerDashboardPage() {
   const { data: teamData = [], isLoading: isTeamLoading } = useGetManagerTeamQuery()
   const { data: defaultSigResponse, isLoading: isDefaultSigLoading } = useGetDefaultSignatureQuery()
+  const { isReady, canViewMeetings } = usePermissionState()
   const [meetings, setMeetings] = useState<MeetingItem[]>([])
   const [activities, setActivities] = useState<ActivityItem[]>([])
   const [teamKpis, setTeamKpis] = useState<TeamKpiSummary[]>([])
@@ -71,21 +75,37 @@ export function ManagerDashboardPage() {
   const hasDefaultSignature = Boolean(defaultSigResponse?.data)
 
   useEffect(() => {
+    if (!isReady) return
+
     let active = true
-    const meetingStatuses = 'PENDING,ACCEPTED,RESCHEDULE_REQUESTED,RESCHEDULE_MGR,CANCEL_REQUESTED,ONGOING'
 
     const loadDashboard = async () => {
-      const [meetingResult, activityResult] = await Promise.allSettled([
-        axios.get(`/meetings/manager?statuses=${meetingStatuses}&page=0&size=5&sortBy=oldest`),
-        axios.get('/notifications?status=all&page=0&size=8'),
-      ])
+      setMeetingError('')
+      const showMeetings = canViewMeetings()
+      const requests: Promise<unknown>[] = [axios.get('/notifications?status=all&page=0&size=8')]
+      if (showMeetings) {
+        requests.unshift(
+          axios.get(`/meetings/manager?statuses=${UPCOMING_MEETING_STATUSES}&page=0&size=5&sortBy=oldest`),
+        )
+      }
+
+      const results = await Promise.allSettled(requests)
+      const meetingResult = showMeetings ? results[0] : null
+      const activityResult = results[showMeetings ? 1 : 0]
 
       if (!active) return
 
-      if (meetingResult.status === 'fulfilled') {
-        setMeetings(meetingResult.value.data?.data?.content ?? [])
+      if (showMeetings) {
+        if (meetingResult?.status === 'fulfilled' && meetingResult.value.data?.success !== false) {
+          setMeetings(meetingResult.value.data?.data?.content ?? [])
+        } else if (meetingResult?.status === 'rejected') {
+          const reason = meetingResult.reason as { response?: { data?: { message?: string } } }
+          setMeetingError(reason?.response?.data?.message || 'Unable to load your upcoming meetings.')
+        } else {
+          setMeetingError('Unable to load your upcoming meetings.')
+        }
       } else {
-        setMeetingError('Unable to load your upcoming meetings.')
+        setMeetings([])
       }
 
       if (activityResult.status === 'fulfilled') {
@@ -99,7 +119,7 @@ export function ManagerDashboardPage() {
     return () => {
       active = false
     }
-  }, [])
+  }, [isReady, canViewMeetings])
 
   useEffect(() => {
     let active = true

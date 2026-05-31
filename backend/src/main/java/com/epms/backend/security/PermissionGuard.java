@@ -1,6 +1,7 @@
 package com.epms.backend.security;
 
 import java.util.Optional;
+import java.util.Set;
 
 import org.springframework.security.core.Authentication;
 import org.springframework.security.core.context.SecurityContextHolder;
@@ -18,6 +19,7 @@ import lombok.RequiredArgsConstructor;
 @RequiredArgsConstructor
 public class PermissionGuard {
 
+    private static final long HR_ROLE_ID = 1L;
     private static final long AUDIT_ROLE_ID = 5L;
 
     private final PermissionService permissionService;
@@ -43,8 +45,14 @@ public class PermissionGuard {
             return false;
         }
 
-        if (user.getRole() != null && user.getRole().getId() != null && user.getRole().getId() == AUDIT_ROLE_ID) {
-            return true;
+        if (user.getRole() != null && user.getRole().getId() != null) {
+            Long roleId = user.getRole().getId();
+            if (roleId == AUDIT_ROLE_ID) {
+                return true;
+            }
+            if (roleId == HR_ROLE_ID) {
+                return hrRoleAllows(moduleKey, actionKey);
+            }
         }
 
         if (user.getEmployee() == null) {
@@ -65,5 +73,12 @@ public class PermissionGuard {
         }
         Long positionId = user.getEmployee().getPosition().getId();
         return permissionService.hasPermission(positionId, moduleKey, actionKey);
+    }
+
+    private boolean hrRoleAllows(String moduleKey, String actionKey) {
+        if ("CONTINUOUS_FEEDBACK".equals(moduleKey)) {
+            return Set.of("view", "comment", "view_private_notes", "report").contains(actionKey);
+        }
+        return true;
     }
 }
