@@ -38,12 +38,12 @@ public class PermissionGuard {
             return false;
         }
 
-        if (user.getRole() != null && user.getRole().getId() == AUDIT_ROLE_ID) {
+        if (user.getRole() != null && user.getRole().getId() != null && user.getRole().getId() == AUDIT_ROLE_ID) {
             return true;
         }
 
         if (user.getEmployee() == null || user.getEmployee().getPosition() == null) {
-            return true;
+            return false;
         }
 
         Long positionId = user.getEmployee().getPosition().getId();

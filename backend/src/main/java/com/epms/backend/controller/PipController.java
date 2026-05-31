@@ -37,13 +37,14 @@ import java.util.List;
 @RestController
 @RequestMapping("/api/pips")
 @RequiredArgsConstructor
+@PreAuthorize("@permissionGuard.has('PIP', 'view')")
 public class PipController {
 
     private final PipService pipService;
     private final UserRepository userRepository;
 
     @PostMapping
-    @PreAuthorize("hasAnyRole('DEPARTMENT_HEAD', 'TEAM_HEAD', 'MANAGER')")
+    @PreAuthorize("hasAnyRole('DEPARTMENT_HEAD', 'TEAM_HEAD', 'MANAGER') and @permissionGuard.has('PIP', 'create')")
     public ResponseEntity<ApiResponse<Pip>> createPip(
             @AuthenticationPrincipal UserPrincipal principal,
             @RequestBody PipCreateRequest request) {
@@ -53,7 +54,7 @@ public class PipController {
     }
 
     @GetMapping("/eligible-employees")
-    @PreAuthorize("hasAnyRole('DEPARTMENT_HEAD', 'TEAM_HEAD', 'MANAGER')")
+    @PreAuthorize("hasAnyRole('DEPARTMENT_HEAD', 'TEAM_HEAD', 'MANAGER') and @permissionGuard.has('PIP', 'create')")
     public ResponseEntity<ApiResponse<List<EligibleEmployeeDTO>>> getEligibleEmployees(
             @AuthenticationPrincipal UserPrincipal principal) {
         User manager = userRepository.findById(principal.getId()).orElseThrow();
@@ -99,7 +100,7 @@ public class PipController {
     }
 
     @PostMapping("/{id}/notes")
-    @PreAuthorize("hasAnyRole('EMPLOYEE', 'DEPARTMENT_HEAD', 'TEAM_HEAD', 'MANAGER')")
+    @PreAuthorize("hasAnyRole('EMPLOYEE', 'DEPARTMENT_HEAD', 'TEAM_HEAD', 'MANAGER') and @permissionGuard.has('PIP', 'review_notes')")
     public ResponseEntity<ApiResponse<PipCommunicationNoteDto>> addPipNote(
             @AuthenticationPrincipal UserPrincipal principal,
             @PathVariable Long id,
@@ -120,7 +121,7 @@ public class PipController {
     }
 
     @GetMapping("/notes")
-    @PreAuthorize("principal.roleId == 1 or principal.roleId == 5")
+    @PreAuthorize("(principal.roleId == 1 or principal.roleId == 5) and @permissionGuard.has('PIP', 'review_notes')")
     public ResponseEntity<ApiResponse<Page<PipCommunicationNoteDto>>> getAllPipNotes(
             @AuthenticationPrincipal UserPrincipal principal,
             @RequestParam(required = false) Long employeeId,
@@ -151,7 +152,7 @@ public class PipController {
     }
 
     @PutMapping("/objectives/{objectiveId}/progress")
-    @PreAuthorize("hasAnyRole('DEPARTMENT_HEAD', 'TEAM_HEAD', 'MANAGER')")
+    @PreAuthorize("hasAnyRole('DEPARTMENT_HEAD', 'TEAM_HEAD', 'MANAGER') and @permissionGuard.has('PIP', 'update')")
     public ResponseEntity<ApiResponse<PipObjective>> updateProgress(
             @AuthenticationPrincipal UserPrincipal principal,
             @PathVariable Long objectiveId,
@@ -162,7 +163,7 @@ public class PipController {
     }
 
     @PutMapping("/objectives/{objectiveId}/hours")
-    @PreAuthorize("hasAnyRole('DEPARTMENT_HEAD', 'TEAM_HEAD', 'MANAGER')")
+    @PreAuthorize("hasAnyRole('DEPARTMENT_HEAD', 'TEAM_HEAD', 'MANAGER') and @permissionGuard.has('PIP', 'update')")
     public ResponseEntity<ApiResponse<PipObjective>> increaseObjectiveHours(
             @AuthenticationPrincipal UserPrincipal principal,
             @PathVariable Long objectiveId,
@@ -202,7 +203,7 @@ public class PipController {
     }
 
     @PostMapping("/{id}/meetings")
-    @PreAuthorize("hasAnyRole('DEPARTMENT_HEAD', 'TEAM_HEAD', 'MANAGER')")
+    @PreAuthorize("hasAnyRole('DEPARTMENT_HEAD', 'TEAM_HEAD', 'MANAGER') and @permissionGuard.has('PIP', 'schedule_meeting')")
     public ResponseEntity<ApiResponse<FollowUpMeeting>> scheduleMeeting(
             @AuthenticationPrincipal UserPrincipal principal,
             @PathVariable Long id,
@@ -213,7 +214,7 @@ public class PipController {
     }
 
     @PutMapping("/{id}/close")
-    @PreAuthorize("hasAnyRole('DEPARTMENT_HEAD', 'TEAM_HEAD', 'MANAGER')")
+    @PreAuthorize("hasAnyRole('DEPARTMENT_HEAD', 'TEAM_HEAD', 'MANAGER') and @permissionGuard.has('PIP', 'close_reopen')")
     public ResponseEntity<ApiResponse<Pip>> closePip(
             @AuthenticationPrincipal UserPrincipal principal,
             @PathVariable Long id,
@@ -224,7 +225,7 @@ public class PipController {
     }
 
     @PutMapping("/{id}/manual-close")
-    @PreAuthorize("hasAnyRole('DEPARTMENT_HEAD', 'TEAM_HEAD', 'MANAGER')")
+    @PreAuthorize("hasAnyRole('DEPARTMENT_HEAD', 'TEAM_HEAD', 'MANAGER') and @permissionGuard.has('PIP', 'close_reopen')")
     public ResponseEntity<ApiResponse<Pip>> manualClosePip(
             @AuthenticationPrincipal UserPrincipal principal,
             @PathVariable Long id) {
@@ -234,7 +235,7 @@ public class PipController {
     }
 
     @PatchMapping("/{id}/completed")
-    @PreAuthorize("hasAnyRole('DEPARTMENT_HEAD', 'TEAM_HEAD', 'MANAGER')")
+    @PreAuthorize("hasAnyRole('DEPARTMENT_HEAD', 'TEAM_HEAD', 'MANAGER') and @permissionGuard.has('PIP', 'close_reopen')")
     public ResponseEntity<ApiResponse<Pip>> markPipCompleted(
             @AuthenticationPrincipal UserPrincipal principal,
             @PathVariable Long id) {
@@ -244,7 +245,7 @@ public class PipController {
     }
 
     @PutMapping("/{id}/reopen")
-    @PreAuthorize("hasRole('EMPLOYEE')")
+    @PreAuthorize("hasRole('EMPLOYEE') and @permissionGuard.has('PIP', 'close_reopen')")
     public ResponseEntity<ApiResponse<Pip>> reopenPip(
             @AuthenticationPrincipal UserPrincipal principal,
             @PathVariable Long id,
@@ -266,7 +267,7 @@ public class PipController {
     }
 
     @PostMapping("/{id}/manager-sign")
-    @PreAuthorize("hasAnyRole('DEPARTMENT_HEAD', 'TEAM_HEAD', 'MANAGER')")
+    @PreAuthorize("hasAnyRole('DEPARTMENT_HEAD', 'TEAM_HEAD', 'MANAGER') and @permissionGuard.has('PIP', 'update')")
     public ResponseEntity<ApiResponse<Pip>> managerSign(
             @AuthenticationPrincipal UserPrincipal principal,
             @PathVariable Long id,
@@ -277,7 +278,7 @@ public class PipController {
     }
 
     @PutMapping("/{id}/review")
-    @PreAuthorize("hasAnyRole('DEPARTMENT_HEAD', 'TEAM_HEAD', 'MANAGER')")
+    @PreAuthorize("hasAnyRole('DEPARTMENT_HEAD', 'TEAM_HEAD', 'MANAGER') and @permissionGuard.has('PIP', 'update')")
     public ResponseEntity<ApiResponse<Pip>> reviewPip(
             @AuthenticationPrincipal UserPrincipal principal,
             @PathVariable Long id,

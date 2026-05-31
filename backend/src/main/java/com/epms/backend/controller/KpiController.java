@@ -12,6 +12,7 @@ import java.util.List;
 
 @RestController
 @RequestMapping("/api/kpis")
+@PreAuthorize("@permissionGuard.has('KPI', 'view')")
 public class KpiController {
 
     private final KpiService kpiService;
@@ -54,6 +55,7 @@ public class KpiController {
     }
 
     @PostMapping("/setup")
+    @PreAuthorize("@permissionGuard.has('KPI', 'manage')")
     public ResponseEntity<List<KpiDto>> setupKpis(@RequestBody List<KpiDto> kpiDtos) {
         try {
             String userIdStr = org.springframework.security.core.context.SecurityContextHolder.getContext()
@@ -76,6 +78,7 @@ public class KpiController {
     }
 
     @PostMapping("/position/setup")
+    @PreAuthorize("@permissionGuard.has('KPI', 'assign')")
     public ResponseEntity<List<PositionKpiDto>> setupPositionKpis(@RequestBody List<PositionKpiDto> dtoList) {
         try {
             String userIdStr = org.springframework.security.core.context.SecurityContextHolder.getContext()
@@ -97,6 +100,7 @@ public class KpiController {
     }
 
     @PostMapping("/department/setup")
+    @PreAuthorize("@permissionGuard.has('KPI', 'assign')")
     public ResponseEntity<List<DepartmentKpiDto>> setupDepartmentKpis(@RequestBody List<DepartmentKpiDto> dtoList) {
         try {
             String userIdStr = org.springframework.security.core.context.SecurityContextHolder.getContext()
@@ -110,7 +114,7 @@ public class KpiController {
         }
     }
 
-    @PreAuthorize("hasRole('MANAGER')")
+    @PreAuthorize("hasRole('MANAGER') and @permissionGuard.has('KPI', 'manage')")
     @PutMapping("/manager/employee/{employeeId}/actuals")
     public ResponseEntity<List<KpiDto>> updateKpiActuals(
             @PathVariable Long employeeId,
@@ -125,7 +129,7 @@ public class KpiController {
         }
     }
 
-    @PreAuthorize("hasRole('HR')")
+    @PreAuthorize("hasRole('HR') and @permissionGuard.has('KPI', 'manage')")
     @PutMapping("/hr/employee/{employeeId}/actuals")
     public ResponseEntity<?> updateKpiActualsByHr(
             @PathVariable Long employeeId,
@@ -141,7 +145,7 @@ public class KpiController {
         }
     }
 
-    @PreAuthorize("hasRole('HR')")
+    @PreAuthorize("hasRole('HR') and @permissionGuard.has('KPI', 'manage')")
     @PutMapping("/hr/department/{departmentId}/actuals")
     public ResponseEntity<?> updateDepartmentKpiActualsByHr(
             @PathVariable Long departmentId,
@@ -157,7 +161,7 @@ public class KpiController {
         }
     }
 
-    @PreAuthorize("hasRole('HR')")
+    @PreAuthorize("hasRole('HR') and @permissionGuard.has('KPI', 'manage')")
     @PutMapping("/hr/position/{departmentId}/{positionId}/actuals")
     public ResponseEntity<?> updatePositionKpiActualsByHr(
             @PathVariable Long departmentId,
@@ -234,7 +238,7 @@ public class KpiController {
         return ResponseEntity.ok(kpiService.getDepartment(period));
     }
 
-    @PreAuthorize("hasRole('HR')")
+    @PreAuthorize("hasRole('HR') and @permissionGuard.has('KPI', 'configure')")
     @PostMapping("/hr/reset-monthly")
     public ResponseEntity<Void> performMonthlyReset() {
         try {

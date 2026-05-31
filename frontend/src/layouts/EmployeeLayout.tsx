@@ -35,8 +35,8 @@ const EmployeeLayout: React.FC = () => {
     path: '/employee/reports',
     icon: <BarChart size={18} />,
     subItems: [
-      { label: 'PIP Report', path: '/employee/reports', icon: <FileText size={16} /> },
-      { label: 'Feedback Report', path: '/employee/reports/feedback', icon: <RefreshCcw size={16} /> },
+      { label: 'PIP Report', path: '/employee/reports', icon: <FileText size={16} />, permission: { moduleKey: 'REPORTS', actionKey: 'pip_report' } },
+      { label: 'Feedback Report', path: '/employee/reports/feedback', icon: <RefreshCcw size={16} />, permission: { moduleKey: 'REPORTS', actionKey: 'feedback_report' } },
     ],
   };
 
@@ -45,8 +45,8 @@ const EmployeeLayout: React.FC = () => {
     path: EMPLOYEE_SELF_ASSESSMENT_BASE_PATH,
     icon: <FileText size={18} />,
     subItems: [
-      { label: 'My Form', path: EMPLOYEE_SELF_ASSESSMENT_MY_FORM_PATH, icon: <ClipboardList size={16} /> },
-      { label: 'History', path: EMPLOYEE_SELF_ASSESSMENT_HISTORY_PATH, icon: <History size={16} /> },
+      { label: 'My Form', path: EMPLOYEE_SELF_ASSESSMENT_MY_FORM_PATH, icon: <ClipboardList size={16} />, permission: { moduleKey: 'SELF_ASSESSMENT', actionKey: 'view' } },
+      { label: 'History', path: EMPLOYEE_SELF_ASSESSMENT_HISTORY_PATH, icon: <History size={16} />, permission: { moduleKey: 'SELF_ASSESSMENT', actionKey: 'history' } },
     ],
   };
 
@@ -62,7 +62,7 @@ const EmployeeLayout: React.FC = () => {
     {
       label: 'Performance',
       items: [
-        { label: 'My KPIs', path: '/employee/kpis', icon: <Target size={18} /> },
+        { label: 'My KPIs', path: '/employee/kpis', icon: <Target size={18} />, permission: { moduleKey: 'KPI', actionKey: 'view' } },
         {
           label: 'Appraisals',
           path: '/employee/appraisals',
@@ -77,20 +77,20 @@ const EmployeeLayout: React.FC = () => {
           path: '/employee/360-feedback/give',
           icon: <RefreshCcw size={18} />,
           subItems: [
-            { label: 'Give Feedback', path: '/employee/360-feedback/give', icon: <Send size={16} /> },
-            { label: 'Receive Feedback', path: '/employee/360-feedback/received', icon: <Inbox size={16} /> },
-            { label: 'Feedback History', path: '/employee/360-feedback/history', icon: <History size={16} /> },
+            { label: 'Give Feedback', path: '/employee/360-feedback/give', icon: <Send size={16} />, permission: { moduleKey: '360_FEEDBACK', actionKey: 'give' } },
+            { label: 'Receive Feedback', path: '/employee/360-feedback/received', icon: <Inbox size={16} />, permission: { moduleKey: '360_FEEDBACK', actionKey: 'view' } },
+            { label: 'Feedback History', path: '/employee/360-feedback/history', icon: <History size={16} />, permission: { moduleKey: '360_FEEDBACK', actionKey: 'review_history' } },
           ],
         },
-        { label: 'My Continuous Feedback', path: '/employee/continuous-feedback', icon: <MessageSquare size={18} /> },
-        { label: 'My PIPs', path: '/employee/pip', icon: <TrendingUp size={18} /> },
+        { label: 'My Continuous Feedback', path: '/employee/continuous-feedback', icon: <MessageSquare size={18} />, permission: { moduleKey: 'CONTINUOUS_FEEDBACK', actionKey: 'view' } },
+        { label: 'My PIPs', path: '/employee/pip', icon: <TrendingUp size={18} />, permission: { moduleKey: 'PIP', actionKey: 'view' } },
         ...(isEmployeeRole ? [selfAssessmentItem] : []),
       ],
     },
     {
       label: 'Workspace',
       items: [
-        { label: 'Meetings', path: '/employee/meetings', icon: <Calendar size={18} /> },
+        { label: 'Meetings', path: '/employee/meetings', icon: <Calendar size={18} />, permission: { moduleKey: 'MEETINGS', actionKey: 'view' } },
         reportsItem,
         ...(!isEmployeeRole ? [selfAssessmentItem] : []),
       ],

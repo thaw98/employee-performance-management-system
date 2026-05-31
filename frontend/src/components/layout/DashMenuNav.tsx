@@ -1,10 +1,17 @@
 import { useState } from 'react'
 import { Link, useLocation, useNavigate } from 'react-router-dom'
+import { usePermissionState } from '../../features/permission'
+
+export interface MenuPermission {
+  moduleKey: string
+  actionKey?: string
+}
 
 export interface DashSubMenuItem {
   label: string
   path: string
   icon: React.ReactNode
+  permission?: MenuPermission
 }
 
 export interface DashMenuItem {
@@ -17,6 +24,7 @@ export interface DashMenuItem {
   onFocus?: () => void
   isActive?: (pathname: string, search: string) => boolean
   isSubActive?: (subPath: string, pathname: string, search: string) => boolean
+  permission?: MenuPermission
 }
 
 export interface DashMenuSection {
@@ -56,7 +64,14 @@ function shouldShowBadge(badge: DashMenuItem['badge']) {
 export function DashMenuNav({ sections, isCollapsed }: DashMenuNavProps) {
   const location = useLocation()
   const navigate = useNavigate()
+  const { isReady, hasPermission } = usePermissionState()
   const [expandedMenus, setExpandedMenus] = useState<Record<string, boolean>>({})
+
+  const canShow = (permission?: MenuPermission) => {
+    if (!permission) return true
+    if (!isReady) return false
+    return hasPermission(permission.moduleKey, permission.actionKey ?? 'view')
+  }
 
   const expandSection = (label: string) => {
     const next: Record<string, boolean> = {}
@@ -88,13 +103,19 @@ export function DashMenuNav({ sections, isCollapsed }: DashMenuNavProps) {
   }
 
   const renderMenuItem = (item: DashMenuItem) => {
+    if (!canShow(item.permission)) {
+      return null
+    }
+    const renderItem = item.subItems
+      ? { ...item, subItems: item.subItems.filter((sub) => canShow(sub.permission)) }
+      : item
     const isActive = item.isActive
       ? item.isActive(location.pathname, location.search)
-      : defaultIsItemActive(item, location.pathname, location.search)
+      : defaultIsItemActive(renderItem, location.pathname, location.search)
     const showBadge = shouldShowBadge(item.badge)
 
-    if (item.subItems?.length) {
-      const hasActiveChild = item.subItems.some((sub) =>
+    if (renderItem.subItems?.length) {
+      const hasActiveChild = renderItem.subItems.some((sub) =>
         item.isSubActive
           ? item.isSubActive(sub.path, location.pathname, location.search)
           : defaultIsSubActive(sub.path, location.pathname, location.search),
@@ -109,7 +130,7 @@ export function DashMenuNav({ sections, isCollapsed }: DashMenuNavProps) {
             title={item.label}
             className={`nav-link nav-parent${isActive || hasActiveChild ? ' active' : ''}`}
             aria-expanded={isExpanded}
-            onClick={() => handleParentClick(item, isExpanded)}
+            onClick={() => handleParentClick(renderItem, isExpanded)}
             onMouseEnter={item.onMouseEnter}
             onFocus={item.onFocus}
           >
@@ -126,7 +147,7 @@ export function DashMenuNav({ sections, isCollapsed }: DashMenuNavProps) {
             )}
           </button>
           <ul className="nav-children">
-            {item.subItems.map((sub) => {
+            {renderItem.subItems.map((sub) => {
               const isSubActive = item.isSubActive
                 ? item.isSubActive(sub.path, location.pathname, location.search)
                 : defaultIsSubActive(sub.path, location.pathname, location.search)

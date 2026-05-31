@@ -1,17 +1,24 @@
 package com.epms.backend.config;
 
 import java.time.Instant;
+import java.util.HashSet;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 
 import org.springframework.boot.CommandLineRunner;
 import org.springframework.stereotype.Component;
+import org.springframework.transaction.annotation.Transactional;
 
 import com.epms.backend.entity.PermissionAction;
 import com.epms.backend.entity.PermissionModule;
+import com.epms.backend.entity.Position;
+import com.epms.backend.entity.PositionPermission;
 import com.epms.backend.repository.PermissionActionRepository;
 import com.epms.backend.repository.PermissionModuleRepository;
+import com.epms.backend.repository.PositionPermissionRepository;
+import com.epms.backend.repository.PositionRepository;
 
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -21,14 +28,24 @@ import lombok.extern.slf4j.Slf4j;
 @Slf4j
 public class PermissionDataInitializer implements CommandLineRunner {
 
+    private static final long HR_ROLE_ID = 1L;
+    private static final long DEPARTMENT_HEAD_ROLE_ID = 2L;
+    private static final long MANAGER_ROLE_ID = 3L;
+    private static final long EMPLOYEE_ROLE_ID = 4L;
+    private static final long AUDIT_ROLE_ID = 5L;
+
     private final PermissionModuleRepository moduleRepository;
     private final PermissionActionRepository actionRepository;
+    private final PositionRepository positionRepository;
+    private final PositionPermissionRepository positionPermissionRepository;
 
     @Override
+    @Transactional
     public void run(String... args) {
         seedModules();
         seedActions();
-        log.info("Permission modules and actions initialized");
+        seedPositionPermissionDefaults();
+        log.info("Permission modules, actions, and position defaults initialized");
     }
 
     private void seedModules() {
@@ -155,5 +172,101 @@ public class PermissionDataInitializer implements CommandLineRunner {
                 order++;
             }
         }
+    }
+
+    private void seedPositionPermissionDefaults() {
+        List<PermissionAction> actions = actionRepository.findAllByOrderBySortOrderAsc();
+        if (actions.isEmpty()) {
+            return;
+        }
+
+        List<Position> activePositions = positionRepository.findAll().stream()
+                .filter(position -> position.getStatus() == null || "ACTIVE".equalsIgnoreCase(position.getStatus()))
+                .toList();
+
+        int created = 0;
+        for (Position position : activePositions) {
+            Set<String> existingKeys = positionPermissionRepository
+                    .findByPositionIdOrderByModuleKeyAscActionKeyAsc(position.getId())
+                    .stream()
+                    .map(permission -> permission.getModuleKey() + ":" + permission.getActionKey())
+                    .collect(java.util.stream.Collectors.toCollection(HashSet::new));
+
+            Long roleId = position.getRole() != null ? position.getRole().getId() : null;
+            for (PermissionAction action : actions) {
+                String key = action.getModuleKey() + ":" + action.getActionKey();
+                if (existingKeys.contains(key)) {
+                    continue;
+                }
+
+                PositionPermission permission = new PositionPermission();
+                permission.setPosition(position);
+                permission.setModuleKey(action.getModuleKey());
+                permission.setActionKey(action.getActionKey());
+                permission.setAllowed(defaultAllowedForRole(roleId, action.getModuleKey(), action.getActionKey()));
+                permission.setCreatedAt(Instant.now());
+                permission.setUpdatedAt(Instant.now());
+                positionPermissionRepository.save(permission);
+                created++;
+            }
+        }
+
+        if (created > 0) {
+            log.info("Created {} missing position_permission default rows", created);
+        }
+    }
+
+    private boolean defaultAllowedForRole(Long roleId, String moduleKey, String actionKey) {
+        if (roleId == null) {
+            return false;
+        }
+        if (roleId == AUDIT_ROLE_ID) {
+            return true;
+        }
+        if (roleId == HR_ROLE_ID) {
+            return defaultAllowedForHr(moduleKey, actionKey);
+        }
+        if (roleId == DEPARTMENT_HEAD_ROLE_ID || roleId == MANAGER_ROLE_ID) {
+            return defaultAllowedForManager(moduleKey, actionKey);
+        }
+        if (roleId == EMPLOYEE_ROLE_ID) {
+            return defaultAllowedForEmployee(moduleKey, actionKey);
+        }
+        return false;
+    }
+
+    private boolean defaultAllowedForHr(String moduleKey, String actionKey) {
+        if ("CONTINUOUS_FEEDBACK".equals(moduleKey)) {
+            return Set.of("view", "comment", "view_private_notes", "report").contains(actionKey);
+        }
+        return true;
+    }
+
+    private boolean defaultAllowedForManager(String moduleKey, String actionKey) {
+        return switch (moduleKey) {
+            case "KPI" -> Set.of("view", "manage", "assign", "history", "report", "export").contains(actionKey);
+            case "360_FEEDBACK" -> Set.of("view", "give", "review_history", "report", "export").contains(actionKey);
+            case "PIP" -> Set.of("view", "create", "update", "schedule_meeting", "close_reopen", "report", "export").contains(actionKey);
+            case "SELF_ASSESSMENT" -> Set.of("view", "manage_templates", "review", "history", "report", "export").contains(actionKey);
+            case "MEETINGS" -> Set.of("view", "schedule", "request", "reschedule", "cancel", "approve_cancel", "finish", "notes", "history").contains(actionKey);
+            case "REPORTS" -> Set.of("view", "performance_report", "kpi_report", "feedback_report", "appraisal_report", "self_assessment_report", "pip_report", "export").contains(actionKey);
+            case "EMPLOYEE_PROFILE" -> Set.of("view_employee", "view_org_setup").contains(actionKey);
+            case "CONTINUOUS_FEEDBACK" -> Set.of("view", "create", "comment", "manage_action_items", "create_followup_meeting", "create_pip", "view_private_notes", "report").contains(actionKey);
+            default -> false;
+        };
+    }
+
+    private boolean defaultAllowedForEmployee(String moduleKey, String actionKey) {
+        return switch (moduleKey) {
+            case "KPI" -> Set.of("view", "history").contains(actionKey);
+            case "360_FEEDBACK" -> Set.of("view", "give", "review_history").contains(actionKey);
+            case "PIP" -> Set.of("view", "review_notes", "schedule_meeting").contains(actionKey);
+            case "SELF_ASSESSMENT" -> Set.of("view", "review", "history").contains(actionKey);
+            case "MEETINGS" -> Set.of("view", "request", "reschedule", "cancel", "notes", "history").contains(actionKey);
+            case "REPORTS" -> Set.of("view", "feedback_report", "pip_report", "export").contains(actionKey);
+            case "EMPLOYEE_PROFILE" -> Set.of("view_employee").contains(actionKey);
+            case "CONTINUOUS_FEEDBACK" -> Set.of("view", "comment", "acknowledge").contains(actionKey);
+            default -> false;
+        };
     }
 }

@@ -11,7 +11,7 @@ export function usePermissionState() {
 
   const isAudit = user?.roleId === 5;
 
-  const { data, isSuccess, isLoading } = useGetMyPermissionsQuery(undefined, {
+  const { data, isSuccess, isLoading, isFetching } = useGetMyPermissionsQuery(undefined, {
     skip: !user || isAudit,
   });
 
@@ -36,8 +36,8 @@ export function usePermissionState() {
   const hasPermission = useCallback(
     (moduleKey: string, actionKey: string): boolean => {
       if (isAudit) return true;
-      if (!loaded) return true;
-      return permissions[moduleKey]?.[actionKey] ?? true;
+      if (!loaded) return false;
+      return permissions[moduleKey]?.[actionKey] ?? false;
     },
     [isAudit, loaded, permissions]
   );
@@ -68,7 +68,8 @@ export function usePermissionState() {
   return {
     permissions,
     loaded,
-    isLoading,
+    isLoading: isLoading || isFetching || Boolean(user && !isAudit && !loaded),
+    isReady: isAudit || loaded,
     isAudit,
     hasPermission,
     hasAnyPermission,

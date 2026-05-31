@@ -41,19 +41,21 @@ const ManagerLayout: React.FC = () => {
     label: 'Templates',
     path: '/manager/self-assessment/templates',
     icon: <SlidersHorizontal size={16} />,
+    permission: { moduleKey: 'SELF_ASSESSMENT', actionKey: 'manage_templates' },
   };
   const selfAssessmentMyFormItem = {
     label: 'My Form',
     path: '/manager/self-assessment-forms/my-form',
     icon: <ClipboardCheck size={16} />,
+    permission: { moduleKey: 'SELF_ASSESSMENT', actionKey: 'view' },
   };
   const selfAssessmentSubItems = [
     ...(authUser?.roleId === 2
       ? [selfAssessmentMyFormItem, selfAssessmentTemplatesItem]
       : [selfAssessmentTemplatesItem, selfAssessmentMyFormItem]),
-    { label: 'Assigned Forms', path: '/manager/self-assessment/forms', icon: <ClipboardList size={16} /> },
-    { label: 'Review Submissions', path: '/manager/self-assessment-forms/review-queue', icon: <ListChecks size={16} /> },
-    { label: 'History', path: '/manager/self-assessment-forms/history', icon: <History size={16} /> },
+    { label: 'Assigned Forms', path: '/manager/self-assessment/forms', icon: <ClipboardList size={16} />, permission: { moduleKey: 'SELF_ASSESSMENT', actionKey: 'view' } },
+    { label: 'Review Submissions', path: '/manager/self-assessment-forms/review-queue', icon: <ListChecks size={16} />, permission: { moduleKey: 'SELF_ASSESSMENT', actionKey: 'review' } },
+    { label: 'History', path: '/manager/self-assessment-forms/history', icon: <History size={16} />, permission: { moduleKey: 'SELF_ASSESSMENT', actionKey: 'history' } },
   ];
 
   const menuSections: DashMenuSection[] = [
@@ -67,8 +69,8 @@ const ManagerLayout: React.FC = () => {
       ? [{
           label: 'Organization',
           items: [
-            { label: 'Employees', path: '/manager/employees', icon: <Users size={18} /> },
-            { label: 'Positions', path: '/manager/positions', icon: <Briefcase size={18} /> },
+            { label: 'Employees', path: '/manager/employees', icon: <Users size={18} />, permission: { moduleKey: 'EMPLOYEE_PROFILE', actionKey: 'view_employee' } },
+            { label: 'Positions', path: '/manager/positions', icon: <Briefcase size={18} />, permission: { moduleKey: 'EMPLOYEE_PROFILE', actionKey: 'view_org_setup' } },
             { label: 'Promotion Approvals', path: '/manager/promotions/approvals', icon: <ClipboardCheck size={18} /> },
           ],
         }]
@@ -81,8 +83,8 @@ const ManagerLayout: React.FC = () => {
           path: '/manager/kpis',
           icon: <Target size={18} />,
           subItems: [
-            { label: 'KPIs', path: '/manager/kpis', icon: <ListChecks size={16} /> },
-            { label: 'My KPIs', path: '/manager/my-kpis', icon: <User size={16} /> },
+            { label: 'KPIs', path: '/manager/kpis', icon: <ListChecks size={16} />, permission: { moduleKey: 'KPI', actionKey: 'view' } },
+            { label: 'My KPIs', path: '/manager/my-kpis', icon: <User size={16} />, permission: { moduleKey: 'KPI', actionKey: 'view' } },
           ],
         },
         {
@@ -99,9 +101,9 @@ const ManagerLayout: React.FC = () => {
           path: '/manager/360-feedback/give',
           icon: <RefreshCcw size={18} />,
           subItems: [
-            { label: 'Give Feedback', path: '/manager/360-feedback/give', icon: <Send size={16} /> },
-            { label: 'Receive Feedback', path: '/manager/360-feedback/received', icon: <Inbox size={16} /> },
-            { label: 'Feedback History', path: '/manager/360-feedback/history', icon: <History size={16} /> },
+            { label: 'Give Feedback', path: '/manager/360-feedback/give', icon: <Send size={16} />, permission: { moduleKey: '360_FEEDBACK', actionKey: 'give' } },
+            { label: 'Receive Feedback', path: '/manager/360-feedback/received', icon: <Inbox size={16} />, permission: { moduleKey: '360_FEEDBACK', actionKey: 'view' } },
+            { label: 'Feedback History', path: '/manager/360-feedback/history', icon: <History size={16} />, permission: { moduleKey: '360_FEEDBACK', actionKey: 'review_history' } },
           ],
         },
         {
@@ -110,8 +112,8 @@ const ManagerLayout: React.FC = () => {
           icon: <MessageSquare size={18} />,
           isActive: (pathname) => pathname.startsWith('/manager/continuous-feedback'),
           subItems: [
-            { label: 'Team Feedback', path: '/manager/continuous-feedback', icon: <MessageSquare size={16} /> },
-            { label: 'New Feedback', path: '/manager/continuous-feedback/create', icon: <Plus size={16} /> },
+            { label: 'Team Feedback', path: '/manager/continuous-feedback', icon: <MessageSquare size={16} />, permission: { moduleKey: 'CONTINUOUS_FEEDBACK', actionKey: 'view' } },
+            { label: 'New Feedback', path: '/manager/continuous-feedback/create', icon: <Plus size={16} />, permission: { moduleKey: 'CONTINUOUS_FEEDBACK', actionKey: 'create' } },
           ],
         },
         {
@@ -120,6 +122,7 @@ const ManagerLayout: React.FC = () => {
           icon: <Zap size={18} />,
           onMouseEnter: () => prefetchPips(),
           onFocus: () => prefetchPips(),
+          permission: { moduleKey: 'PIP', actionKey: 'view' },
         },
         {
           label: 'Self-Assessment',
@@ -145,7 +148,7 @@ const ManagerLayout: React.FC = () => {
     {
       label: 'Dashboard',
       items: [
-        { label: 'Meetings', path: '/manager/meetings', icon: <Calendar size={18} /> },
+        { label: 'Meetings', path: '/manager/meetings', icon: <Calendar size={18} />, permission: { moduleKey: 'MEETINGS', actionKey: 'view' } },
         {
           label: 'Reports',
           path: '/manager/reports',
@@ -156,11 +159,11 @@ const ManagerLayout: React.FC = () => {
             return pathname === subPath || pathname.startsWith(`${subPath}/`);
           },
           subItems: [
-            { label: 'PIP Report', path: '/manager/reports', icon: <BarChart size={16} /> },
-            { label: 'KPI Report', path: '/manager/reports/kpi', icon: <Target size={16} /> },
-            { label: 'Feedback Report', path: '/manager/reports/feedback', icon: <RefreshCcw size={16} /> },
-            { label: 'Appraisal Report', path: '/manager/reports/appraisal', icon: <Award size={16} /> },
-            { label: 'Self-Assessment Report', path: '/manager/reports/self-assessment', icon: <FileText size={16} /> },
+            { label: 'PIP Report', path: '/manager/reports', icon: <BarChart size={16} />, permission: { moduleKey: 'REPORTS', actionKey: 'pip_report' } },
+            { label: 'KPI Report', path: '/manager/reports/kpi', icon: <Target size={16} />, permission: { moduleKey: 'REPORTS', actionKey: 'kpi_report' } },
+            { label: 'Feedback Report', path: '/manager/reports/feedback', icon: <RefreshCcw size={16} />, permission: { moduleKey: 'REPORTS', actionKey: 'feedback_report' } },
+            { label: 'Appraisal Report', path: '/manager/reports/appraisal', icon: <Award size={16} />, permission: { moduleKey: 'REPORTS', actionKey: 'appraisal_report' } },
+            { label: 'Self-Assessment Report', path: '/manager/reports/self-assessment', icon: <FileText size={16} />, permission: { moduleKey: 'REPORTS', actionKey: 'self_assessment_report' } },
           ],
         },
       ],

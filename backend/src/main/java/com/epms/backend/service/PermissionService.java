@@ -120,7 +120,7 @@ public class PermissionService {
                             filteredActions.stream()
                                     .map(action -> {
                                         String key = action.getModuleKey() + ":" + action.getActionKey();
-                                        boolean allowed = posPerms.getOrDefault(key, true);
+                                        boolean allowed = posPerms.getOrDefault(key, false);
                                         return PermissionMatrixDto.PermissionMatrixPositionRow.PermissionToggle.builder()
                                                 .moduleKey(action.getModuleKey())
                                                 .actionKey(action.getActionKey())
@@ -245,14 +245,20 @@ public class PermissionService {
     public boolean hasPermission(Long positionId, String moduleKey, String actionKey) {
         Optional<PositionPermission> pp = positionPermissionRepository
                 .findByPositionIdAndModuleKeyAndActionKey(positionId, moduleKey, actionKey);
-        return pp.map(PositionPermission::isAllowed).orElse(true);
+        return pp.map(PositionPermission::isAllowed).orElse(false);
     }
 
     @Transactional(readOnly = true)
     public boolean hasPermissionForUserId(Long userId, String moduleKey, String actionKey) {
         User user = userRepository.findById(userId).orElse(null);
-        if (user == null || user.getEmployee() == null || user.getEmployee().getPosition() == null) {
+        if (user == null) {
+            return false;
+        }
+        if (user.getRole() != null && user.getRole().getId() == AUDIT_ROLE_ID) {
             return true;
+        }
+        if (user.getEmployee() == null || user.getEmployee().getPosition() == null) {
+            return false;
         }
         Long positionId = user.getEmployee().getPosition().getId();
         return hasPermission(positionId, moduleKey, actionKey);

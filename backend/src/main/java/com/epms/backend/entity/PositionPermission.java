@@ -40,7 +40,7 @@ public class PositionPermission {
     private String actionKey;
 
     @Column(name = "allowed", nullable = false)
-    private boolean allowed = true;
+    private boolean allowed = false;
 
     @Column(name = "created_at", nullable = false)
     private Instant createdAt = Instant.now();

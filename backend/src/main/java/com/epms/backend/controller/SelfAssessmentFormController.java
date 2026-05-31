@@ -87,7 +87,7 @@ public class SelfAssessmentFormController {
     }
 
     @GetMapping("/reviews")
-    @PreAuthorize("principal.roleId == 1 or principal.roleId == 2 or principal.roleId == 4")
+    @PreAuthorize("(principal.roleId == 1 or principal.roleId == 2 or principal.roleId == 4) and @permissionGuard.has('SELF_ASSESSMENT', 'review')")
     public ResponseEntity<ApiResponse<List<FormListDto>>> getReviewForms(@AuthenticationPrincipal UserPrincipal principal) {
         try {
             Employee employee = getEmployeeFromPrincipal(principal);
@@ -99,7 +99,7 @@ public class SelfAssessmentFormController {
     }
 
     @GetMapping("/hr/review")
-    @PreAuthorize("principal.roleId == 1")
+    @PreAuthorize("principal.roleId == 1 and @permissionGuard.has('SELF_ASSESSMENT', 'review')")
     public ResponseEntity<ApiResponse<List<FormListDto>>> getHrReviewForms(@AuthenticationPrincipal UserPrincipal principal) {
         try {
             List<FormListDto> forms = selfAssessmentFormService.getHrReviewForms();
@@ -110,7 +110,7 @@ public class SelfAssessmentFormController {
     }
 
     @GetMapping("/hr/all")
-    @PreAuthorize("principal.roleId == 1")
+    @PreAuthorize("principal.roleId == 1 and @permissionGuard.has('SELF_ASSESSMENT', 'view')")
     public ResponseEntity<ApiResponse<List<FormListDto>>> getAllFormsForHr(@AuthenticationPrincipal UserPrincipal principal) {
         try {
             List<FormListDto> forms = selfAssessmentFormService.getAllFormsForHr();
@@ -121,7 +121,7 @@ public class SelfAssessmentFormController {
     }
 
     @GetMapping("/score-records")
-    @PreAuthorize("principal.roleId == 1 or principal.roleId == 2 or principal.roleId == 3 or principal.roleId == 4 or principal.roleId == 5")
+    @PreAuthorize("(principal.roleId == 1 or principal.roleId == 2 or principal.roleId == 3 or principal.roleId == 4 or principal.roleId == 5) and @permissionGuard.has('SELF_ASSESSMENT', 'history')")
     public ResponseEntity<ApiResponse<List<ScoreRecordDto>>> getScoreRecords(@AuthenticationPrincipal UserPrincipal principal) {
         try {
             Employee employee = Long.valueOf(5L).equals(principal.getRoleId()) ? null : getEmployeeFromPrincipal(principal);
@@ -133,7 +133,7 @@ public class SelfAssessmentFormController {
     }
 
     @GetMapping("/reports")
-    @PreAuthorize("principal.roleId == 1 or principal.roleId == 2 or principal.roleId == 5")
+    @PreAuthorize("(principal.roleId == 1 or principal.roleId == 2 or principal.roleId == 5) and @permissionGuard.has('SELF_ASSESSMENT', 'report')")
     public ResponseEntity<ApiResponse<SelfAssessmentAnalyticsReportDto>> getSelfAssessmentReport(
             @AuthenticationPrincipal UserPrincipal principal,
             @RequestParam Long cycleId) {
@@ -152,7 +152,7 @@ public class SelfAssessmentFormController {
     }
 
     @GetMapping("/hr/active-cycle")
-    @PreAuthorize("principal.roleId == 1")
+    @PreAuthorize("principal.roleId == 1 and @permissionGuard.has('SELF_ASSESSMENT', 'view')")
     public ResponseEntity<ApiResponse<ActiveCycleFormsDto>> getActiveCycleFormsForHr(@AuthenticationPrincipal UserPrincipal principal) {
         try {
             ActiveCycleFormsDto forms = selfAssessmentFormService.getActiveCycleFormsForHr();
@@ -163,7 +163,7 @@ public class SelfAssessmentFormController {
     }
 
     @GetMapping("/manager/active-cycle")
-    @PreAuthorize("principal.roleId == 2 or principal.roleId == 4")
+    @PreAuthorize("(principal.roleId == 2 or principal.roleId == 4) and @permissionGuard.has('SELF_ASSESSMENT', 'view')")
     public ResponseEntity<ApiResponse<ActiveCycleFormsDto>> getActiveCycleFormsForManager(@AuthenticationPrincipal UserPrincipal principal) {
         try {
             Employee manager = getEmployeeFromPrincipal(principal);
@@ -175,7 +175,7 @@ public class SelfAssessmentFormController {
     }
 
     @PostMapping("/hr/assignments")
-    @PreAuthorize("principal.roleId == 1")
+    @PreAuthorize("principal.roleId == 1 and @permissionGuard.has('SELF_ASSESSMENT', 'assign')")
     public ResponseEntity<ApiResponse<SelfAssessmentAssignmentResponse>> assignSelfAssessmentForms(
             @Valid @RequestBody SelfAssessmentAssignmentRequest request,
             @AuthenticationPrincipal UserPrincipal principal) {
@@ -188,7 +188,7 @@ public class SelfAssessmentFormController {
     }
 
     @GetMapping("/settings")
-    @PreAuthorize("principal.roleId == 1")
+    @PreAuthorize("principal.roleId == 1 and @permissionGuard.has('SELF_ASSESSMENT', 'configure')")
     public ResponseEntity<ApiResponse<SelfAssessmentSettingsDto>> getSettings() {
         try {
             return ResponseEntity.ok(ApiResponse.ok("Self-assessment settings retrieved", selfAssessmentFormService.getSettings()));
@@ -198,7 +198,7 @@ public class SelfAssessmentFormController {
     }
 
     @PutMapping("/settings")
-    @PreAuthorize("principal.roleId == 1")
+    @PreAuthorize("principal.roleId == 1 and @permissionGuard.has('SELF_ASSESSMENT', 'configure')")
     public ResponseEntity<ApiResponse<SelfAssessmentSettingsDto>> updateSettings(
             @Valid @RequestBody SelfAssessmentSettingsRequest request,
             @AuthenticationPrincipal UserPrincipal principal) {
@@ -211,7 +211,7 @@ public class SelfAssessmentFormController {
     }
 
     @GetMapping("/{id}")
-    @PreAuthorize("principal.roleId == 1 or principal.roleId == 2 or principal.roleId == 3 or principal.roleId == 4 or principal.roleId == 5")
+    @PreAuthorize("(principal.roleId == 1 or principal.roleId == 2 or principal.roleId == 3 or principal.roleId == 4 or principal.roleId == 5) and @permissionGuard.has('SELF_ASSESSMENT', 'view')")
     public ResponseEntity<ApiResponse<SelfAssessmentFormDto>> getFormById(@PathVariable Long id, @AuthenticationPrincipal UserPrincipal principal) {
         try {
             Employee employee = Long.valueOf(5L).equals(principal.getRoleId()) ? null : getEmployeeFromPrincipal(principal);
