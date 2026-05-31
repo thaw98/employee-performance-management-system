@@ -24,7 +24,7 @@ import { AuditDashboard } from './pages/audit/AuditDashboard';
 import { AuditLogsPage } from './pages/audit/AuditLogsPage';
 import { AuditActivityPage } from './pages/audit/AuditActivityPage';
 import { AuditFeedbackEvaluateeHistoryPage, AuditFeedbackHistoryPage } from './pages/audit/AuditFeedbackHistoryPage';
-import PermissionMatrixPage from './pages/audit/PermissionMatrixPage';
+import PermissionMatrixPage from './pages/audit/permissions';
 // Dashboard Pages - Using the correct file names from your project
 import { HRDashboardPage } from './pages/hr/HRDashboardPage';
 import { ManagerDashboardPage } from './pages/manager/ManagerDashboardPage';
@@ -343,9 +343,9 @@ function App() {
             <Route path="pip/:id" element={gated('PIP', 'view', <PipDetailPage />)} />
             <Route path="360-feedback/give" element={gated('360_FEEDBACK', 'give', <GiveFeedbackPage />)} />
             <Route path="360-feedback/received" element={gated('360_FEEDBACK', 'view', <GetFeedbackPage />)} />
-            <Route path="360-feedback/received/:feedbackId" element={<FeedbackDetailPage />} />
+            <Route path="360-feedback/received/:feedbackId" element={gated('360_FEEDBACK', 'view', <FeedbackDetailPage />)} />
             <Route path="360-feedback/history" element={gated('360_FEEDBACK', 'review_history', <CombinedFeedbackHistoryPage />)} />
-            <Route path="360-feedback/history/:feedbackId" element={<FeedbackDetailPage />} />
+            <Route path="360-feedback/history/:feedbackId" element={gated('360_FEEDBACK', 'review_history', <FeedbackDetailPage />)} />
             <Route path="360-feedback/combined-history" element={<Navigate to="/employee/360-feedback/history" replace />} />
             <Route path="profile" element={<UserProfilePage />} />
             <Route path="settings/profile" element={<Navigate to="/employee/profile" replace />} />

@@ -21,6 +21,7 @@ import lombok.RequiredArgsConstructor;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.web.bind.annotation.*;
 
@@ -43,6 +44,7 @@ public class FeedbackController {
     private final DepartmentRepository departmentRepository;
 
     @PostMapping
+    @PreAuthorize("@permissionGuard.has('360_FEEDBACK', 'give')")
     public ResponseEntity<ApiResponse<Void>> submitFeedback(@RequestBody FeedbackSubmissionRequest request) {
         try {
             User user = getCurrentUser();
@@ -54,6 +56,7 @@ public class FeedbackController {
     }
 
     @PostMapping("/draft")
+    @PreAuthorize("@permissionGuard.has('360_FEEDBACK', 'give')")
     public ResponseEntity<ApiResponse<FeedbackDraftDto>> saveDraft(@RequestBody FeedbackSubmissionRequest request) {
         try {
             User user = getCurrentUser();
@@ -65,6 +68,7 @@ public class FeedbackController {
     }
 
     @GetMapping("/draft")
+    @PreAuthorize("@permissionGuard.has('360_FEEDBACK', 'give')")
     public ResponseEntity<ApiResponse<FeedbackDraftDto>> getDraft(
             @RequestParam Long evaluateeId,
             @RequestParam String role) {
@@ -78,6 +82,7 @@ public class FeedbackController {
     }
 
     @GetMapping("/drafts")
+    @PreAuthorize("@permissionGuard.has('360_FEEDBACK', 'give')")
     public ResponseEntity<ApiResponse<List<FeedbackDraftDto>>> getDrafts() {
         try {
             User user = getCurrentUser();
@@ -89,6 +94,7 @@ public class FeedbackController {
     }
 
     @DeleteMapping("/draft/{id}")
+    @PreAuthorize("@permissionGuard.has('360_FEEDBACK', 'give')")
     public ResponseEntity<ApiResponse<Void>> deleteDraft(@PathVariable Long id) {
         try {
             User user = getCurrentUser();
@@ -100,6 +106,7 @@ public class FeedbackController {
     }
 
     @GetMapping("/history")
+    @PreAuthorize("@permissionGuard.has('360_FEEDBACK', 'review_history')")
     public ResponseEntity<ApiResponse<Page<FeedbackHistoryDto>>> getHistory(
             @RequestParam(defaultValue = "0") int page,
             @RequestParam(defaultValue = "10") int size,
@@ -128,6 +135,7 @@ public class FeedbackController {
     }
 
     @GetMapping("/received")
+    @PreAuthorize("@permissionGuard.has('360_FEEDBACK', 'view')")
     public ResponseEntity<ApiResponse<Page<FeedbackHistoryDto>>> getReceived(
             @RequestParam(defaultValue = "0") int page,
             @RequestParam(defaultValue = "10") int size) {
@@ -141,6 +149,7 @@ public class FeedbackController {
     }
 
     @GetMapping("/combined-history")
+    @PreAuthorize("@permissionGuard.has('360_FEEDBACK', 'review_history')")
     public ResponseEntity<ApiResponse<Page<FeedbackHistoryDto>>> getCombinedHistory(
             @RequestParam(defaultValue = "0") int page,
             @RequestParam(defaultValue = "10") int size,
@@ -224,6 +233,7 @@ public class FeedbackController {
     }
 
     @GetMapping("/eligible-evaluatees")
+    @PreAuthorize("@permissionGuard.has('360_FEEDBACK', 'give')")
     public ResponseEntity<ApiResponse<Map<String, Object>>> getEligible(@RequestParam String role) {
         try {
             User user = getCurrentUser();
@@ -264,6 +274,7 @@ public class FeedbackController {
     }
 
     @GetMapping("/evaluator-info")
+    @PreAuthorize("@permissionGuard.has('360_FEEDBACK', 'give')")
     public ResponseEntity<ApiResponse<Map<String, Object>>> getEvaluatorInfo() {
         try {
             User user = getCurrentUser();
@@ -283,6 +294,7 @@ public class FeedbackController {
     }
 
     @GetMapping("/{id}/details")
+    @PreAuthorize("@permissionGuard.has('360_FEEDBACK', 'review_history')")
     public ResponseEntity<ApiResponse<List<com.epms.backend.dto.FeedbackDetailDto>>> getDetails(@PathVariable Long id) {
         try {
             return ResponseEntity.ok(new ApiResponse<>(true, "Details fetched", feedbackService.getFeedbackDetails(id)));
@@ -292,6 +304,7 @@ public class FeedbackController {
     }
 
     @GetMapping("/{id}/detail-page")
+    @PreAuthorize("@permissionGuard.has('360_FEEDBACK', 'view')")
     public ResponseEntity<ApiResponse<FeedbackDetailPageDto>> getDetailPage(@PathVariable Long id) {
         try {
             User user = getCurrentUser();

@@ -11,17 +11,18 @@ import lombok.NoArgsConstructor;
 @Builder
 @NoArgsConstructor
 @AllArgsConstructor
-public class UpdatePositionPermissionRequest {
+public class UpdateEmployeePermissionRequest {
+
     private String moduleKey;
-    private List<PermissionToggleUpdate> permissions;
+    private List<EmployeePermissionOverride> permissions;
 
     @Data
     @Builder
     @NoArgsConstructor
     @AllArgsConstructor
-    public static class PermissionToggleUpdate {
+    public static class EmployeePermissionOverride {
         private String moduleKey;
         private String actionKey;
-        private boolean allowed;
+        private Boolean override;
     }
 }

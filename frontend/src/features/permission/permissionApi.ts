@@ -53,6 +53,7 @@ export interface PositionPermissionDto {
 }
 
 export interface UpdatePositionPermissionRequest {
+  moduleKey?: string;
   permissions: {
     moduleKey: string;
     actionKey: string;
@@ -66,6 +67,62 @@ export interface UserPermissionDto {
   positionName: string;
   roleName: string;
   permissions: Record<string, Record<string, boolean>>;
+}
+
+export interface EmployeePermissionToggle {
+  moduleKey: string;
+  actionKey: string;
+  positionAllowed: boolean | null;
+  override: boolean | null;
+  effective: boolean | null;
+}
+
+export interface EmployeePermissionRow {
+  employeeId: number;
+  employeeName: string;
+  employeeCode: string;
+  positionName: string;
+  positionCode: string;
+  departmentName: string;
+  roleId: number;
+  roleName: string;
+  permissions: EmployeePermissionToggle[];
+}
+
+export interface EmployeePermissionDto {
+  modules: PermissionModuleDto[];
+  actions: PermissionActionDto[];
+  employees: EmployeePermissionRow[];
+}
+
+export interface EmployeePermissionDetail {
+  moduleKey: string;
+  actionKey: string;
+  positionPermission: boolean | null;
+  override: boolean | null;
+  effective: boolean | null;
+}
+
+export interface EmployeeEffectivePermissionDto {
+  employeeId: number;
+  employeeName: string;
+  employeeCode: string;
+  positionName: string;
+  positionCode: string;
+  positionId: number;
+  roleId: number;
+  roleName: string;
+  departmentName: string;
+  permissionDetails: EmployeePermissionDetail[];
+}
+
+export interface UpdateEmployeePermissionRequest {
+  moduleKey?: string;
+  permissions: {
+    moduleKey: string;
+    actionKey: string;
+    override: boolean | null;
+  }[];
 }
 
 export interface ApiResponse<T> {
@@ -117,6 +174,42 @@ export const permissionApi = baseApi.injectEndpoints({
       query: () => '/permissions/me',
       providesTags: ['Permission'],
     }),
+
+    getEmployeePermissionMatrix: builder.query<
+      ApiResponse<EmployeePermissionDto>,
+      { search?: string; moduleKey?: string } | void
+    >({
+      query: (params) => {
+        const queryParts: string[] = [];
+        if (params) {
+          if (params.search) queryParts.push(`search=${encodeURIComponent(params.search)}`);
+          if (params.moduleKey) queryParts.push(`moduleKey=${params.moduleKey}`);
+        }
+        const qs = queryParts.length > 0 ? `?${queryParts.join('&')}` : '';
+        return `/permissions/matrix/employees${qs}`;
+      },
+      providesTags: ['Permission'],
+    }),
+
+    getEmployeeEffectivePermissions: builder.query<
+      ApiResponse<EmployeeEffectivePermissionDto>,
+      number
+    >({
+      query: (employeeId) => `/permissions/matrix/employees/${employeeId}`,
+      providesTags: ['Permission'],
+    }),
+
+    saveEmployeePermissions: builder.mutation<
+      ApiResponse<string>,
+      { employeeId: number; request: UpdateEmployeePermissionRequest }
+    >({
+      query: ({ employeeId, request }) => ({
+        url: `/permissions/matrix/employees/${employeeId}`,
+        method: 'PUT',
+        body: request,
+      }),
+      invalidatesTags: ['Permission'],
+    }),
   }),
 });
 
@@ -125,4 +218,7 @@ export const {
   useGetPositionPermissionsQuery,
   useUpdatePositionPermissionsMutation,
   useGetMyPermissionsQuery,
+  useGetEmployeePermissionMatrixQuery,
+  useGetEmployeeEffectivePermissionsQuery,
+  useSaveEmployeePermissionsMutation,
 } = permissionApi;

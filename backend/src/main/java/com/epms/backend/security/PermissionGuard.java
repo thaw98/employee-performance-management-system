@@ -1,10 +1,14 @@
 package com.epms.backend.security;
 
+import java.util.Optional;
+
 import org.springframework.security.core.Authentication;
 import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.stereotype.Component;
 
+import com.epms.backend.entity.EmployeePermission;
 import com.epms.backend.entity.User;
+import com.epms.backend.repository.EmployeePermissionRepository;
 import com.epms.backend.repository.UserRepository;
 import com.epms.backend.service.PermissionService;
 
@@ -18,6 +22,7 @@ public class PermissionGuard {
 
     private final PermissionService permissionService;
     private final UserRepository userRepository;
+    private final EmployeePermissionRepository employeePermissionRepository;
 
     public boolean has(String moduleKey, String actionKey) {
         Authentication auth = SecurityContextHolder.getContext().getAuthentication();
@@ -42,10 +47,22 @@ public class PermissionGuard {
             return true;
         }
 
-        if (user.getEmployee() == null || user.getEmployee().getPosition() == null) {
+        if (user.getEmployee() == null) {
             return false;
         }
 
+        // Check employee-level override first
+        Long employeeId = user.getEmployee().getId();
+        Optional<EmployeePermission> override = employeePermissionRepository
+                .findByEmployeeIdAndModuleKeyAndActionKey(employeeId, moduleKey, actionKey);
+        if (override.isPresent()) {
+            return override.get().isAllowed();
+        }
+
+        // Fall back to position permission
+        if (user.getEmployee().getPosition() == null) {
+            return false;
+        }
         Long positionId = user.getEmployee().getPosition().getId();
         return permissionService.hasPermission(positionId, moduleKey, actionKey);
     }
