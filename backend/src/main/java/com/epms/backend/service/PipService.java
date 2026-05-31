@@ -7,6 +7,7 @@ import com.epms.backend.dto.pip.ProgressUpdateRequest;
 import com.epms.backend.dto.pip.PipObjectiveHoursIncreaseRequest;
 import com.epms.backend.dto.pip.MeetingScheduleRequest;
 import com.epms.backend.dto.pip.PipCloseRequest;
+import com.epms.backend.dto.pip.PipExtendDateRequest;
 import com.epms.backend.dto.pip.PipReopenRequest;
 import com.epms.backend.dto.pip.PipSignatureRequest;
 import com.epms.backend.dto.pip.PipReviewRequest;
@@ -53,6 +54,8 @@ public class PipService {
     private static final String DECISION_APPROVED = "APPROVED";
     private static final String DECISION_REJECTED = "REJECTED";
     private static final BigDecimal PIP_KPI_SCORE_THRESHOLD = BigDecimal.valueOf(50);
+    private static final BigDecimal MAX_PIP_HOURS_PER_DAY = BigDecimal.valueOf(5);
+    private static final String PIP_HOURS_LIMIT_MESSAGE = "Cannot update PIP hours because the total PIP hours exceed the allowed completion time. Please extend the PIP date instead.";
 
     private final PipRepository pipRepository;
     private final PipObjectiveRepository objectiveRepository;
@@ -101,13 +104,6 @@ public class PipService {
         if (request.getEndDate().isBefore(request.getStartDate())) {
             throw new RuntimeException("End date must be on or after start date");
         }
-        if (request.getTotalHours() == null || request.getTotalHours() < 1) {
-            throw new RuntimeException("Total hours must be at least 1");
-        }
-        long maxHours = Math.max(24L, ChronoUnit.DAYS.between(request.getStartDate(), request.getEndDate()) * 24L);
-        if (request.getTotalHours() > maxHours) {
-            throw new RuntimeException("Total hours cannot exceed " + maxHours + " hours for the selected PIP date range");
-        }
         if (request.getObjectives() == null || request.getObjectives().isEmpty()) {
             throw new RuntimeException("At least one objective is required");
         }
@@ -138,6 +134,13 @@ public class PipService {
         if (kpiScore == null || kpiScore.compareTo(PIP_KPI_SCORE_THRESHOLD) > 0) {
             throw new RuntimeException("Only employees with KPI score 50% or below can be assigned to PIP");
         }
+        if (request.getTotalHours() == null || request.getTotalHours() < 1) {
+            throw new RuntimeException("Total hours must be at least 1");
+        }
+        BigDecimal maxHours = calculateAllowedPipHours(request.getStartDate(), request.getEndDate());
+        if (BigDecimal.valueOf(request.getTotalHours()).compareTo(maxHours) > 0) {
+            throw new RuntimeException(PIP_HOURS_LIMIT_MESSAGE);
+        }
 
         boolean hasOpenPip = pipRepository.findByEmployeeAndStatusIn(employee,
                 List.of(STATUS_ACTIVE, STATUS_AUTO_CLOSED, STATUS_REOPEN_REQUESTED))
@@ -155,6 +158,7 @@ public class PipService {
         pip.setStartDate(request.getStartDate());
         pip.setEndDate(request.getEndDate());
         pip.setOriginalEndDate(request.getEndDate());
+        updateAutoCloseDate(pip);
         pip.setStatus(STATUS_ACTIVE);
         pip.setOverallProgressPercentage(BigDecimal.ZERO);
         pip.setTotalHours(request.getTotalHours());
@@ -456,7 +460,13 @@ public class PipService {
             throw new RuntimeException("A note is required when increasing PIP hours");
         }
 
-        objective.setTargetValue(safeDecimal(objective.getTargetValue()).add(request.getAdditionalHours()));
+        BigDecimal newObjectiveHours = safeDecimal(objective.getTargetValue()).add(request.getAdditionalHours());
+        BigDecimal newTotalObjectiveHours = calculateTotalObjectiveHours(pip)
+                .subtract(safeDecimal(objective.getTargetValue()))
+                .add(newObjectiveHours);
+        validatePipObjectiveHoursWithinAllowedDuration(pip, newTotalObjectiveHours);
+
+        objective.setTargetValue(newObjectiveHours);
         objective.setUpdatedDate(Instant.now());
         pip.setTotalHours(calculateTotalObjectiveHours(pip).intValue());
         recalculatePipHoursAndProgress(pip);
@@ -606,6 +616,30 @@ public class PipService {
         }
         autoClosePip(pip, LocalDate.now(), "PIP manually closed");
         return pip;
+    }
+
+    @Transactional
+    public Pip extendPipDate(Long pipId, PipExtendDateRequest request, User actor) {
+        Pip pip = getPipById(pipId, actor);
+        authorizeManagerAction(pip, actor);
+        ensureActivePip(pip, "Only active PIPs can be extended");
+        if (request == null || request.getExtendedEndDate() == null) {
+            throw new RuntimeException("Extended end date is required");
+        }
+        LocalDate currentEffectiveEndDate = getEffectiveEndDate(pip);
+        if (currentEffectiveEndDate == null || !request.getExtendedEndDate().isAfter(currentEffectiveEndDate)) {
+            throw new RuntimeException("Extended end date must be after the current PIP end date");
+        }
+        if (pip.getOriginalEndDate() == null) {
+            pip.setOriginalEndDate(pip.getEndDate());
+        }
+        pip.setEndDate(request.getExtendedEndDate());
+        pip.setExtendedEndDate(request.getExtendedEndDate());
+        updateAutoCloseDate(pip);
+        pip.setUpdatedDate(Instant.now());
+        Pip savedPip = pipRepository.save(pip);
+        notifyPipRelatedUsers(savedPip, actor, "PIP date extended");
+        return savedPip;
     }
 
     @Transactional
@@ -787,6 +821,7 @@ public class PipService {
             pip.setStatus(STATUS_ACTIVE);
             pip.setEndDate(request.getExtendedEndDate());
             pip.setExtendedEndDate(request.getExtendedEndDate());
+            updateAutoCloseDate(pip);
             pip.setActualEndDate(null);
             pip.setReopenedBy(actor.getEmployee());
             pip.setReopenedDate(Instant.now());
@@ -815,7 +850,10 @@ public class PipService {
         LocalDate today = LocalDate.now();
         List<Pip> expiredPips = pipRepository.findByStatusInAndEndDateLessThanEqual(List.of(STATUS_ACTIVE), today);
         for (Pip pip : expiredPips) {
-            autoClosePip(pip, today);
+            updateAutoCloseDate(pip);
+            if (!today.isBefore(pip.getAutoCloseDate())) {
+                autoClosePip(pip, pip.getAutoCloseDate());
+            }
         }
     }
 
@@ -976,6 +1014,36 @@ public class PipService {
                 .reduce(BigDecimal.ZERO, BigDecimal::add);
     }
 
+    private void validatePipObjectiveHoursWithinAllowedDuration(Pip pip, BigDecimal totalObjectiveHours) {
+        BigDecimal allowedHours = calculateAllowedPipHours(pip);
+        if (totalObjectiveHours.compareTo(allowedHours) > 0) {
+            throw new RuntimeException(PIP_HOURS_LIMIT_MESSAGE);
+        }
+    }
+
+    private BigDecimal calculateAllowedPipHours(Pip pip) {
+        return calculateAllowedPipHours(pip.getStartDate(), getEffectiveEndDate(pip));
+    }
+
+    private BigDecimal calculateAllowedPipHours(LocalDate startDate, LocalDate effectiveEndDate) {
+        if (startDate == null || effectiveEndDate == null) {
+            return BigDecimal.ZERO;
+        }
+        long pipDays = Math.max(1L, ChronoUnit.DAYS.between(startDate, effectiveEndDate));
+        return MAX_PIP_HOURS_PER_DAY.multiply(BigDecimal.valueOf(pipDays));
+    }
+
+    private LocalDate getEffectiveEndDate(Pip pip) {
+        return pip.getExtendedEndDate() != null ? pip.getExtendedEndDate() : pip.getEndDate();
+    }
+
+    private void updateAutoCloseDate(Pip pip) {
+        LocalDate effectiveEndDate = getEffectiveEndDate(pip);
+        if (effectiveEndDate != null) {
+            pip.setAutoCloseDate(effectiveEndDate.plusDays(1));
+        }
+    }
+
     private BigDecimal calculateCompletedObjectiveHours(Pip pip) {
         if (pip.getObjectives() == null) return BigDecimal.ZERO;
         return pip.getObjectives().stream()
@@ -1080,12 +1148,11 @@ public class PipService {
         if (pip.getOriginalEndDate() == null) {
             pip.setOriginalEndDate(pip.getEndDate());
         }
+        updateAutoCloseDate(pip);
         pip.setStatus(STATUS_AUTO_CLOSED);
         pip.setActualEndDate(closeDate);
         if (hasReopenBeenUsed(pip)) {
             pip.setFinalCloseDate(closeDate);
-        } else if (pip.getAutoCloseDate() == null) {
-            pip.setAutoCloseDate(closeDate);
         }
         pip.setUpdatedDate(Instant.now());
         Pip savedPip = pipRepository.save(pip);

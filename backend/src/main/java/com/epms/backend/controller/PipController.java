@@ -8,6 +8,7 @@ import com.epms.backend.dto.pip.ProgressUpdateRequest;
 import com.epms.backend.dto.pip.PipObjectiveHoursIncreaseRequest;
 import com.epms.backend.dto.pip.MeetingScheduleRequest;
 import com.epms.backend.dto.pip.PipCloseRequest;
+import com.epms.backend.dto.pip.PipExtendDateRequest;
 import com.epms.backend.dto.pip.PipReopenRequest;
 import com.epms.backend.dto.pip.PipReviewRequest;
 import com.epms.backend.dto.pip.PipCommunicationNoteDto;
@@ -231,6 +232,17 @@ public class PipController {
         User user = userRepository.findById(principal.getId()).orElseThrow();
         Pip pip = pipService.manualClosePip(id, user);
         return ResponseEntity.ok(ApiResponse.ok("PIP manually closed successfully", pip));
+    }
+
+    @PutMapping("/{id}/extend-date")
+    @PreAuthorize("hasAnyRole('DEPARTMENT_HEAD', 'TEAM_HEAD', 'MANAGER')")
+    public ResponseEntity<ApiResponse<Pip>> extendPipDate(
+            @AuthenticationPrincipal UserPrincipal principal,
+            @PathVariable Long id,
+            @RequestBody PipExtendDateRequest request) {
+        User user = userRepository.findById(principal.getId()).orElseThrow();
+        Pip pip = pipService.extendPipDate(id, request, user);
+        return ResponseEntity.ok(ApiResponse.ok("PIP date extended successfully", pip));
     }
 
     @PatchMapping("/{id}/completed")
