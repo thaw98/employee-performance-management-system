@@ -2908,6 +2908,102 @@ Instant now = Instant.now();
         }
     }
 
+    @Transactional(readOnly = true)
+    public AssignmentCoverageDto getAssignmentCoverage() {
+        ReviewCycle activeCycle = reviewCycleService.getActiveSubmissionCycle();
+        if (activeCycle == null) {
+            return new AssignmentCoverageDto(null, 0, 0, 0, 0, 0.0, List.of(), List.of());
+        }
+
+        List<Employee> eligible = employeeRepository.findEligibleSelfAssessmentAssignees(
+                EmployeeStatus.ACTIVE, StaffTypes.PROBATION);
+
+        List<SelfAssessmentForm> existingForms = formRepository.findByCycleOrderByCreatedDateDesc(activeCycle);
+        Map<Long, SelfAssessmentForm> formByEmployeeId = existingForms.stream()
+                .collect(Collectors.toMap(f -> f.getEmployee().getId(), f -> f, (a, b) -> a));
+
+        List<AssignmentCoverageDto.CoverageEmployeeRow> assigned = new ArrayList<>();
+        List<AssignmentCoverageDto.CoverageEmployeeRow> unassigned = new ArrayList<>();
+        int noTemplateCount = 0;
+
+        for (Employee emp : eligible) {
+            Long deptId = emp.getDepartment() != null ? emp.getDepartment().getId() : null;
+            Long posId = emp.getPosition() != null ? emp.getPosition().getId() : null;
+
+            SelfAssessmentForm existingForm = formByEmployeeId.get(emp.getId());
+            if (existingForm != null) {
+                assigned.add(new AssignmentCoverageDto.CoverageEmployeeRow(
+                        emp.getId(),
+                        emp.getEmployeeId(),
+                        emp.getEmployeeName(),
+                        emp.getDepartment() != null ? emp.getDepartment().getName() : null,
+                        emp.getPosition() != null ? emp.getPosition().getName() : null,
+                        resolveManagerName(emp),
+                        "ASSIGNED",
+                        existingForm.getAssignedAt(),
+                        existingForm.getTemplate() != null ? existingForm.getTemplate().getTitle() : null,
+                        null
+                ));
+            } else {
+                String reason = null;
+                if (deptId == null || posId == null) {
+                    reason = "NO_MATCHING_TEMPLATE";
+                    noTemplateCount++;
+                } else {
+                    Optional<SelfAssessmentFormTemplate> templateOpt =
+                            findActiveTemplateForDepartmentPositionAndCycle(deptId, posId, activeCycle);
+                    if (templateOpt.isEmpty()) {
+                        reason = "NO_MATCHING_TEMPLATE";
+                        noTemplateCount++;
+                    }
+                }
+                unassigned.add(new AssignmentCoverageDto.CoverageEmployeeRow(
+                        emp.getId(),
+                        emp.getEmployeeId(),
+                        emp.getEmployeeName(),
+                        emp.getDepartment() != null ? emp.getDepartment().getName() : null,
+                        emp.getPosition() != null ? emp.getPosition().getName() : null,
+                        resolveManagerName(emp),
+                        "UNASSIGNED",
+                        null,
+                        null,
+                        reason
+                ));
+            }
+        }
+
+        int eligibleCount = eligible.size();
+        int assignedCount = assigned.size();
+        int leftToAssignCount = unassigned.size();
+        double coveragePercent = eligibleCount > 0
+                ? Math.round(assignedCount * 10000.0 / eligibleCount) / 100.0
+                : 0.0;
+
+        return new AssignmentCoverageDto(
+                toCycleInfo(activeCycle),
+                eligibleCount,
+                assignedCount,
+                leftToAssignCount,
+                noTemplateCount,
+                coveragePercent,
+                assigned,
+                unassigned
+        );
+    }
+
+    private String resolveManagerName(Employee employee) {
+        Employee manager = reportingManagerResolver.resolve(employee);
+        if (manager != null) {
+            return manager.getEmployeeName();
+        }
+        if (employee.getDepartment() != null && employee.getDepartment().getManagerId() != null) {
+            return employeeRepository.findById(employee.getDepartment().getManagerId())
+                    .map(Employee::getEmployeeName)
+                    .orElse(null);
+        }
+        return null;
+    }
+
     private ReviewCycle getActiveCycle() {
         ReviewCycle activeCycle = reviewCycleService.getActiveSubmissionCycle();
         if (activeCycle != null) {

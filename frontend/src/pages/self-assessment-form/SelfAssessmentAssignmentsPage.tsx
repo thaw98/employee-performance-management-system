@@ -22,6 +22,11 @@ import {
   ChevronsRight,
   List,
   LayoutGrid,
+  Search,
+  UserCheck,
+  UserX,
+  FileWarning,
+  BarChart3,
 } from 'lucide-react';
 import { Link } from 'react-router-dom';
 import toast from 'react-hot-toast';
@@ -30,6 +35,7 @@ import {
   useGetActiveCycleFormsForHrQuery,
   useGetAllTemplatesQuery,
   useSetTemplateDeadlineMutation,
+  useGetAssignmentCoverageQuery,
   type SelfAssessmentFormTemplateDto,
 } from '../../features/selfAssessmentForm/api/selfAssessmentFormApi';
 import { SelfAssessmentReviewCycleInfo, formatCycleDate } from './SelfAssessmentReviewCycleInfo';
@@ -71,6 +77,7 @@ export const SelfAssessmentAssignmentsPage: React.FC = () => {
     isError: templatesError,
   } = useGetAllTemplatesQuery();
   const { data: activeCycleForms } = useGetActiveCycleFormsForHrQuery();
+  const { data: coverageData, isLoading: coverageLoading } = useGetAssignmentCoverageQuery();
   const [deadlineModalTemplate, setDeadlineModalTemplate] = useState<SelfAssessmentFormTemplateDto | null>(null);
   const [modalStartDate, setModalStartDate] = useState('');
   const [modalEmployeeDeadline, setModalEmployeeDeadline] = useState('');
@@ -79,6 +86,8 @@ export const SelfAssessmentAssignmentsPage: React.FC = () => {
   const [sorting, setSorting] = useState<SortingState>([]);
   const [deadlineTab, setDeadlineTab] = useState<'all' | 'not-assigned' | 'assigned'>('all');
   const [viewMode, setViewMode] = useState<'table' | 'grid'>('table');
+  const [coverageTab, setCoverageTab] = useState<'assigned' | 'left-to-assign'>('assigned');
+  const [coverageSearch, setCoverageSearch] = useState('');
 
   const activeSubmissionCycle = activeCycles.find((cycle) => cycle.requiresEmployeeSubmission) ?? null;
 
@@ -845,6 +854,215 @@ export const SelfAssessmentAssignmentsPage: React.FC = () => {
           </div>
         </div>
       </div>
+
+      {/* Assignment Coverage Section */}
+      {activeSubmissionCycle && !coverageLoading && coverageData && coverageData.eligibleCount > 0 && (
+        <div className="mt-6 animate-fade-in-up">
+          <div className="mb-4 flex items-center gap-3">
+            <div className="flex h-9 w-9 items-center justify-center rounded-xl bg-gradient-to-br from-[#2463eb]/10 to-[#1d4ed8]/5 dark:from-[#2463eb]/20 dark:to-[#1d4ed8]/10">
+              <BarChart3 size={18} className="text-[#2463eb] dark:text-[#60a5fa]" />
+            </div>
+            <div>
+              <h2 className="text-lg font-bold text-slate-900 dark:text-white">Assignment Coverage</h2>
+              <p className="text-xs text-slate-400 dark:text-slate-500">
+                Employee-level view of who is assigned vs. left to assign for the current cycle
+              </p>
+            </div>
+          </div>
+
+          {/* Coverage Summary Cards */}
+          <div className="mb-4 grid grid-cols-2 gap-4 lg:grid-cols-5">
+            {([
+              { label: 'Eligible', value: coverageData.eligibleCount, icon: Users, lightBg: 'bg-sky-50 dark:bg-sky-950/30', lightIcon: 'text-sky-600 dark:text-sky-400', ring: 'ring-sky-500/20', bgGlow: 'bg-sky-500/10' },
+              { label: 'Assigned', value: coverageData.assignedCount, icon: UserCheck, lightBg: 'bg-emerald-50 dark:bg-emerald-950/30', lightIcon: 'text-emerald-600 dark:text-emerald-400', ring: 'ring-emerald-500/20', bgGlow: 'bg-emerald-500/10' },
+              { label: 'Left to Assign', value: coverageData.leftToAssignCount, icon: UserX, lightBg: 'bg-amber-50 dark:bg-amber-950/30', lightIcon: 'text-amber-600 dark:text-amber-400', ring: 'ring-amber-500/20', bgGlow: 'bg-amber-500/10' },
+              { label: 'No Template', value: coverageData.noTemplateCount, icon: FileWarning, lightBg: 'bg-red-50 dark:bg-red-950/30', lightIcon: 'text-red-600 dark:text-red-400', ring: 'ring-red-500/20', bgGlow: 'bg-red-500/10' },
+              { label: 'Coverage', value: `${coverageData.coveragePercent}%`, icon: BarChart3, lightBg: 'bg-violet-50 dark:bg-violet-950/30', lightIcon: 'text-violet-600 dark:text-violet-400', ring: 'ring-violet-500/20', bgGlow: 'bg-violet-500/10' },
+            ]).map((card, i) => (
+              <div
+                key={card.label}
+                className="group relative overflow-hidden rounded-2xl border border-slate-200/60 bg-white p-4 shadow-sm transition-all duration-300 hover:shadow-md hover:-translate-y-0.5 dark:border-slate-700/60 dark:bg-slate-800/80"
+                style={{ animationDelay: `${(i + 4) * 60}ms` }}
+              >
+                <div className={`absolute -right-4 -top-4 h-20 w-20 rounded-full ${card.bgGlow} blur-2xl transition-all duration-500 group-hover:scale-150`} />
+                <div className="relative flex items-center justify-between">
+                  <div>
+                    <p className="text-[10px] font-bold uppercase tracking-widest text-slate-400 dark:text-slate-500">
+                      {card.label}
+                    </p>
+                    <p className="mt-1 text-2xl font-extrabold tabular-nums text-slate-900 dark:text-white">
+                      {card.value}
+                    </p>
+                  </div>
+                  <div className={`flex h-8 w-8 items-center justify-center rounded-lg ${card.lightBg} ring-1 ${card.ring}`}>
+                    <card.icon size={14} className={card.lightIcon} />
+                  </div>
+                </div>
+              </div>
+            ))}
+          </div>
+
+          {/* Coverage Tabs and Search */}
+          <div className="overflow-hidden rounded-2xl border border-slate-200/60 bg-white shadow-sm dark:border-slate-700/60 dark:bg-slate-800/80">
+            <div className="flex flex-col gap-4 border-b border-slate-100 px-6 py-4 dark:border-slate-700/60 sm:flex-row sm:items-center sm:justify-between">
+              <div
+                role="tablist"
+                aria-label="Coverage tab"
+                className="inline-flex rounded-xl border border-slate-200 bg-slate-50/50 p-1 dark:border-slate-700 dark:bg-slate-800/60"
+              >
+                {([
+                  { id: 'assigned' as const, label: 'Assigned', icon: UserCheck, count: coverageData.assignedCount },
+                  { id: 'left-to-assign' as const, label: 'Left to Assign', icon: UserX, count: coverageData.leftToAssignCount },
+                ]).map((tab) => {
+                  const Icon = tab.icon;
+                  const isActive = coverageTab === tab.id;
+                  return (
+                    <button
+                      key={tab.id}
+                      type="button"
+                      role="tab"
+                      aria-selected={isActive}
+                      onClick={() => setCoverageTab(tab.id)}
+                      className={`inline-flex min-h-9 items-center gap-2 rounded-lg px-4 py-2 text-xs font-bold transition-all ${
+                        isActive
+                          ? 'bg-[#2463eb] text-white shadow-sm shadow-[#2463eb]/20'
+                          : 'text-slate-500 hover:bg-white hover:text-slate-800 dark:text-slate-400 dark:hover:bg-slate-700 dark:hover:text-white'
+                      }`}
+                    >
+                      <Icon size={14} />
+                      {tab.label}
+                      <span className={`ml-0.5 rounded-full px-1.5 py-0.5 text-[10px] font-black tabular-nums ${
+                        isActive ? 'bg-white/20 text-white' : 'bg-slate-200/80 text-slate-500 dark:bg-slate-600 dark:text-slate-400'
+                      }`}>
+                        {tab.count}
+                      </span>
+                    </button>
+                  );
+                })}
+              </div>
+              <div className="relative">
+                <Search size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" />
+                <input
+                  type="text"
+                  value={coverageSearch}
+                  onChange={(e) => setCoverageSearch(e.target.value)}
+                  placeholder="Search by name, ID, dept, position..."
+                  className="w-full rounded-xl border border-slate-200 bg-white py-2 pl-9 pr-3 text-xs font-medium text-slate-900 placeholder:text-slate-400 focus:border-[#2463eb] focus:outline-none focus:ring-2 focus:ring-[#2463eb]/20 dark:border-slate-600 dark:bg-slate-700 dark:text-white dark:placeholder:text-slate-500 sm:w-64"
+                />
+              </div>
+            </div>
+
+            {/* Coverage Table */}
+            {(() => {
+              const rows = coverageTab === 'assigned'
+                ? coverageData.assignedEmployees
+                : coverageData.unassignedEmployees;
+
+              const filtered = coverageSearch.trim()
+                ? rows.filter((r) => {
+                    const q = coverageSearch.toLowerCase();
+                    return (
+                      r.employeeName.toLowerCase().includes(q) ||
+                      r.employeeCode.toLowerCase().includes(q) ||
+                      (r.departmentName ?? '').toLowerCase().includes(q) ||
+                      (r.positionName ?? '').toLowerCase().includes(q)
+                    );
+                  })
+                : rows;
+
+              if (filtered.length === 0) {
+                return (
+                  <div className="flex flex-col items-center justify-center py-16 px-4">
+                    <div className="flex h-14 w-14 items-center justify-center rounded-2xl bg-gradient-to-br from-slate-100 to-slate-50 dark:from-slate-800 dark:to-slate-700/60">
+                      {coverageTab === 'assigned' ? (
+                        <UserCheck size={28} className="text-slate-300 dark:text-slate-500" />
+                      ) : (
+                        <UserX size={28} className="text-slate-300 dark:text-slate-500" />
+                      )}
+                    </div>
+                    <p className="mt-4 text-sm font-bold text-slate-700 dark:text-slate-200">
+                      {coverageTab === 'assigned' ? 'No assigned employees' : 'All employees have been assigned'}
+                    </p>
+                  </div>
+                );
+              }
+
+              return (
+                <div className="overflow-x-auto">
+                  <table className="min-w-full text-sm">
+                    <thead>
+                      <tr className="border-b border-slate-100 bg-gradient-to-r from-slate-50/80 to-slate-50/40 dark:from-slate-800/60 dark:to-slate-800/30 dark:border-slate-700/60">
+                        <th className="px-5 py-3.5 text-left text-[11px] font-bold uppercase tracking-widest text-slate-400 dark:text-slate-500">Employee</th>
+                        <th className="px-5 py-3.5 text-left text-[11px] font-bold uppercase tracking-widest text-slate-400 dark:text-slate-500 hidden md:table-cell">Department</th>
+                        <th className="px-5 py-3.5 text-left text-[11px] font-bold uppercase tracking-widest text-slate-400 dark:text-slate-500 hidden lg:table-cell">Position</th>
+                        <th className="px-5 py-3.5 text-left text-[11px] font-bold uppercase tracking-widest text-slate-400 dark:text-slate-500 hidden lg:table-cell">Manager</th>
+                        <th className="px-5 py-3.5 text-left text-[11px] font-bold uppercase tracking-widest text-slate-400 dark:text-slate-500">Status</th>
+                        <th className="px-5 py-3.5 text-left text-[11px] font-bold uppercase tracking-widest text-slate-400 dark:text-slate-500 hidden lg:table-cell">Template</th>
+                        <th className="px-5 py-3.5 text-left text-[11px] font-bold uppercase tracking-widest text-slate-400 dark:text-slate-500 hidden lg:table-cell">Assigned Date</th>
+                        <th className="px-5 py-3.5 text-right text-[11px] font-bold uppercase tracking-widest text-slate-400 dark:text-slate-500">Actions</th>
+                      </tr>
+                    </thead>
+                    <tbody className="divide-y divide-slate-100/80 dark:divide-slate-700/40">
+                      {filtered.map((row) => (
+                        <tr key={row.employeeId} className="group transition-all duration-200 hover:bg-[#2463eb]/[0.02] dark:hover:bg-[#2463eb]/[0.04]">
+                          <td className="px-5 py-3">
+                            <div>
+                              <p className="font-semibold text-slate-900 dark:text-white">{row.employeeName}</p>
+                              <p className="text-[11px] text-slate-400 dark:text-slate-500">{row.employeeCode}</p>
+                            </div>
+                          </td>
+                          <td className="px-5 py-3 text-xs font-medium text-slate-600 dark:text-slate-300 hidden md:table-cell">{row.departmentName ?? '-'}</td>
+                          <td className="px-5 py-3 text-xs font-medium text-slate-600 dark:text-slate-300 hidden lg:table-cell">{row.positionName ?? '-'}</td>
+                          <td className="px-5 py-3 text-xs font-medium text-slate-600 dark:text-slate-300 hidden lg:table-cell">{row.managerName ?? '-'}</td>
+                          <td className="px-5 py-3">
+                            {row.assignmentStatus === 'ASSIGNED' ? (
+                              <span className="inline-flex items-center gap-1.5 rounded-full bg-emerald-50 px-2.5 py-1 text-[11px] font-bold text-emerald-700 dark:bg-emerald-900/30 dark:text-emerald-400">
+                                <UserCheck size={10} />
+                                Assigned
+                              </span>
+                            ) : row.unassignedReason === 'NO_MATCHING_TEMPLATE' ? (
+                              <span className="inline-flex items-center gap-1.5 rounded-full bg-red-50 px-2.5 py-1 text-[11px] font-bold text-red-700 dark:bg-red-900/30 dark:text-red-400">
+                                <FileWarning size={10} />
+                                No Template
+                              </span>
+                            ) : (
+                              <span className="inline-flex items-center gap-1.5 rounded-full bg-amber-50 px-2.5 py-1 text-[11px] font-bold text-amber-700 dark:bg-amber-900/30 dark:text-amber-300">
+                                <UserX size={10} />
+                                Unassigned
+                              </span>
+                            )}
+                          </td>
+                          <td className="px-5 py-3 text-xs font-medium text-slate-600 dark:text-slate-300 hidden lg:table-cell truncate max-w-[180px]">{row.templateTitle ?? '-'}</td>
+                          <td className="px-5 py-3 text-xs font-medium text-slate-600 dark:text-slate-300 hidden lg:table-cell">{row.assignedDate ? new Date(row.assignedDate).toLocaleDateString() : '-'}</td>
+                          <td className="px-5 py-3 text-right">
+                            {row.assignmentStatus === 'ASSIGNED' ? (
+                              <Link
+                                to={`/hr/self-assessment/forms`}
+                                className="inline-flex items-center gap-1.5 rounded-xl bg-[#2463eb]/[0.06] px-3 py-1.5 text-xs font-semibold text-[#2463eb] transition-all hover:bg-[#2463eb]/[0.12] dark:bg-[#2463eb]/10 dark:text-[#60a5fa] dark:hover:bg-[#2463eb]/20"
+                              >
+                                <Eye size={13} />
+                                View Forms
+                              </Link>
+                            ) : (
+                              <Link
+                                to="/hr/self-assessment/assign-forms"
+                                className="inline-flex items-center gap-1.5 rounded-xl bg-[#2463eb]/[0.06] px-3 py-1.5 text-xs font-semibold text-[#2463eb] transition-all hover:bg-[#2463eb]/[0.12] dark:bg-[#2463eb]/10 dark:text-[#60a5fa] dark:hover:bg-[#2463eb]/20"
+                              >
+                                <Send size={13} />
+                                Assign
+                              </Link>
+                            )}
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              );
+            })()}
+          </div>
+        </div>
+      )}
 
       {deadlineModalTemplate &&
         activeSubmissionCycle &&
