@@ -50,6 +50,8 @@ class AppraisalAssignmentServiceDraftTest {
     private NotificationService notificationService;
     @Mock
     private SignatureStorageService signatureStorageService;
+    @Mock
+    private ScoreFormulaService scoreFormulaService;
 
     private AppraisalAssignmentService appraisalAssignmentService;
 
@@ -62,7 +64,8 @@ class AppraisalAssignmentServiceDraftTest {
             auditService,
             userRepository,
             notificationService,
-            signatureStorageService
+            signatureStorageService,
+            scoreFormulaService
         );
     }
 

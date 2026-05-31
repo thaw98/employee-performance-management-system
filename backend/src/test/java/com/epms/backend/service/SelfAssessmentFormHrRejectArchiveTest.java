@@ -61,6 +61,8 @@ class SelfAssessmentFormHrRejectArchiveTest {
     private SelfAssessmentUnlockRequestRepository unlockRequestRepository;
     @Mock
     private SelfAssessmentArchiveSnapshotRepository archiveSnapshotRepository;
+    @Mock
+    private ScoreExplanationRepository scoreExplanationRepository;
 
     private SelfAssessmentFormService service;
 
@@ -94,7 +96,8 @@ class SelfAssessmentFormHrRejectArchiveTest {
                 settingsRepository,
                 reportingManagerResolver,
                 unlockRequestRepository,
-                archiveSnapshotRepository);
+                archiveSnapshotRepository,
+                scoreExplanationRepository);
     }
 
     @Test
