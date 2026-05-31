@@ -136,6 +136,16 @@ export function getTransferPath(pathname: string, employeeId?: number | null) {
   return `/${getRolePrefix(pathname)}/notifications`;
 }
 
+export function getPromotionPath(pathname: string) {
+  if (pathname.startsWith('/manager')) {
+    return '/manager/promotions/approvals';
+  }
+  if (pathname.startsWith('/hr')) {
+    return '/hr/performance-reports';
+  }
+  return `/${getRolePrefix(pathname)}/notifications`;
+}
+
 type NotificationNavigationInput = Pick<NotificationItem, 'source' | 'title' | 'message' | 'targetId'>;
 
 function normalizeNotificationSource(source: string | undefined) {
@@ -145,6 +155,9 @@ function normalizeNotificationSource(source: string | undefined) {
 
 function resolveLegacySource(notification: NotificationNavigationInput) {
   const searchableText = `${notification.title ?? ''} ${notification.message ?? ''}`.toUpperCase();
+  if (searchableText.includes('PROMOTION')) {
+    return 'PROMOTION';
+  }
   if (searchableText.includes('SELF-ASSESSMENT')) {
     return 'SELF_ASSESSMENT_FORM';
   }
@@ -171,6 +184,10 @@ function resolveLegacySource(notification: NotificationNavigationInput) {
 
 export function getNotificationDestinationPath(notification: NotificationNavigationInput, pathname: string) {
   const source = normalizeNotificationSource(notification.source) || resolveLegacySource(notification);
+
+  if (source === 'PROMOTION') {
+    return getPromotionPath(pathname);
+  }
 
   if (source === 'SELF_ASSESSMENT_FORM') {
     return getSelfAssessmentPath(pathname, notification.targetId, notification);
