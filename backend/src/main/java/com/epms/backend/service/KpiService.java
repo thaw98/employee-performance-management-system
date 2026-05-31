@@ -939,9 +939,9 @@ public class KpiService {
         }
     }
 
-    public List<com.epms.backend.dto.DepartmentComparisonDto> getDepartmentComparison(String period) {
+    public List<com.epms.backend.dto.DepartmentDto> getDepartment(String period) {
         List<Department> departments = departmentRepository.findAll();
-        List<com.epms.backend.dto.DepartmentComparisonDto> comparisonList = new ArrayList<>();
+        List<com.epms.backend.dto.DepartmentDto> comparisonList = new ArrayList<>();
 
         for (Department dept : departments) {
             // 1. Total Staff
@@ -987,7 +987,7 @@ public class KpiService {
                 totalScore = BigDecimal.ZERO;
             }
 
-            comparisonList.add(com.epms.backend.dto.DepartmentComparisonDto.builder()
+            comparisonList.add(com.epms.backend.dto.DepartmentDto.builder()
                     .departmentId(dept.getId())
                     .departmentName(dept.getName())
                     .totalStaff(totalStaff != null ? totalStaff : 0L)

@@ -1,5 +1,5 @@
 import { useMemo, useState } from 'react';
-import { useGetKpiHistorySummaryQuery, useGetDepartmentComparisonQuery } from '../../features/kpi/kpiApi';
+import { useGetKpiHistorySummaryQuery, useGetDepartmentQuery, useGetEmployeeKpiHistoryQuery, type KpiHistorySummary } from '../../features/kpi/kpiApi';
 import { useGetDepartmentsQuery } from '../../features/department/api/departmentApi';
 import { MonthYearPicker } from '../../components/common/MonthYearPicker';
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, PieChart, Pie, Cell } from 'recharts';
@@ -46,7 +46,7 @@ export function getPerformanceLevelBadgeStyle(level: string): string {
 export function renderPerformanceBadge(score?: number | null) {
   const level = getPerformanceLevel(score);
   if (!level) return <span className="text-slate-300 font-medium">-</span>;
-  
+
   return (
     <span className={`px-2.5 py-1 text-[10px] font-black rounded-full border uppercase tracking-wider ${getPerformanceLevelBadgeStyle(level)}`}>
       {level}
@@ -73,15 +73,21 @@ export default function KpiReportsPage() {
   const selectedPeriodLabel = formatMonthYear(selectedPeriodMonth);
 
   const { data: summaryData = [], isLoading: isSummaryLoading } = useGetKpiHistorySummaryQuery({ period: selectedPeriodLabel });
-  const { data: departmentComparisonData = [], isLoading: isComparisonLoading } = useGetDepartmentComparisonQuery({ period: selectedPeriodLabel });
+  const { data: departmentData = [], isLoading: isDepartmentLoading } = useGetDepartmentQuery({ period: selectedPeriodLabel });
   const { data: departmentsData } = useGetDepartmentsQuery();
   const [currentPage, setCurrentPage] = useState(1);
   const [selectedDept, setSelectedDept] = useState('');
-  const [activeTab, setActiveTab] = useState<'employee' | 'department'>('employee');
+  const [activeTab, setActiveTab] = useState<'employee' | 'department' | 'departmentComparison'>('employee');
   const [filterSortOpt, setFilterSortOpt] = useState('high-to-low');
+  const [selectedEmployeeForDetail, setSelectedEmployeeForDetail] = useState<KpiHistorySummary | null>(null);
   const itemsPerPage = 10;
 
-  const isLoading = isSummaryLoading || isComparisonLoading;
+  const { data: employeeDetailKpis = [], isLoading: isDetailLoading } = useGetEmployeeKpiHistoryQuery(
+    { employeeId: selectedEmployeeForDetail?.employeeId || 0, period: selectedPeriodLabel },
+    { skip: !selectedEmployeeForDetail }
+  );
+
+  const isLoading = isSummaryLoading || isDepartmentLoading;
 
   const departments = departmentsData?.data || [];
 
@@ -109,27 +115,101 @@ export default function KpiReportsPage() {
     }
   }, [summaryData, selectedDept, filterSortOpt]);
 
-  const sortedDepartmentComparisonData = useMemo(() => {
-    return [...departmentComparisonData].sort((a, b) => (b.totalScore || 0) - (a.totalScore || 0));
-  }, [departmentComparisonData]);
+  const sortedDepartmentData = useMemo(() => {
+    return [...departmentData].sort((a, b) => (b.totalScore || 0) - (a.totalScore || 0));
+  }, [departmentData]);
+
+  const departmentComparisonData = useMemo(() => {
+    const deptMap = new Map<string, { totalStaff: number; totalScoreSum: number }>();
+
+    filteredData.forEach(item => {
+      const deptName = item.departmentName;
+      if (!deptName) return;
+
+      const current = deptMap.get(deptName) || { totalStaff: 0, totalScoreSum: 0 };
+      current.totalStaff += 1;
+      current.totalScoreSum += item.totalScore || 0;
+      deptMap.set(deptName, current);
+    });
+
+    const result = Array.from(deptMap.entries()).map(([deptName, stats]) => {
+      const averageScore = stats.totalStaff > 0 ? stats.totalScoreSum / stats.totalStaff : 0;
+      return {
+        departmentName: deptName,
+        totalStaff: stats.totalStaff,
+        averageScore: averageScore
+      };
+    });
+
+    // Sort by averageScore descending
+    return result.sort((a, b) => b.averageScore - a.averageScore);
+  }, [filteredData]);
 
   const handleExportExcel = () => {
     try {
       const data: any[] = [];
       const isDeptActive = activeTab === 'department';
+      const isDeptCompActive = activeTab === 'departmentComparison';
+      const isEmployeeDetailActive = !!selectedEmployeeForDetail;
 
-      if (isDeptActive) {
-        // Row 1: Title "Department Performance Comparison Report"
-        data.push(['Department Performance Comparison Report', '', '', '', '']);
+      if (isEmployeeDetailActive) {
+        data.push([`KPI Details: ${selectedEmployeeForDetail.employeeName}`, '', '', '', '', '', '']);
+        const periodStr = selectedPeriodLabel || format(new Date(), 'MMMM yyyy');
+        const todayStr = format(new Date(), 'dd MMM yyyy');
+        data.push([
+          `KPI Period: ${periodStr}`,
+          '',
+          '',
+          '',
+          `Export Date: ${todayStr}`,
+          '',
+          ''
+        ]);
+        data.push(['No', 'KPI Name', 'Target', 'Achieved Value', 'Score', 'Status', 'Date']);
         
+        employeeDetailKpis.forEach((kpi, index) => {
+          data.push([
+            index + 1,
+            kpi.name,
+            `${kpi.target} ${kpi.unit || ''}`.trim(),
+            kpi.actual || '-',
+            kpi.score !== undefined && kpi.score !== null ? `${kpi.score}%` : '-',
+            kpi.status || 'Pending',
+            kpi.createdDate ? format(new Date(kpi.createdDate), 'dd MMM yyyy') : (kpi.periodLabel || '-')
+          ]);
+        });
+        
+        data.push(['', '', '', '', 'Total KPIs', employeeDetailKpis.length, '']);
+      } else if (isDeptCompActive) {
+        data.push(['Department Comparison Report', '', '', '']);
+        const periodStr = selectedPeriodLabel || format(new Date(), 'MMMM yyyy');
+        const todayStr = format(new Date(), 'dd MMM yyyy');
+        data.push([`KPI Period: ${periodStr}`, '', `Export Date: ${todayStr}`, '']);
+        data.push(['No', 'Department Name', 'Total Staff', 'Average Score']);
+
+        departmentComparisonData.forEach((item, index) => {
+          data.push([
+            index + 1,
+            item.departmentName,
+            `${item.totalStaff} Members`,
+            item.averageScore !== undefined && item.averageScore !== null
+              ? `${Number(item.averageScore).toFixed(2)}%`
+              : '-'
+          ]);
+        });
+        data.push(['', '', 'Total Departments', departmentComparisonData.length]);
+      } else if (isDeptActive) {
+        // Row 1: Title "Department Report"
+        data.push(['Department Report', '', '', '', '']);
+
         // Row 2: "Kpi Period - Month Year" & "Export Date - Day Month Year"
         const periodStr = selectedPeriodLabel || format(new Date(), 'MMMM yyyy');
         const todayStr = format(new Date(), 'dd MMM yyyy');
         data.push([
-          `KPI Period: ${periodStr}`, 
-          '', 
-          '', 
-          `Export Date: ${todayStr}`, 
+          `KPI Period: ${periodStr}`,
+          '',
+          '',
+          `Export Date: ${todayStr}`,
           ''
         ]);
 
@@ -143,40 +223,40 @@ export default function KpiReportsPage() {
         ]);
 
         // Row 4+: Data rows
-        sortedDepartmentComparisonData.forEach((item, index) => {
+        sortedDepartmentData.forEach((item, index) => {
           data.push([
             index + 1, // No
             item.departmentName,
             `${item.totalStaff} Members`,
             item.managerName || '-',
-            item.totalScore !== undefined && item.totalScore !== null 
-              ? `${Number(item.totalScore).toFixed(2)}%` 
+            item.totalScore !== undefined && item.totalScore !== null
+              ? `${Number(item.totalScore).toFixed(2)}%`
               : '-'
           ]);
         });
-        
+
         // Bottom Row: Total Departments
         data.push([
-          '', 
-          '', 
-          '', 
-          'Total Departments', 
-          sortedDepartmentComparisonData.length
+          '',
+          '',
+          '',
+          'Total Departments',
+          sortedDepartmentData.length
         ]);
       } else {
         // Row 1: Title "Kpi Report"
         data.push(['Kpi Report', '', '', '', '', '', '']);
-        
+
         // Row 2: "Kpi Period - Month Year" & "Export Date - Day Month Year"
         const periodStr = selectedPeriodLabel || format(new Date(), 'MMMM yyyy');
         const todayStr = format(new Date(), 'dd MMM yyyy'); // Standard Day Month Year constraint
         data.push([
-          `KPI Period: ${periodStr}`, 
-          '', 
-          '', 
-          '', 
-          '', 
-          `Export Date: ${todayStr}`, 
+          `KPI Period: ${periodStr}`,
+          '',
+          '',
+          '',
+          '',
+          `Export Date: ${todayStr}`,
           ''
         ]);
 
@@ -201,30 +281,60 @@ export default function KpiReportsPage() {
             item.managerName || '-',
             item.departmentName,
             item.positionName,
-            item.totalScore !== undefined && item.totalScore !== null 
-              ? `${Number(item.totalScore).toFixed(2)}%` 
+            item.totalScore !== undefined && item.totalScore !== null
+              ? `${Number(item.totalScore).toFixed(2)}%`
               : '-',
             getPerformanceLevel(item.totalScore) || '-'
           ]);
         });
-        
+
         // Bottom Row: Total Employee
         data.push([
-          '', 
-          '', 
-          '', 
-          '', 
-          '', 
-          '', 
-          'Total Employee', 
+          '',
+          '',
+          '',
+          '',
+          '',
+          '',
+          'Total Employee',
           filteredData.length
         ]);
       }
-      
+
       const ws = XLSX.utils.aoa_to_sheet(data);
-      
+
       // Apply merges
-      if (isDeptActive) {
+      if (isEmployeeDetailActive) {
+        ws['!merges'] = [
+          { s: { r: 0, c: 0 }, e: { r: 0, c: 6 } }, // Row 1: Title
+          { s: { r: 1, c: 0 }, e: { r: 1, c: 3 } }, // Row 2: Period
+          { s: { r: 1, c: 4 }, e: { r: 1, c: 6 } }  // Row 2: Export Date
+        ];
+
+        ws['!cols'] = [
+          { wch: 5 },  // No
+          { wch: 30 }, // KPI Name
+          { wch: 15 }, // Target
+          { wch: 15 }, // Achieved Value
+          { wch: 10 }, // Score
+          { wch: 15 }, // Status
+          { wch: 15 }  // Date
+        ];
+      } else if (isDeptCompActive) {
+        ws['!merges'] = [
+          { s: { r: 0, c: 0 }, e: { r: 0, c: 3 } }, // Row 1: Merge A1:D1 for Title
+          { s: { r: 1, c: 0 }, e: { r: 1, c: 1 } }, // Row 2: Merge A2:B2 for Period
+          { s: { r: 1, c: 2 }, e: { r: 1, c: 3 } }  // Row 2: Merge C2:D2 for Export Date
+        ];
+
+        // Adjust column widths to make sure text is not cut off
+        ws['!cols'] = [
+          { wch: 5 },  // No
+          { wch: 25 }, // Department Name
+          { wch: 15 }, // Total Staff
+          { wch: 15 }  // Average Score
+        ];
+      } else if (isDeptActive) {
         ws['!merges'] = [
           { s: { r: 0, c: 0 }, e: { r: 0, c: 4 } }, // Row 1: Merge A1:E1 for Title
           { s: { r: 1, c: 0 }, e: { r: 1, c: 2 } }, // Row 2: Merge A2:C2 for Period
@@ -266,9 +376,9 @@ export default function KpiReportsPage() {
       };
 
       // Apply Excel Cell Styling
-      const numCols = isDeptActive ? 5 : 8;
+      const numCols = isEmployeeDetailActive ? 7 : (isDeptCompActive ? 4 : (isDeptActive ? 5 : 8));
       const cols = ['A', 'B', 'C', 'D', 'E', 'F', 'G', 'H'].slice(0, numCols);
-      
+
       for (let r = 0; r < data.length; r++) {
         for (let c = 0; c < numCols; c++) {
           const cellRef = `${cols[c]}${r + 1}`;
@@ -276,9 +386,9 @@ export default function KpiReportsPage() {
           if (!ws[cellRef]) {
             ws[cellRef] = { t: 's', v: '' };
           }
-          
+
           const cell = ws[cellRef];
-          
+
           // Row 1: Main Title
           if (r === 0) {
             cell.s = {
@@ -292,9 +402,9 @@ export default function KpiReportsPage() {
             cell.s = {
               font: { name: 'Segoe UI', sz: 10, bold: true, color: { rgb: '1D4ED8' } },
               fill: { fgColor: { rgb: 'EFF6FF' } },
-              alignment: { 
-                horizontal: c < (isDeptActive ? 3 : 6) ? 'left' : 'right', 
-                vertical: 'center' 
+              alignment: {
+                horizontal: c < (isEmployeeDetailActive ? 4 : (isDeptCompActive ? 2 : (isDeptActive ? 3 : 6))) ? 'left' : 'right',
+                vertical: 'center'
               },
               border: {
                 bottom: { style: 'thin', color: { rgb: 'BFDBFE' } }
@@ -320,9 +430,9 @@ export default function KpiReportsPage() {
             cell.s = {
               font: { name: 'Segoe UI', sz: 11, bold: true, color: { rgb: '0F172A' } },
               fill: { fgColor: { rgb: 'F8FAFC' } }, // Soft Slate Gray
-              alignment: { 
-                horizontal: c >= (numCols - 2) ? 'right' : 'left', 
-                vertical: 'center' 
+              alignment: {
+                horizontal: c >= (numCols - 2) ? 'right' : 'left',
+                vertical: 'center'
               },
               border: {
                 top: { style: 'double', color: { rgb: '94A3B8' } },
@@ -335,14 +445,21 @@ export default function KpiReportsPage() {
           // Data Rows (Row 4 to Row data.length - 2)
           else {
             let align = 'left';
-            if (isDeptActive) {
+            if (isEmployeeDetailActive) {
+              if (c === 0) align = 'center'; // No
+              else if (c === 4) align = 'right'; // Score
+              else if (c === 5) align = 'center'; // Status
+            } else if (isDeptCompActive) {
+              if (c === 0 || c === 2) align = 'center';
+              else if (c === 3) align = 'right';
+            } else if (isDeptActive) {
               if (c === 0 || c === 2) align = 'center'; // Center No and Staff count
               else if (c === 4) align = 'right'; // Right-align Scores
             } else {
               if (c === 1 || c === 3 || c === 7) align = 'center'; // Center Employee Name, Manager Name & Performance Level
               else if (c === 2 || c === 6) align = 'right'; // Right-align Staff Number & Scores (No is left-aligned)
             }
-            
+
             cell.s = {
               font: { name: 'Segoe UI', sz: 10, color: { rgb: '334155' } },
               alignment: { horizontal: align, vertical: 'center' },
@@ -352,16 +469,21 @@ export default function KpiReportsPage() {
                 right: { style: 'thin', color: { rgb: 'F1F5F9' } }
               }
             };
-            
+
             // Format Total Score highlight
-            const isScoreCol = isDeptActive ? c === 4 : c === 6;
+            const isScoreCol = isEmployeeDetailActive ? c === 4 : (isDeptCompActive ? c === 3 : (isDeptActive ? c === 4 : c === 6));
             if (isScoreCol && cell.v && cell.v !== '-') {
               cell.s.font.bold = true;
               cell.s.font.color = { rgb: '10B981' }; // Success Emerald Green for score rates
             }
 
             // Format Performance Level highlight (index 7 for employee report)
-            if (!isDeptActive && c === 7 && cell.v && cell.v !== '-') {
+            if (isEmployeeDetailActive && c === 5 && cell.v && cell.v !== '-') {
+              cell.s.font.bold = true;
+              const status = cell.v;
+              if (status === 'Achieved') cell.s.font.color = { rgb: '10B981' };
+              else if (status === 'Not Achieved') cell.s.font.color = { rgb: 'EF4444' };
+            } else if (!isDeptActive && !isDeptCompActive && !isEmployeeDetailActive && c === 7 && cell.v && cell.v !== '-') {
               cell.s.font.bold = true;
               const lvl = cell.v;
               if (lvl === 'High Performer') {
@@ -377,15 +499,15 @@ export default function KpiReportsPage() {
           }
         }
       }
-      
+
       const wb = XLSX.utils.book_new();
-      const sheetName = isDeptActive ? "Dept Comparison" : "KPI Report";
+      const sheetName = isEmployeeDetailActive ? "Employee KPI Details" : (isDeptCompActive ? "Department Comparison" : (isDeptActive ? "Department Report" : "KPI Report"));
       XLSX.utils.book_append_sheet(wb, ws, sheetName);
-      
+
       const deptSuffix = selectedDept ? `_${selectedDept.replace(/\s+/g, '_')}` : '';
-      const filePrefix = isDeptActive ? 'Department_Comparison_Report' : 'KPI_Performance_Report';
+      const filePrefix = isEmployeeDetailActive ? 'Employee_KPI_Details' : (isDeptCompActive ? 'Department_Comparison_Report' : (isDeptActive ? 'Department_Report' : 'KPI_Performance_Report'));
       XLSX.writeFile(wb, `${filePrefix}${deptSuffix}_${format(new Date(), 'yyyyMMdd')}.xlsx`);
-      toast.success(`${isDeptActive ? 'Department comparison' : 'Excel'} report exported successfully!`);
+      toast.success(`${isEmployeeDetailActive ? 'Employee Details' : (isDeptCompActive ? 'Department Comparison' : (isDeptActive ? 'Department' : 'Excel'))} report exported successfully!`);
     } catch (error) {
       console.error(error);
       toast.error('Failed to export Excel report');
@@ -396,7 +518,9 @@ export default function KpiReportsPage() {
     try {
       const doc = new jsPDF('l', 'mm', 'a4');
       const isDeptActive = activeTab === 'department';
-      const title = isDeptActive ? 'Department Performance Comparison Report' : 'KPI Report';
+      const isDeptCompActive = activeTab === 'departmentComparison';
+      const isEmployeeDetailActive = !!selectedEmployeeForDetail;
+      const title = isEmployeeDetailActive ? `KPI Details: ${selectedEmployeeForDetail.employeeName}` : (isDeptCompActive ? 'Department Comparison' : (isDeptActive ? 'Department' : 'KPI Report'));
 
       const logoDataUrl = await loadPdfLogo();
       if (logoDataUrl) {
@@ -410,11 +534,40 @@ export default function KpiReportsPage() {
       doc.text(`Export Date: ${format(new Date(), 'dd MMM yyyy')}`, 230, 22);
       addPdfHeaderBranding(doc, { margin: 14, y: 14 });
 
-      if (isDeptActive) {
+      if (isEmployeeDetailActive) {
+        autoTable(doc, {
+          startY: 30,
+          head: [['No', 'KPI Name', 'Target', 'Achieved Value', 'Score', 'Status', 'Date']],
+          body: employeeDetailKpis.map((kpi, index) => [
+            index + 1,
+            kpi.name,
+            `${kpi.target} ${kpi.unit || ''}`.trim(),
+            kpi.actual || '-',
+            kpi.score !== undefined && kpi.score !== null ? `${kpi.score}%` : '-',
+            kpi.status || 'Pending',
+            kpi.createdDate ? format(new Date(kpi.createdDate), 'dd MMM yyyy') : (kpi.periodLabel || '-')
+          ]),
+          styles: { fontSize: 9, cellPadding: 2 },
+          headStyles: { fillColor: [36, 99, 235], textColor: 255 },
+        });
+      } else if (isDeptCompActive) {
+        autoTable(doc, {
+          startY: 30,
+          head: [['No', 'Department Name', 'Total Staff', 'Average Score']],
+          body: departmentComparisonData.map((item, index) => [
+            index + 1,
+            item.departmentName,
+            `${item.totalStaff} Members`,
+            item.averageScore !== undefined && item.averageScore !== null ? `${Number(item.averageScore).toFixed(2)}%` : '-',
+          ]),
+          styles: { fontSize: 9, cellPadding: 2 },
+          headStyles: { fillColor: [36, 99, 235], textColor: 255 },
+        });
+      } else if (isDeptActive) {
         autoTable(doc, {
           startY: 30,
           head: [['No', 'Department', 'Total Staff', 'Department Manager Name', 'Total Score']],
-          body: sortedDepartmentComparisonData.map((item, index) => [
+          body: sortedDepartmentData.map((item, index) => [
             index + 1,
             item.departmentName,
             `${item.totalStaff} Members`,
@@ -452,7 +605,8 @@ export default function KpiReportsPage() {
         doc.text(`Page ${pageNumber} of ${pageCount}`, doc.internal.pageSize.getWidth() - 14, doc.internal.pageSize.getHeight() - 8, { align: 'right' });
       }
 
-      doc.save(`${isDeptActive ? 'Department_Comparison_Report' : 'KPI_Performance_Report'}_${format(new Date(), 'yyyyMMdd')}.pdf`);
+      const filePrefix = isDeptCompActive ? 'Department_Comparison_Report' : (isDeptActive ? 'Department_Report' : 'KPI_Performance_Report');
+      doc.save(`${filePrefix}_${format(new Date(), 'yyyyMMdd')}.pdf`);
       toast.success('PDF report exported successfully!');
     } catch (error) {
       console.error(error);
@@ -737,44 +891,52 @@ export default function KpiReportsPage() {
       {/* View Switcher Buttons */}
       <div className="flex items-center gap-3 mt-8">
         <button
-          onClick={() => setActiveTab('employee')}
-          className={`flex items-center gap-2 px-5 py-3 rounded-xl text-sm font-black uppercase tracking-wider transition-all duration-200 border ${
-            activeTab === 'employee'
-              ? `border-[#2463eb] text-white shadow-lg shadow-[#dbeafe]/50 ${kpisGradientR}`
-              : 'bg-white border-slate-100 text-slate-600 hover:bg-slate-50'
-          }`}
+          onClick={() => { setActiveTab('employee'); setSelectedEmployeeForDetail(null); }}
+          className={`flex items-center gap-2 px-5 py-3 rounded-xl text-sm font-black uppercase tracking-wider transition-all duration-200 border ${activeTab === 'employee'
+            ? `border-[#2463eb] text-white shadow-lg shadow-[#dbeafe]/50 ${kpisGradientR}`
+            : 'bg-white border-slate-100 text-slate-600 hover:bg-slate-50'
+            }`}
         >
           <Users size={16} />
-          Employee Directory
+          Employee
         </button>
         <button
           onClick={() => setActiveTab('department')}
-          className={`flex items-center gap-2 px-5 py-3 rounded-xl text-sm font-black uppercase tracking-wider transition-all duration-200 border ${
-            activeTab === 'department'
-              ? `border-[#2463eb] text-white shadow-lg shadow-[#dbeafe]/50 ${kpisGradientR}`
-              : 'bg-white border-slate-100 text-slate-600 hover:bg-slate-50'
-          }`}
+          className={`flex items-center gap-2 px-5 py-3 rounded-xl text-sm font-black uppercase tracking-wider transition-all duration-200 border ${activeTab === 'department'
+            ? `border-[#2463eb] text-white shadow-lg shadow-[#dbeafe]/50 ${kpisGradientR}`
+            : 'bg-white border-slate-100 text-slate-600 hover:bg-slate-50'
+            }`}
         >
           <Building2 size={16} />
-          Department KPI Performance Directory
+          Department
+        </button>
+        <button
+          onClick={() => setActiveTab('departmentComparison')}
+          className={`flex items-center gap-2 px-5 py-3 rounded-xl text-sm font-black uppercase tracking-wider transition-all duration-200 border ${activeTab === 'departmentComparison'
+            ? `border-[#2463eb] text-white shadow-lg shadow-[#dbeafe]/50 ${kpisGradientR}`
+            : 'bg-white border-slate-100 text-slate-600 hover:bg-slate-50'
+            }`}
+        >
+          <TrendingUp size={16} />
+          Department Comparison
         </button>
       </div>
 
       {activeTab === 'department' ? (
-        /* Department Comparison Section */
+        /* Department*/
         <div className="bg-white rounded-2xl border border-slate-100 shadow-sm overflow-hidden mt-6">
           <div className="p-6 border-b border-slate-100 flex items-center justify-between">
             <div>
               <h3 className="text-base font-black text-slate-800 uppercase tracking-wider flex items-center gap-2">
                 <Building2 size={18} className="text-[#2463eb]" />
-                Department Performance Comparison
+                Department
               </h3>
               <p className="text-xs font-medium text-slate-400 mt-1">
                 Comparative overview of active departments, total staff size, department managers, and their average performance score
               </p>
             </div>
             <span className="px-3 py-1 bg-[#eff6ff] text-[#1d4ed8] text-xs font-bold rounded-full uppercase tracking-wider">
-              {sortedDepartmentComparisonData.length} Departments
+              {sortedDepartmentData.length} Departments
             </span>
           </div>
 
@@ -790,14 +952,14 @@ export default function KpiReportsPage() {
                 </tr>
               </thead>
               <tbody className="divide-y divide-slate-100 text-sm">
-                {isComparisonLoading ? (
+                {isDepartmentLoading ? (
                   <tr>
                     <td colSpan={5} className="py-8 text-center text-slate-400 font-medium">
-                      Loading comparisons...
+                      Loading departments...
                     </td>
                   </tr>
-                ) : sortedDepartmentComparisonData.length > 0 ? (
-                  sortedDepartmentComparisonData.map((dept, idx) => (
+                ) : sortedDepartmentData.length > 0 ? (
+                  sortedDepartmentData.map((dept, idx) => (
                     <tr key={dept.departmentId || idx} className="hover:bg-slate-50/50 transition-colors group">
                       <td className="py-4 px-6 text-center font-bold text-slate-400 whitespace-nowrap">
                         {idx + 1}
@@ -847,12 +1009,157 @@ export default function KpiReportsPage() {
             </table>
           </div>
         </div>
+      ) : activeTab === 'departmentComparison' ? (
+        /* Department Comparison */
+        <div className="bg-white rounded-2xl border border-slate-100 shadow-sm overflow-hidden mt-6">
+          <div className="p-6 border-b border-slate-100 flex items-center justify-between">
+            <div>
+              <h3 className="text-base font-black text-slate-800 uppercase tracking-wider flex items-center gap-2">
+                <TrendingUp size={18} className="text-[#2463eb]" />
+                Department Comparison Report
+              </h3>
+              <p className="text-xs font-medium text-slate-400 mt-1">
+                Comparative overview of departments showing total staff and average performance scores
+              </p>
+            </div>
+            <span className="px-3 py-1 bg-[#eff6ff] text-[#1d4ed8] text-xs font-bold rounded-full uppercase tracking-wider">
+              {departmentComparisonData.length} Departments
+            </span>
+          </div>
+
+          <div className="overflow-x-auto">
+            <table className="w-full text-left border-collapse">
+              <thead>
+                <tr className="bg-slate-50/70 border-b border-slate-100 text-[10px] font-black uppercase tracking-widest text-slate-400">
+                  <th className="py-4 px-6 text-center w-16 whitespace-nowrap">No</th>
+                  <th className="py-4 px-6 whitespace-nowrap">Department Name</th>
+                  <th className="py-4 px-6 text-center whitespace-nowrap">Total Staff</th>
+                  <th className="py-4 px-6 text-right whitespace-nowrap">Average Score</th>
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-slate-100 text-sm">
+                {departmentComparisonData.length > 0 ? (
+                  departmentComparisonData.map((dept, idx) => (
+                    <tr key={dept.departmentName || idx} className="hover:bg-slate-50/50 transition-colors group">
+                      <td className="py-4 px-6 text-center font-bold text-slate-400 whitespace-nowrap">
+                        {idx + 1}
+                      </td>
+                      <td className="py-4 px-6 font-bold text-slate-900 whitespace-nowrap">
+                        <div className="flex items-center gap-2.5">
+                          <div
+                            className="w-2.5 h-2.5 rounded-full ring-2 ring-white"
+                            style={{
+                              backgroundColor:
+                                KPI_REPORTS_CHART_COLORS[idx % KPI_REPORTS_CHART_COLORS.length],
+                            }}
+                          />
+                          {dept.departmentName}
+                        </div>
+                      </td>
+                      <td className="py-4 px-6 text-center text-slate-600 font-bold whitespace-nowrap">
+                        <span className="px-2.5 py-1 bg-slate-100 text-slate-700 text-xs font-bold rounded-full">
+                          {dept.totalStaff} Members
+                        </span>
+                      </td>
+                      <td className="py-4 px-6 text-right font-black text-[#2463eb] text-base whitespace-nowrap">
+                        {dept.averageScore !== undefined && dept.averageScore !== null ? (
+                          `${Number(dept.averageScore).toFixed(2)}%`
+                        ) : (
+                          <span className="text-slate-300 font-medium">-</span>
+                        )}
+                      </td>
+                    </tr>
+                  ))
+                ) : (
+                  <tr>
+                    <td colSpan={4} className="py-8 text-center text-slate-400 font-medium">
+                      No department data available.
+                    </td>
+                  </tr>
+                )}
+              </tbody>
+            </table>
+          </div>
+        </div>
+      ) : selectedEmployeeForDetail ? (
+        /* Employee Detail View */
+        <div className="bg-white rounded-2xl border border-slate-100 shadow-sm overflow-hidden mt-6">
+          <div className="p-6 border-b border-slate-100 flex items-center justify-between">
+            <div>
+              <button
+                onClick={() => setSelectedEmployeeForDetail(null)}
+                className="flex items-center gap-2 text-[#2463eb] text-sm font-bold hover:underline mb-4 focus:outline-none"
+              >
+                <ChevronLeft size={16} /> Back to Employee List
+              </button>
+              <h3 className="text-base font-black text-slate-800 uppercase tracking-wider">
+                KPI Details: {selectedEmployeeForDetail.employeeName}
+              </h3>
+              <p className="text-xs font-medium text-slate-400 mt-1">
+                Department: {selectedEmployeeForDetail.departmentName} | Position: {selectedEmployeeForDetail.positionName}
+              </p>
+            </div>
+            <span className="px-3 py-1 bg-[#eff6ff] text-[#1d4ed8] text-xs font-bold rounded-full uppercase tracking-wider">
+              {employeeDetailKpis.length} KPIs
+            </span>
+          </div>
+
+          <div className="overflow-x-auto">
+            <table className="w-full text-left border-collapse">
+              <thead>
+                <tr className="bg-slate-50/70 border-b border-slate-100 text-[10px] font-black uppercase tracking-widest text-slate-400">
+                  <th className="py-4 px-6 text-center w-16 whitespace-nowrap">No</th>
+                  <th className="py-4 px-6 whitespace-nowrap">KPI Name</th>
+                  <th className="py-4 px-6 whitespace-nowrap">Target</th>
+                  <th className="py-4 px-6 whitespace-nowrap">Achieved Value</th>
+                  <th className="py-4 px-6 text-right whitespace-nowrap">Score</th>
+                  <th className="py-4 px-6 text-center whitespace-nowrap">Status</th>
+                  <th className="py-4 px-6 whitespace-nowrap">Date</th>
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-slate-100 text-sm">
+                {isDetailLoading ? (
+                  <tr>
+                    <td colSpan={7} className="py-8 text-center text-slate-400 font-medium">Loading KPI details...</td>
+                  </tr>
+                ) : employeeDetailKpis.length > 0 ? (
+                  employeeDetailKpis.map((kpi, idx) => (
+                    <tr key={kpi.id || idx} className="hover:bg-slate-50/50 transition-colors">
+                      <td className="py-4 px-6 text-center font-bold text-slate-400 whitespace-nowrap">{idx + 1}</td>
+                      <td className="py-4 px-6 font-bold text-slate-700">{kpi.name}</td>
+                      <td className="py-4 px-6 text-slate-600">{kpi.target} {kpi.unit}</td>
+                      <td className="py-4 px-6 text-slate-600 font-medium">{kpi.actual || '-'}</td>
+                      <td className="py-4 px-6 text-right font-black text-[#2463eb] whitespace-nowrap">
+                        {kpi.score !== undefined && kpi.score !== null ? `${kpi.score}%` : '-'}
+                      </td>
+                      <td className="py-4 px-6 text-center whitespace-nowrap">
+                        <span className={`px-2.5 py-1 text-[10px] font-black rounded-full border uppercase tracking-wider ${kpi.status === 'Achieved' ? 'bg-emerald-50 text-emerald-700 border-emerald-200' :
+                            kpi.status === 'Not Achieved' ? 'bg-red-50 text-red-700 border-red-200' :
+                              'bg-slate-50 text-slate-700 border-slate-200'
+                          }`}>
+                          {kpi.status || 'Pending'}
+                        </span>
+                      </td>
+                      <td className="py-4 px-6 text-slate-500 text-xs whitespace-nowrap">
+                        {kpi.createdDate ? format(new Date(kpi.createdDate), 'dd MMM yyyy') : (kpi.periodLabel || '-')}
+                      </td>
+                    </tr>
+                  ))
+                ) : (
+                  <tr>
+                    <td colSpan={7} className="py-8 text-center text-slate-400 font-medium">No details found.</td>
+                  </tr>
+                )}
+              </tbody>
+            </table>
+          </div>
+        </div>
       ) : (
         /* Employee KPI Details Table */
         <div className="bg-white rounded-2xl border border-slate-100 shadow-sm overflow-hidden mt-6">
           <div className="p-6 border-b border-slate-100 flex items-center justify-between">
             <div>
-              <h3 className="text-base font-black text-slate-800 uppercase tracking-wider">Employee KPI Performance Directory</h3>
+              <h3 className="text-base font-black text-slate-800 uppercase tracking-wider">Employee KPI Performance</h3>
               <p className="text-xs font-medium text-slate-400 mt-1">Detailed list of employee KPI definitions, total assigned KPIs, and performance scores</p>
             </div>
             <span className="px-3 py-1 bg-[#eff6ff] text-[#1d4ed8] text-xs font-bold rounded-full uppercase tracking-wider">
@@ -881,7 +1188,12 @@ export default function KpiReportsPage() {
                     .map((item, idx) => (
                       <tr key={`${item.employeeId}-${item.period}`} className="hover:bg-slate-50/80 transition-colors">
                         <td className="py-4 px-6 whitespace-nowrap">
-                          <div className="font-bold text-slate-700">{item.employeeName}</div>
+                          <button
+                            onClick={() => setSelectedEmployeeForDetail(item)}
+                            className="font-bold text-[#2463eb] hover:underline cursor-pointer text-left focus:outline-none"
+                          >
+                            {item.employeeName}
+                          </button>
                         </td>
                         <td className="py-4 px-6 text-slate-500 font-medium whitespace-nowrap w-32">
                           {item.staffNo || `EMP-${item.employeeId}`}

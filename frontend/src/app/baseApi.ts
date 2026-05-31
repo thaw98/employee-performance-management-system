@@ -68,6 +68,7 @@ export const baseApi = createApi({
     'ScoreExplanation',
     'FaqSupport',
     'Permission',
+    'PromotionProposal',
   ],
   endpoints: () => ({}),
 });
