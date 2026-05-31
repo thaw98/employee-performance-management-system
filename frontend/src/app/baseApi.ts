@@ -70,6 +70,7 @@ export const baseApi = createApi({
     'Permission',
     'PromotionProposal',
     'FeedbackManagement',
+    'ScoreFormula',
   ],
   endpoints: () => ({}),
 });

@@ -71,6 +71,8 @@ public class SelfAssessmentFormService {
 	    private final SelfAssessmentArchiveSnapshotRepository archiveSnapshotRepository;
 	    @Autowired(required = false)
 	    private ScoreExplanationResolver scoreExplanationResolver;
+	    @Autowired(required = false)
+	    private ScoreFormulaService scoreFormulaService;
 
     public SelfAssessmentFormService(
             SelfAssessmentFormTemplateRepository templateRepository,
@@ -2753,7 +2755,16 @@ Instant now = Instant.now();
                 .sum();
         int numQuestions = form.getAnswers().size();
         int maxRating = SelfAssessmentRatingSystem.defaultIfNull(form.getRatingSystem()).getMaxRating();
-        double score = numQuestions > 0 ? ((double) totalPoints / (numQuestions * maxRating)) * 100 : 0.0;
+
+        double score;
+        if (numQuestions > 0) {
+            score = evaluateFormula(Map.of(
+                    "SUM_RATINGS", (double) totalPoints,
+                    "NUM_QUESTIONS", (double) numQuestions,
+                    "MAX_RATING", (double) maxRating));
+        } else {
+            score = 0.0;
+        }
 
         form.setTotalScore(score);
         form.setRatingCategory(getRatingCategory(score));
@@ -2955,7 +2966,11 @@ Instant now = Instant.now();
                     return a.getRating() != null ? a.getRating() : 0;
                 })
                 .sum();
-        form.setManagerRevisedTotalScore(((double) totalPoints / (numQuestions * maxRating)) * 100);
+        double score = evaluateFormula(Map.of(
+                "SUM_RATINGS", (double) totalPoints,
+                "NUM_QUESTIONS", (double) numQuestions,
+                "MAX_RATING", (double) maxRating));
+        form.setManagerRevisedTotalScore(score);
     }
 
     private void calculateFinalApprovedScore(SelfAssessmentForm form) {
@@ -2972,7 +2987,11 @@ Instant now = Instant.now();
                     return a.getRating() != null ? a.getRating() : 0;
                 })
                 .sum();
-        form.setFinalApprovedTotalScore(((double) totalPoints / (numQuestions * maxRating)) * 100);
+        double score = evaluateFormula(Map.of(
+                "SUM_RATINGS", (double) totalPoints,
+                "NUM_QUESTIONS", (double) numQuestions,
+                "MAX_RATING", (double) maxRating));
+        form.setFinalApprovedTotalScore(score);
     }
 
     private void sendManagerReviewNotificationsNew(
@@ -4124,5 +4143,22 @@ Instant now = Instant.now();
                 .map(SelfAssessmentFormAnswer::getRating)
                 .findFirst()
                 .orElse(null);
+    }
+
+    private double evaluateFormula(Map<String, Double> inputs) {
+        if (scoreFormulaService != null) {
+            try {
+                return scoreFormulaService.evaluateFormula(
+                        scoreFormulaService.getActiveDefaultFormula(com.epms.backend.entity.ScoreFormulaArea.SELF_ASSESSMENT).definition(),
+                        inputs);
+            } catch (Exception e) {
+                // fallback to hardcoded formula
+            }
+        }
+        double sum = inputs.getOrDefault("SUM_RATINGS", 0.0);
+        double count = inputs.getOrDefault("NUM_QUESTIONS", 1.0);
+        double max = inputs.getOrDefault("MAX_RATING", 5.0);
+        if (count == 0 || max == 0) return 0.0;
+        return (sum / (count * max)) * 100;
     }
 }

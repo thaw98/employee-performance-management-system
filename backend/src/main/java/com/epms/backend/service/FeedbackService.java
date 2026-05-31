@@ -61,6 +61,7 @@ public class FeedbackService {
     private final AuditService auditService;
     private final FeedbackChatMessageRepository feedbackChatMessageRepository;
     private final ScoreExplanationResolver scoreExplanationResolver;
+    private final ScoreFormulaService scoreFormulaService;
 
     @Autowired
     public FeedbackService(
@@ -76,7 +77,8 @@ public class FeedbackService {
             ReviewCycleRepository reviewCycleRepository,
             AuditService auditService,
             FeedbackChatMessageRepository feedbackChatMessageRepository,
-            ScoreExplanationResolver scoreExplanationResolver) {
+            ScoreExplanationResolver scoreExplanationResolver,
+            ScoreFormulaService scoreFormulaService) {
         this.feedbackRepository = feedbackRepository;
         this.feedbackDraftRepository = feedbackDraftRepository;
         this.employeeRepository = employeeRepository;
@@ -90,6 +92,7 @@ public class FeedbackService {
         this.auditService = auditService;
         this.feedbackChatMessageRepository = feedbackChatMessageRepository;
         this.scoreExplanationResolver = scoreExplanationResolver;
+        this.scoreFormulaService = scoreFormulaService;
     }
 
     public FeedbackService(
@@ -106,7 +109,7 @@ public class FeedbackService {
             AuditService auditService) {
         this(feedbackRepository, feedbackDraftRepository, employeeRepository, reportingManagerResolver,
                 criteriaRepository, userRepository, notificationService, timeSettingService, reviewCycleService,
-                reviewCycleRepository, auditService, null, null);
+                reviewCycleRepository, auditService, null, null, null);
     }
 
     /* Reporting helpers */
@@ -592,7 +595,21 @@ public class FeedbackService {
             totalPoints += reqDetail.getRating();
         }
 
-        double score = (totalPoints * 100.0) / (questionCount * 5.0);
+        double score;
+        if (scoreFormulaService != null) {
+            try {
+                score = scoreFormulaService.evaluateFormula(
+                        scoreFormulaService.getActiveDefaultFormula(com.epms.backend.entity.ScoreFormulaArea.FEEDBACK_360).definition(),
+                        java.util.Map.of(
+                                "SUM_RATINGS", (double) totalPoints,
+                                "NUM_QUESTIONS", (double) questionCount,
+                                "MAX_RATING", 5.0));
+            } catch (Exception e) {
+                score = (totalPoints * 100.0) / (questionCount * 5.0);
+            }
+        } else {
+            score = (totalPoints * 100.0) / (questionCount * 5.0);
+        }
         feedback.setScore(score);
         feedback.setRemark(calculateRemark(score));
         feedback.setDetails(details);

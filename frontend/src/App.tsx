@@ -60,6 +60,7 @@ import { CombinedFeedbackHistoryPage } from './pages/CombinedFeedbackHistoryPage
 import { GetFeedbackPage } from './pages/GetFeedbackPage';
 import { FeedbackDetailPage } from './pages/FeedbackDetailPage';
 import { KpiManagementPage } from './pages/hr/KpiManagementPage';
+import FormulaManagementPage from './features/scoreFormula/pages/FormulaManagementPage';
 import { KpiAssignedPage } from './pages/hr/KpiAssignedPage';
 import { KpiDetailPage } from './pages/hr/KpiDetailPage';
 import { DepartmentKpiDetailPage } from './pages/hr/DepartmentKpiDetailPage';
@@ -234,6 +235,7 @@ function App() {
 	            <Route path="settings/system" element={<SystemSettingsPage />} />
 	            <Route path="settings/system/time" element={<TimeSettingsPage />} />
 	            <Route path="settings/system/score-explanations" element={<ScoreExplanationSettingsPage />} />
+            <Route path="settings/system/score-formulas" element={<FormulaManagementPage />} />
             <Route path="settings/faq-support" element={<FaqSupportPage />} />
             <Route path="faq" element={<FaqPage />} />
             <Route path="self-assessment/templates" element={gated('SELF_ASSESSMENT', 'manage_templates', <SelfAssessmentFormTemplatePage />)} />
