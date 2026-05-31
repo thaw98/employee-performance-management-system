@@ -25,64 +25,15 @@ import {
 import { SelfAssessmentReviewCycleInfo } from './SelfAssessmentReviewCycleInfo';
 import {
   getRatingOptions,
-  tenPointYesMinRatingOptions,
-  fivePointYesMinRatingOptions,
+  RATING_SYSTEM_OPTIONS,
+  getYesMinRatingOptions,
+  getRatingSystemMax,
+  getDefaultYesMinRating,
+  normalizeYesMinRating,
 } from '../../features/selfAssessmentForm/ratingSystem';
 
 const SETTINGS_PRIMARY = '#2463eb';
 const SETTINGS_PRIMARY_DARK = '#1d4ed8';
-
-type RatingOption = {
-  value: SelfAssessmentRatingSystem;
-  title: string;
-  subtitle: string;
-  description: string;
-  recommended?: boolean;
-  icon: React.ElementType;
-  gradient: string;
-  lightBg: string;
-  lightIcon: string;
-  ring: string;
-  features: string[];
-};
-
-const ratingOptions: RatingOption[] = [
-  {
-    value: 'FIVE_POINT',
-    title: 'Standard Scale',
-    subtitle: '1 – 5 Rating',
-    description:
-      'A streamlined five-point rating system ideal for quick, focused evaluations. Best suited for organizations that prefer simplicity and speed.',
-    recommended: true,
-    icon: Gauge,
-    gradient: 'from-emerald-500 to-teal-600',
-    lightBg: 'bg-emerald-50 dark:bg-emerald-950/30',
-    lightIcon: 'text-emerald-600 dark:text-emerald-400',
-    ring: 'ring-emerald-500/20',
-    features: [
-      'Faster to complete',
-      'Clear tier differentiation',
-      'Industry standard',
-    ],
-  },
-  {
-    value: 'TEN_POINT',
-    title: 'Detailed Scale',
-    subtitle: '1 – 10 Rating',
-    description:
-      'A granular ten-point scale that provides deeper insight into performance nuances. Ideal for detailed reviews requiring finer score distinctions.',
-    icon: BarChart3,
-    gradient: 'from-violet-500 to-purple-600',
-    lightBg: 'bg-violet-50 dark:bg-violet-950/30',
-    lightIcon: 'text-violet-600 dark:text-violet-400',
-    ring: 'ring-violet-500/20',
-    features: [
-      'Greater score precision',
-      'Nuanced feedback',
-      'Advanced analytics',
-    ],
-  },
-];
 
 const getErrorMessage = (error: unknown, fallback: string) => {
   if (error && typeof error === 'object' && 'data' in error) {
@@ -104,6 +55,7 @@ export const SelfAssessmentSettingsPage: React.FC = () => {
   );
   const [tenPointYesMinRating, setTenPointYesMinRating] = useState(5);
   const [fivePointYesMinRating, setFivePointYesMinRating] = useState(3);
+  const [yesMinRating, setYesMinRating] = useState<number | null>(null);
   const [includeYesNo, setIncludeYesNo] = useState(true);
 
   useEffect(() => {
@@ -111,21 +63,37 @@ export const SelfAssessmentSettingsPage: React.FC = () => {
       setRatingSystem(data.ratingSystem);
       setTenPointYesMinRating(data.tenPointYesMinRating ?? 5);
       setFivePointYesMinRating(data.fivePointYesMinRating ?? 3);
+      setYesMinRating(data.yesMinRating ?? null);
       setIncludeYesNo(data.includeYesNo ?? true);
     }
-  }, [data?.ratingSystem, data?.tenPointYesMinRating, data?.fivePointYesMinRating, data?.includeYesNo]);
+  }, [data?.ratingSystem, data?.tenPointYesMinRating, data?.fivePointYesMinRating, data?.yesMinRating, data?.includeYesNo]);
 
   const isRatingScaleEditable = data?.ratingSystemEditable ?? true;
   const ratingScaleLockReason =
     data?.ratingSystemLockReason ??
     'Templates already assigned to a deadline keep their existing rating scale.';
+
+  const effectiveYesMinRating = yesMinRating != null
+    ? normalizeYesMinRating(ratingSystem, yesMinRating)
+    : getDefaultYesMinRating(ratingSystem);
+
   const isDirty =
     data?.ratingSystem != null &&
-    (data.ratingSystem !== ratingSystem || (data.tenPointYesMinRating ?? 5) !== tenPointYesMinRating || (data.fivePointYesMinRating ?? 3) !== fivePointYesMinRating || (data.includeYesNo ?? true) !== includeYesNo);
+    (data.ratingSystem !== ratingSystem
+      || (data.tenPointYesMinRating ?? 5) !== tenPointYesMinRating
+      || (data.fivePointYesMinRating ?? 3) !== fivePointYesMinRating
+      || ((data.yesMinRating ?? null) ?? getDefaultYesMinRating(data.ratingSystem)) !== effectiveYesMinRating
+      || (data.includeYesNo ?? true) !== includeYesNo);
 
   const handleSave = async () => {
     try {
-      await updateSettings({ ratingSystem, tenPointYesMinRating, fivePointYesMinRating, includeYesNo }).unwrap();
+      await updateSettings({
+        ratingSystem,
+        tenPointYesMinRating,
+        fivePointYesMinRating,
+        yesMinRating: effectiveYesMinRating,
+        includeYesNo,
+      }).unwrap();
       toast.success('Self-assessment settings saved');
     } catch (saveError) {
       toast.error(
@@ -340,108 +308,41 @@ export const SelfAssessmentSettingsPage: React.FC = () => {
             </div>
           ) : (
             <>
-              {/* Rating Option Cards */}
-              <div className="grid gap-5 md:grid-cols-2">
-                {ratingOptions.map((option) => {
-                  const checked = ratingSystem === option.value;
-                  const Icon = option.icon;
-                  return (
-                    <button
-                      type="button"
-                      key={option.value}
-                      onClick={() =>
-                        isRatingScaleEditable && setRatingSystem(option.value)
-                      }
-                      disabled={!isRatingScaleEditable}
-                      className={`group relative overflow-hidden rounded-2xl border-2 p-0 text-left transition-all duration-300 ${
-                        checked
-                          ? 'border-[#2463eb] bg-gradient-to-br from-[#2463eb]/[0.03] to-[#1d4ed8]/[0.01] shadow-lg shadow-[#2463eb]/10 dark:border-[#2463eb] dark:from-[#2463eb]/10 dark:to-[#1d4ed8]/5 dark:shadow-[#2463eb]/5'
-                          : 'border-slate-200/80 bg-white hover:border-slate-300 hover:shadow-md dark:border-slate-700/60 dark:bg-slate-800/60 dark:hover:border-slate-600'
-                      } ${!isRatingScaleEditable ? 'cursor-not-allowed opacity-70' : ''}`}
+              {/* Global Rating Scale Dropdown */}
+              <div className="rounded-xl border border-slate-200/60 bg-white p-5 shadow-sm dark:border-slate-700/50 dark:bg-slate-900/20">
+                <div className="flex flex-col gap-4 md:flex-row md:items-start md:justify-between">
+                  <div>
+                    <label
+                      htmlFor="globalRatingScale"
+                      className="text-sm font-bold text-slate-900 dark:text-white"
                     >
-                      {/* Selection indicator glow */}
-                      {checked && (
-                        <div className="absolute inset-0 bg-gradient-to-br from-[#2463eb]/[0.05] to-transparent dark:from-[#2463eb]/[0.10]" />
-                      )}
-
-                      <div className="relative p-5">
-                        {/* Top row: icon + title + badge */}
-                        <div className="flex items-start gap-3.5">
-                          <div
-                            className={`flex h-11 w-11 shrink-0 items-center justify-center rounded-xl transition-all duration-300 ${
-                              checked
-                                ? 'bg-gradient-to-br from-[#2463eb] to-[#1d4ed8] shadow-lg shadow-[#2463eb]/25'
-                                : `${option.lightBg} ring-1 ${option.ring}`
-                            }`}
-                          >
-                            <Icon
-                              size={20}
-                              className={`transition-colors ${
-                                checked ? 'text-white' : option.lightIcon
-                              }`}
-                            />
-                          </div>
-                          <div className="min-w-0 flex-1">
-                            <div className="flex flex-wrap items-center gap-2">
-                              <h3 className="text-base font-bold text-slate-900 dark:text-white">
-                                {option.title}
-                              </h3>
-                              {option.recommended && (
-                                <span
-                                  className={`inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-[10px] font-bold uppercase tracking-wider ${
-                                    checked
-                                      ? 'bg-[#2463eb]/15 text-[#2463eb] dark:bg-[#2463eb]/25 dark:text-[#60a5fa]'
-                                      : 'bg-blue-100 text-blue-700 dark:bg-blue-950/60 dark:text-blue-300'
-                                  }`}
-                                >
-                                  <Sparkles size={9} />
-                                  Recommended
-                                </span>
-                              )}
-                            </div>
-                            <p className="mt-0.5 text-sm font-semibold text-slate-500 dark:text-slate-400">
-                              {option.subtitle}
-                            </p>
-                          </div>
-                          {/* Radio circle */}
-                          <div
-                            className={`flex h-6 w-6 shrink-0 items-center justify-center rounded-full border-2 transition-all duration-300 ${
-                              checked
-                                ? 'border-[#2463eb] bg-[#2463eb] dark:border-[#60a5fa] dark:bg-[#60a5fa]'
-                                : 'border-slate-300 dark:border-slate-600'
-                            }`}
-                          >
-                            {checked && (
-                              <div className="h-2.5 w-2.5 rounded-full bg-white" />
-                            )}
-                          </div>
-                        </div>
-
-                        {/* Description */}
-                        <p className="mt-3.5 text-sm leading-relaxed text-slate-500 dark:text-slate-400">
-                          {option.description}
-                        </p>
-
-                        {/* Features list */}
-                        <div className="mt-4 flex flex-wrap gap-2">
-                          {option.features.map((feature) => (
-                            <span
-                              key={feature}
-                              className={`inline-flex items-center gap-1.5 rounded-lg px-2.5 py-1 text-[11px] font-semibold transition-colors ${
-                                checked
-                                  ? 'bg-[#2463eb]/10 text-[#2463eb] dark:bg-[#2463eb]/20 dark:text-[#60a5fa]'
-                                  : 'bg-slate-100 text-slate-600 dark:bg-slate-700/60 dark:text-slate-300'
-                              }`}
-                            >
-                              <CheckCircle2 size={11} />
-                              {feature}
-                            </span>
-                          ))}
-                        </div>
-                      </div>
-                    </button>
-                  );
-                })}
+                      Global Rating Scale
+                    </label>
+                    <p className="mt-1 max-w-xl text-xs leading-relaxed text-slate-500 dark:text-slate-400">
+                      Select the rating scale used for new self-assessment templates.
+                    </p>
+                  </div>
+                  <select
+                    id="globalRatingScale"
+                    value={ratingSystem}
+                    onChange={(event) => setRatingSystem(event.target.value as SelfAssessmentRatingSystem)}
+                    disabled={!isRatingScaleEditable || isSaving}
+                    className="w-full rounded-xl border border-slate-200 bg-white px-3.5 py-2.5 text-sm font-semibold text-slate-800 shadow-sm transition focus:border-[#2463eb] focus:outline-none focus:ring-2 focus:ring-[#2463eb]/20 disabled:cursor-not-allowed disabled:opacity-60 md:w-60 dark:border-slate-600 dark:bg-slate-800 dark:text-slate-100"
+                  >
+                    {RATING_SYSTEM_OPTIONS.map((option) => (
+                      <option key={option.value} value={option.value}>
+                        {option.label}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+                {/* Current selection info */}
+                <div className="mt-3 flex items-center gap-2 text-xs text-slate-500 dark:text-slate-400">
+                  <BarChart3 size={14} className="text-[#2463eb]" />
+                  <span>
+                    {getRatingSystemMax(ratingSystem)}-point scale · Ratings from 1 to {getRatingSystemMax(ratingSystem)}
+                  </span>
+                </div>
               </div>
 
               {/* Tip banner */}
@@ -470,6 +371,7 @@ export const SelfAssessmentSettingsPage: React.FC = () => {
                   </p>
                 </div>
               )}
+
               {/* Include Yes/No Toggle */}
               <div className="mt-6 rounded-xl border border-slate-200/60 bg-white px-4 py-4 shadow-sm dark:border-slate-700/50 dark:bg-slate-900/20">
                 <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
@@ -499,28 +401,29 @@ export const SelfAssessmentSettingsPage: React.FC = () => {
                 </div>
               </div>
 
-              {ratingSystem === 'FIVE_POINT' && includeYesNo && (
+              {/* Yes Threshold - generic, shown only when includeYesNo is enabled */}
+              {includeYesNo && (
                 <div className="mt-5 rounded-xl border border-slate-200/60 bg-white px-4 py-4 shadow-sm dark:border-slate-700/50 dark:bg-slate-900/20">
                   <div className="flex flex-col gap-4 md:flex-row md:items-start md:justify-between">
                     <div>
                       <label
-                        htmlFor="fivePointYesMinRating"
+                        htmlFor="yesMinRating"
                         className="text-sm font-bold text-slate-900 dark:text-white"
                       >
-                        Standard Scale Yes Threshold
+                        Yes Threshold
                       </label>
                       <p className="mt-1 max-w-xl text-xs leading-relaxed text-slate-500 dark:text-slate-400">
-                        Choose the lowest 1-5 rating that counts as Yes. Ratings below it count as No.
+                        Choose the lowest rating that counts as Yes. Ratings below it count as No.
                       </p>
                     </div>
                     <select
-                      id="fivePointYesMinRating"
-                      value={fivePointYesMinRating}
-                      onChange={(event) => setFivePointYesMinRating(Number(event.target.value))}
+                      id="yesMinRating"
+                      value={effectiveYesMinRating}
+                      onChange={(event) => setYesMinRating(Number(event.target.value))}
                       disabled={!isRatingScaleEditable || isSaving}
                       className="w-full rounded-xl border border-slate-200 bg-white px-3.5 py-2.5 text-sm font-semibold text-slate-800 shadow-sm transition focus:border-[#2463eb] focus:outline-none focus:ring-2 focus:ring-[#2463eb]/20 disabled:cursor-not-allowed disabled:opacity-60 md:w-52 dark:border-slate-600 dark:bg-slate-800 dark:text-slate-100"
                     >
-                      {fivePointYesMinRatingOptions.map((rating) => (
+                      {getYesMinRatingOptions(ratingSystem).map((rating) => (
                         <option key={rating} value={rating}>
                           {rating} and above
                         </option>
@@ -533,7 +436,7 @@ export const SelfAssessmentSettingsPage: React.FC = () => {
                         Yes scores
                       </dt>
                       <dd className="mt-0.5 text-sm font-semibold tabular-nums text-emerald-800 dark:text-emerald-200">
-                        {getRatingOptions('FIVE_POINT', 'Yes', undefined, fivePointYesMinRating, true).join(', ')}
+                        {getRatingOptions(ratingSystem, 'Yes', tenPointYesMinRating, fivePointYesMinRating, true, effectiveYesMinRating).join(', ')}
                       </dd>
                     </div>
                     <div className="rounded-lg border border-rose-200/60 bg-rose-50/80 px-3 py-2 dark:border-rose-800/40 dark:bg-rose-950/20">
@@ -541,75 +444,27 @@ export const SelfAssessmentSettingsPage: React.FC = () => {
                         No scores
                       </dt>
                       <dd className="mt-0.5 text-sm font-semibold tabular-nums text-rose-800 dark:text-rose-200">
-                        {getRatingOptions('FIVE_POINT', 'No', undefined, fivePointYesMinRating, true).join(', ')}
+                        {getRatingOptions(ratingSystem, 'No', tenPointYesMinRating, fivePointYesMinRating, true, effectiveYesMinRating).join(', ')}
                       </dd>
                     </div>
                   </div>
                 </div>
               )}
 
+              {/* Rating scale preview when Yes/No is disabled */}
               {!includeYesNo && (
                 <div className="mt-5 rounded-xl border border-slate-200/60 bg-white px-4 py-4 shadow-sm dark:border-slate-700/50 dark:bg-slate-900/20">
                   <p className="text-sm font-bold text-slate-900 dark:text-white">Rating scale preview</p>
                   <p className="mt-1 text-xs text-slate-500 dark:text-slate-400">
-                    Employees select one score from the full {ratingSystem === 'TEN_POINT' ? '1–10' : '1–5'} scale. Yes/No is not used.
+                    Employees select one score from the full 1–{getRatingSystemMax(ratingSystem)} scale. Yes/No is not used.
                   </p>
                   <div className="mt-4 rounded-lg border border-slate-200/60 bg-slate-50/80 px-3 py-2 dark:border-slate-700/40 dark:bg-slate-800/40">
                     <dt className="text-[11px] font-bold uppercase tracking-wider text-slate-500 dark:text-slate-400">
                       Available scores
                     </dt>
                     <dd className="mt-0.5 text-sm font-semibold tabular-nums text-slate-800 dark:text-slate-200">
-                      {getRatingOptions(ratingSystem, null, tenPointYesMinRating, fivePointYesMinRating, false).join(', ')}
+                      {getRatingOptions(ratingSystem, null, tenPointYesMinRating, fivePointYesMinRating, false, effectiveYesMinRating).join(', ')}
                     </dd>
-                  </div>
-                </div>
-              )}
-
-              {ratingSystem === 'TEN_POINT' && includeYesNo && (
-                <div className="mt-5 rounded-xl border border-slate-200/60 bg-white px-4 py-4 shadow-sm dark:border-slate-700/50 dark:bg-slate-900/20">
-                  <div className="flex flex-col gap-4 md:flex-row md:items-start md:justify-between">
-                    <div>
-                      <label
-                        htmlFor="tenPointYesMinRating"
-                        className="text-sm font-bold text-slate-900 dark:text-white"
-                      >
-                        Detailed Scale Yes Threshold
-                      </label>
-                      <p className="mt-1 max-w-xl text-xs leading-relaxed text-slate-500 dark:text-slate-400">
-                        Choose the lowest 1-10 rating that counts as Yes. Ratings below it count as No.
-                      </p>
-                    </div>
-                    <select
-                      id="tenPointYesMinRating"
-                      value={tenPointYesMinRating}
-                      onChange={(event) => setTenPointYesMinRating(Number(event.target.value))}
-                      disabled={!isRatingScaleEditable || isSaving}
-                      className="w-full rounded-xl border border-slate-200 bg-white px-3.5 py-2.5 text-sm font-semibold text-slate-800 shadow-sm transition focus:border-[#2463eb] focus:outline-none focus:ring-2 focus:ring-[#2463eb]/20 disabled:cursor-not-allowed disabled:opacity-60 md:w-52 dark:border-slate-600 dark:bg-slate-800 dark:text-slate-100"
-                    >
-                      {tenPointYesMinRatingOptions.map((rating) => (
-                        <option key={rating} value={rating}>
-                          {rating} and above
-                        </option>
-                      ))}
-                    </select>
-                  </div>
-                  <div className="mt-4 grid gap-2 sm:grid-cols-2">
-                    <div className="rounded-lg border border-emerald-200/60 bg-emerald-50/80 px-3 py-2 dark:border-emerald-800/40 dark:bg-emerald-950/20">
-                      <dt className="text-[11px] font-bold uppercase tracking-wider text-emerald-600 dark:text-emerald-400">
-                        Yes scores
-                      </dt>
-                      <dd className="mt-0.5 text-sm font-semibold tabular-nums text-emerald-800 dark:text-emerald-200">
-                        {getRatingOptions('TEN_POINT', 'Yes', tenPointYesMinRating, undefined, true).join(', ')}
-                      </dd>
-                    </div>
-                    <div className="rounded-lg border border-rose-200/60 bg-rose-50/80 px-3 py-2 dark:border-rose-800/40 dark:bg-rose-950/20">
-                      <dt className="text-[11px] font-bold uppercase tracking-wider text-rose-600 dark:text-rose-400">
-                        No scores
-                      </dt>
-                      <dd className="mt-0.5 text-sm font-semibold tabular-nums text-rose-800 dark:text-rose-200">
-                        {getRatingOptions('TEN_POINT', 'No', tenPointYesMinRating, undefined, true).join(', ')}
-                      </dd>
-                    </div>
                   </div>
                 </div>
               )}
@@ -652,6 +507,7 @@ export const SelfAssessmentSettingsPage: React.FC = () => {
                         setRatingSystem(data.ratingSystem),
                         setTenPointYesMinRating(data.tenPointYesMinRating ?? 5),
                         setFivePointYesMinRating(data.fivePointYesMinRating ?? 3),
+                        setYesMinRating(data.yesMinRating ?? null),
                         setIncludeYesNo(data.includeYesNo ?? true)
                       )
                     }

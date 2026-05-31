@@ -29,6 +29,7 @@ public class AppraisalAssignmentService {
     private final UserRepository userRepository;
     private final NotificationService notificationService;
     private final SignatureStorageService signatureStorageService;
+    private final ScoreFormulaService scoreFormulaService;
     @Autowired(required = false)
     private ScoreExplanationResolver scoreExplanationResolver;
 
@@ -420,7 +421,23 @@ public class AppraisalAssignmentService {
                 ? assignment.getTemplate().getMaxRating()
                 : 5.0;
 
-        assignment.setTotalScore((sum / (assignment.getAnswers().size() * maxRating)) * 100);
+        double score;
+        if (scoreFormulaService != null) {
+            try {
+                score = scoreFormulaService.evaluateFormula(
+                        scoreFormulaService.getActiveDefaultFormula(com.epms.backend.entity.ScoreFormulaArea.APPRAISAL).definition(),
+                        java.util.Map.of(
+                                "SUM_RATINGS", sum,
+                                "NUM_QUESTIONS", (double) assignment.getAnswers().size(),
+                                "MAX_RATING", maxRating));
+            } catch (Exception e) {
+                score = (sum / (assignment.getAnswers().size() * maxRating)) * 100;
+            }
+        } else {
+            score = (sum / (assignment.getAnswers().size() * maxRating)) * 100;
+        }
+
+        assignment.setTotalScore(score);
 
         assignment.setRatingCategory(resolveRatingCategory(assignment.getTotalScore()));
     }

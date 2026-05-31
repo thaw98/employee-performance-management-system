@@ -3,6 +3,7 @@ package com.epms.backend.dto.selfassessmentform;
 import java.time.Instant;
 import java.time.LocalDate;
 import java.util.List;
+import com.epms.backend.dto.score.ScoreExplanationDto;
 
 public record SelfAssessmentFormDto(
         Long id,
@@ -15,6 +16,7 @@ public record SelfAssessmentFormDto(
         String ratingSystem,
         Integer tenPointYesMinRating,
         Integer fivePointYesMinRating,
+        Integer yesMinRating,
         boolean includeYesNo,
         LocalDate startDate,
         LocalDate deadlineDate,
@@ -72,5 +74,6 @@ public record SelfAssessmentFormDto(
         Instant hrReviewReasonAt,
         String hrName,
         List<SelfAssessmentSubmissionAttemptDto> submissionAttempts,
-        SelfAssessmentUnlockRequestDto pendingUnlockRequest
+        SelfAssessmentUnlockRequestDto pendingUnlockRequest,
+        List<ScoreExplanationDto> scoreBandSnapshot
 ) {}

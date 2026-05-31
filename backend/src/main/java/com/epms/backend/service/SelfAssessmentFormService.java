@@ -4,12 +4,15 @@ import com.epms.backend.StaffTypes;
 import com.epms.backend.audit.AuditActionType;
 import com.epms.backend.audit.AuditTargetType;
 import com.epms.backend.dto.selfassessmentform.*;
+import com.epms.backend.dto.score.ScoreExplanationDto;
 import com.epms.backend.entity.*;
 import com.epms.backend.repository.*;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import com.fasterxml.jackson.core.JsonProcessingException;
+import com.fasterxml.jackson.databind.ObjectMapper;
 import java.time.Instant;
 import java.time.LocalDate;
 import java.time.ZoneId;
@@ -19,6 +22,7 @@ import java.util.Comparator;
 import java.util.EnumSet;
 import java.util.HashMap;
 import java.util.HashSet;
+import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
@@ -69,8 +73,12 @@ public class SelfAssessmentFormService {
 	    private final ReportingManagerResolver reportingManagerResolver;
 	    private final SelfAssessmentUnlockRequestRepository unlockRequestRepository;
 	    private final SelfAssessmentArchiveSnapshotRepository archiveSnapshotRepository;
+    private final ScoreExplanationRepository scoreExplanationRepository;
+    private static final ObjectMapper SNAPSHOT_MAPPER = new ObjectMapper();
 	    @Autowired(required = false)
 	    private ScoreExplanationResolver scoreExplanationResolver;
+	    @Autowired(required = false)
+	    private ScoreFormulaService scoreFormulaService;
 
     public SelfAssessmentFormService(
             SelfAssessmentFormTemplateRepository templateRepository,
@@ -90,7 +98,8 @@ public class SelfAssessmentFormService {
 	            SelfAssessmentSettingsRepository settingsRepository,
 	            ReportingManagerResolver reportingManagerResolver,
 	            SelfAssessmentUnlockRequestRepository unlockRequestRepository,
-	            SelfAssessmentArchiveSnapshotRepository archiveSnapshotRepository) {
+	            SelfAssessmentArchiveSnapshotRepository archiveSnapshotRepository,
+	            ScoreExplanationRepository scoreExplanationRepository) {
         this.templateRepository = templateRepository;
         this.copiedTemplateRepository = copiedTemplateRepository;
         this.formRepository = formRepository;
@@ -109,6 +118,7 @@ public class SelfAssessmentFormService {
 	        this.reportingManagerResolver = reportingManagerResolver;
 	        this.unlockRequestRepository = unlockRequestRepository;
 	        this.archiveSnapshotRepository = archiveSnapshotRepository;
+        this.scoreExplanationRepository = scoreExplanationRepository;
 	    }
 
     @Transactional
@@ -147,9 +157,11 @@ public class SelfAssessmentFormService {
         template.setReviewCycle(cycle);
         template.setManualStartDate(manualStartDate);
         template.setManualEndDate(manualEndDate);
-        template.setRatingSystem(resolveTemplateRatingSystem(request.ratingSystem()));
+        SelfAssessmentRatingSystem resolvedSystem = resolveTemplateRatingSystem(request.ratingSystem());
+        template.setRatingSystem(resolvedSystem);
         template.setTenPointYesMinRating(resolveTemplateTenPointYesMinRating(request.tenPointYesMinRating()));
         template.setFivePointYesMinRating(resolveTemplateFivePointYesMinRating(request.fivePointYesMinRating()));
+        template.setYesMinRating(resolveTemplateYesMinRating(resolvedSystem, request.yesMinRating()));
         template.setIncludeYesNo(resolveTemplateIncludeYesNo(request.includeYesNo()));
         template.setActive(true);
         template.setCreatedBy(userId);
@@ -211,9 +223,11 @@ Instant now = Instant.now();
         CopiedSelfAssessmentFormTemplate copied = new CopiedSelfAssessmentFormTemplate();
         copied.setSourceTemplate(source);
         copied.setTitle(source.getTitle());
-        copied.setRatingSystem(SelfAssessmentRatingSystem.defaultIfNull(source.getRatingSystem()));
+        SelfAssessmentRatingSystem copiedRatingSystem = SelfAssessmentRatingSystem.defaultIfNull(source.getRatingSystem());
+        copied.setRatingSystem(copiedRatingSystem);
         copied.setTenPointYesMinRating(resolveSavedTenPointYesMinRating(source.getTenPointYesMinRating()));
         copied.setFivePointYesMinRating(resolveSavedFivePointYesMinRating(source.getFivePointYesMinRating()));
+        copied.setYesMinRating(resolveSavedYesMinRating(copiedRatingSystem, source.getYesMinRating()));
         copied.setIncludeYesNo(source.isIncludeYesNo());
         copied.setCreatedBy(userId);
         copied.setCreatedOn(now);
@@ -301,13 +315,21 @@ Instant now = Instant.now();
         template.setDepartment(department);
         template.setPosition(position);
         if (request.ratingSystem() != null && !request.ratingSystem().trim().isBlank()) {
-            template.setRatingSystem(parseRatingSystem(request.ratingSystem()));
+            SelfAssessmentRatingSystem newSystem = parseRatingSystem(request.ratingSystem());
+            template.setRatingSystem(newSystem);
+            if (request.yesMinRating() != null) {
+                template.setYesMinRating(SelfAssessmentRatingSystem.normalizeYesMinRating(newSystem, request.yesMinRating()));
+            }
         }
         if (request.tenPointYesMinRating() != null) {
             template.setTenPointYesMinRating(parseTenPointYesMinRating(request.tenPointYesMinRating()));
         }
         if (request.fivePointYesMinRating() != null) {
             template.setFivePointYesMinRating(parseFivePointYesMinRating(request.fivePointYesMinRating()));
+        }
+        if (request.yesMinRating() != null && request.ratingSystem() == null) {
+            SelfAssessmentRatingSystem currentSystem = SelfAssessmentRatingSystem.defaultIfNull(template.getRatingSystem());
+            template.setYesMinRating(SelfAssessmentRatingSystem.normalizeYesMinRating(currentSystem, request.yesMinRating()));
         }
         if (request.includeYesNo() != null) {
             template.setIncludeYesNo(request.includeYesNo());
@@ -1058,16 +1080,20 @@ Instant now = Instant.now();
         SelfAssessmentRatingSystem targetRatingSystem = parseRatingSystem(request.ratingSystem());
         int targetTenPointYesMinRating = parseTenPointYesMinRating(request.tenPointYesMinRating());
         int targetFivePointYesMinRating = parseFivePointYesMinRating(request.fivePointYesMinRating());
+        Integer targetYesMinRating = request.yesMinRating() != null
+                ? SelfAssessmentRatingSystem.normalizeYesMinRating(targetRatingSystem, request.yesMinRating())
+                : targetRatingSystem.normalizeYesMinRating(null);
         boolean targetIncludeYesNo = request.includeYesNo() != null ? request.includeYesNo() : true;
         SelfAssessmentSettings settings = getOrCreateSettings();
         settings.setRatingSystem(targetRatingSystem);
         settings.setTenPointYesMinRating(targetTenPointYesMinRating);
         settings.setFivePointYesMinRating(targetFivePointYesMinRating);
+        settings.setYesMinRating(targetYesMinRating);
         settings.setIncludeYesNo(targetIncludeYesNo);
         settings.setUpdatedBy(userId);
         settings.setUpdatedOn(Instant.now());
         settingsRepository.save(settings);
-        syncUnassignedTemplatesInActiveCycle(targetRatingSystem, targetTenPointYesMinRating, targetFivePointYesMinRating, targetIncludeYesNo, userId);
+        syncUnassignedTemplatesInActiveCycle(targetRatingSystem, targetTenPointYesMinRating, targetFivePointYesMinRating, targetYesMinRating, targetIncludeYesNo, userId);
         return toSettingsDto(settings);
     }
 
@@ -2363,9 +2389,11 @@ Instant now = Instant.now();
         form.setEmployee(employee);
         form.setTemplate(template);
         form.setCycle(cycle);
-        form.setRatingSystem(SelfAssessmentRatingSystem.defaultIfNull(template.getRatingSystem()));
+        SelfAssessmentRatingSystem formRatingSystem = SelfAssessmentRatingSystem.defaultIfNull(template.getRatingSystem());
+        form.setRatingSystem(formRatingSystem);
         form.setTenPointYesMinRating(resolveSavedTenPointYesMinRating(template.getTenPointYesMinRating()));
         form.setFivePointYesMinRating(resolveSavedFivePointYesMinRating(template.getFivePointYesMinRating()));
+        form.setYesMinRating(resolveSavedYesMinRating(formRatingSystem, template.getYesMinRating()));
         form.setIncludeYesNo(template.isIncludeYesNo());
         form.setStartDate(startDate);
         form.setDeadlineDate(deadlineDate);
@@ -2375,6 +2403,7 @@ Instant now = Instant.now();
         form.setAssignedBy(assignedBy);
         form.setStatus(SelfAssessmentFormStatus.DRAFT);
         form.setCreatedDate(assignedAt);
+        form.setScoreBandSnapshot(buildScoreBandSnapshot());
 
         List<SelfAssessmentFormTemplateQuestion> activeQuestions = template.getQuestions().stream()
                 .filter(q -> q.getDeletedAt() == null)
@@ -2387,6 +2416,26 @@ Instant now = Instant.now();
             form.addAnswer(answer);
         }
         return form;
+    }
+
+    private String buildScoreBandSnapshot() {
+        try {
+            List<ScoreExplanation> rows = scoreExplanationRepository
+                    .findByModuleOrderBySortOrderAsc(ScoreExplanationModule.SELF_ASSESSMENT);
+            List<Map<String, Object>> snapshot = rows.stream().map(row -> {
+                Map<String, Object> entry = new LinkedHashMap<>();
+                entry.put("sortOrder", row.getSortOrder());
+                entry.put("minScore", row.getMinScore());
+                entry.put("maxScore", row.getMaxScore());
+                entry.put("title", row.getTitle());
+                entry.put("details", row.getDetails());
+                entry.put("module", row.getModule().name());
+                return entry;
+            }).collect(Collectors.toList());
+            return SNAPSHOT_MAPPER.writeValueAsString(snapshot);
+        } catch (JsonProcessingException e) {
+            throw new RuntimeException("Failed to serialize score band snapshot", e);
+        }
     }
 
     private enum AssignmentMode {
@@ -2519,6 +2568,13 @@ Instant now = Instant.now();
         return getOrCreateSettings().isIncludeYesNo();
     }
 
+    private Integer resolveTemplateYesMinRating(SelfAssessmentRatingSystem system, Integer requestValue) {
+        if (requestValue != null) {
+            return SelfAssessmentRatingSystem.normalizeYesMinRating(system, requestValue);
+        }
+        return resolveSavedYesMinRating(system, getOrCreateSettings().getYesMinRating());
+    }
+
     private Integer resolveSavedTenPointYesMinRating(Integer value) {
         return SelfAssessmentRatingSystem.normalizeTenPointYesMinRating(value);
     }
@@ -2527,7 +2583,17 @@ Instant now = Instant.now();
         return SelfAssessmentRatingSystem.normalizeFivePointYesMinRating(value);
     }
 
+    private Integer resolveSavedYesMinRating(SelfAssessmentRatingSystem system, Integer value) {
+        if (value != null) {
+            return system.normalizeYesMinRating(value);
+        }
+        return null;
+    }
+
     private int resolveYesMinRating(SelfAssessmentRatingSystem ratingSystem, SelfAssessmentForm form) {
+        if (form.getYesMinRating() != null) {
+            return ratingSystem.normalizeYesMinRating(form.getYesMinRating());
+        }
         return ratingSystem == SelfAssessmentRatingSystem.FIVE_POINT
                 ? resolveSavedFivePointYesMinRating(form.getFivePointYesMinRating())
                 : resolveSavedTenPointYesMinRating(form.getTenPointYesMinRating());
@@ -2548,10 +2614,12 @@ Instant now = Instant.now();
 
     private SelfAssessmentSettingsDto toSettingsDto(SelfAssessmentSettings settings) {
         boolean editable = !isRatingSystemLocked();
+        SelfAssessmentRatingSystem system = SelfAssessmentRatingSystem.defaultIfNull(settings.getRatingSystem());
         return new SelfAssessmentSettingsDto(
-                SelfAssessmentRatingSystem.defaultIfNull(settings.getRatingSystem()).name(),
+                system.name(),
                 resolveSavedTenPointYesMinRating(settings.getTenPointYesMinRating()),
                 resolveSavedFivePointYesMinRating(settings.getFivePointYesMinRating()),
+                resolveSavedYesMinRating(system, settings.getYesMinRating()),
                 settings.isIncludeYesNo(),
                 editable,
                 editable ? null : getRatingSystemLockReason());
@@ -2569,6 +2637,7 @@ Instant now = Instant.now();
             SelfAssessmentRatingSystem ratingSystem,
             Integer tenPointYesMinRating,
             Integer fivePointYesMinRating,
+            Integer yesMinRating,
             boolean includeYesNo,
             Long userId) {
         ReviewCycle activeCycle = reviewCycleService.getActiveSubmissionCycle();
@@ -2581,6 +2650,7 @@ Instant now = Instant.now();
             return;
         }
 
+        Integer targetYesMinRating = resolveSavedYesMinRating(ratingSystem, yesMinRating);
         Instant now = Instant.now();
         boolean changed = false;
         for (SelfAssessmentFormTemplate template : templates) {
@@ -2592,14 +2662,17 @@ Instant now = Instant.now();
             int targetTenPointYesMinRating = resolveSavedTenPointYesMinRating(tenPointYesMinRating);
             int currentFivePointYesMinRating = resolveSavedFivePointYesMinRating(template.getFivePointYesMinRating());
             int targetFivePointYesMinRating = resolveSavedFivePointYesMinRating(fivePointYesMinRating);
+            Integer currentYesMinRating = template.getYesMinRating();
             boolean currentIncludeYesNo = template.isIncludeYesNo();
             if (current != ratingSystem
                     || currentTenPointYesMinRating != targetTenPointYesMinRating
                     || currentFivePointYesMinRating != targetFivePointYesMinRating
+                    || (targetYesMinRating != null && !targetYesMinRating.equals(currentYesMinRating))
                     || currentIncludeYesNo != includeYesNo) {
                 template.setRatingSystem(ratingSystem);
                 template.setTenPointYesMinRating(targetTenPointYesMinRating);
                 template.setFivePointYesMinRating(targetFivePointYesMinRating);
+                template.setYesMinRating(targetYesMinRating);
                 template.setIncludeYesNo(includeYesNo);
                 template.setUpdatedBy(userId);
                 template.setUpdatedOn(now);
@@ -2753,7 +2826,16 @@ Instant now = Instant.now();
                 .sum();
         int numQuestions = form.getAnswers().size();
         int maxRating = SelfAssessmentRatingSystem.defaultIfNull(form.getRatingSystem()).getMaxRating();
-        double score = numQuestions > 0 ? ((double) totalPoints / (numQuestions * maxRating)) * 100 : 0.0;
+
+        double score;
+        if (numQuestions > 0) {
+            score = evaluateFormula(Map.of(
+                    "SUM_RATINGS", (double) totalPoints,
+                    "NUM_QUESTIONS", (double) numQuestions,
+                    "MAX_RATING", (double) maxRating));
+        } else {
+            score = 0.0;
+        }
 
         form.setTotalScore(score);
         form.setRatingCategory(getRatingCategory(score));
@@ -2955,7 +3037,11 @@ Instant now = Instant.now();
                     return a.getRating() != null ? a.getRating() : 0;
                 })
                 .sum();
-        form.setManagerRevisedTotalScore(((double) totalPoints / (numQuestions * maxRating)) * 100);
+        double score = evaluateFormula(Map.of(
+                "SUM_RATINGS", (double) totalPoints,
+                "NUM_QUESTIONS", (double) numQuestions,
+                "MAX_RATING", (double) maxRating));
+        form.setManagerRevisedTotalScore(score);
     }
 
     private void calculateFinalApprovedScore(SelfAssessmentForm form) {
@@ -2972,7 +3058,11 @@ Instant now = Instant.now();
                     return a.getRating() != null ? a.getRating() : 0;
                 })
                 .sum();
-        form.setFinalApprovedTotalScore(((double) totalPoints / (numQuestions * maxRating)) * 100);
+        double score = evaluateFormula(Map.of(
+                "SUM_RATINGS", (double) totalPoints,
+                "NUM_QUESTIONS", (double) numQuestions,
+                "MAX_RATING", (double) maxRating));
+        form.setFinalApprovedTotalScore(score);
     }
 
     private void sendManagerReviewNotificationsNew(
@@ -3301,13 +3391,15 @@ Instant now = Instant.now();
             positionName = positionRepository.findById(positionId).map(Position::getName).orElse(null);
         }
 
+        SelfAssessmentRatingSystem copiedSystem = SelfAssessmentRatingSystem.defaultIfNull(copied.getRatingSystem());
         return new CopiedSelfAssessmentFormTemplateDto(
                 copied.getId(),
                 source != null ? source.getId() : null,
                 copied.getTitle(),
-                SelfAssessmentRatingSystem.defaultIfNull(copied.getRatingSystem()).name(),
+                copiedSystem.name(),
                 resolveSavedTenPointYesMinRating(copied.getTenPointYesMinRating()),
                 resolveSavedFivePointYesMinRating(copied.getFivePointYesMinRating()),
+                resolveSavedYesMinRating(copiedSystem, copied.getYesMinRating()),
                 copied.isIncludeYesNo(),
                 departmentId,
                 positionId,
@@ -3354,6 +3446,7 @@ Instant now = Instant.now();
                 SelfAssessmentRatingSystem.defaultIfNull(template.getRatingSystem()).name(),
                 resolveSavedTenPointYesMinRating(template.getTenPointYesMinRating()),
                 resolveSavedFivePointYesMinRating(template.getFivePointYesMinRating()),
+                resolveSavedYesMinRating(SelfAssessmentRatingSystem.defaultIfNull(template.getRatingSystem()), template.getYesMinRating()),
                 template.isIncludeYesNo(),
                 formRepository.existsByTemplate(template),
                 formRepository.existsByTemplate(template),
@@ -3724,8 +3817,10 @@ Instant now = Instant.now();
         Signature hrAdjustmentSignature = resolveSignature(form.getHrAdjustmentSignatureId());
         String hrName = resolveHrName(form, hrFinalSignature, hrSignature, hrAdjustmentSignature);
 
+        SelfAssessmentRatingSystem formSystem = SelfAssessmentRatingSystem.defaultIfNull(form.getRatingSystem());
         Integer tenPointYesMinRating = resolveSavedTenPointYesMinRating(form.getTenPointYesMinRating());
         Integer fivePointYesMinRating = resolveSavedFivePointYesMinRating(form.getFivePointYesMinRating());
+        Integer yesMinRating = resolveSavedYesMinRating(formSystem, form.getYesMinRating());
         LocalDate startDate = form.getStartDate();
         LocalDate deadlineDate = form.getDeadlineDate();
         LocalDate managerReviewDeadlineDate = form.getManagerReviewDeadlineDate();
@@ -3742,6 +3837,7 @@ Instant now = Instant.now();
                 SelfAssessmentRatingSystem.defaultIfNull(form.getRatingSystem()).name(),
                 tenPointYesMinRating,
                 fivePointYesMinRating,
+                yesMinRating,
                 form.isIncludeYesNo(),
                 startDate,
                 deadlineDate,
@@ -3799,8 +3895,36 @@ Instant now = Instant.now();
                 form.getHrReviewReasonAt(),
                 hrName,
                 buildSubmissionAttempts(form),
-                pendingUnlockRequestDto(form)
+                pendingUnlockRequestDto(form),
+                parseScoreBandSnapshot(form.getScoreBandSnapshot())
         );
+    }
+
+    private List<ScoreExplanationDto> parseScoreBandSnapshot(String json) {
+        if (json == null || json.isBlank()) {
+            return null;
+        }
+        try {
+            List<Map<String, Object>> rows = SNAPSHOT_MAPPER.readValue(json,
+                    SNAPSHOT_MAPPER.getTypeFactory().constructCollectionType(List.class, Map.class));
+            return rows.stream()
+                    .map(row -> new ScoreExplanationDto(
+                            null,
+                            (String) row.get("module"),
+                            (Integer) row.get("sortOrder"),
+                            (Integer) row.get("minScore"),
+                            (Integer) row.get("maxScore"),
+                            (String) row.get("title"),
+                            (String) row.get("details"),
+                            null,
+                            null,
+                            null,
+                            null
+                    ))
+                    .collect(Collectors.toList());
+        } catch (JsonProcessingException e) {
+            throw new RuntimeException("Failed to parse score band snapshot", e);
+        }
     }
 
     private SelfAssessmentUnlockRequestDto pendingUnlockRequestDto(SelfAssessmentForm form) {
@@ -4124,5 +4248,22 @@ Instant now = Instant.now();
                 .map(SelfAssessmentFormAnswer::getRating)
                 .findFirst()
                 .orElse(null);
+    }
+
+    private double evaluateFormula(Map<String, Double> inputs) {
+        if (scoreFormulaService != null) {
+            try {
+                return scoreFormulaService.evaluateFormula(
+                        scoreFormulaService.getActiveDefaultFormula(com.epms.backend.entity.ScoreFormulaArea.SELF_ASSESSMENT).definition(),
+                        inputs);
+            } catch (Exception e) {
+                // fallback to hardcoded formula
+            }
+        }
+        double sum = inputs.getOrDefault("SUM_RATINGS", 0.0);
+        double count = inputs.getOrDefault("NUM_QUESTIONS", 1.0);
+        double max = inputs.getOrDefault("MAX_RATING", 5.0);
+        if (count == 0 || max == 0) return 0.0;
+        return (sum / (count * max)) * 100;
     }
 }

@@ -1,6 +1,6 @@
 import { baseApi } from '../../../app/baseApi'
 
-export type SelfAssessmentRatingSystem = 'FIVE_POINT' | 'TEN_POINT'
+export type SelfAssessmentRatingSystem = 'TWO_POINT' | 'THREE_POINT' | 'FOUR_POINT' | 'FIVE_POINT' | 'SIX_POINT' | 'SEVEN_POINT' | 'TEN_POINT'
 
 export interface QuestionDto {
   id: number
@@ -33,6 +33,7 @@ export interface SelfAssessmentFormTemplateDto {
   ratingSystem: SelfAssessmentRatingSystem
   tenPointYesMinRating: number
   fivePointYesMinRating: number
+  yesMinRating: number | null
   includeYesNo: boolean
   isLocked: boolean
   isAssignedToDeadline: boolean
@@ -80,6 +81,7 @@ export interface CreateTemplateRequest {
   ratingSystem?: SelfAssessmentRatingSystem
   tenPointYesMinRating?: number | null
   fivePointYesMinRating?: number | null
+  yesMinRating?: number | null
   includeYesNo?: boolean | null
 }
 
@@ -90,6 +92,7 @@ export interface CopiedSelfAssessmentFormTemplateDto {
   ratingSystem: SelfAssessmentRatingSystem
   tenPointYesMinRating: number
   fivePointYesMinRating: number
+  yesMinRating: number | null
   includeYesNo: boolean
   departmentId: number
   positionId: number
@@ -131,6 +134,7 @@ export interface UpdateTemplateRequest {
   ratingSystem?: SelfAssessmentRatingSystem
   tenPointYesMinRating?: number | null
   fivePointYesMinRating?: number | null
+  yesMinRating?: number | null
   includeYesNo?: boolean | null
 }
 
@@ -206,6 +210,15 @@ export interface AdjustmentDto {
   adjustedBy: number
 }
 
+export interface ScoreExplanationSnapshot {
+  sortOrder: number
+  minScore: number
+  maxScore: number
+  title: string
+  details: string
+  module: string
+}
+
 export interface SelfAssessmentFormDto {
   id: number
   templateId: number
@@ -217,6 +230,7 @@ export interface SelfAssessmentFormDto {
   ratingSystem: SelfAssessmentRatingSystem
   tenPointYesMinRating: number
   fivePointYesMinRating: number
+  yesMinRating: number | null
   includeYesNo: boolean
   startDate: string | null
   deadlineDate: string | null
@@ -239,7 +253,6 @@ export interface SelfAssessmentFormDto {
   managerSignatureData: string | null
   managerSignatureType: string | null
   managerSignatureDate: string | null
-  managerComments: string | null
   hrSignatureId: number | null
   hrSignatureData: string | null
   hrSignatureType: string | null
@@ -276,6 +289,7 @@ export interface SelfAssessmentFormDto {
   hrName: string | null
   submissionAttempts: SelfAssessmentSubmissionAttemptDto[]
   pendingUnlockRequest?: SelfAssessmentUnlockRequestDto | null
+  scoreBandSnapshot?: ScoreExplanationSnapshot[] | null
 }
 
 export interface FormListDto {
@@ -399,6 +413,7 @@ export interface SelfAssessmentSettingsDto {
   ratingSystem: SelfAssessmentRatingSystem
   tenPointYesMinRating: number
   fivePointYesMinRating: number
+  yesMinRating: number | null
   includeYesNo: boolean
   ratingSystemEditable: boolean
   ratingSystemLockReason: string | null
@@ -408,6 +423,7 @@ export interface SelfAssessmentSettingsRequest {
   ratingSystem: SelfAssessmentRatingSystem
   tenPointYesMinRating?: number | null
   fivePointYesMinRating?: number | null
+  yesMinRating?: number | null
   includeYesNo?: boolean | null
 }
 
@@ -686,7 +702,10 @@ const parsePositiveId = (value: unknown): number | undefined => {
 }
 
 const normalizeRatingSystem = (value: unknown): SelfAssessmentRatingSystem => {
-  return value === 'TEN_POINT' ? 'TEN_POINT' : 'FIVE_POINT'
+  if (value === 'TWO_POINT' || value === 'THREE_POINT' || value === 'FOUR_POINT' || value === 'SIX_POINT' || value === 'SEVEN_POINT' || value === 'TEN_POINT') {
+    return value as SelfAssessmentRatingSystem
+  }
+  return 'FIVE_POINT'
 }
 
 const normalizeTenPointYesMinRating = (value: unknown): number => {
@@ -699,6 +718,26 @@ const normalizeFivePointYesMinRating = (value: unknown): number => {
   const numericValue = Number(value ?? 3)
   if (!Number.isFinite(numericValue)) return 3
   return Math.min(5, Math.max(2, Math.trunc(numericValue)))
+}
+
+const normalizeYesMinRating = (ratingSystem: SelfAssessmentRatingSystem, value: unknown): number | null => {
+  if (value == null) return null
+  const numericValue = Number(value)
+  if (!Number.isFinite(numericValue)) return null
+  const max = getRatingSystemMax(ratingSystem)
+  return Math.min(max, Math.max(2, Math.trunc(numericValue)))
+}
+
+const getRatingSystemMax = (system: SelfAssessmentRatingSystem): number => {
+  switch (system) {
+    case 'TWO_POINT': return 2
+    case 'THREE_POINT': return 3
+    case 'FOUR_POINT': return 4
+    case 'FIVE_POINT': return 5
+    case 'SIX_POINT': return 6
+    case 'SEVEN_POINT': return 7
+    case 'TEN_POINT': return 10
+  }
 }
 
 const getResponseData = (response: unknown) => {
@@ -810,6 +849,15 @@ const normalizeUnlockRequest = (request: unknown): SelfAssessmentUnlockRequestDt
   }
 }
 
+const normalizeScoreExplanationSnapshot = (source: UnknownRecord): ScoreExplanationSnapshot => ({
+  sortOrder: getNumber(source.sortOrder),
+  minScore: getNumber(source.minScore),
+  maxScore: getNumber(source.maxScore),
+  title: getString(source.title),
+  details: getString(source.details),
+  module: getString(source.module),
+})
+
 const normalizeAdjustment = (source: UnknownRecord): AdjustmentDto => {
   return {
     id: getNumber(source.id),
@@ -841,6 +889,7 @@ const normalizeForm = (form: unknown): SelfAssessmentFormDto => {
     ratingSystem: normalizeRatingSystem(source.ratingSystem),
     tenPointYesMinRating: normalizeTenPointYesMinRating(source.tenPointYesMinRating),
     fivePointYesMinRating: normalizeFivePointYesMinRating(source.fivePointYesMinRating),
+    yesMinRating: normalizeYesMinRating(normalizeRatingSystem(source.ratingSystem), source.yesMinRating),
     includeYesNo: getBoolean(source.includeYesNo, true),
     startDate: getOptionalString(source.startDate) ?? null,
     deadlineDate: getOptionalString(source.deadlineDate) ?? null,
@@ -899,6 +948,9 @@ const normalizeForm = (form: unknown): SelfAssessmentFormDto => {
     hrName: getOptionalString(source.hrName) ?? null,
     submissionAttempts: getArray(source.submissionAttempts).map(a => normalizeSubmissionAttempt(isRecord(a) ? a : {})),
     pendingUnlockRequest: source.pendingUnlockRequest ? normalizeUnlockRequest(source.pendingUnlockRequest) : null,
+    scoreBandSnapshot: source.scoreBandSnapshot != null
+      ? getArray(source.scoreBandSnapshot).map(s => normalizeScoreExplanationSnapshot(isRecord(s) ? s : {}))
+      : null,
   }
 }
 
@@ -1024,6 +1076,7 @@ const normalizeSettings = (settings: unknown): SelfAssessmentSettingsDto => {
     ratingSystem: normalizeRatingSystem(source.ratingSystem),
     tenPointYesMinRating: normalizeTenPointYesMinRating(source.tenPointYesMinRating),
     fivePointYesMinRating: normalizeFivePointYesMinRating(source.fivePointYesMinRating),
+    yesMinRating: normalizeYesMinRating(normalizeRatingSystem(source.ratingSystem), source.yesMinRating),
     includeYesNo: getBoolean(source.includeYesNo, true),
     ratingSystemEditable: getBoolean(source.ratingSystemEditable, true),
     ratingSystemLockReason: getOptionalString(source.ratingSystemLockReason) ?? null,
@@ -1067,6 +1120,7 @@ const normalizeTemplate = (template: unknown): SelfAssessmentFormTemplateDto => 
     ratingSystem: normalizeRatingSystem(source.ratingSystem),
     tenPointYesMinRating: normalizeTenPointYesMinRating(source.tenPointYesMinRating),
     fivePointYesMinRating: normalizeFivePointYesMinRating(source.fivePointYesMinRating),
+    yesMinRating: normalizeYesMinRating(normalizeRatingSystem(source.ratingSystem), source.yesMinRating),
     includeYesNo: getBoolean(source.includeYesNo, true),
     isLocked: getBoolean(source.isLocked),
     isAssignedToDeadline: getBoolean(source.isAssignedToDeadline, getBoolean(source.isLocked)),
@@ -1091,6 +1145,7 @@ const normalizeCopiedTemplate = (template: unknown): CopiedSelfAssessmentFormTem
     ratingSystem: normalizeRatingSystem(source.ratingSystem),
     tenPointYesMinRating: normalizeTenPointYesMinRating(source.tenPointYesMinRating),
     fivePointYesMinRating: normalizeFivePointYesMinRating(source.fivePointYesMinRating),
+    yesMinRating: normalizeYesMinRating(normalizeRatingSystem(source.ratingSystem), source.yesMinRating),
     includeYesNo: getBoolean(source.includeYesNo, true),
     departmentId,
     positionId,

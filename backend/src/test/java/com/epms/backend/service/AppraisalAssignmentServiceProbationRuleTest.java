@@ -39,6 +39,8 @@ class AppraisalAssignmentServiceProbationRuleTest {
     private NotificationService notificationService;
     @Mock
     private SignatureStorageService signatureStorageService;
+    @Mock
+    private ScoreFormulaService scoreFormulaService;
 
     private AppraisalAssignmentService appraisalAssignmentService;
 
@@ -51,7 +53,8 @@ class AppraisalAssignmentServiceProbationRuleTest {
             auditService,
             userRepository,
             notificationService,
-            signatureStorageService
+            signatureStorageService,
+            scoreFormulaService
         );
     }
 

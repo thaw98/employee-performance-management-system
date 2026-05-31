@@ -44,6 +44,9 @@ public class SelfAssessmentForm {
     @Column(name = "five_point_yes_min_rating", nullable = false)
     private Integer fivePointYesMinRating = SelfAssessmentRatingSystem.DEFAULT_FIVE_POINT_YES_MIN_RATING;
 
+    @Column(name = "yes_min_rating")
+    private Integer yesMinRating;
+
     @Column(name = "include_yes_no", nullable = false)
     private boolean includeYesNo = true;
 
@@ -184,6 +187,9 @@ public class SelfAssessmentForm {
     /** Calendar date when the employee submitted the form (set automatically on submit). */
     @Column(name = "assessment_date")
     private LocalDate assessmentDate;
+
+    @Column(name = "score_band_snapshot", columnDefinition = "TEXT")
+    private String scoreBandSnapshot;
 
     @OneToMany(mappedBy = "form", cascade = CascadeType.ALL, orphanRemoval = true)
     private List<SelfAssessmentFormAnswer> answers = new ArrayList<>();

@@ -138,37 +138,39 @@ export function EmployeeCard({
               );
               const positionAllowed = perm?.positionAllowed ?? null;
               const currentOverride = perm?.override ?? null;
-              getEffective(
-                employee.employeeId,
-                action.moduleKey,
-                action.actionKey,
-                positionAllowed,
-                currentOverride
-              );
               const isChanged = changes.some(
                 (c) =>
                   c.employeeId === employee.employeeId &&
                   c.moduleKey === action.moduleKey &&
                   c.actionKey === action.actionKey
               );
+              const change = isChanged
+                ? changes.find(
+                    (c) =>
+                      c.employeeId === employee.employeeId &&
+                      c.moduleKey === action.moduleKey &&
+                      c.actionKey === action.actionKey
+                  )
+                : undefined;
+              const effective = getEffective(
+                employee.employeeId,
+                action.moduleKey,
+                action.actionKey,
+                positionAllowed,
+                currentOverride
+              );
+              const overrideForLabel = change ? change.override : currentOverride;
 
               return (
                 <TriStateToggle
                   key={`${action.moduleKey}:${action.actionKey}`}
                   displayName={action.displayName}
-                  positionAllowed={positionAllowed}
-                  override={isChanged ? undefined : currentOverride}
+                  effective={effective}
+                  override={overrideForLabel}
                   isChanged={isChanged}
                   disabled={disabled}
                   onCycle={() => {
-                    const current = isChanged
-                      ? changes.find(
-                          (c) =>
-                            c.employeeId === employee.employeeId &&
-                            c.moduleKey === action.moduleKey &&
-                            c.actionKey === action.actionKey
-                        )?.override ?? currentOverride
-                      : currentOverride;
+                    const current = change?.override ?? currentOverride;
                     onCycle(employee.employeeId, action.moduleKey, action.actionKey, current);
                   }}
                 />

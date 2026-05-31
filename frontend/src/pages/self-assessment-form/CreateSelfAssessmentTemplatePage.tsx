@@ -55,6 +55,8 @@ import {
 } from '../../features/selfAssessmentForm/api/selfAssessmentFormApi';
 import { getRatingOptions, ratingSystemLabels } from '../../features/selfAssessmentForm/ratingSystem';
 import { useGetReviewCyclesQuery } from '../../features/reviewCycle/api/reviewCycleApi';
+import { useGetScoreExplanationsQuery } from '../../features/scoreExplanation/scoreExplanationApi';
+import { SelfAssessmentScoreBandTable } from '../../features/selfAssessmentForm/components/SelfAssessmentScoreBandTable';
 import { formatCycleDate, SelfAssessmentReviewCycleInfo } from './SelfAssessmentReviewCycleInfo';
 import { AudienceCard, createCountBadge, formatEmployeeCount } from './SelfAssessmentAudienceCard';
 import { SelfAssessmentTemplatePreviewModal } from './SelfAssessmentTemplatePreviewModal';
@@ -680,6 +682,12 @@ export const CreateSelfAssessmentTemplatePage: React.FC = () => {
     isLoading: selfAssessmentSettingsLoading,
     isError: selfAssessmentSettingsError,
   } = useGetSelfAssessmentSettingsQuery();
+
+  const {
+    data: scoreExplanationsByModule,
+    isLoading: scoreBandsLoading,
+    isError: scoreBandsError,
+  } = useGetScoreExplanationsQuery();
   const previewRatingSystem = copiedRatingSystem ?? selfAssessmentSettings?.ratingSystem;
   const previewTenPointYesMinRating =
     copiedTenPointYesMinRating ?? selfAssessmentSettings?.tenPointYesMinRating;
@@ -1305,6 +1313,15 @@ export const CreateSelfAssessmentTemplatePage: React.FC = () => {
                     ) : null}
                   </div>
                 </div>
+              </div>
+
+              <div className="mt-4">
+                <SelfAssessmentScoreBandTable
+                  bands={scoreExplanationsByModule?.SELF_ASSESSMENT ?? null}
+                  loading={scoreBandsLoading}
+                  error={scoreBandsError}
+                  title="Self-Assessment Score Bands"
+                />
               </div>
 
               {/* Title */}
