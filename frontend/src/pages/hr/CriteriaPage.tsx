@@ -18,9 +18,7 @@ import {
     sortableKeyboardCoordinates,
 } from '@dnd-kit/sortable';
 import { CSS } from '@dnd-kit/utilities';
-import { Plus, Pencil, Trash2, X, AlertTriangle, CheckCircle2, GripVertical } from 'lucide-react';
-
-const PRIMARY = '#0855BF';
+import { Plus, Pencil, Trash2, X, AlertTriangle, CheckCircle2, GripVertical, ClipboardList, Search, ToggleLeft, ToggleRight } from 'lucide-react';
 
 interface Criteria {
     id?: number;
@@ -116,6 +114,7 @@ export function CriteriaPage() {
     const [isReordering, setIsReordering] = useState(false);
     const [showModal, setShowModal] = useState(false);
     const [showDeleteConfirm, setShowDeleteConfirm] = useState<number | null>(null);
+    const [searchQuery, setSearchQuery] = useState('');
 
     const sensors = useSensors(
         useSensor(PointerSensor, { activationConstraint: { distance: 8 } }),
@@ -233,21 +232,75 @@ export function CriteriaPage() {
         }
     };
 
+    const filteredCriteriaList = criteriaList.filter(criteria => {
+        const query = searchQuery.trim().toLowerCase();
+        if (!query) return true;
+        return (
+            criteria.name.toLowerCase().includes(query) ||
+            (criteria.description || '').toLowerCase().includes(query)
+        );
+    });
+    const activeCriteriaCount = criteriaList.filter(criteria => criteria.active).length;
+    const inactiveCriteriaCount = criteriaList.length - activeCriteriaCount;
+
     return (
-        <div className="p-8 space-y-8 animate-in fade-in duration-500 max-w-7xl mx-auto">
-            {/* Header section */}
-            <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 bg-white p-8 rounded-3xl border border-slate-100 shadow-sm shadow-slate-200/50">
-                <div>
-                    <h1 className="text-4xl font-black tracking-tight" style={{ color: PRIMARY }}>Feedback Criteria</h1>
-                    <p className="text-slate-500 mt-2 font-medium">Manage the criteria used for 360-degree feedback performance evaluations.</p>
+        <div className="space-y-6 animate-in fade-in duration-500">
+            <div className="overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm">
+                <div className="flex flex-col gap-5 p-6 lg:flex-row lg:items-center lg:justify-between">
+                    <div className="flex items-start gap-4">
+                        <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl bg-blue-50 text-blue-600">
+                            <ClipboardList size={24} strokeWidth={2.5} />
+                        </div>
+                        <div>
+                            <div className="flex flex-wrap items-center gap-2">
+                                <h1 className="text-2xl font-black tracking-tight text-slate-900">Criteria Library</h1>
+                                <span className="rounded-full border border-blue-100 bg-blue-50 px-3 py-1 text-[10px] font-black uppercase tracking-wider text-blue-700">
+                                    {criteriaList.length} total
+                                </span>
+                            </div>
+                            <p className="mt-1 max-w-2xl text-sm font-medium text-slate-500">
+                                Build the feedback criteria HR can reuse when assigning questions and templates.
+                            </p>
+                        </div>
+                    </div>
+                    <button
+                        onClick={handleOpenCreate}
+                        className="inline-flex items-center justify-center gap-2 rounded-xl bg-blue-600 px-5 py-3 text-sm font-black text-white shadow-lg shadow-blue-100 transition-all hover:bg-blue-700 active:scale-95"
+                    >
+                        <Plus size={18} strokeWidth={3} />
+                        <span>Add Criteria</span>
+                    </button>
                 </div>
-                <button
-                    onClick={handleOpenCreate}
-                    className="flex items-center gap-2 px-6 py-4 bg-blue-600 hover:bg-blue-700 text-white rounded-2xl font-black text-sm transition-all shadow-xl shadow-blue-100 active:scale-95 whitespace-nowrap"
-                >
-                    <Plus size={20} strokeWidth={3} />
-                    <span>ADD NEW CRITERIA</span>
-                </button>
+
+                <div className="grid border-t border-slate-100 bg-slate-50/70 sm:grid-cols-3">
+                    <div className="flex items-center gap-3 border-b border-slate-100 p-5 sm:border-b-0 sm:border-r">
+                        <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-white text-blue-600 shadow-sm">
+                            <ClipboardList size={19} />
+                        </div>
+                        <div>
+                            <p className="text-[10px] font-black uppercase tracking-wider text-slate-400">Total Criteria</p>
+                            <p className="text-xl font-black text-slate-900">{criteriaList.length}</p>
+                        </div>
+                    </div>
+                    <div className="flex items-center gap-3 border-b border-slate-100 p-5 sm:border-b-0 sm:border-r">
+                        <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-white text-emerald-600 shadow-sm">
+                            <ToggleRight size={20} />
+                        </div>
+                        <div>
+                            <p className="text-[10px] font-black uppercase tracking-wider text-slate-400">Active</p>
+                            <p className="text-xl font-black text-slate-900">{activeCriteriaCount}</p>
+                        </div>
+                    </div>
+                    <div className="flex items-center gap-3 p-5">
+                        <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-white text-slate-500 shadow-sm">
+                            <ToggleLeft size={20} />
+                        </div>
+                        <div>
+                            <p className="text-[10px] font-black uppercase tracking-wider text-slate-400">Inactive</p>
+                            <p className="text-xl font-black text-slate-900">{inactiveCriteriaCount}</p>
+                        </div>
+                    </div>
+                </div>
             </div>
 
             {isReordering && (
@@ -257,13 +310,22 @@ export function CriteriaPage() {
                 </div>
             )}
 
-            {/* List section */}
-            <div className="bg-white rounded-3xl border border-slate-200 overflow-hidden shadow-sm">
-                <div className="p-6 border-b border-slate-100 bg-slate-50/50 flex items-center justify-between">
-                    <h3 className="text-xs font-black uppercase text-slate-400 tracking-widest pl-2">Configured Criteria ({criteriaList.length})</h3>
-                    <div className="flex items-center gap-2">
-                        <span className="w-3 h-3 rounded-full bg-emerald-500 animate-pulse"></span>
-                        <span className="text-[10px] font-bold text-slate-400 uppercase">Live Preview</span>
+            <div className="overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm">
+                <div className="flex flex-col gap-4 border-b border-slate-100 bg-white p-5 lg:flex-row lg:items-center lg:justify-between">
+                    <div>
+                        <h3 className="text-sm font-black uppercase tracking-wider text-slate-700">Configured Criteria</h3>
+                        <p className="mt-1 text-xs font-medium text-slate-500">
+                            Drag rows to set the order shown in feedback forms.
+                        </p>
+                    </div>
+                    <div className="relative w-full lg:w-80">
+                        <Search className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" size={17} />
+                        <input
+                            className="h-11 w-full rounded-xl border border-slate-200 bg-slate-50 pl-10 pr-4 text-sm font-semibold text-slate-700 outline-none transition-all placeholder:text-slate-400 focus:border-blue-300 focus:bg-white focus:ring-4 focus:ring-blue-50"
+                            placeholder="Search criteria"
+                            value={searchQuery}
+                            onChange={event => setSearchQuery(event.target.value)}
+                        />
                     </div>
                 </div>
                 <div className="overflow-x-auto">
@@ -282,23 +344,25 @@ export function CriteriaPage() {
                                 </tr>
                             </thead>
                             <tbody className="divide-y divide-slate-50">
-                                {criteriaList.length === 0 ? (
+                                {filteredCriteriaList.length === 0 ? (
                                     <tr>
                                         <td colSpan={4} className="p-16 text-center">
-                                            <div className="flex flex-col items-center gap-3 grayscale opacity-30">
-                                                <div className="w-16 h-16 rounded-3xl bg-slate-100 flex items-center justify-center">
+                                            <div className="flex flex-col items-center gap-3">
+                                                <div className="w-16 h-16 rounded-2xl bg-slate-100 flex items-center justify-center">
                                                     <Plus size={32} className="text-slate-400" />
                                                 </div>
-                                                <p className="text-slate-500 font-bold italic">No criteria defined yet.</p>
+                                                <p className="text-slate-500 font-bold">
+                                                    {criteriaList.length === 0 ? 'No criteria defined yet.' : 'No criteria match your search.'}
+                                                </p>
                                             </div>
                                         </td>
                                     </tr>
                                 ) : (
                                     <SortableContext 
-                                        items={criteriaList.map(c => c.id!)} 
+                                        items={filteredCriteriaList.map(c => c.id!)} 
                                         strategy={verticalListSortingStrategy}
                                     >
-                                        {criteriaList.map((criteria, index) => (
+                                        {filteredCriteriaList.map((criteria, index) => (
                                             <SortableCriteriaRow 
                                                 key={criteria.id} 
                                                 criteria={criteria} 

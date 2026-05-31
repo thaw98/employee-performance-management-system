@@ -38,10 +38,10 @@ const normalizeReviewCycles = (response: unknown): ReviewCycleDto[] => {
 
 export const reviewCycleApi = baseApi.injectEndpoints({
   endpoints: (builder) => ({
-    getReviewCycles: builder.query<ReviewCycleDto[], ReviewCycleQueryParams | void>({
-      query: (params) => ({
+    getReviewCycles: builder.query<ReviewCycleDto[], ReviewCycleQueryParams | undefined>({
+      query: (params = {}) => ({
         url: '/review-cycles',
-        params: params ?? undefined,
+        params,
       }),
       transformResponse: normalizeReviewCycles,
     }),
