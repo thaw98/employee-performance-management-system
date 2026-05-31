@@ -125,10 +125,10 @@ const HrLayout: React.FC = () => {
         },
         {
           label: '360 Feedback',
-          path: '/hr/360-feedback/criteria',
+          path: '/hr/360-feedback/management',
           icon: <RefreshCcw size={18} />,
           subItems: [
-            { label: 'Criteria', path: '/hr/360-feedback/criteria', icon: <ListFilter size={16} />, permission: { moduleKey: '360_FEEDBACK', actionKey: 'configure' } },
+            { label: 'Management', path: '/hr/360-feedback/management', icon: <ListFilter size={16} />, permission: { moduleKey: '360_FEEDBACK', actionKey: 'configure' } },
             { label: 'Give Feedback', path: '/hr/360-feedback/give', icon: <Send size={16} />, permission: { moduleKey: '360_FEEDBACK', actionKey: 'give' } },
             { label: 'Receive Feedback', path: '/hr/360-feedback/received', icon: <Inbox size={16} />, permission: { moduleKey: '360_FEEDBACK', actionKey: 'view' } },
             { label: 'Feedback History', path: '/hr/360-feedback/history', icon: <History size={16} />, permission: { moduleKey: '360_FEEDBACK', actionKey: 'review_history' } },
