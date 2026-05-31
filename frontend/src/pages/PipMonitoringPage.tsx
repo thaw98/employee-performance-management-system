@@ -12,6 +12,10 @@ import { useGetDepartmentsQuery, useGetDepartmentPositionsQuery } from '../featu
 import PipUnifiedLog from '../features/pip/components/PipUnifiedLog'
 import { PipCreateForm } from './PipCreatePage'
 import { addPdfFooterBranding, addPdfHeaderBranding, addPdfHeaderLogo, loadPdfLogo } from '../utils/pdfBranding'
+import {
+  Users, Search, Download, Printer, Plus, X, Clock,
+  ChevronLeft, ChevronRight, Filter, RotateCcw,
+} from 'lucide-react'
 
 const STATUS_COLORS: Record<string, string> = {
   ACTIVE: 'bg-blue-100 text-blue-700',
@@ -20,6 +24,15 @@ const STATUS_COLORS: Record<string, string> = {
   COMPLETED: 'bg-emerald-100 text-emerald-700',
   CLOSED: 'bg-slate-100 text-slate-700',
   DENIED: 'bg-red-100 text-red-700',
+}
+
+const STATUS_RAW_COLORS: Record<string, string> = {
+  ACTIVE: 'bg-blue-500',
+  AUTO_CLOSED: 'bg-amber-500',
+  REOPEN_REQUESTED: 'bg-orange-500',
+  COMPLETED: 'bg-emerald-500',
+  CLOSED: 'bg-slate-500',
+  DENIED: 'bg-red-500',
 }
 
 const getStatusDisplayLabel = (status: string, finalOutcome?: string) => {
@@ -211,12 +224,6 @@ const isInvalidDateRange = (startDate: string, endDate: string) => {
   if (!start || !end) return false
   return end < start
 }
-
-const FILTER_LABEL_CLASS =
-  'mb-2 block min-h-[2rem] text-xs font-bold uppercase leading-tight tracking-wider text-slate-500'
-const FILTER_CONTROL_CLASS =
-  'h-11 w-full rounded-lg border border-slate-300 bg-slate-50 px-3 text-sm focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500'
-const FILTER_SELECT_CLASS = `${FILTER_CONTROL_CLASS} disabled:cursor-not-allowed disabled:bg-slate-100 disabled:text-slate-700`
 
 const buildPipExportRows = (bundles: PipExportBundle[]) => ({
   details: [
@@ -642,48 +649,67 @@ export default function PipMonitoringPage() {
     }
   }
 
-  if (isLoading) return <div className="p-8 flex items-center justify-center"><div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600"></div><span className="ml-3">Loading PIPs...</span></div>
+  const activePipsCount = useMemo(() => scopedPips.filter((p) => p.status === 'ACTIVE').length, [scopedPips])
+  const completedPipsCount = useMemo(() => scopedPips.filter((p) => p.status === 'COMPLETED' || (p.status === 'CLOSED' && p.finalOutcome === 'SUCCESSFUL')).length, [scopedPips])
+  const closedPipsCount = useMemo(() => scopedPips.filter((p) => p.status === 'CLOSED' || p.status === 'DENIED' || p.status === 'AUTO_CLOSED').length, [scopedPips])
+  const avgProgress = useMemo(() => {
+    if (scopedPips.length === 0) return 0
+    const total = scopedPips.reduce((sum, p) => sum + Number(p.overallProgressPercentage || 0), 0)
+    return Math.round(total / scopedPips.length)
+  }, [scopedPips])
+
+  if (isLoading) return (
+    <div className="flex min-h-[60vh] items-center justify-center">
+      <div className="flex flex-col items-center gap-4">
+        <div className="h-12 w-12 animate-spin rounded-full border-[3px] border-slate-200 border-t-blue-600" />
+        <p className="text-sm font-bold text-slate-400">Loading PIP records...</p>
+      </div>
+    </div>
+  )
 
   if (isError) {
     const apiError = error as ApiError | undefined
     const errorMessage = apiError?.data?.message || apiError?.error || 'Failed to load PIP records.'
     return (
       <div className="p-8">
-        <div className="rounded-xl border border-red-200 bg-red-50 p-6 text-red-700">
-          <h2 className="text-lg font-bold">Unable to load PIP Monitoring</h2>
-          <p className="mt-2 text-sm">{errorMessage}</p>
+        <div className="rounded-[2rem] border border-red-100 bg-red-50 p-8 text-red-700">
+          <div className="mb-4 flex h-14 w-14 items-center justify-center rounded-2xl bg-red-100 text-red-600">
+            <i className="bi bi-exclamation-triangle text-2xl" />
+          </div>
+          <h2 className="text-xl font-black text-slate-900">Unable to load PIP Monitoring</h2>
+          <p className="mt-2 text-sm font-medium">{errorMessage}</p>
         </div>
       </div>
     )
   }
 
   return (
-    <div className="p-4 sm:p-8 max-w-[1600px] mx-auto">
-      <div className="mb-8 flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
+    <div className="px-6 py-8 md:px-10 max-w-[1600px] mx-auto">
+      {/* Header */}
+      <div className="mb-10 flex flex-col gap-6 md:flex-row md:items-center md:justify-between">
         <div>
-          <h1 className="text-3xl font-extrabold text-slate-900 tracking-tight">PIP Monitoring</h1>
-          <p className="text-slate-500 mt-1">Manage and track performance improvement plans across your scope.</p>
+          <span className="mb-2 block text-[10px] font-black uppercase tracking-[0.2em] text-blue-600">Performance Improvement</span>
+          <h1 className="text-4xl font-black text-slate-900 tracking-tight leading-none">PIP Monitoring</h1>
+          <p className="mt-3 text-sm font-bold text-slate-400">Manage and track performance improvement plans across your scope.</p>
         </div>
-        <div className="flex flex-wrap items-center gap-3 lg:justify-end">
+        <div className="flex flex-wrap items-center gap-3">
           {(canViewAllPips || isManager) && (
             <>
               <button
                 type="button"
                 onClick={handleExportPips}
                 disabled={exportTargetPips.length === 0}
-                className="flex flex-1 items-center justify-center gap-2 rounded-xl bg-slate-900 px-5 py-3 text-sm font-bold text-white shadow-sm transition-all hover:bg-slate-700 disabled:cursor-not-allowed disabled:bg-slate-300 sm:flex-none"
+                className="inline-flex items-center gap-2 rounded-2xl border border-slate-200 bg-white px-6 py-3 text-sm font-black text-slate-700 shadow-sm transition-all hover:bg-slate-50 hover:shadow-md disabled:cursor-not-allowed disabled:opacity-40"
               >
-                <i className="bi bi-download" />
-                Export Excel
+                <i className="bi bi-download" /> Excel
               </button>
               <button
                 type="button"
                 onClick={handlePrintPips}
                 disabled={exportTargetPips.length === 0}
-                className="flex flex-1 items-center justify-center gap-2 rounded-xl border border-slate-200 bg-white px-5 py-3 text-sm font-bold text-slate-700 shadow-sm transition-all hover:bg-slate-50 disabled:cursor-not-allowed disabled:text-slate-300 sm:flex-none"
+                className="inline-flex items-center gap-2 rounded-2xl border border-slate-200 bg-white px-6 py-3 text-sm font-black text-slate-700 shadow-sm transition-all hover:bg-slate-50 hover:shadow-md disabled:cursor-not-allowed disabled:opacity-40"
               >
-                <i className="bi bi-printer" />
-                Export PDF
+                <i className="bi bi-printer" /> PDF
               </button>
             </>
           )}
@@ -691,10 +717,9 @@ export default function PipMonitoringPage() {
             <button
               type="button"
               onClick={() => setIsCreateModalOpen(true)}
-              className="flex flex-1 items-center justify-center gap-2 rounded-xl bg-blue-600 px-6 py-3 text-sm font-bold text-white shadow-lg shadow-blue-200 transition-all hover:bg-blue-700 hover:scale-105 active:scale-95 sm:flex-none"
+              className="inline-flex items-center gap-2 rounded-2xl bg-blue-600 px-7 py-3 text-sm font-black text-white shadow-[0_8px_20px_-4px_rgba(37,99,235,0.4)] transition-all hover:bg-blue-700 hover:shadow-blue-500/40 active:scale-95"
             >
-              <i className="bi bi-plus-lg" />
-              Create PIP
+              <i className="bi bi-plus-lg" /> Create PIP
             </button>
           )}
         </div>
@@ -702,17 +727,16 @@ export default function PipMonitoringPage() {
 
       {isCreateModalOpen && (
         <div className="fixed inset-0 z-50 flex items-start justify-center overflow-y-auto bg-slate-950/50 p-4 pt-8 backdrop-blur-sm sm:pt-12">
-          <div className="w-full max-w-3xl rounded-2xl bg-white p-6 shadow-2xl">
+          <div className="w-full max-w-3xl rounded-[2.5rem] bg-white p-8 shadow-2xl animate-scale-in">
             <div className="mb-6 flex items-start justify-between gap-4">
               <div>
-                <h2 className="text-2xl font-bold text-slate-900">Create New PIP</h2>
-                <p className="mt-1 text-sm text-slate-500">Create a respectful, measurable Performance Improvement Plan.</p>
+                <h2 className="text-2xl font-black text-slate-900 tracking-tight">Create New PIP</h2>
+                <p className="mt-1 text-sm font-bold text-slate-500">Create a respectful, measurable Performance Improvement Plan.</p>
               </div>
               <button
                 type="button"
                 onClick={() => setIsCreateModalOpen(false)}
-                className="rounded-lg p-2 text-slate-400 hover:bg-slate-100 hover:text-slate-700"
-                aria-label="Close create PIP"
+                className="flex h-10 w-10 items-center justify-center rounded-2xl bg-slate-100 text-slate-500 transition-all hover:bg-slate-200 hover:text-slate-900"
               >
                 <i className="bi bi-x-lg" />
               </button>
@@ -730,26 +754,78 @@ export default function PipMonitoringPage() {
       )}
 
       {exportError && (
-        <div className="mb-6 rounded-xl border border-red-200 bg-red-50 p-4 text-sm font-semibold text-red-700">
-          {exportError}
+        <div className="mb-8 rounded-2xl border border-red-100 bg-red-50 p-5 text-sm font-bold text-red-700">
+          <i className="bi bi-exclamation-circle mr-2" />{exportError}
+        </div>
+      )}
+
+      {/* Summary Stats Cards */}
+      {!isEmployee && scopedPips.length > 0 && (
+        <div className="mb-10 grid grid-cols-2 gap-4 sm:grid-cols-4">
+          <div className="group relative overflow-hidden rounded-[2rem] border border-white bg-white p-6 shadow-sm transition-all hover:shadow-xl hover:-translate-y-0.5">
+            <div className="relative z-10">
+              <div className="mb-4 flex h-12 w-12 items-center justify-center rounded-2xl bg-blue-50 text-blue-600">
+                <i className="bi bi-activity text-xl" />
+              </div>
+              <p className="text-3xl font-black text-slate-900 leading-none mb-1">{activePipsCount}</p>
+              <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Active</p>
+            </div>
+            <div className="absolute -right-6 -bottom-6 h-24 w-24 rounded-full bg-blue-50 opacity-50 transition-transform duration-700 group-hover:scale-150" />
+          </div>
+          <div className="group relative overflow-hidden rounded-[2rem] border border-white bg-white p-6 shadow-sm transition-all hover:shadow-xl hover:-translate-y-0.5">
+            <div className="relative z-10">
+              <div className="mb-4 flex h-12 w-12 items-center justify-center rounded-2xl bg-emerald-50 text-emerald-600">
+                <i className="bi bi-check2-circle text-xl" />
+              </div>
+              <p className="text-3xl font-black text-slate-900 leading-none mb-1">{completedPipsCount}</p>
+              <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Completed</p>
+            </div>
+            <div className="absolute -right-6 -bottom-6 h-24 w-24 rounded-full bg-emerald-50 opacity-50 transition-transform duration-700 group-hover:scale-150" />
+          </div>
+          <div className="group relative overflow-hidden rounded-[2rem] border border-white bg-white p-6 shadow-sm transition-all hover:shadow-xl hover:-translate-y-0.5">
+            <div className="relative z-10">
+              <div className="mb-4 flex h-12 w-12 items-center justify-center rounded-2xl bg-slate-50 text-slate-600">
+                <i className="bi bi-archive text-xl" />
+              </div>
+              <p className="text-3xl font-black text-slate-900 leading-none mb-1">{closedPipsCount}</p>
+              <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Closed</p>
+            </div>
+            <div className="absolute -right-6 -bottom-6 h-24 w-24 rounded-full bg-slate-50 opacity-50 transition-transform duration-700 group-hover:scale-150" />
+          </div>
+          <div className="group relative overflow-hidden rounded-[2rem] border border-white bg-white p-6 shadow-sm transition-all hover:shadow-xl hover:-translate-y-0.5">
+            <div className="relative z-10">
+              <div className="mb-4 flex h-12 w-12 items-center justify-center rounded-2xl bg-indigo-50 text-indigo-600">
+                <i className="bi bi-graph-up-arrow text-xl" />
+              </div>
+              <p className="text-3xl font-black text-slate-900 leading-none mb-1">{avgProgress}%</p>
+              <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Avg Progress</p>
+            </div>
+            <div className="absolute -right-6 -bottom-6 h-24 w-24 rounded-full bg-indigo-50 opacity-50 transition-transform duration-700 group-hover:scale-150" />
+          </div>
         </div>
       )}
 
       {/* Advanced Filters */}
-      <div className="mb-8 rounded-2xl border border-slate-200 bg-white p-6 shadow-sm">
-        <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
-          {/* Department Filter - Only for HR or if Manager has multiple (unlikely based on current backend) */}
+      <div className="mb-8 rounded-[2rem] border border-white bg-white p-8 shadow-sm">
+        <div className="mb-6 flex items-center gap-2">
+          <i className="bi bi-funnel text-blue-600 text-lg" />
+          <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Filters</span>
+          {hasActiveFilters && (
+            <span className="ml-auto text-xs font-bold text-blue-600">{exportTargetPips.length} result{exportTargetPips.length !== 1 ? 's' : ''}</span>
+          )}
+        </div>
+        <div className="grid grid-cols-1 gap-5 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
           {(canViewAllPips || isManager) && (
-            <div className="min-w-0">
-              <label className={FILTER_LABEL_CLASS}>Department</label>
+            <div>
+              <label className="mb-2 block text-[10px] font-black uppercase tracking-widest text-slate-400">Department</label>
               <select
                 value={filterDept || ''}
                 onChange={(e) => {
                   setFilterDept(e.target.value ? Number(e.target.value) : undefined)
-                  setFilterPos(undefined) // Reset position when department changes
+                  setFilterPos(undefined)
                 }}
                 disabled={!canViewAllPips}
-                className={FILTER_SELECT_CLASS}
+                className="h-12 w-full rounded-2xl border border-slate-200 bg-white px-4 text-sm font-bold text-slate-700 shadow-sm focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-200 disabled:cursor-not-allowed disabled:bg-slate-50 disabled:text-slate-400"
               >
                 {canViewAllPips ? <option value="">All Departments</option> : <option value="">{managerDepartmentName}</option>}
                 {canViewAllPips && departments.map((d) => (
@@ -761,14 +837,13 @@ export default function PipMonitoringPage() {
             </div>
           )}
 
-          {/* Position Filter */}
           {(canViewAllPips || isManager) && (
-            <div className="min-w-0">
-              <label className={FILTER_LABEL_CLASS}>Position</label>
+            <div>
+              <label className="mb-2 block text-[10px] font-black uppercase tracking-widest text-slate-400">Position</label>
               <select
                 value={filterPos || ''}
                 onChange={(e) => setFilterPos(e.target.value ? Number(e.target.value) : undefined)}
-                className={FILTER_SELECT_CLASS}
+                className="h-12 w-full rounded-2xl border border-slate-200 bg-white px-4 text-sm font-bold text-slate-700 shadow-sm focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-200"
               >
                 <option value="">All Positions</option>
                 {positions.map((p) => (
@@ -780,13 +855,12 @@ export default function PipMonitoringPage() {
             </div>
           )}
 
-          {/* Status Filter */}
-          <div className="min-w-0">
-            <label className={FILTER_LABEL_CLASS}>Status</label>
+          <div>
+            <label className="mb-2 block text-[10px] font-black uppercase tracking-widest text-slate-400">Status</label>
             <select
               value={filterStatus}
               onChange={(e) => setFilterStatus(e.target.value)}
-              className={FILTER_SELECT_CLASS}
+              className="h-12 w-full rounded-2xl border border-slate-200 bg-white px-4 text-sm font-bold text-slate-700 shadow-sm focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-200"
             >
               <option value="">All Statuses</option>
               {Object.keys(STATUS_COLORS).map((s) => (
@@ -795,44 +869,42 @@ export default function PipMonitoringPage() {
             </select>
           </div>
 
-          {/* Employee Name Search */}
           {(canViewAllPips || isManager) && (
-            <div className="min-w-0">
-              <label className={FILTER_LABEL_CLASS}>Employee Name</label>
+            <div>
+              <label className="mb-2 block text-[10px] font-black uppercase tracking-widest text-slate-400">Employee Name</label>
               <div className="relative">
-                <i className="bi bi-search pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" />
+                <i className="bi bi-search pointer-events-none absolute left-4 top-1/2 -translate-y-1/2 text-slate-400" />
                 <input
                   type="text"
-                  placeholder="Search..."
+                  placeholder="Search by name..."
                   value={searchName}
                   onChange={(e) => setSearchName(e.target.value)}
-                  className={`${FILTER_CONTROL_CLASS} pl-9 pr-4`}
+                  className="h-12 w-full rounded-2xl border border-slate-200 bg-white pl-10 pr-4 text-sm font-bold text-slate-700 shadow-sm placeholder:text-slate-300 focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-200"
                 />
               </div>
             </div>
           )}
 
           {(canViewAllPips || isManager) && (
-            <div className="min-w-0">
-              <label className={FILTER_LABEL_CLASS}>Employee</label>
+            <div>
+              <label className="mb-2 block text-[10px] font-black uppercase tracking-widest text-slate-400">Employee</label>
               <select
                 value={selectedEmployeeId || ''}
                 onChange={(e) => setSelectedEmployeeId(e.target.value ? Number(e.target.value) : undefined)}
-                className={FILTER_SELECT_CLASS}
+                className="h-12 w-full rounded-2xl border border-slate-200 bg-white px-4 text-sm font-bold text-slate-700 shadow-sm focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-200"
               >
                 <option value="">All Employees</option>
                 {employeeFilterOptions.map((employee) => (
                   <option key={employee.id} value={employee.id}>
-                    {employee.name} - {employee.staffNo} - {employee.department || 'No Department'}
+                    {employee.name} - {employee.staffNo}
                   </option>
                 ))}
               </select>
             </div>
           )}
 
-          {/* Start Date */}
-          <div className="min-w-0">
-            <label className={FILTER_LABEL_CLASS}>Start Date</label>
+          <div>
+            <label className="mb-2 block text-[10px] font-black uppercase tracking-widest text-slate-400">Start Date</label>
             <div className="relative">
               <input
                 type="text"
@@ -840,9 +912,9 @@ export default function PipMonitoringPage() {
                 onChange={(e) => setStartDate(e.target.value)}
                 placeholder="dd/mm/yyyy"
                 inputMode="numeric"
-                className={`${FILTER_CONTROL_CLASS} pr-11`}
+                className="h-12 w-full rounded-2xl border border-slate-200 bg-white pl-4 pr-12 text-sm font-bold text-slate-700 shadow-sm placeholder:text-slate-300 focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-200"
               />
-              <label className="absolute inset-y-0 right-0 flex w-11 cursor-pointer items-center justify-center text-slate-400 hover:text-blue-600">
+              <label className="absolute inset-y-0 right-0 flex w-12 cursor-pointer items-center justify-center text-slate-400 hover:text-blue-600">
                 <i className="bi bi-calendar3" />
                 <input
                   type="date"
@@ -855,9 +927,8 @@ export default function PipMonitoringPage() {
             </div>
           </div>
 
-          {/* End Date */}
-          <div className="min-w-0">
-            <label className={FILTER_LABEL_CLASS}>End Date</label>
+          <div>
+            <label className="mb-2 block text-[10px] font-black uppercase tracking-widest text-slate-400">End Date</label>
             <div className="relative">
               <input
                 type="text"
@@ -865,9 +936,9 @@ export default function PipMonitoringPage() {
                 onChange={(e) => setEndDate(e.target.value)}
                 placeholder="dd/mm/yyyy"
                 inputMode="numeric"
-                className={`${FILTER_CONTROL_CLASS} pr-11`}
+                className="h-12 w-full rounded-2xl border border-slate-200 bg-white pl-4 pr-12 text-sm font-bold text-slate-700 shadow-sm placeholder:text-slate-300 focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-200"
               />
-              <label className="absolute inset-y-0 right-0 flex w-11 cursor-pointer items-center justify-center text-slate-400 hover:text-blue-600">
+              <label className="absolute inset-y-0 right-0 flex w-12 cursor-pointer items-center justify-center text-slate-400 hover:text-blue-600">
                 <i className="bi bi-calendar3" />
                 <input
                   type="date"
@@ -881,15 +952,15 @@ export default function PipMonitoringPage() {
           </div>
 
           {(canViewAllPips || isManager) && (
-            <div className="min-w-0">
-              <label className={FILTER_LABEL_CLASS}>PIP</label>
+            <div>
+              <label className="mb-2 block text-[10px] font-black uppercase tracking-widest text-slate-400">PIP</label>
               <select
                 value={selectedPipId || ''}
                 onChange={(e) => {
                   const nextPipId = Number.parseInt(e.target.value, 10)
                   setSelectedPipId(Number.isFinite(nextPipId) ? nextPipId : undefined)
                 }}
-                className={FILTER_SELECT_CLASS}
+                className="h-12 w-full rounded-2xl border border-slate-200 bg-white px-4 text-sm font-bold text-slate-700 shadow-sm focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-200"
               >
                 <option value="">All PIPs</option>
                 {scopedPips.map((pip) => (
@@ -903,115 +974,141 @@ export default function PipMonitoringPage() {
         </div>
 
         {invalidDateRange && (
-          <div className="mt-4 rounded-lg border border-red-200 bg-red-50 px-4 py-3 text-sm font-semibold text-red-700">
+          <div className="mt-4 rounded-2xl border border-red-100 bg-red-50 px-5 py-3 text-sm font-bold text-red-700">
             Start date must be on or before end date.
           </div>
         )}
 
-        <div className="mt-4 flex justify-end">
-          <button
-            onClick={() => {
-              setFilterDept(undefined)
-              setFilterPos(undefined)
-              setFilterStatus('')
-              setSearchName('')
-              setSelectedEmployeeId(undefined)
-              setStartDate('')
-              setEndDate('')
-              setSelectedPipId(undefined)
-            }}
-            className="text-sm font-bold text-blue-600 hover:text-blue-800 transition-colors"
-          >
-            Clear Filters
-          </button>
+        <div className="mt-6 flex justify-between items-center">
+          {hasActiveFilters && (
+            <button
+              onClick={() => {
+                setFilterDept(undefined)
+                setFilterPos(undefined)
+                setFilterStatus('')
+                setSearchName('')
+                setSelectedEmployeeId(undefined)
+                setStartDate('')
+                setEndDate('')
+                setSelectedPipId(undefined)
+              }}
+              className="inline-flex items-center gap-2 rounded-2xl border border-slate-200 px-5 py-2.5 text-xs font-black text-slate-500 uppercase tracking-widest transition-all hover:bg-slate-50 hover:text-slate-800"
+            >
+              <i className="bi bi-x-circle" /> Clear All Filters
+            </button>
+          )}
         </div>
       </div>
 
-      <div className="overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-xl shadow-slate-100">
+      {/* Main Table */}
+      <div className="overflow-hidden rounded-[2rem] border border-white bg-white shadow-sm transition-all hover:shadow-xl">
         <div className="overflow-x-auto">
         <table className="min-w-[980px] w-full text-left">
-          <thead className="border-b border-slate-200 bg-slate-50/50">
-            <tr>
-              <th className="px-6 py-4 text-xs font-bold uppercase tracking-wider text-slate-500">Employee</th>
-              <th className="px-6 py-4 text-xs font-bold uppercase tracking-wider text-slate-500">Position</th>
-              {canViewAllPips && <th className="px-6 py-4 text-xs font-bold uppercase tracking-wider text-slate-500">Department</th>}
-              <th className="px-6 py-4 text-xs font-bold uppercase tracking-wider text-slate-500">KPI Score</th>
-              <th className="px-6 py-4 text-xs font-bold uppercase tracking-wider text-slate-500 text-center">Status</th>
-              <th className="px-6 py-4 text-xs font-bold uppercase tracking-wider text-slate-500">Start Date</th>
-              <th className="px-6 py-4 text-xs font-bold uppercase tracking-wider text-slate-500">End Date</th>
-              <th className="px-6 py-4 text-xs font-bold uppercase tracking-wider text-slate-500">Overall Progress</th>
-              <th className="px-6 py-4 text-xs font-bold uppercase tracking-wider text-slate-500 text-right">Actions</th>
+          <thead>
+            <tr className="border-b border-slate-100">
+              <th className="px-8 py-5 text-[10px] font-black uppercase tracking-widest text-slate-400">Employee</th>
+              <th className="px-8 py-5 text-[10px] font-black uppercase tracking-widest text-slate-400">Position</th>
+              {canViewAllPips && <th className="px-8 py-5 text-[10px] font-black uppercase tracking-widest text-slate-400">Department</th>}
+              <th className="px-8 py-5 text-[10px] font-black uppercase tracking-widest text-slate-400">KPI Score</th>
+              <th className="px-8 py-5 text-[10px] font-black uppercase tracking-widest text-slate-400 text-center">Status</th>
+              <th className="px-8 py-5 text-[10px] font-black uppercase tracking-widest text-slate-400">Start Date</th>
+              <th className="px-8 py-5 text-[10px] font-black uppercase tracking-widest text-slate-400">End Date</th>
+              <th className="px-8 py-5 text-[10px] font-black uppercase tracking-widest text-slate-400">Progress</th>
+              <th className="px-8 py-5 text-[10px] font-black uppercase tracking-widest text-slate-400 text-right">Actions</th>
             </tr>
           </thead>
           <tbody className="divide-y divide-slate-100">
             {paginatedPips.map((pip) => {
               const emp: EmployeeDisplay | undefined = pip.employee.employee
               return (
-                <tr key={pip.id} className="group hover:bg-slate-50 transition-all duration-200">
-                  <td className="px-6 py-5">
-                    <div className="flex flex-col">
-                      <span className="font-bold text-slate-900 group-hover:text-blue-600 transition-colors">{emp?.employeeName || 'N/A'}</span>
-                      <span className="text-xs text-slate-400">Staff ID: {getPipStaffNo(pip)}</span>
+                <tr key={pip.id} className="group transition-all duration-200 hover:bg-slate-50/80">
+                  <td className="px-8 py-5">
+                    <div className="flex items-center gap-3">
+                      <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-blue-50 text-xs font-black text-blue-600">
+                        {emp?.employeeName ? emp.employeeName.charAt(0).toUpperCase() : '?'}
+                      </div>
+                      <div className="flex flex-col">
+                        <span className="text-sm font-black text-slate-900 group-hover:text-blue-600 transition-colors">{emp?.employeeName || 'N/A'}</span>
+                        <span className="text-[10px] font-bold text-slate-400">Staff ID: {getPipStaffNo(pip)}</span>
+                      </div>
                     </div>
                   </td>
-                  <td className="px-6 py-5">
-                    <span className="text-sm text-slate-600 font-medium">{getPositionName(emp)}</span>
+                  <td className="px-8 py-5">
+                    <span className="text-sm font-bold text-slate-600">{getPositionName(emp)}</span>
                   </td>
                   {canViewAllPips && (
-                    <td className="px-6 py-5 text-sm text-slate-600">
-                      {getDepartmentName(emp)}
+                    <td className="px-8 py-5">
+                      <span className="inline-flex items-center gap-1.5 rounded-xl bg-slate-50 px-3 py-1.5 text-xs font-bold text-slate-600">
+                        <i className="bi bi-building text-slate-400" /> {getDepartmentName(emp)}
+                      </span>
                     </td>
                   )}
-                  <td className="px-6 py-5 text-sm font-bold text-slate-700">
-                    {formatKpiScore(pip.kpiScore)}
+                  <td className="px-8 py-5">
+                    <span className="text-sm font-black text-slate-800">{formatKpiScore(pip.kpiScore)}</span>
                   </td>
-                  <td className="px-6 py-5 text-center">
-                    <span className={`inline-flex items-center rounded-lg px-2.5 py-1 text-[10px] font-bold uppercase tracking-wide ${pip.status === 'CLOSED' && pip.finalOutcome === 'SUCCESSFUL' ? 'bg-green-100 text-green-700' :
-                      pip.status === 'CLOSED' && pip.finalOutcome === 'FAILED' ? 'bg-red-100 text-red-700' :
-                        (STATUS_COLORS[pip.status] || 'bg-slate-100 text-slate-700')
-                      }`}>
+                  <td className="px-8 py-5 text-center">
+                    <span className={`inline-flex items-center rounded-xl px-3 py-1.5 text-[10px] font-black uppercase tracking-wide ${
+                      pip.status === 'ACTIVE' ? 'bg-blue-50 text-blue-700' :
+                      pip.status === 'COMPLETED' ? 'bg-emerald-50 text-emerald-700' :
+                      pip.status === 'CLOSED' && pip.finalOutcome === 'SUCCESSFUL' ? 'bg-green-50 text-green-700' :
+                      pip.status === 'CLOSED' && pip.finalOutcome === 'FAILED' ? 'bg-red-50 text-red-700' :
+                      pip.status === 'AUTO_CLOSED' ? 'bg-amber-50 text-amber-700' :
+                      pip.status === 'REOPEN_REQUESTED' ? 'bg-orange-50 text-orange-700' :
+                      pip.status === 'DENIED' ? 'bg-red-50 text-red-700' :
+                      'bg-slate-50 text-slate-600'
+                    }`}>
+                      <span className={`mr-1.5 inline-block h-1.5 w-1.5 rounded-full ${
+                        pip.status === 'ACTIVE' ? 'bg-blue-600' :
+                        pip.status === 'COMPLETED' || (pip.status === 'CLOSED' && pip.finalOutcome === 'SUCCESSFUL') ? 'bg-emerald-600' :
+                        pip.status === 'CLOSED' && pip.finalOutcome === 'FAILED' ? 'bg-red-600' :
+                        pip.status === 'AUTO_CLOSED' ? 'bg-amber-600' :
+                        pip.status === 'REOPEN_REQUESTED' ? 'bg-orange-600' :
+                        'bg-slate-400'
+                      }`} />
                       {getStatusDisplayLabel(pip.status, pip.finalOutcome)}
                     </span>
                   </td>
-                  <td className="px-6 py-5 text-sm text-slate-600 font-medium">
-                    {formatDateValue(pip.startDate)}
+                  <td className="px-8 py-5">
+                    <span className="text-sm font-bold text-slate-600">{formatDateValue(pip.startDate)}</span>
                   </td>
-                  <td className="px-6 py-5 text-sm text-slate-600 font-medium">
-                    {formatDateValue(pip.endDate)}
+                  <td className="px-8 py-5">
+                    <span className="text-sm font-bold text-slate-600">{formatDateValue(pip.endDate)}</span>
                   </td>
-                  <td className="px-6 py-5">
-                    <div className="flex flex-col gap-1.5">
-                      <div className="h-2 w-24 overflow-hidden rounded-full bg-slate-100 shadow-inner">
-                        <div
-                          className={`h-full transition-all duration-500 ${pip.overallProgressPercentage >= 70 ? 'bg-green-500' : pip.overallProgressPercentage >= 30 ? 'bg-blue-500' : 'bg-orange-500'}`}
-                          style={{ width: `${pip.overallProgressPercentage}%` }}
-                        />
+                  <td className="px-8 py-5">
+                    <div className="flex flex-col gap-1.5 min-w-[140px]">
+                      <div className="flex items-center gap-3">
+                        <div className="h-2 flex-1 overflow-hidden rounded-full bg-slate-100">
+                          <div
+                            className={`h-full rounded-full transition-all duration-700 ${
+                              pip.overallProgressPercentage >= 70 ? 'bg-emerald-500' :
+                              pip.overallProgressPercentage >= 30 ? 'bg-blue-500' : 'bg-amber-500'
+                            }`}
+                            style={{ width: `${pip.overallProgressPercentage}%` }}
+                          />
+                        </div>
+                        <span className="min-w-[44px] text-right text-xs font-black text-slate-600">{pip.overallProgressPercentage}%</span>
                       </div>
-                      <span className="text-[10px] font-extrabold text-slate-400 uppercase tracking-tight">
-                        {pip.overallProgressPercentage}% COMPLETED
-                        {pip.updatedAt && (
-                          <span className="ml-2 border-l border-slate-200 pl-2">
-                            Updated {new Date(pip.updatedAt).toLocaleDateString('en-GB', { day: '2-digit', month: 'short' })}
-                          </span>
-                        )}
-                      </span>
+                      {pip.updatedAt && (
+                        <span className="text-[10px] font-bold text-slate-400">
+                          Updated {new Date(pip.updatedAt).toLocaleDateString('en-GB', { day: '2-digit', month: 'short' })}
+                        </span>
+                      )}
                     </div>
                   </td>
-                  <td className="px-6 py-5 text-right">
-                    <div className="flex items-center justify-end gap-3">
+                  <td className="px-8 py-5 text-right">
+                    <div className="flex items-center justify-end gap-2">
                       <button
                         onClick={() => setLogViewerPipId(pip.id)}
-                        className="p-2 rounded-lg text-slate-400 hover:bg-slate-100 hover:text-blue-600 transition-all"
+                        className="flex h-9 w-9 items-center justify-center rounded-xl border border-slate-100 text-slate-400 opacity-0 transition-all hover:border-blue-100 hover:bg-blue-50 hover:text-blue-600 group-hover:opacity-100"
                         title="View Activity Log"
                       >
-                        <i className="bi bi-clock-history text-lg" />
+                        <i className="bi bi-clock-history" />
                       </button>
                       <Link
                         to={`${location.pathname}/${pip.id}`}
-                        className="inline-flex items-center gap-1 text-sm font-bold text-blue-600 hover:text-blue-800 transition-colors"
+                        className="inline-flex items-center gap-1.5 rounded-xl bg-blue-50 px-4 py-2 text-xs font-black text-blue-700 transition-all hover:bg-blue-100"
                       >
-                        View Details
-                        <i className="bi bi-chevron-right text-[10px]" />
+                        Details <i className="bi bi-chevron-right text-[9px]" />
                       </Link>
                     </div>
                   </td>
@@ -1020,11 +1117,13 @@ export default function PipMonitoringPage() {
             })}
             {tablePips.length === 0 && (
               <tr>
-                <td colSpan={canViewAllPips ? 9 : 8} className="px-6 py-20 text-center">
-                  <div className="flex flex-col items-center justify-center text-slate-400">
-                    <i className="bi bi-clipboard-x text-5xl mb-4 opacity-20" />
-                    <p className="text-lg font-medium">No PIP records found matching your criteria.</p>
-                    <p className="text-sm">Try adjusting your filters or search terms.</p>
+                <td colSpan={canViewAllPips ? 9 : 8} className="px-8 py-24 text-center">
+                  <div className="flex flex-col items-center justify-center">
+                    <div className="mb-6 flex h-20 w-20 items-center justify-center rounded-[2rem] bg-slate-50">
+                      <i className="bi bi-clipboard-x text-4xl text-slate-300" />
+                    </div>
+                    <p className="text-lg font-black text-slate-400">No PIP records found</p>
+                    <p className="mt-1 text-sm font-bold text-slate-400">Try adjusting your filters or search terms.</p>
                   </div>
                 </td>
               </tr>
@@ -1035,9 +1134,852 @@ export default function PipMonitoringPage() {
       </div>
 
       {(canViewAllPips || isManager) && hasActiveFilters && exportTargetPips.length > 0 && (
-        <section className="mt-8 rounded-2xl border border-slate-200 bg-white shadow-xl shadow-slate-100">
-          <div className="border-b border-slate-100 px-6 py-4">
-            <h2 className="text-lg font-black text-slate-900">Related PIP Detail Overview</h2>
+        <section className="mt-8 rounded-[2rem] border border-white bg-white shadow-sm">
+          <div className="border-b border-slate-100 px-8 py-5">
+            <h2 className="text-base font-black text-slate-900">Related PIP Detail Overview</h2>
+          </div>
+          <div className="max-h-[520px] overflow-auto">
+            <table className="min-w-[2600px] text-left text-xs">
+              <thead className="sticky top-0 z-10 bg-slate-50">
+                <tr>
+                  {onePagePipDetailRows[0].map((heading) => (
+                    <th key={String(heading)} className="whitespace-nowrap border-b border-slate-200 px-5 py-4 text-[10px] font-black uppercase tracking-widest text-slate-500">
+                      {String(heading)}
+                    </th>
+                  ))}
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-slate-100">
+                {onePagePipDetailRows.slice(1).map((row, rowIndex) => (
+                  <tr key={`${row[0]}-${rowIndex}`} className="align-top hover:bg-slate-50/80">
+                    {row.map((cell, cellIndex) => (
+                      <td key={`${row[0]}-${cellIndex}`} className="max-w-[260px] whitespace-pre-wrap px-5 py-4 text-xs font-bold text-slate-600">
+                        {String(cell || '-')}
+                      </td>
+                    ))}
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        </section>
+      )}
+      {tablePips.length > 0 && (
+        <div className="mt-6 flex flex-col gap-4 rounded-[2rem] border border-white bg-white px-8 py-5 shadow-sm sm:flex-row sm:items-center sm:justify-between">
+          <div className="flex flex-wrap items-center gap-4 text-sm">
+            <span className="font-bold text-slate-500">
+              Showing <span className="text-slate-800">{startIndex} - {endIndex}</span> of{' '}
+              <span className="text-slate-800">{tablePips.length}</span> employees
+            </span>
+            <label className="flex items-center gap-2">
+              <span className="text-[10px] font-black uppercase tracking-widest text-slate-400">Rows:</span>
+              <select
+                value={rowsPerPage}
+                onChange={(e) => setRowsPerPage(Number(e.target.value))}
+                className="rounded-2xl border border-slate-200 bg-white px-4 py-2 text-sm font-black text-slate-700 shadow-sm focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-200"
+              >
+                {[5, 10, 20, 50].map((rows) => (
+                  <option key={rows} value={rows}>{rows}</option>
+                ))}
+              </select>
+            </label>
+          </div>
+          <div className="flex items-center gap-1.5">
+            <button
+              type="button"
+              onClick={() => setCurrentPage((page) => Math.max(1, page - 1))}
+              disabled={safeCurrentPage === 1}
+              className="inline-flex items-center gap-2 rounded-2xl border border-slate-200 px-4 py-2.5 text-xs font-black text-slate-500 transition-all hover:bg-slate-50 hover:text-slate-800 disabled:cursor-not-allowed disabled:opacity-40"
+            >
+              <i className="bi bi-chevron-left text-[10px]" /> Prev
+            </button>
+            <span className="flex h-11 min-w-11 items-center justify-center rounded-2xl bg-blue-600 px-4 text-sm font-black text-white shadow-[0_4px_10px_-2px_rgba(37,99,235,0.3)]">
+              {safeCurrentPage}
+            </span>
+            <button
+              type="button"
+              onClick={() => setCurrentPage((page) => Math.min(totalPages, page + 1))}
+              disabled={safeCurrentPage === totalPages}
+              className="inline-flex items-center gap-2 rounded-2xl border border-slate-200 px-4 py-2.5 text-xs font-black text-slate-500 transition-all hover:bg-slate-50 hover:text-slate-800 disabled:cursor-not-allowed disabled:opacity-40"
+            >
+              Next <i className="bi bi-chevron-right text-[10px]" />
+            </button>
+          </div>
+        </div>
+      )}
+
+      {logViewerPipId && (
+        <div className="fixed inset-0 z-[60] flex items-center justify-center p-4 sm:p-6">
+          <div
+            className="absolute inset-0 bg-slate-950/40 backdrop-blur-sm"
+            onClick={() => setLogViewerPipId(null)}
+          />
+          <div className="relative w-full max-w-4xl max-h-[90vh] overflow-y-auto rounded-[2.5rem] bg-white shadow-2xl animate-scale-in">
+            <div className="sticky top-0 z-10 flex items-center justify-between border-b border-slate-100 bg-white/90 px-10 py-6 backdrop-blur-md">
+              <div>
+                <h3 className="text-xl font-black text-slate-900 tracking-tight">PIP Activity History</h3>
+                <p className="mt-1 text-[10px] font-black uppercase tracking-widest text-slate-400">Viewing audit log for PIP #{logViewerPipId}</p>
+              </div>
+              <button
+                onClick={() => setLogViewerPipId(null)}
+                className="flex h-10 w-10 items-center justify-center rounded-xl bg-slate-100 text-slate-500 transition-all hover:bg-slate-200 hover:text-slate-900"
+              >
+                <i className="bi bi-x-lg" />
+              </button>
+            </div>
+            <div className="p-10">
+              <PipUnifiedLog pipId={logViewerPipId} />
+            </div>
+          </div>
+        </div>
+      )}
+    </div>
+  )
+}
+    return undefined
+  }, [pips, canViewAllPips])
+
+  const { data: departmentsData } = useGetDepartmentsQuery()
+  const targetDepartmentId = canViewAllPips && typeof filterDept === 'number' ? filterDept : (!canViewAllPips && managerDepartmentId ? managerDepartmentId : undefined)
+  const { data: positionsData } = useGetDepartmentPositionsQuery(
+    targetDepartmentId !== undefined ? targetDepartmentId : skipToken,
+  )
+
+  const departments = departmentsData?.data || []
+  const positions = useMemo<PositionFilterOption[]>(() => {
+    const apiPositions = (positionsData?.data ?? [])
+      .filter((position) => typeof position.positionId === 'number' && position.positionId > 0)
+      .map((position) => ({
+        positionId: position.positionId,
+        positionName: position.positionName || 'Unnamed Position',
+      }))
+
+    const fallbackPips = departmentPips ?? pips ?? []
+    const fallbackPositions = fallbackPips.reduce<PositionFilterOption[]>((acc, pip) => {
+      const employee = pip.employee.employee as EmployeeDisplay | undefined
+      const positionId = employee?.positionId
+      const positionName = getPositionName(employee)
+
+      if (!positionId || !positionName || positionName === 'N/A') {
+        return acc
+      }
+
+      if (acc.some((position) => position.positionId === positionId)) {
+        return acc
+      }
+
+      acc.push({ positionId, positionName })
+      return acc
+    }, [])
+
+    return [...apiPositions, ...fallbackPositions]
+      .filter((position, index, all) => all.findIndex((item) => item.positionId === position.positionId) === index)
+      .sort((a, b) => a.positionName.localeCompare(b.positionName))
+  }, [departmentPips, pips, positionsData?.data])
+
+  const managerDepartmentName = useMemo(() => {
+    if (canViewAllPips) return null
+    const firstPip = pips?.[0]
+    const emp = firstPip?.employee as any
+    const employeeObj = emp?.employee || emp
+    const dept = employeeObj?.department
+    if (dept) {
+      return dept.departmentName || dept.name || 'My Department'
+    }
+    return 'My Department'
+  }, [pips, canViewAllPips])
+
+  const location = useLocation()
+  const canCreate = isManager && !canViewAllPips
+
+  const employeeFilterOptions = useMemo(() => {
+    if (!pips) return []
+    return pips
+      .map((pip) => ({
+        id: getPipEmployeeRecordId(pip),
+        name: getPipEmployeeName(pip),
+        department: getPipDepartmentName(pip),
+        staffNo: getPipStaffNo(pip),
+      }))
+      .filter((employee): employee is { id: number; name: string; department: string; staffNo: string } => (
+        typeof employee.id === 'number' && Number.isFinite(employee.id)
+      ))
+      .filter((employee, index, all) => all.findIndex((item) => item.id === employee.id) === index)
+      .sort((a, b) => a.name.localeCompare(b.name))
+  }, [pips])
+
+  const selectedEmployeeName = selectedEmployeeId == null
+    ? 'All employees'
+    : employeeFilterOptions.find((employee) => employee.id === selectedEmployeeId)?.name ?? `Employee #${selectedEmployeeId}`
+  const selectedDepartmentName = canViewAllPips && typeof filterDept === 'number'
+    ? departments.find((department) => department.departmentId === filterDept)?.departmentName ?? `Department #${filterDept}`
+    : canViewAllPips
+      ? 'All departments'
+      : managerDepartmentName ?? 'My Department'
+  const selectedPositionName = typeof filterPos === 'number'
+    ? positions.find((position) => position.positionId === filterPos)?.positionName ?? `Position #${filterPos}`
+    : 'All positions'
+  const hasActiveFilters = Boolean(
+    filterDept
+    || filterPos
+    || filterStatus
+    || searchName.trim()
+    || selectedEmployeeId
+    || startDate
+    || endDate
+    || selectedPipId,
+  )
+  const scopedPips = useMemo(() => {
+    const unique = getUniquePips(pips)
+    return isEmployee ? unique.filter((pip) => isPipForCurrentEmployee(pip, user)) : unique
+  }, [isEmployee, pips, user])
+
+  const filteredPips = useMemo(() => {
+    return scopedPips.filter((pip) => {
+      if (selectedPipId != null && pip.id !== selectedPipId) return false
+      if (selectedEmployeeId == null) return true
+      return getPipEmployeeRecordId(pip) === selectedEmployeeId
+    }).sort((a, b) => {
+      const isAActive = ['ACTIVE', 'AUTO_CLOSED', 'REOPEN_REQUESTED'].includes(a.status)
+      const isBActive = ['ACTIVE', 'AUTO_CLOSED', 'REOPEN_REQUESTED'].includes(b.status)
+      if (isAActive && !isBActive) return -1
+      if (!isAActive && isBActive) return 1
+
+      const timeA = new Date(a.updatedAt || a.createdAt || 0).getTime()
+      const timeB = new Date(b.updatedAt || b.createdAt || 0).getTime()
+      return timeB - timeA
+    })
+  }, [scopedPips, selectedEmployeeId, selectedPipId])
+
+  useEffect(() => {
+    setCurrentPage(1)
+  }, [filterDept, filterPos, filterStatus, searchName, selectedEmployeeId, selectedPipId, startDate, endDate, rowsPerPage])
+
+  const tablePips = selectedPipId == null
+    ? filteredPips
+    : filteredPips.filter((pip) => pip.id === selectedPipId)
+  const totalPages = Math.max(1, Math.ceil(tablePips.length / rowsPerPage))
+  const safeCurrentPage = Math.min(currentPage, totalPages)
+  const startIndex = tablePips.length === 0 ? 0 : (safeCurrentPage - 1) * rowsPerPage + 1
+  const endIndex = Math.min(safeCurrentPage * rowsPerPage, tablePips.length)
+  const paginatedPips = tablePips.slice((safeCurrentPage - 1) * rowsPerPage, safeCurrentPage * rowsPerPage)
+  const selectedPip = selectedPipId == null ? undefined : filteredPips.find((pip) => pip.id === selectedPipId)
+  const exportTargetPips = useMemo(() => selectedPip ? [selectedPip] : filteredPips, [filteredPips, selectedPip])
+  const monitoringExportName = `pip-monitoring-${isAudit ? 'audit' : isHr ? 'hr' : 'manager'}-${selectedPip ? `pip-${selectedPip.id}` : 'all'}-${new Date().toISOString().slice(0, 10)}`
+  const exportEmployeeCount = useMemo(() => new Set(
+    exportTargetPips
+      .map((pip) => getPipEmployeeRecordId(pip) ?? getPipStaffNo(pip))
+      .filter(Boolean),
+  ).size, [exportTargetPips])
+  const onePagePipDetailRows = buildPipExportRows(exportTargetPips.map((pip) => ({ pip, trainingHistory: [] }))).details
+
+  const getPipExportBundles = async (): Promise<PipExportBundle[]> => {
+    return Promise.all(exportTargetPips.map(async (pip) => {
+      const employeeId = pip.employee.employee?.id
+      const trainingHistory = employeeId == null
+        ? []
+        : await loadTrainingHistory(String(employeeId)).unwrap()
+      return { pip, trainingHistory }
+    }))
+  }
+
+  const exportSummaryRows = () => [
+    ['Title', 'PIP Monitoring Report'],
+    ['Date Range', getDateRangeLabel(startDate, endDate)],
+    ['Department', selectedDepartmentName],
+    ['Position', selectedPositionName],
+    ['Employee', selectedEmployeeName],
+    ['Total Employees', exportEmployeeCount],
+    ['Status', filterStatus ? filterStatus.replace(/_/g, ' ') : 'All statuses'],
+    ['Search Keyword', searchName.trim() || 'None'],
+    ['PIP Scope', selectedPip ? `PIP #${selectedPip.id}` : 'All matching PIPs'],
+    ['Generated At', formatDateTimeValue(new Date().toISOString())],
+  ]
+
+  const handleExportPips = async () => {
+    if (invalidDateRange) return
+    if (exportTargetPips.length === 0) return
+    try {
+      setExportError(null)
+      const bundles = await getPipExportBundles()
+      const rows = buildPipExportRows(bundles)
+      const workbook = XLSX.utils.book_new()
+      XLSX.utils.book_append_sheet(workbook, XLSX.utils.aoa_to_sheet(exportSummaryRows()), 'Report Criteria')
+      XLSX.utils.book_append_sheet(workbook, XLSX.utils.aoa_to_sheet(rows.details), 'PIP Details')
+      XLSX.utils.book_append_sheet(workbook, XLSX.utils.aoa_to_sheet(rows.training), 'Training History')
+      XLSX.writeFile(workbook, `${monitoringExportName}.xlsx`)
+    } catch (error) {
+      console.error('[PIP Monitoring] Export failed:', error)
+      setExportError('Failed to export PIP data.')
+    }
+  }
+
+  const handlePrintPips = async () => {
+    if (invalidDateRange) return
+    if (exportTargetPips.length === 0) return
+    try {
+      setExportError(null)
+      const summaryRows = buildPipSummaryPdfRows(exportTargetPips)
+      const doc = new jsPDF({ orientation: 'landscape', unit: 'pt', format: 'a4' })
+
+      const logoDataUrl = await loadPdfLogo()
+      if (logoDataUrl) {
+        addPdfHeaderLogo(doc, logoDataUrl, { x: 36, y: 18, width: 68, height: 34 })
+      }
+
+      doc.setFont('helvetica', 'bold')
+      doc.setFontSize(18)
+      doc.text('PIP Monitoring Report', 36, 36)
+      doc.setFont('helvetica', 'normal')
+      doc.setFontSize(9)
+      doc.text(`Range: ${getDateRangeLabel(startDate, endDate)}`, 36, 56)
+      doc.text(`Employee: ${selectedEmployeeName}`, 36, 70)
+      doc.text(`Total Employees: ${exportEmployeeCount}`, 36, 84)
+      doc.text(`Department: ${selectedDepartmentName}`, 260, 56)
+      doc.text(`Position: ${selectedPositionName}`, 260, 70)
+      doc.text(`Status: ${filterStatus ? filterStatus.replace(/_/g, ' ') : 'All statuses'}`, 520, 56)
+      doc.text(`Generated: ${formatDateTimeValue(new Date().toISOString())}`, 520, 70)
+      addPdfHeaderBranding(doc, { margin: 36, y: 36 })
+
+      autoTable(doc, {
+        head: [summaryRows[0].map((heading) => String(heading))],
+        body: summaryRows.slice(1).map((row) => row.map((cell) => String(cell || '-'))),
+        startY: 104,
+        theme: 'grid',
+        styles: {
+          fontSize: 7,
+          cellPadding: 4,
+          overflow: 'linebreak',
+          valign: 'top',
+        },
+        columnStyles: {
+          8: { cellWidth: 180 },
+        },
+        headStyles: {
+          fillColor: [15, 23, 42],
+          textColor: 255,
+          fontStyle: 'bold',
+        },
+        margin: { top: 36, right: 24, bottom: 36, left: 24 },
+      })
+      doc.setFont('helvetica', 'bold')
+      doc.setFontSize(9)
+      doc.text(`Total PIPs: ${exportTargetPips.length}`, 36, doc.internal.pageSize.getHeight() - 32)
+      const pageCount = doc.getNumberOfPages()
+      for (let pageNumber = 1; pageNumber <= pageCount; pageNumber += 1) {
+        doc.setPage(pageNumber)
+        doc.setFont('helvetica', 'normal')
+        doc.setFontSize(8)
+        addPdfFooterBranding(doc, { align: 'left', margin: 36, y: doc.internal.pageSize.getHeight() - 18 })
+        doc.text(`Page ${pageNumber} of ${pageCount}`, doc.internal.pageSize.getWidth() - 36, doc.internal.pageSize.getHeight() - 18, {
+          align: 'right',
+        })
+      }
+      doc.save(`${monitoringExportName}.pdf`)
+    } catch (error) {
+      console.error('[PIP Monitoring] Print failed:', error)
+      setExportError('Failed to create PIP PDF.')
+    }
+  }
+
+  if (isLoading) return (
+    <div className="max-w-[1600px] mx-auto p-8 flex flex-col items-center justify-center gap-4 min-h-[60vh]">
+      <div className="w-10 h-10 border-4 border-slate-200 border-t-blue-600 rounded-full animate-spin" />
+      <p className="text-sm font-bold text-slate-400 animate-pulse">Loading PIP records...</p>
+    </div>
+  )
+
+  if (isError) {
+    const apiError = error as ApiError | undefined
+    const errorMessage = apiError?.data?.message || apiError?.error || 'Failed to load PIP records.'
+    return (
+      <div className="max-w-[1600px] mx-auto p-8">
+        <div className="rounded-[24px] border border-red-200 bg-red-50 p-8 text-red-700">
+          <h2 className="text-lg font-bold">Unable to load PIP Monitoring</h2>
+          <p className="mt-2 text-sm">{errorMessage}</p>
+        </div>
+      </div>
+    )
+  }
+
+  const activePips = filteredPips.filter((p) => p.status === 'ACTIVE').length
+  const completedPips = filteredPips.filter((p) => p.status === 'COMPLETED' || p.status === 'CLOSED').length
+  const averageProgress = filteredPips.length > 0
+    ? Math.round(filteredPips.reduce((sum, p) => sum + (p.overallProgressPercentage || 0), 0) / filteredPips.length)
+    : 0
+
+  const statCards = [
+    { label: 'Total PIPs', value: filteredPips.length, icon: Users, color: 'from-blue-500 to-blue-600', shadow: 'shadow-blue-100' },
+    { label: 'Active PIPs', value: activePips, icon: Clock, color: 'from-amber-500 to-amber-600', shadow: 'shadow-amber-100' },
+    { label: 'Completed', value: completedPips, icon: Download, color: 'from-emerald-500 to-emerald-600', shadow: 'shadow-emerald-100' },
+    { label: 'Avg Progress', value: `${averageProgress}%`, icon: RotateCcw, color: 'from-violet-500 to-violet-600', shadow: 'shadow-violet-100' },
+  ]
+
+  const clearAllFilters = () => {
+    setFilterDept(undefined)
+    setFilterPos(undefined)
+    setFilterStatus('')
+    setSearchName('')
+    setSelectedEmployeeId(undefined)
+    setStartDate('')
+    setEndDate('')
+    setSelectedPipId(undefined)
+  }
+
+  return (
+    <div className="max-w-[1600px] mx-auto space-y-6 p-4 sm:p-6 lg:p-8">
+      {/* Header */}
+      <div className="relative overflow-hidden rounded-[32px] bg-gradient-to-br from-slate-900 via-slate-800 to-slate-900 p-8 shadow-2xl">
+        <div className="absolute top-0 right-0 w-64 h-64 bg-blue-500/10 rounded-full blur-3xl -mr-20 -mt-20" />
+        <div className="relative">
+          <div className="flex items-center gap-2 mb-3">
+            <span className="inline-flex items-center rounded-full bg-blue-500/20 px-3 py-1 text-[10px] font-black uppercase tracking-[0.2em] text-blue-300">
+              Oversight
+            </span>
+          </div>
+          <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
+            <div>
+              <h1 className="text-3xl font-black text-white tracking-tight">PIP Monitoring</h1>
+              <p className="text-sm font-medium text-slate-400 mt-1">
+                Manage and track performance improvement plans across your scope.
+              </p>
+            </div>
+            <div className="flex flex-wrap items-center gap-3">
+              {(canViewAllPips || isManager) && (
+                <>
+                  <button
+                    type="button"
+                    onClick={handleExportPips}
+                    disabled={exportTargetPips.length === 0}
+                    className="inline-flex items-center gap-2 rounded-xl bg-white/10 px-5 py-2.5 text-sm font-bold text-white shadow-sm transition-all hover:bg-white/20 disabled:cursor-not-allowed disabled:opacity-40 border border-white/10"
+                  >
+                    <Download size={16} />
+                    Export Excel
+                  </button>
+                  <button
+                    type="button"
+                    onClick={handlePrintPips}
+                    disabled={exportTargetPips.length === 0}
+                    className="inline-flex items-center gap-2 rounded-xl bg-white/10 px-5 py-2.5 text-sm font-bold text-white shadow-sm transition-all hover:bg-white/20 disabled:cursor-not-allowed disabled:opacity-40 border border-white/10"
+                  >
+                    <Printer size={16} />
+                    Export PDF
+                  </button>
+                </>
+              )}
+              {canCreate && (
+                <button
+                  type="button"
+                  onClick={() => setIsCreateModalOpen(true)}
+                  className="inline-flex items-center gap-2 rounded-xl bg-blue-600 px-6 py-2.5 text-sm font-bold text-white shadow-lg shadow-blue-500/30 transition-all hover:bg-blue-500 hover:scale-[1.02] active:scale-95"
+                >
+                  <Plus size={18} />
+                  Create PIP
+                </button>
+              )}
+            </div>
+          </div>
+        </div>
+      </div>
+
+      {/* Stats Cards */}
+      <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
+        {statCards.map((stat) => {
+          const Icon = stat.icon
+          return (
+            <div
+              key={stat.label}
+              className="relative overflow-hidden rounded-[24px] bg-white border border-slate-100 p-6 shadow-sm hover:shadow-md transition-all group"
+            >
+              <div className="flex items-start justify-between">
+                <div>
+                  <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1">
+                    {stat.label}
+                  </p>
+                  <p className="text-3xl font-black text-slate-800 tracking-tight">{stat.value}</p>
+                </div>
+                <div className={`bg-gradient-to-br ${stat.color} p-3 rounded-2xl text-white shadow-lg ${stat.shadow} group-hover:scale-110 transition-transform`}>
+                  <Icon size={20} />
+                </div>
+              </div>
+              <div className={`absolute bottom-0 left-0 right-0 h-1 bg-gradient-to-r ${stat.color} opacity-30`} />
+            </div>
+          )
+        })}
+      </div>
+
+      {/* Create PIP Modal */}
+      {isCreateModalOpen && (
+        <div className="fixed inset-0 z-50 flex items-start justify-center overflow-y-auto bg-slate-950/60 p-4 pt-8 backdrop-blur-sm sm:pt-12">
+          <div className="w-full max-w-3xl rounded-[32px] bg-white p-8 shadow-2xl animate-in fade-in zoom-in-95 duration-200">
+            <div className="mb-6 flex items-start justify-between gap-4">
+              <div>
+                <h2 className="text-2xl font-black text-slate-900">Create New PIP</h2>
+                <p className="mt-1 text-sm font-medium text-slate-500">Create a respectful, measurable Performance Improvement Plan.</p>
+              </div>
+              <button
+                type="button"
+                onClick={() => setIsCreateModalOpen(false)}
+                className="flex h-10 w-10 items-center justify-center rounded-xl bg-slate-100 text-slate-500 transition-all hover:bg-slate-200 hover:text-slate-900"
+                aria-label="Close create PIP"
+              >
+                <X size={18} />
+              </button>
+            </div>
+            <PipCreateForm
+              embedded
+              onCancel={() => setIsCreateModalOpen(false)}
+              onCreated={() => {
+                setIsCreateModalOpen(false)
+                if (!invalidDateRange) void refetch()
+              }}
+            />
+          </div>
+        </div>
+      )}
+
+      {/* Export Error */}
+      {exportError && (
+        <div className="rounded-[24px] border border-red-200 bg-red-50 p-4 text-sm font-bold text-red-700">
+          {exportError}
+        </div>
+      )}
+
+      {/* Filters Section */}
+      <div className="rounded-[24px] bg-white border border-slate-100 shadow-sm overflow-hidden">
+        <button
+          type="button"
+          onClick={() => setShowFilters(!showFilters)}
+          className="w-full flex items-center justify-between px-6 py-4 border-b border-slate-100 hover:bg-slate-50/50 transition-colors"
+        >
+          <div className="flex items-center gap-2 text-slate-700">
+            <Filter size={16} />
+            <span className="text-sm font-bold uppercase tracking-wider">Filters & Search</span>
+            {hasActiveFilters && (
+              <span className="inline-flex items-center justify-center h-5 min-w-[20px] rounded-full bg-blue-600 px-1.5 text-[10px] font-bold text-white">
+                {Object.entries({ filterDept, filterPos, filterStatus, searchName, selectedEmployeeId, startDate, endDate, selectedPipId }).filter(([, v]) => v).length}
+              </span>
+            )}
+          </div>
+          <div className="flex items-center gap-3">
+            {hasActiveFilters && (
+              <button
+                type="button"
+                onClick={(e) => { e.stopPropagation(); clearAllFilters() }}
+                className="text-xs font-bold text-blue-600 hover:text-blue-800 transition-colors"
+              >
+                Clear All
+              </button>
+            )}
+            <ChevronRight
+              size={16}
+              className={`text-slate-400 transition-transform ${showFilters ? 'rotate-90' : ''}`}
+            />
+          </div>
+        </button>
+
+        {showFilters && (
+          <div className="p-6">
+            <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
+              {(canViewAllPips || isManager) && (
+                <div className="min-w-0">
+                  <label className="mb-1.5 block text-[11px] font-bold uppercase tracking-wider text-slate-500">Department</label>
+                  <select
+                    value={filterDept || ''}
+                    onChange={(e) => {
+                      setFilterDept(e.target.value ? Number(e.target.value) : undefined)
+                      setFilterPos(undefined)
+                    }}
+                    disabled={!canViewAllPips}
+                    className="h-11 w-full rounded-xl border border-slate-200 bg-white px-3 pr-8 text-sm font-medium text-slate-700 focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-500/20 disabled:cursor-not-allowed disabled:bg-slate-50 disabled:text-slate-400 appearance-none bg-[url('data:image/svg+xml;charset=utf-8,%3Csvg%20xmlns%3D%22http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg%22%20width%3D%2212%22%20height%3D%2212%22%20viewBox%3D%220%200%2024%2024%22%20fill%3D%22none%22%20stroke%3D%22%2394a3b8%22%20stroke-width%3D%222%22%20stroke-linecap%3D%22round%22%20stroke-linejoin%3D%22round%22%3E%3Cpolyline%20points%3D%226%209%2012%2015%2018%209%22%3E%3C%2Fpolyline%3E%3C%2Fsvg%3E')] bg-[length:12px] bg-[right_12px_center] bg-no-repeat"
+                  >
+                    {canViewAllPips ? <option value="">All Departments</option> : <option value="">{managerDepartmentName}</option>}
+                    {canViewAllPips && departments.map((d) => (
+                      <option key={d.departmentId} value={d.departmentId}>
+                        {d.departmentName || 'Unnamed Department'}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+              )}
+
+              {(canViewAllPips || isManager) && (
+                <div className="min-w-0">
+                  <label className="mb-1.5 block text-[11px] font-bold uppercase tracking-wider text-slate-500">Position</label>
+                  <select
+                    value={filterPos || ''}
+                    onChange={(e) => setFilterPos(e.target.value ? Number(e.target.value) : undefined)}
+                    className="h-11 w-full rounded-xl border border-slate-200 bg-white px-3 pr-8 text-sm font-medium text-slate-700 focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-500/20 appearance-none bg-[url('data:image/svg+xml;charset=utf-8,%3Csvg%20xmlns%3D%22http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg%22%20width%3D%2212%22%20height%3D%2212%22%20viewBox%3D%220%200%2024%2024%22%20fill%3D%22none%22%20stroke%3D%22%2394a3b8%22%20stroke-width%3D%222%22%20stroke-linecap%3D%22round%22%20stroke-linejoin%3D%22round%22%3E%3Cpolyline%20points%3D%226%209%2012%2015%2018%209%22%3E%3C%2Fpolyline%3E%3C%2Fsvg%3E')] bg-[length:12px] bg-[right_12px_center] bg-no-repeat"
+                  >
+                    <option value="">All Positions</option>
+                    {positions.map((p) => (
+                      <option key={p.positionId} value={p.positionId}>
+                        {p.positionName || 'Unnamed Position'}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+              )}
+
+              <div className="min-w-0">
+                <label className="mb-1.5 block text-[11px] font-bold uppercase tracking-wider text-slate-500">Status</label>
+                <select
+                  value={filterStatus}
+                  onChange={(e) => setFilterStatus(e.target.value)}
+                  className="h-11 w-full rounded-xl border border-slate-200 bg-white px-3 pr-8 text-sm font-medium text-slate-700 focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-500/20 appearance-none bg-[url('data:image/svg+xml;charset=utf-8,%3Csvg%20xmlns%3D%22http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg%22%20width%3D%2212%22%20height%3D%2212%22%20viewBox%3D%220%200%2024%2024%22%20fill%3D%22none%22%20stroke%3D%22%2394a3b8%22%20stroke-width%3D%222%22%20stroke-linecap%3D%22round%22%20stroke-linejoin%3D%22round%22%3E%3Cpolyline%20points%3D%226%209%2012%2015%2018%209%22%3E%3C%2Fpolyline%3E%3C%2Fsvg%3E')] bg-[length:12px] bg-[right_12px_center] bg-no-repeat"
+                >
+                  <option value="">All Statuses</option>
+                  {Object.keys(STATUS_COLORS).map((s) => (
+                    <option key={s} value={s}>{s.replace(/_/g, ' ')}</option>
+                  ))}
+                </select>
+              </div>
+
+              {(canViewAllPips || isManager) && (
+                <div className="min-w-0">
+                  <label className="mb-1.5 block text-[11px] font-bold uppercase tracking-wider text-slate-500">Employee Name</label>
+                  <div className="relative">
+                    <Search size={14} className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" />
+                    <input
+                      type="text"
+                      placeholder="Search by name..."
+                      value={searchName}
+                      onChange={(e) => setSearchName(e.target.value)}
+                      className="h-11 w-full rounded-xl border border-slate-200 bg-white pl-9 pr-4 text-sm font-medium text-slate-700 placeholder:text-slate-400 focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-500/20"
+                    />
+                  </div>
+                </div>
+              )}
+
+              {(canViewAllPips || isManager) && (
+                <div className="min-w-0">
+                  <label className="mb-1.5 block text-[11px] font-bold uppercase tracking-wider text-slate-500">Employee</label>
+                  <select
+                    value={selectedEmployeeId || ''}
+                    onChange={(e) => setSelectedEmployeeId(e.target.value ? Number(e.target.value) : undefined)}
+                    className="h-11 w-full rounded-xl border border-slate-200 bg-white px-3 pr-8 text-sm font-medium text-slate-700 focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-500/20 appearance-none bg-[url('data:image/svg+xml;charset=utf-8,%3Csvg%20xmlns%3D%22http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg%22%20width%3D%2212%22%20height%3D%2212%22%20viewBox%3D%220%200%2024%2024%22%20fill%3D%22none%22%20stroke%3D%22%2394a3b8%22%20stroke-width%3D%222%22%20stroke-linecap%3D%22round%22%20stroke-linejoin%3D%22round%22%3E%3Cpolyline%20points%3D%226%209%2012%2015%2018%209%22%3E%3C%2Fpolyline%3E%3C%2Fsvg%3E')] bg-[length:12px] bg-[right_12px_center] bg-no-repeat"
+                  >
+                    <option value="">All Employees</option>
+                    {employeeFilterOptions.map((employee) => (
+                      <option key={employee.id} value={employee.id}>
+                        {employee.name} - {employee.staffNo} - {employee.department || 'No Department'}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+              )}
+
+              <div className="min-w-0">
+                <label className="mb-1.5 block text-[11px] font-bold uppercase tracking-wider text-slate-500">Start Date</label>
+                <div className="relative">
+                  <input
+                    type="text"
+                    value={startDate}
+                    onChange={(e) => setStartDate(e.target.value)}
+                    placeholder="dd/mm/yyyy"
+                    inputMode="numeric"
+                    className="h-11 w-full rounded-xl border border-slate-200 bg-white px-3 pr-11 text-sm font-medium text-slate-700 placeholder:text-slate-400 focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-500/20"
+                  />
+                  <label className="absolute inset-y-0 right-0 flex w-11 cursor-pointer items-center justify-center text-slate-400 hover:text-blue-600">
+                    <i className="bi bi-calendar3" />
+                    <input
+                      type="date"
+                      value={toIsoDate(startDate)}
+                      onChange={(e) => setStartDate(toDisplayDateFromIso(e.target.value))}
+                      className="absolute inset-0 h-full w-full cursor-pointer opacity-0"
+                      aria-label="Choose filter start date"
+                    />
+                  </label>
+                </div>
+              </div>
+
+              <div className="min-w-0">
+                <label className="mb-1.5 block text-[11px] font-bold uppercase tracking-wider text-slate-500">End Date</label>
+                <div className="relative">
+                  <input
+                    type="text"
+                    value={endDate}
+                    onChange={(e) => setEndDate(e.target.value)}
+                    placeholder="dd/mm/yyyy"
+                    inputMode="numeric"
+                    className="h-11 w-full rounded-xl border border-slate-200 bg-white px-3 pr-11 text-sm font-medium text-slate-700 placeholder:text-slate-400 focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-500/20"
+                  />
+                  <label className="absolute inset-y-0 right-0 flex w-11 cursor-pointer items-center justify-center text-slate-400 hover:text-blue-600">
+                    <i className="bi bi-calendar3" />
+                    <input
+                      type="date"
+                      value={toIsoDate(endDate)}
+                      onChange={(e) => setEndDate(toDisplayDateFromIso(e.target.value))}
+                      className="absolute inset-0 h-full w-full cursor-pointer opacity-0"
+                      aria-label="Choose filter end date"
+                    />
+                  </label>
+                </div>
+              </div>
+
+              {(canViewAllPips || isManager) && (
+                <div className="min-w-0">
+                  <label className="mb-1.5 block text-[11px] font-bold uppercase tracking-wider text-slate-500">PIP</label>
+                  <select
+                    value={selectedPipId || ''}
+                    onChange={(e) => {
+                      const nextPipId = Number.parseInt(e.target.value, 10)
+                      setSelectedPipId(Number.isFinite(nextPipId) ? nextPipId : undefined)
+                    }}
+                    className="h-11 w-full rounded-xl border border-slate-200 bg-white px-3 pr-8 text-sm font-medium text-slate-700 focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-500/20 appearance-none bg-[url('data:image/svg+xml;charset=utf-8,%3Csvg%20xmlns%3D%22http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg%22%20width%3D%2212%22%20height%3D%2212%22%20viewBox%3D%220%200%2024%2024%22%20fill%3D%22none%22%20stroke%3D%22%2394a3b8%22%20stroke-width%3D%222%22%20stroke-linecap%3D%22round%22%20stroke-linejoin%3D%22round%22%3E%3Cpolyline%20points%3D%226%209%2012%2015%2018%209%22%3E%3C%2Fpolyline%3E%3C%2Fsvg%3E')] bg-[length:12px] bg-[right_12px_center] bg-no-repeat"
+                  >
+                    <option value="">All PIPs</option>
+                    {scopedPips.map((pip) => (
+                      <option key={pip.id} value={pip.id}>
+                        PIP #{pip.id} - {getPipEmployeeName(pip)}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+              )}
+            </div>
+
+            {invalidDateRange && (
+              <div className="mt-4 rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-sm font-bold text-red-700">
+                Start date must be on or before end date.
+              </div>
+            )}
+          </div>
+        )}
+      </div>
+
+      {/* Table */}
+      <div className="rounded-[24px] bg-white border border-slate-100 shadow-sm overflow-hidden">
+        <div className="overflow-x-auto">
+          <table className="min-w-full w-full">
+            <thead>
+              <tr className="border-b border-slate-100">
+                <th className="px-5 py-4 text-left text-[11px] font-black uppercase tracking-wider text-slate-500">Employee</th>
+                <th className="px-5 py-4 text-left text-[11px] font-black uppercase tracking-wider text-slate-500">Position</th>
+                {canViewAllPips && <th className="px-5 py-4 text-left text-[11px] font-black uppercase tracking-wider text-slate-500">Department</th>}
+                <th className="px-5 py-4 text-left text-[11px] font-black uppercase tracking-wider text-slate-500">KPI Score</th>
+                <th className="px-5 py-4 text-center text-[11px] font-black uppercase tracking-wider text-slate-500">Status</th>
+                <th className="px-5 py-4 text-left text-[11px] font-black uppercase tracking-wider text-slate-500">Start Date</th>
+                <th className="px-5 py-4 text-left text-[11px] font-black uppercase tracking-wider text-slate-500">End Date</th>
+                <th className="px-5 py-4 text-left text-[11px] font-black uppercase tracking-wider text-slate-500">Progress</th>
+                <th className="px-5 py-4 text-right text-[11px] font-black uppercase tracking-wider text-slate-500">Actions</th>
+              </tr>
+            </thead>
+            <tbody className="divide-y divide-slate-50">
+              {paginatedPips.map((pip) => {
+                const emp: EmployeeDisplay | undefined = pip.employee.employee
+                return (
+                  <tr key={pip.id} className="group transition-colors hover:bg-slate-50/80">
+                    <td className="px-5 py-4">
+                      <div className="flex items-center gap-3">
+                        <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-gradient-to-br from-blue-500 to-blue-600 text-sm font-bold text-white shadow-sm">
+                          {(emp?.employeeName || 'NA').charAt(0).toUpperCase()}
+                        </div>
+                        <div className="min-w-0">
+                          <p className="text-sm font-bold text-slate-900 truncate">{emp?.employeeName || 'N/A'}</p>
+                          <p className="text-xs text-slate-400 font-medium">Staff ID: {getPipStaffNo(pip)}</p>
+                        </div>
+                      </div>
+                    </td>
+                    <td className="px-5 py-4">
+                      <span className="text-sm font-semibold text-slate-600">{getPositionName(emp)}</span>
+                    </td>
+                    {canViewAllPips && (
+                      <td className="px-5 py-4">
+                        <span className="inline-flex items-center rounded-lg bg-slate-100 px-2.5 py-1 text-xs font-bold text-slate-600">
+                          {getDepartmentName(emp)}
+                        </span>
+                      </td>
+                    )}
+                    <td className="px-5 py-4">
+                      <span className={`text-sm font-black ${(pip.kpiScore ?? 0) < 50 ? 'text-red-500' : (pip.kpiScore ?? 0) < 70 ? 'text-amber-500' : 'text-emerald-500'}`}>
+                        {formatKpiScore(pip.kpiScore)}
+                      </span>
+                    </td>
+                    <td className="px-5 py-4 text-center">
+                      <span className={`inline-flex items-center rounded-lg px-2.5 py-1 text-[10px] font-black uppercase tracking-wide ${
+                        pip.status === 'CLOSED' && pip.finalOutcome === 'SUCCESSFUL' ? 'bg-emerald-100 text-emerald-700' :
+                        pip.status === 'CLOSED' && pip.finalOutcome === 'FAILED' ? 'bg-red-100 text-red-700' :
+                          (STATUS_COLORS[pip.status] || 'bg-slate-100 text-slate-700')
+                      }`}>
+                        <span className={`mr-1.5 h-1.5 w-1.5 rounded-full ${pip.status === 'CLOSED' && pip.finalOutcome === 'SUCCESSFUL' ? 'bg-emerald-500' : pip.status === 'CLOSED' && pip.finalOutcome === 'FAILED' ? 'bg-red-500' : (STATUS_RAW_COLORS[pip.status] || 'bg-slate-500')}`} />
+                        {getStatusDisplayLabel(pip.status, pip.finalOutcome)}
+                      </span>
+                    </td>
+                    <td className="px-5 py-4 text-sm font-semibold text-slate-600">
+                      {formatDateValue(pip.startDate)}
+                    </td>
+                    <td className="px-5 py-4 text-sm font-semibold text-slate-600">
+                      {formatDateValue(pip.endDate)}
+                    </td>
+                    <td className="px-5 py-4">
+                      <div className="flex flex-col gap-1.5 min-w-[120px]">
+                        <div className="h-2 overflow-hidden rounded-full bg-slate-100">
+                          <div
+                            className={`h-full rounded-full transition-all duration-700 ease-out ${
+                              pip.overallProgressPercentage >= 70 ? 'bg-gradient-to-r from-emerald-400 to-emerald-500' :
+                              pip.overallProgressPercentage >= 30 ? 'bg-gradient-to-r from-blue-400 to-blue-500' :
+                              'bg-gradient-to-r from-orange-400 to-orange-500'
+                            }`}
+                            style={{ width: `${Math.min(pip.overallProgressPercentage || 0, 100)}%` }}
+                          />
+                        </div>
+                        <div className="flex items-center justify-between">
+                          <span className="text-[10px] font-black text-slate-400 uppercase tracking-tight">
+                            {pip.overallProgressPercentage || 0}%
+                          </span>
+                          {pip.updatedAt && (
+                            <span className="text-[9px] font-semibold text-slate-400">
+                              {new Date(pip.updatedAt).toLocaleDateString('en-GB', { day: '2-digit', month: 'short' })}
+                            </span>
+                          )}
+                        </div>
+                      </div>
+                    </td>
+                    <td className="px-5 py-4 text-right">
+                      <div className="flex items-center justify-end gap-2">
+                        <button
+                          onClick={() => setLogViewerPipId(pip.id)}
+                          className="flex h-9 w-9 items-center justify-center rounded-xl text-slate-400 transition-all hover:bg-slate-100 hover:text-blue-600"
+                          title="View Activity Log"
+                        >
+                          <Clock size={16} />
+                        </button>
+                        <Link
+                          to={`${location.pathname}/${pip.id}`}
+                          className="inline-flex items-center gap-1.5 rounded-xl bg-blue-50 px-4 py-2 text-xs font-bold text-blue-600 transition-all hover:bg-blue-100"
+                        >
+                          View Details
+                          <ChevronRight size={12} />
+                        </Link>
+                      </div>
+                    </td>
+                  </tr>
+                )
+              })}
+              {tablePips.length === 0 && (
+                <tr>
+                  <td colSpan={canViewAllPips ? 9 : 8} className="px-5 py-20 text-center">
+                    <div className="flex flex-col items-center justify-center text-slate-400">
+                      <div className="flex h-16 w-16 items-center justify-center rounded-2xl bg-slate-50 mb-4">
+                        <Search size={28} className="text-slate-300" />
+                      </div>
+                      <p className="text-lg font-bold text-slate-500">No PIP records found</p>
+                      <p className="text-sm font-medium text-slate-400 mt-1">Try adjusting your filters or search terms.</p>
+                    </div>
+                  </td>
+                </tr>
+              )}
+            </tbody>
+          </table>
+        </div>
+      </div>
+
+      {/* Detail Overview Section */}
+      {(canViewAllPips || isManager) && hasActiveFilters && exportTargetPips.length > 0 && (
+        <div className="rounded-[24px] bg-white border border-slate-100 shadow-sm overflow-hidden">
+          <div className="px-6 py-4 border-b border-slate-100">
+            <h2 className="text-base font-black text-slate-900">Detailed Overview</h2>
           </div>
           <div className="max-h-[520px] overflow-auto">
             <table className="min-w-[2600px] text-left text-xs">
@@ -1063,21 +2005,23 @@ export default function PipMonitoringPage() {
               </tbody>
             </table>
           </div>
-        </section>
+        </div>
       )}
+
+      {/* Pagination */}
       {tablePips.length > 0 && (
-        <div className="mt-6 flex flex-col gap-4 rounded-2xl border border-slate-200 bg-white px-6 py-4 shadow-md shadow-slate-100 sm:flex-row sm:items-center sm:justify-between">
+        <div className="flex flex-col gap-4 rounded-[24px] bg-white border border-slate-100 px-6 py-4 shadow-sm sm:flex-row sm:items-center sm:justify-between">
           <div className="flex flex-wrap items-center gap-4 text-sm text-slate-500">
-            <span>
-              Showing <span className="font-bold text-slate-700">{startIndex} - {endIndex}</span> of{' '}
-              <span className="font-bold text-slate-700">{tablePips.length}</span> employees
+            <span className="font-semibold">
+              Showing <span className="font-black text-slate-700">{startIndex} - {endIndex}</span> of{' '}
+              <span className="font-black text-slate-700">{tablePips.length}</span> employees
             </span>
             <label className="flex items-center gap-2">
-              <span className="text-slate-400">Rows:</span>
+              <span className="text-[11px] font-bold uppercase tracking-wider text-slate-400">Rows:</span>
               <select
                 value={rowsPerPage}
                 onChange={(e) => setRowsPerPage(Number(e.target.value))}
-                className="rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm font-semibold text-slate-700 shadow-sm focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500"
+                className="h-9 rounded-xl border border-slate-200 bg-white px-3 text-sm font-bold text-slate-700 shadow-sm focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-500/20 appearance-none cursor-pointer bg-[url('data:image/svg+xml;charset=utf-8,%3Csvg%20xmlns%3D%22http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg%22%20width%3D%2212%22%20height%3D%2212%22%20viewBox%3D%220%200%2024%2024%22%20fill%3D%22none%22%20stroke%3D%22%2394a3b8%22%20stroke-width%3D%222%22%20stroke-linecap%3D%22round%22%20stroke-linejoin%3D%22round%22%3E%3Cpolyline%20points%3D%226%209%2012%2015%2018%209%22%3E%3C%2Fpolyline%3E%3C%2Fsvg%3E')] bg-[length:12px] bg-[right_12px_center] bg-no-repeat pr-8"
               >
                 {[5, 10, 20, 50].map((rows) => (
                   <option key={rows} value={rows}>{rows}</option>
@@ -1085,49 +2029,75 @@ export default function PipMonitoringPage() {
               </select>
             </label>
           </div>
-          <div className="flex items-center gap-1">
+          <div className="flex items-center gap-2">
             <button
               type="button"
               onClick={() => setCurrentPage((page) => Math.max(1, page - 1))}
               disabled={safeCurrentPage === 1}
-              className="inline-flex items-center gap-2 rounded-xl border border-slate-200 px-4 py-2 text-sm font-semibold text-slate-400 transition-colors hover:text-slate-700 disabled:cursor-not-allowed disabled:opacity-50 disabled:hover:text-slate-400"
+              className="inline-flex items-center gap-1.5 rounded-xl border border-slate-200 px-4 py-2 text-sm font-bold text-slate-500 transition-colors hover:bg-slate-50 hover:text-slate-700 disabled:cursor-not-allowed disabled:opacity-40"
             >
-              <i className="bi bi-chevron-left text-xs" />
+              <ChevronLeft size={14} />
               Prev
             </button>
-            <span className="flex h-11 min-w-11 items-center justify-center rounded-xl bg-blue-600 px-4 text-sm font-bold text-white shadow-sm shadow-blue-200">
-              {safeCurrentPage}
-            </span>
+            <div className="flex items-center gap-1">
+              {Array.from({ length: Math.min(totalPages, 5) }, (_, i) => {
+                let pageNum: number
+                if (totalPages <= 5) {
+                  pageNum = i + 1
+                } else if (safeCurrentPage <= 3) {
+                  pageNum = i + 1
+                } else if (safeCurrentPage >= totalPages - 2) {
+                  pageNum = totalPages - 4 + i
+                } else {
+                  pageNum = safeCurrentPage - 2 + i
+                }
+                return (
+                  <button
+                    key={pageNum}
+                    type="button"
+                    onClick={() => setCurrentPage(pageNum)}
+                    className={`flex h-9 w-9 items-center justify-center rounded-xl text-sm font-bold transition-all ${
+                      pageNum === safeCurrentPage
+                        ? 'bg-blue-600 text-white shadow-md shadow-blue-200'
+                        : 'text-slate-500 hover:bg-slate-100'
+                    }`}
+                  >
+                    {pageNum}
+                  </button>
+                )
+              })}
+            </div>
             <button
               type="button"
               onClick={() => setCurrentPage((page) => Math.min(totalPages, page + 1))}
               disabled={safeCurrentPage === totalPages}
-              className="inline-flex items-center gap-2 rounded-xl border border-slate-200 px-4 py-2 text-sm font-semibold text-slate-400 transition-colors hover:text-slate-700 disabled:cursor-not-allowed disabled:opacity-50 disabled:hover:text-slate-400"
+              className="inline-flex items-center gap-1.5 rounded-xl border border-slate-200 px-4 py-2 text-sm font-bold text-slate-500 transition-colors hover:bg-slate-50 hover:text-slate-700 disabled:cursor-not-allowed disabled:opacity-40"
             >
               Next
-              <i className="bi bi-chevron-right text-xs" />
+              <ChevronRight size={14} />
             </button>
           </div>
         </div>
       )}
 
+      {/* Activity Log Modal */}
       {logViewerPipId && (
         <div className="fixed inset-0 z-[60] flex items-center justify-center p-4 sm:p-6">
           <div
             className="absolute inset-0 bg-slate-900/40 backdrop-blur-sm"
             onClick={() => setLogViewerPipId(null)}
           />
-          <div className="relative w-full max-w-4xl max-h-[90vh] overflow-y-auto rounded-[2rem] bg-slate-50 shadow-2xl animate-in zoom-in-95 duration-200">
-            <div className="sticky top-0 z-10 flex items-center justify-between border-b border-slate-200 bg-white/80 px-8 py-5 backdrop-blur-md">
+          <div className="relative w-full max-w-4xl max-h-[90vh] overflow-y-auto rounded-[32px] bg-slate-50 shadow-2xl animate-in fade-in zoom-in-95 duration-200">
+            <div className="sticky top-0 z-10 flex items-center justify-between border-b border-slate-200 bg-white/80 px-8 py-5 backdrop-blur-xl">
               <div>
                 <h3 className="text-xl font-black text-slate-900">PIP Activity History</h3>
-                <p className="text-xs font-bold text-slate-400 uppercase tracking-widest mt-1">Viewing Audit Log for PIP #{logViewerPipId}</p>
+                <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mt-1">Viewing Audit Log for PIP #{logViewerPipId}</p>
               </div>
               <button
                 onClick={() => setLogViewerPipId(null)}
-                className="flex h-10 w-10 items-center justify-center rounded-full bg-slate-100 text-slate-500 transition-all hover:bg-slate-200 hover:text-slate-900"
+                className="flex h-10 w-10 items-center justify-center rounded-xl bg-slate-100 text-slate-500 transition-all hover:bg-slate-200 hover:text-slate-900"
               >
-                <i className="bi bi-x-lg" />
+                <X size={18} />
               </button>
             </div>
             <div className="p-8">

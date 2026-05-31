@@ -346,7 +346,14 @@ export default function PipDetailPage() {
   const routeBase = isAudit ? '/audit/pip-monitoring' : isAdmin ? '/hr/pip-monitoring' : isEmployee ? '/employee/pip' : '/manager/pip'
   const meetingRouteBase = isAudit ? '/audit' : isAdmin ? '/hr' : isEmployee ? '/employee' : '/manager'
 
-  if (isLoading || !pip) return <div className="p-8">Loading PIP details...</div>
+  if (isLoading || !pip) return (
+    <div className="flex min-h-[60vh] items-center justify-center">
+      <div className="flex flex-col items-center gap-4">
+        <div className="h-12 w-12 animate-spin rounded-full border-[3px] border-slate-200 border-t-blue-600" />
+        <p className="text-sm font-bold text-slate-400">Loading PIP details...</p>
+      </div>
+    </div>
+  )
 
   const isAverageProgressComplete = Number(pip.overallProgressPercentage) >= 100
   const canManualClose = isDirectManager && pip.status === 'ACTIVE'
@@ -610,23 +617,25 @@ export default function PipDetailPage() {
   }
 
   return (
-    <div className="p-8 pb-20">
+    <div className="px-6 py-8 md:px-10 pb-20 max-w-[1600px] mx-auto">
       {actionError && (
-        <div className="mb-6 rounded-xl border border-red-200 bg-red-50 p-4 text-sm text-red-700">
-          {actionError}
+        <div className="mb-8 rounded-2xl border border-red-100 bg-red-50 p-5 text-sm font-bold text-red-700">
+          <i className="bi bi-exclamation-circle mr-2" />{actionError}
         </div>
       )}
-      <div className="mb-8 flex items-center justify-between">
+
+      <div className="mb-10 flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
         <div className="flex items-center gap-4">
-          <Link to={routeBase} className="flex h-10 w-10 items-center justify-center rounded-lg border border-slate-200 bg-white text-slate-600 hover:bg-slate-50">
+          <Link to={routeBase} className="flex h-11 w-11 items-center justify-center rounded-2xl border border-slate-200 bg-white text-slate-500 shadow-sm transition-all hover:bg-slate-50 hover:text-slate-800">
             <i className="bi bi-chevron-left" />
           </Link>
           <div>
-            <h1 className="text-2xl font-bold text-slate-900">PIP Details</h1>
+            <span className="mb-1 block text-[10px] font-black uppercase tracking-[0.2em] text-blue-600">PIP #{pip.id}</span>
+            <h1 className="text-3xl font-black text-slate-900 tracking-tight leading-none">PIP Details</h1>
           </div>
         </div>
 
-        <div className="flex gap-3">
+        <div className="flex flex-wrap gap-2.5">
           {isDirectManager && pip.status === 'ACTIVE' && (
             <>
               <button
@@ -634,13 +643,13 @@ export default function PipDetailPage() {
                   setPipExtendedEndDate('')
                   setShowExtendDateModal(true)
                 }}
-                className="flex items-center gap-2 rounded-lg bg-[#2463eb] px-4 py-2 text-sm font-medium text-white hover:bg-[#1d4ed8]"
+                className="inline-flex items-center gap-2 rounded-2xl bg-blue-600 px-5 py-2.5 text-xs font-black text-white shadow-[0_4px_10px_-2px_rgba(37,99,235,0.3)] transition-all hover:bg-blue-700 active:scale-95"
               >
                 <i className="bi bi-plus-circle" /> Extend PIP Date
               </button>
               <button
                 onClick={goToPipMeetingScheduler}
-                className="flex items-center gap-2 rounded-lg border border-slate-200 bg-white px-4 py-2 text-sm font-medium text-slate-700 hover:bg-slate-50"
+                className="inline-flex items-center gap-2 rounded-2xl border border-slate-200 bg-white px-5 py-2.5 text-xs font-black text-slate-700 shadow-sm transition-all hover:bg-slate-50 hover:shadow-md"
               >
                 <i className="bi bi-calendar-event" /> Schedule Meeting
               </button>
@@ -650,7 +659,7 @@ export default function PipDetailPage() {
             <button
               onClick={handleManualClosePip}
               disabled={isManualClosing}
-              className="flex items-center gap-2 rounded-lg bg-amber-600 px-4 py-2 text-sm font-medium text-white hover:bg-amber-700 disabled:cursor-not-allowed disabled:bg-amber-300"
+              className="inline-flex items-center gap-2 rounded-2xl bg-amber-600 px-5 py-2.5 text-xs font-black text-white shadow-sm transition-all hover:bg-amber-700 disabled:cursor-not-allowed disabled:opacity-50"
             >
               <i className="bi bi-lock" /> {isManualClosing ? 'Closing...' : 'Manual Close'}
             </button>
@@ -658,7 +667,7 @@ export default function PipDetailPage() {
           {canManagerMarkResult && (
             <button
               onClick={() => setShowCloseModal(true)}
-              className="flex items-center gap-2 rounded-lg bg-[#2463eb] px-4 py-2 text-sm font-medium text-white hover:bg-[#1d4ed8]"
+              className="inline-flex items-center gap-2 rounded-2xl bg-blue-600 px-5 py-2.5 text-xs font-black text-white shadow-[0_4px_10px_-2px_rgba(37,99,235,0.3)] transition-all hover:bg-blue-700 active:scale-95"
             >
               <i className="bi bi-check-circle" /> Mark Result
             </button>
@@ -666,7 +675,7 @@ export default function PipDetailPage() {
           {canEmployeeSign && (
             <button
               onClick={() => setShowEmployeeSignModal(true)}
-              className="flex items-center gap-2 rounded-lg bg-[#2463eb] px-4 py-2 text-sm font-medium text-white hover:bg-[#1d4ed8]"
+              className="inline-flex items-center gap-2 rounded-2xl bg-blue-600 px-5 py-2.5 text-xs font-black text-white shadow-[0_4px_10px_-2px_rgba(37,99,235,0.3)] transition-all hover:bg-blue-700 active:scale-95"
             >
               <i className="bi bi-pen" /> Sign PIP
             </button>
@@ -674,7 +683,7 @@ export default function PipDetailPage() {
           {canManagerSign && (
             <button
               onClick={() => setShowManagerSignModal(true)}
-              className="flex items-center gap-2 rounded-lg bg-[#2463eb] px-4 py-2 text-sm font-medium text-white hover:bg-[#1d4ed8]"
+              className="inline-flex items-center gap-2 rounded-2xl bg-blue-600 px-5 py-2.5 text-xs font-black text-white shadow-[0_4px_10px_-2px_rgba(37,99,235,0.3)] transition-all hover:bg-blue-700 active:scale-95"
             >
               <i className="bi bi-pen" /> Sign PIP
             </button>
@@ -683,7 +692,7 @@ export default function PipDetailPage() {
             <button
               onClick={handleMarkPipCompleted}
               disabled={isMarkingCompleted}
-              className="flex items-center gap-2 rounded-lg bg-emerald-600 px-4 py-2 text-sm font-medium text-white hover:bg-emerald-700 disabled:cursor-not-allowed disabled:bg-emerald-300"
+              className="inline-flex items-center gap-2 rounded-2xl bg-emerald-600 px-5 py-2.5 text-xs font-black text-white shadow-sm transition-all hover:bg-emerald-700 disabled:cursor-not-allowed disabled:opacity-50"
             >
               <i className="bi bi-check2-circle" /> {isMarkingCompleted ? 'Marking...' : 'Mark Completed'}
             </button>
@@ -691,7 +700,7 @@ export default function PipDetailPage() {
           {canEmployeeRequestReopen && (
             <button
               onClick={() => setShowReopenModal(true)}
-              className="flex items-center gap-2 rounded-lg bg-orange-600 px-4 py-2 text-sm font-medium text-white hover:bg-orange-700"
+              className="inline-flex items-center gap-2 rounded-2xl bg-orange-600 px-5 py-2.5 text-xs font-black text-white shadow-sm transition-all hover:bg-orange-700 active:scale-95"
             >
               <i className="bi bi-arrow-counterclockwise" /> Request More Time
             </button>
@@ -700,13 +709,13 @@ export default function PipDetailPage() {
             <>
               <button
                 onClick={() => setShowApproveReopenModal(true)}
-                className="flex items-center gap-2 rounded-lg bg-green-600 px-4 py-2 text-sm font-medium text-white hover:bg-green-700"
+                className="inline-flex items-center gap-2 rounded-2xl bg-emerald-600 px-5 py-2.5 text-xs font-black text-white shadow-sm transition-all hover:bg-emerald-700 active:scale-95"
               >
-                <i className="bi bi-check-lg" /> Approve Reopen
+                <i className="bi bi-check-lg" /> Approve
               </button>
               <button
                 onClick={() => setShowReviewDenyModal(true)}
-                className="flex items-center gap-2 rounded-lg bg-red-600 px-4 py-2 text-sm font-medium text-white hover:bg-red-700"
+                className="inline-flex items-center gap-2 rounded-2xl bg-red-600 px-5 py-2.5 text-xs font-black text-white shadow-sm transition-all hover:bg-red-700 active:scale-95"
               >
                 <i className="bi bi-x-lg" /> Deny
               </button>
@@ -716,64 +725,83 @@ export default function PipDetailPage() {
       </div>
 
       <div className="grid grid-cols-1 gap-8 lg:grid-cols-3">
-        {/* Objectives Section */}
+        {/* Main Content */}
         <div className="lg:col-span-2 space-y-8">
-          <section className="rounded-xl border border-slate-200 bg-white p-6 shadow-sm">
-            <h2 className="mb-6 text-lg font-bold text-slate-900">Improvement Objectives</h2>
+          {/* Objectives Section */}
+          <section className="rounded-[2rem] border border-white bg-white p-8 shadow-sm">
+            <h2 className="mb-8 text-lg font-black text-slate-900 tracking-tight">
+              <i className="bi bi-bullseye mr-2 text-blue-600" />
+              Improvement Objectives
+            </h2>
             <div className="space-y-8">
               {pip.objectives.map((obj) => {
                 const metrics = getObjectiveRuntimeMetrics(obj)
                 return (
-                <div key={obj.id} className="space-y-3">
+                <div key={obj.id} className="space-y-4 rounded-2xl border border-slate-100 bg-slate-50/50 p-5 transition-all hover:border-slate-200 hover:shadow-sm">
                   {isEmployee && pip.status === 'ACTIVE' && (
                     <div className="flex flex-wrap items-center gap-3">
                       <button
                         type="button"
                         onClick={() => void handleToggleObjectiveTimer(obj.id, obj.timerRunning)}
-                        className={`rounded-lg px-4 py-2 text-sm font-semibold text-white ${obj.timerRunning ? 'bg-red-600 hover:bg-red-700' : 'bg-[#2463eb] hover:bg-[#1d4ed8]'}`}
+                        className={`rounded-2xl px-5 py-2.5 text-xs font-black text-white transition-all active:scale-95 ${
+                          obj.timerRunning
+                            ? 'bg-red-600 shadow-[0_4px_10px_-2px_rgba(220,38,38,0.3)] hover:bg-red-700'
+                            : 'bg-blue-600 shadow-[0_4px_10px_-2px_rgba(37,99,235,0.3)] hover:bg-blue-700'
+                        }`}
                       >
                         {obj.timerRunning ? 'End PIP' : 'Start PIP'}
                       </button>
                       {obj.timerRunning && (
-                        <span className="rounded-lg border border-blue-100 bg-blue-50 px-3 py-2 font-mono text-sm font-bold text-blue-700">
+                        <span className="inline-flex items-center gap-2 rounded-2xl border border-blue-100 bg-blue-50 px-4 py-2.5 font-mono text-sm font-black text-blue-700">
+                          <span className="inline-block h-2 w-2 rounded-full bg-red-500 animate-pulse" />
                           {formatLiveTimer(metrics.elapsedMilliseconds)}
                         </span>
                       )}
                     </div>
                   )}
                   <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
-                    <span className="min-w-0 break-words font-medium text-slate-800">{obj.description}</span>
+                    <span className="min-w-0 break-words text-base font-black text-slate-900">{obj.description}</span>
                     {isDirectManager && pip.status === 'ACTIVE' && (
                       <button
                         onClick={() => {
                           setShowUpdateModal({ open: true, objectiveId: obj.id })
-                          setUpdateValue({
-                            additionalHours: 0,
-                            note: ''
-                          })
+                          setUpdateValue({ additionalHours: 0, note: '' })
                         }}
-                        className="shrink-0 text-sm font-semibold text-[#2463eb] hover:text-[#1e40af]"
+                        className="shrink-0 inline-flex items-center gap-1.5 rounded-xl bg-blue-50 px-4 py-2 text-xs font-black text-blue-700 transition-all hover:bg-blue-100"
                       >
-                        Extend Hour
+                        <i className="bi bi-plus-circle" /> Extend Hour
                       </button>
                     )}
                   </div>
-                  <div className="grid grid-cols-2 gap-3 rounded-lg bg-slate-50 p-3 text-xs text-slate-600 sm:grid-cols-4">
-                    <div><span className="block font-bold text-slate-900">{formatHours(metrics.totalHours)}</span>Total Hours</div>
-                    <div><span className="block font-bold text-slate-900">{formatHours(metrics.completedHours)}</span>Completed</div>
-                    <div><span className="block font-bold text-slate-900">{formatHours(metrics.remainingHours)}</span>Remaining</div>
-                    <div><span className="block font-bold text-slate-900">{metrics.progressPercentage}%</span>Progress</div>
+                  <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
+                    <div className="rounded-xl bg-white p-3 text-center shadow-sm">
+                      <p className="text-lg font-black text-slate-900">{formatHours(metrics.totalHours)}</p>
+                      <p className="text-[10px] font-black uppercase tracking-widest text-slate-400">Total Hours</p>
+                    </div>
+                    <div className="rounded-xl bg-white p-3 text-center shadow-sm">
+                      <p className="text-lg font-black text-blue-600">{formatHours(metrics.completedHours)}</p>
+                      <p className="text-[10px] font-black uppercase tracking-widest text-slate-400">Completed</p>
+                    </div>
+                    <div className="rounded-xl bg-white p-3 text-center shadow-sm">
+                      <p className="text-lg font-black text-orange-600">{formatHours(metrics.remainingHours)}</p>
+                      <p className="text-[10px] font-black uppercase tracking-widest text-slate-400">Remaining</p>
+                    </div>
+                    <div className="rounded-xl bg-white p-3 text-center shadow-sm">
+                      <p className="text-lg font-black text-emerald-600">{metrics.progressPercentage}%</p>
+                      <p className="text-[10px] font-black uppercase tracking-widest text-slate-400">Progress</p>
+                    </div>
                   </div>
                   <div className="flex items-center gap-4">
-                    <div className="h-2 w-full rounded-full bg-slate-100">
+                    <div className="h-3 flex-1 overflow-hidden rounded-full bg-white shadow-inner">
                       <div
-                        className={`h-full rounded-full transition-all duration-500 ${metrics.progressPercentage === 100 ? 'bg-green-500' : 'bg-[#2463eb]'}`}
-                        style={{ width: `${metrics.progressPercentage}%` }}
+                        className={`h-full rounded-full transition-all duration-700 ${
+                          metrics.progressPercentage >= 100 ? 'bg-emerald-500' :
+                          metrics.progressPercentage >= 60 ? 'bg-blue-500' : 'bg-amber-500'
+                        }`}
+                        style={{ width: `${Math.min(metrics.progressPercentage, 100)}%` }}
                       />
                     </div>
-                    <span className={`min-w-[40px] text-sm font-bold ${metrics.progressPercentage === 100 ? 'text-green-600' : 'text-slate-700'}`}>
-                      {metrics.progressPercentage}%
-                    </span>
+                    <span className="min-w-[44px] text-right text-sm font-black text-slate-700">{metrics.progressPercentage}%</span>
                   </div>
                 </div>
                 )
@@ -782,19 +810,22 @@ export default function PipDetailPage() {
           </section>
 
           {(pip.expectedImprovements || pip.reasonForPlan) && (
-            <section className="rounded-xl border border-slate-200 bg-white p-6 shadow-sm">
-              <h2 className="mb-4 text-lg font-bold text-slate-900">PIP Details</h2>
-              <div className="space-y-4">
+            <section className="rounded-[2rem] border border-white bg-white p-8 shadow-sm">
+              <h2 className="mb-6 text-lg font-black text-slate-900 tracking-tight">
+                <i className="bi bi-info-circle mr-2 text-blue-600" />
+                PIP Details
+              </h2>
+              <div className="grid gap-6 sm:grid-cols-2">
                 {pip.expectedImprovements && (
-                  <div>
-                    <p className="mb-1 text-xs font-semibold uppercase text-slate-400">Expected Improvements</p>
-                    <p className="text-sm text-slate-700 whitespace-pre-wrap">{pip.expectedImprovements}</p>
+                  <div className="rounded-2xl border border-slate-100 bg-slate-50/50 p-5">
+                    <p className="mb-2 text-[10px] font-black uppercase tracking-widest text-slate-400">Expected Improvements</p>
+                    <p className="text-sm font-bold text-slate-700 whitespace-pre-wrap">{pip.expectedImprovements}</p>
                   </div>
                 )}
                 {pip.reasonForPlan && (
-                  <div>
-                    <p className="mb-1 text-xs font-semibold uppercase text-slate-400">Reason for Plan</p>
-                    <p className="text-sm text-slate-700 whitespace-pre-wrap">{pip.reasonForPlan}</p>
+                  <div className="rounded-2xl border border-slate-100 bg-slate-50/50 p-5">
+                    <p className="mb-2 text-[10px] font-black uppercase tracking-widest text-slate-400">Reason for Plan</p>
+                    <p className="text-sm font-bold text-slate-700 whitespace-pre-wrap">{pip.reasonForPlan}</p>
                   </div>
                 )}
               </div>
@@ -802,77 +833,89 @@ export default function PipDetailPage() {
           )}
 
           {/* Follow-up Meetings Section */}
-          <section className="rounded-xl border border-slate-200 bg-white p-6 shadow-sm">
-            <h2 className="mb-6 text-lg font-bold text-slate-900">Follow-Up Meetings</h2>
-            <div className="h-[420px] space-y-4 overflow-y-auto rounded-lg border border-slate-100 bg-slate-50/60 p-4 pr-2">
+          <section className="rounded-[2rem] border border-white bg-white p-8 shadow-sm">
+            <h2 className="mb-6 text-lg font-black text-slate-900 tracking-tight">
+              <i className="bi bi-calendar-check mr-2 text-blue-600" />
+              Follow-Up Meetings
+            </h2>
+            <div className="max-h-[460px] space-y-3 overflow-y-auto rounded-2xl border border-slate-100 bg-slate-50/50 p-5">
               {isPipMeetingsLoading && (
-                <p className="py-4 text-center text-slate-500">Loading meetings...</p>
+                <p className="py-6 text-center text-sm font-bold text-slate-400">Loading meetings...</p>
               )}
               {!isPipMeetingsLoading && oneOnOnePipMeetings.map((m) => (
-                <div key={`one-on-one-${m.id}`} className="flex flex-col gap-3 rounded-lg border border-slate-100 bg-slate-50 p-4 sm:flex-row sm:items-center sm:justify-between">
+                <div key={`one-on-one-${m.id}`} className="flex flex-col gap-3 rounded-2xl border border-slate-100 bg-white p-5 shadow-sm transition-all hover:shadow-md sm:flex-row sm:items-center sm:justify-between">
                   <div className="flex items-center gap-4">
-                    <div className="flex h-10 w-10 items-center justify-center rounded-full bg-[#dbeafe] text-[#2463eb]">
-                      <i className="bi bi-calendar-check" />
+                    <div className="flex h-11 w-11 items-center justify-center rounded-2xl bg-blue-50 text-blue-600">
+                      <i className="bi bi-calendar-check text-lg" />
                     </div>
                     <div>
-                      <p className="font-semibold text-slate-800">
+                      <p className="text-sm font-black text-slate-900">
                         {formatDateTime(m.scheduledTime)}
                       </p>
-                      <p className="text-xs text-slate-500">
+                      <p className="text-[10px] font-bold text-slate-500">
                         One-on-one meeting | {m.status} | {getActualMeetingDuration(m.actualStartTime, m.actualEndTime)}
                       </p>
                     </div>
                   </div>
                   <Link
                     to={`${meetingRouteBase}/meetings/${m.id}`}
-                    className="text-sm font-semibold text-[#2463eb] hover:text-[#1d4ed8]"
+                    className="inline-flex items-center gap-1.5 rounded-xl bg-blue-50 px-4 py-2 text-xs font-black text-blue-700 transition-all hover:bg-blue-100"
                   >
-                    View meeting
+                    View meeting <i className="bi bi-chevron-right text-[9px]" />
                   </Link>
                 </div>
               ))}
               {!isPipMeetingsLoading && pip.followUpMeetings?.map((m) => (
-                <div key={`pip-${m.id}`} className="flex items-center justify-between rounded-lg border border-slate-100 bg-slate-50 p-4">
+                <div key={`pip-${m.id}`} className="flex items-center justify-between gap-3 rounded-2xl border border-slate-100 bg-white p-5 shadow-sm transition-all hover:shadow-md">
                   <div className="flex items-center gap-4">
-                    <div className="flex h-10 w-10 items-center justify-center rounded-full bg-[#dbeafe] text-[#2463eb]">
-                      <i className="bi bi-calendar-check" />
+                    <div className="flex h-11 w-11 items-center justify-center rounded-2xl bg-blue-50 text-blue-600">
+                      <i className="bi bi-calendar-check text-lg" />
                     </div>
                     <div>
-                      <p className="font-semibold text-slate-800">
+                      <p className="text-sm font-black text-slate-900">
                         {formatDateTime(m.startMeetingTime || m.meetingTime)} - {m.endMeetingTime ? formatDateTime(m.endMeetingTime) : 'No end time'}
                       </p>
-                      <p className="text-xs text-slate-500">
-                        {m.status}
-                      </p>
+                      <p className="text-[10px] font-bold text-slate-500">{m.status}</p>
                     </div>
                   </div>
-                  {m.reminderSent && <span className="text-xs text-green-600 font-medium"><i className="bi bi-bell-fill" /> Reminder sent</span>}
+                  {m.reminderSent && (
+                    <span className="inline-flex items-center gap-1 rounded-xl bg-emerald-50 px-3 py-1.5 text-[10px] font-black text-emerald-700">
+                      <i className="bi bi-bell-fill" /> Reminder sent
+                    </span>
+                  )}
                 </div>
               ))}
               {!isPipMeetingsLoading && oneOnOnePipMeetings.length === 0 && (!pip.followUpMeetings || pip.followUpMeetings.length === 0) && (
-                <p className="py-4 text-center text-slate-500">No meetings scheduled yet.</p>
+                <p className="py-6 text-center text-sm font-bold text-slate-400">No meetings scheduled yet.</p>
               )}
             </div>
           </section>
 
-          <PipCommunicationNotes
-            pipId={pipId}
-            pipStatus={pip.status}
-            canAdd={canAddCommunicationNote}
-            currentUserId={user?.id}
-            isHr={isAdmin}
-            followUpMeetings={pip.followUpMeetings}
-            meetingNotes={mergedMeetingNotes}
-            onError={setActionError}
-          />
+          <div className="rounded-[2rem] border border-white bg-white p-8 shadow-sm">
+            <PipCommunicationNotes
+              pipId={pipId}
+              pipStatus={pip.status}
+              canAdd={canAddCommunicationNote}
+              currentUserId={user?.id}
+              isHr={isAdmin}
+              followUpMeetings={pip.followUpMeetings}
+              meetingNotes={mergedMeetingNotes}
+              onError={setActionError}
+            />
+          </div>
 
-          <PipUnifiedLog pipId={pip.id} />
+          <div className="rounded-[2rem] border border-white bg-white p-8 shadow-sm">
+            <PipUnifiedLog pipId={pip.id} />
+          </div>
 
           {/* Training History Section */}
-          <section className="rounded-xl border border-slate-200 bg-white p-6 shadow-sm">
-            <div className="mb-6 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-              <h2 className="text-lg font-bold text-slate-900">Training & Development History</h2>
-              <div className="inline-flex w-fit flex-wrap rounded-lg border border-slate-200 bg-slate-50 p-1">
+          <section className="rounded-[2rem] border border-white bg-white p-8 shadow-sm">
+            <div className="mb-6 flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+              <h2 className="text-lg font-black text-slate-900 tracking-tight">
+                <i className="bi bi-mortarboard mr-2 text-blue-600" />
+                Training & Development History
+              </h2>
+              <div className="inline-flex w-fit rounded-2xl border border-slate-100 bg-slate-50 p-1">
                 {[
                   ['IN_PROGRESS', 'In Progress'],
                   ['COMPLETED', 'Completed'],
@@ -883,55 +926,59 @@ export default function PipDetailPage() {
                     key={value}
                     type="button"
                     onClick={() => setTrainingHistoryFilter(value as typeof trainingHistoryFilter)}
-                    className={`rounded-md px-3 py-1.5 text-xs font-semibold ${trainingHistoryFilter === value ? 'bg-white text-[#1d4ed8] shadow-sm' : 'text-slate-500 hover:text-slate-800'}`}
+                    className={`rounded-xl px-4 py-2 text-[10px] font-black uppercase tracking-widest transition-all ${
+                      trainingHistoryFilter === value
+                        ? 'bg-white text-blue-700 shadow-sm'
+                        : 'text-slate-500 hover:text-slate-800'
+                    }`}
                   >
                     {label}
                   </button>
                 ))}
               </div>
             </div>
-            <div className="max-h-[460px] overflow-auto pr-1">
+            <div className="max-h-[500px] overflow-auto rounded-2xl border border-slate-100">
               {isTrainingHistoryLoading && (
-                <p className="py-4 text-center text-slate-500">Loading training records...</p>
+                <p className="py-8 text-center text-sm font-bold text-slate-400">Loading training records...</p>
               )}
               {!isTrainingHistoryLoading && groupedTrainingHistory.length > 0 && (
                 <div className="min-w-[980px]">
-                  <table className="min-w-full divide-y divide-slate-100 text-left text-sm">
+                  <table className="min-w-full text-left text-sm">
                     <thead>
-                      <tr className="text-xs font-bold uppercase tracking-wider text-slate-400">
-                        <th className="whitespace-nowrap px-3 py-3">Training</th>
-                        <th className="whitespace-nowrap px-3 py-3">Provider</th>
-                        <th className="whitespace-nowrap px-3 py-3">Start Date</th>
-                        <th className="whitespace-nowrap px-3 py-3">End Date</th>
-                        <th className="whitespace-nowrap px-3 py-3">Status</th>
-                        <th className="whitespace-nowrap px-3 py-3">Completed Hours</th>
-                        <th className="whitespace-nowrap px-3 py-3">Completion %</th>
-                        <th className="min-w-48 px-3 py-3">Feedback / Notes</th>
+                      <tr className="border-b border-slate-100 bg-slate-50/50">
+                        <th className="whitespace-nowrap px-5 py-4 text-[10px] font-black uppercase tracking-widest text-slate-400">Training</th>
+                        <th className="whitespace-nowrap px-5 py-4 text-[10px] font-black uppercase tracking-widest text-slate-400">Provider</th>
+                        <th className="whitespace-nowrap px-5 py-4 text-[10px] font-black uppercase tracking-widest text-slate-400">Start Date</th>
+                        <th className="whitespace-nowrap px-5 py-4 text-[10px] font-black uppercase tracking-widest text-slate-400">End Date</th>
+                        <th className="whitespace-nowrap px-5 py-4 text-[10px] font-black uppercase tracking-widest text-slate-400">Status</th>
+                        <th className="whitespace-nowrap px-5 py-4 text-[10px] font-black uppercase tracking-widest text-slate-400">Hours</th>
+                        <th className="whitespace-nowrap px-5 py-4 text-[10px] font-black uppercase tracking-widest text-slate-400">Completion</th>
+                        <th className="min-w-48 px-5 py-4 text-[10px] font-black uppercase tracking-widest text-slate-400">Feedback</th>
                       </tr>
                     </thead>
                     <tbody className="divide-y divide-slate-100">
                       {groupedTrainingHistory.map((t) => (
-                        <tr key={t.id} className="align-top">
-                          <td className="px-3 py-4">
-                            <p className="whitespace-pre-wrap font-medium text-slate-800">{t.trainingName || '-'}</p>
+                        <tr key={t.id} className="align-top transition-colors hover:bg-slate-50/50">
+                          <td className="px-5 py-4">
+                            <p className="whitespace-pre-wrap font-black text-slate-800">{t.trainingName || '-'}</p>
                           </td>
-                          <td className="whitespace-nowrap px-3 py-4 text-slate-600">{t.trainingProvider || '-'}</td>
-                          <td className="whitespace-nowrap px-3 py-4 text-slate-600">{formatDate(t.startDate)}</td>
-                          <td className="whitespace-nowrap px-3 py-4 text-slate-600">{formatDate(t.endDate ?? t.completionDate)}</td>
-                          <td className="whitespace-nowrap px-3 py-4">
-                            <span className={`inline-flex rounded-full px-2.5 py-0.5 text-xs font-medium ${getTrainingStatusClass(t.completionStatus || t.status)}`}>
+                          <td className="whitespace-nowrap px-5 py-4 font-bold text-slate-600">{t.trainingProvider || '-'}</td>
+                          <td className="whitespace-nowrap px-5 py-4 font-bold text-slate-600">{formatDate(t.startDate)}</td>
+                          <td className="whitespace-nowrap px-5 py-4 font-bold text-slate-600">{formatDate(t.endDate ?? t.completionDate)}</td>
+                          <td className="whitespace-nowrap px-5 py-4">
+                            <span className={`inline-flex rounded-xl px-2.5 py-1 text-[10px] font-black uppercase ${getTrainingStatusClass(t.completionStatus || t.status)}`}>
                               {formatTrainingStatus(t.completionStatus || t.status)}
                             </span>
                           </td>
-                          <td className="whitespace-nowrap px-3 py-4 text-slate-600">
+                          <td className="whitespace-nowrap px-5 py-4 font-bold text-slate-600">
                             {t.totalCompletedHours ?? pip.completedHours ?? 0} / {pip.totalHours ?? 0}
                           </td>
-                          <td className="whitespace-nowrap px-3 py-4">
-                            <span className={`inline-flex rounded-full px-2.5 py-0.5 text-xs font-medium ${getTrainingStatusClass(t.completionStatus || t.status)}`}>
+                          <td className="whitespace-nowrap px-5 py-4">
+                            <span className="font-black text-slate-700">
                               {getTrainingCompletionPercentage(t.percentageCompletion, t.completionStatus || t.status)}
                             </span>
                           </td>
-                          <td className="px-3 py-4 text-slate-600">{t.feedbackNotes || '-'}</td>
+                          <td className="px-5 py-4 font-bold text-slate-600">{t.feedbackNotes || '-'}</td>
                         </tr>
                       ))}
                     </tbody>
@@ -939,7 +986,7 @@ export default function PipDetailPage() {
                 </div>
               )}
               {!isTrainingHistoryLoading && groupedTrainingHistory.length === 0 && (
-                <p className="py-4 text-center text-slate-500">
+                <p className="py-8 text-center text-sm font-bold text-slate-400">
                   {trainingHistoryFilter === 'ALL' ? 'No training records found for this employee.' : `No ${formatTrainingStatus(trainingHistoryFilter).toLowerCase()} training history records found.`}
                 </p>
               )}
@@ -947,168 +994,175 @@ export default function PipDetailPage() {
           </section>
         </div>
 
-        {/* Sidebar Info Section */}
+        {/* Sidebar */}
         <div className="space-y-8 lg:sticky lg:top-6 lg:self-start">
-          <section className="rounded-xl border border-slate-200 bg-white p-6 shadow-sm">
-            <h2 className="mb-4 text-sm font-bold uppercase tracking-wider text-slate-400">PIP Person Details</h2>
-            <div className="rounded-lg border border-slate-100 bg-slate-50 p-4">
-              <div className="flex items-start gap-3">
-                <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-full bg-[#dbeafe] text-[#2463eb]">
-                  <i className="bi bi-person" />
-                </div>
-                <div className="min-w-0">
-                  <p className="break-words text-base font-bold text-slate-900">{pip.employee.employee?.employeeName || pip.employee.email || 'N/A'}</p>
-                  <p className="mt-1 text-xs text-slate-500">Staff ID: {pip.employee.employeeId || '-'}</p>
-                </div>
+          <section className="rounded-[2rem] border border-white bg-white p-8 shadow-sm">
+            <h2 className="mb-5 text-[10px] font-black uppercase tracking-widest text-slate-400">Employee</h2>
+            <div className="flex items-start gap-4">
+              <div className="flex h-14 w-14 shrink-0 items-center justify-center rounded-2xl bg-blue-50 text-xl font-black text-blue-600 shadow-sm">
+                {pip.employee.employee?.employeeName ? pip.employee.employee.employeeName.charAt(0).toUpperCase() : <i className="bi bi-person" />}
               </div>
-              <div className="mt-4 grid grid-cols-1 gap-3 text-sm">
-                <div>
-                  <p className="text-xs text-slate-500">Department</p>
-                  <p className="font-medium text-slate-800">{pip.employee.employee?.department?.departmentName || '-'}</p>
+              <div className="min-w-0">
+                <p className="text-base font-black text-slate-900 leading-tight">{pip.employee.employee?.employeeName || pip.employee.email || 'N/A'}</p>
+                <p className="mt-1 text-xs font-bold text-slate-400">Staff ID: {pip.employee.employeeId || '-'}</p>
+                <div className="mt-3 flex flex-wrap gap-2">
+                  <span className="inline-flex items-center gap-1 rounded-xl bg-slate-50 px-3 py-1.5 text-[10px] font-bold text-slate-600">
+                    <i className="bi bi-building text-slate-400" /> {pip.employee.employee?.department?.departmentName || '-'}
+                  </span>
+                  <span className="inline-flex items-center gap-1 rounded-xl bg-slate-50 px-3 py-1.5 text-[10px] font-bold text-slate-600">
+                    <i className="bi bi-briefcase text-slate-400" /> {pip.employee.employee?.position?.positionName || pip.employee.employee?.positionName || '-'}
+                  </span>
                 </div>
-                <div>
-                  <p className="text-xs text-slate-500">Position</p>
-                  <p className="font-medium text-slate-800">{pip.employee.employee?.position?.positionName || pip.employee.employee?.positionName || '-'}</p>
-                </div>
-                <div>
-                  <p className="text-xs text-slate-500">Assigned Manager</p>
-                  <p className="font-medium text-slate-800">{pip.manager.employee?.employeeName || pip.manager.email || '-'}</p>
+                <div className="mt-3 flex items-center gap-2 text-xs font-bold text-slate-500">
+                  <i className="bi bi-person-check text-blue-600" />
+                  Assigned to: {pip.manager.employee?.employeeName || pip.manager.email || '-'}
                 </div>
               </div>
             </div>
           </section>
 
-          <section className="rounded-xl border border-slate-200 bg-white p-6 shadow-sm">
-            <h2 className="mb-4 text-sm font-bold uppercase tracking-wider text-slate-400">PIP Summary</h2>
-            <div className="space-y-4">
-              <div>
-                <p className="text-xs text-slate-500">Current Status</p>
-                <span className={`mt-1 inline-flex rounded-md px-2.5 py-1 text-xs font-bold uppercase ${getStatusClass(pip.status)}`}>
+          <section className="rounded-[2rem] border border-white bg-white p-8 shadow-sm">
+            <h2 className="mb-5 text-[10px] font-black uppercase tracking-widest text-slate-400">PIP Summary</h2>
+            <div className="space-y-5">
+              <div className="flex items-center justify-between rounded-2xl bg-slate-50/80 px-5 py-4">
+                <span className="text-xs font-bold text-slate-500">Status</span>
+                <span className={`inline-flex items-center gap-1.5 rounded-xl px-3 py-1.5 text-[10px] font-black uppercase ${getStatusClass(pip.status)}`}>
+                  <span className={`inline-block h-1.5 w-1.5 rounded-full ${
+                    pip.status === 'ACTIVE' ? 'bg-blue-600' :
+                    pip.status === 'COMPLETED' ? 'bg-emerald-600' :
+                    pip.status === 'CLOSED' ? 'bg-slate-500' :
+                    pip.status === 'AUTO_CLOSED' ? 'bg-amber-600' :
+                    pip.status === 'REOPEN_REQUESTED' ? 'bg-orange-600' : 'bg-slate-400'
+                  }`} />
                   {getStatusLabel(pip.status)}
                 </span>
               </div>
-              <div>
-                <p className="text-xs text-slate-500">Assigned Manager</p>
-                <p className="font-medium text-slate-800">{pip.manager.employee?.employeeName}</p>
-              </div>
-              <div>
-                <p className="text-xs text-slate-500">PIP Duration</p>
-                <p className="font-medium text-slate-800">
-                  {formatDate(pip.startDate)} — {formatDate(pip.endDate)}
-                </p>
-              </div>
-              <div>
-                <p className="text-xs text-slate-500">Original End Date</p>
-                <p className="font-medium text-slate-800">{formatDate(pip.originalEndDate || pip.endDate)}</p>
-              </div>
-              {pip.extendedEndDate && (
-                <div>
-                  <p className="text-xs text-slate-500">Extended End Date</p>
-                  <p className="font-medium text-[#1d4ed8]">{formatDate(pip.extendedEndDate)}</p>
+
+              <div className="space-y-3">
+                <div className="flex justify-between items-center">
+                  <span className="text-xs font-bold text-slate-400">PIP Duration</span>
+                  <span className="text-sm font-black text-slate-800">{formatDate(pip.startDate)} — {formatDate(pip.endDate)}</span>
                 </div>
-              )}
-              {summaryAutoCloseDate && (
-                <div>
-                  <p className="text-xs text-slate-500">Auto-Close Date</p>
-                  <p className="font-medium text-amber-700">{formatDate(summaryAutoCloseDate)}</p>
+                <div className="flex justify-between items-center">
+                  <span className="text-xs font-bold text-slate-400">Original End Date</span>
+                  <span className="text-sm font-black text-slate-800">{formatDate(pip.originalEndDate || pip.endDate)}</span>
                 </div>
-              )}
-              {pip.finalCloseDate && (
-                <div>
-                  <p className="text-xs text-slate-500">Final Close Date</p>
-                  <p className="font-medium text-slate-800">{formatDate(pip.finalCloseDate)}</p>
-                </div>
-              )}
-              <div>
-                <p className="text-xs text-slate-500">Created On</p>
-                <p className="font-medium text-slate-800">{formatDateTime(pip.createdAt)}</p>
-              </div>
-              <div className="pt-4 border-t border-slate-100 flex justify-between items-center">
-                <div>
-                  <p className="text-xs text-slate-500">Total Hours</p>
-                  <p className="text-lg font-bold text-slate-900">{pip.totalHours}</p>
-                </div>
-                <div className="text-right">
-                  <p className="text-xs text-slate-500">Completed</p>
-                  <p className="text-lg font-bold text-[#2463eb]">{pip.completedHours}</p>
+                {pip.extendedEndDate && (
+                  <div className="flex justify-between items-center">
+                    <span className="text-xs font-bold text-slate-400">Extended End Date</span>
+                    <span className="text-sm font-black text-blue-700">{formatDate(pip.extendedEndDate)}</span>
+                  </div>
+                )}
+                {summaryAutoCloseDate && (
+                  <div className="flex justify-between items-center">
+                    <span className="text-xs font-bold text-slate-400">Auto-Close Date</span>
+                    <span className="text-sm font-black text-amber-700">{formatDate(summaryAutoCloseDate)}</span>
+                  </div>
+                )}
+                {pip.finalCloseDate && (
+                  <div className="flex justify-between items-center">
+                    <span className="text-xs font-bold text-slate-400">Final Close Date</span>
+                    <span className="text-sm font-black text-slate-800">{formatDate(pip.finalCloseDate)}</span>
+                  </div>
+                )}
+                <div className="flex justify-between items-center">
+                  <span className="text-xs font-bold text-slate-400">Created On</span>
+                  <span className="text-sm font-black text-slate-800">{formatDateTime(pip.createdAt)}</span>
                 </div>
               </div>
-              <div className="rounded-lg border border-slate-100 bg-slate-50 p-3">
-                <div className="flex justify-between gap-3 text-sm">
-                  <span className="text-slate-500">Allowed Completion Time</span>
-                  <strong className="text-slate-900">{formatHours(allowedPipHours)} hours</strong>
+
+              <div className="rounded-2xl bg-slate-50/80 p-5">
+                <div className="flex justify-between items-center mb-4">
+                  <div>
+                    <p className="text-[10px] font-black uppercase tracking-widest text-slate-400">Total Hours</p>
+                    <p className="text-2xl font-black text-slate-900 leading-none mt-1">{pip.totalHours}</p>
+                  </div>
+                  <div className="text-right">
+                    <p className="text-[10px] font-black uppercase tracking-widest text-slate-400">Completed</p>
+                    <p className="text-2xl font-black text-blue-600 leading-none mt-1">{pip.completedHours}</p>
+                  </div>
                 </div>
-                <p className="mt-1 text-xs text-slate-500">{pipDurationDays} PIP days x 5 hours/day</p>
+                <div className="h-2 w-full overflow-hidden rounded-full bg-white">
+                  <div
+                    className="h-full rounded-full bg-blue-500 transition-all duration-700"
+                    style={{ width: `${Math.min(Number(pip.overallProgressPercentage) || 0, 100)}%` }}
+                  />
+                </div>
+                <div className="mt-2 flex justify-between">
+                  <span className="text-[10px] font-bold text-slate-400">Progress</span>
+                  <span className="text-[10px] font-black text-slate-700">{pip.overallProgressPercentage}%</span>
+                </div>
               </div>
+
+              <div className="rounded-2xl border border-slate-100 bg-white p-4 shadow-sm">
+                <div className="flex justify-between gap-3">
+                  <span className="text-xs font-bold text-slate-400">Allowed Completion Time</span>
+                  <span className="text-sm font-black text-slate-900">{formatHours(allowedPipHours)} hours</span>
+                </div>
+                <p className="mt-1 text-[10px] font-bold text-slate-400">{pipDurationDays} PIP days x 5 hours/day</p>
+              </div>
+
               {pip.finalOutcome && (
                 <>
-                  <div className="pt-4 border-t border-slate-100">
-                    <p className="text-xs text-slate-500">Final Outcome</p>
-                    <p className="font-bold text-[#2463eb]">{pip.finalOutcome}</p>
+                  <div className="flex justify-between items-center rounded-2xl bg-emerald-50/80 px-5 py-4">
+                    <span className="text-xs font-bold text-slate-500">Final Outcome</span>
+                    <span className="text-sm font-black text-emerald-700">{pip.finalOutcome}</span>
                   </div>
                   <div>
-                    <p className="text-xs text-slate-500">Closing Remarks</p>
-                    <p className="text-sm text-slate-700 whitespace-pre-wrap">{pip.closingRemarks}</p>
+                    <p className="mb-1 text-xs font-bold text-slate-400">Closing Remarks</p>
+                    <p className="text-sm font-bold text-slate-700 whitespace-pre-wrap rounded-2xl bg-slate-50/80 p-4">{pip.closingRemarks}</p>
                   </div>
                 </>
               )}
               {shouldShowSignatureSummary && (
-                <div className="pt-4 border-t border-slate-100 space-y-3">
+                <div className="space-y-4 rounded-2xl border border-slate-100 bg-slate-50/50 p-5">
                   <div>
-                    <p className="text-xs text-slate-500">Manager Signature</p>
+                    <p className="text-[10px] font-black uppercase tracking-widest text-slate-400 mb-2">Manager Signature</p>
                     {pip.managerSignature && isImageSignature(pip.managerSignature) ? (
-                      <div className="mt-1 rounded-md border border-slate-200 bg-slate-50 px-3 py-2">
-                        <img
-                          src={resolveMediaSrc(pip.managerSignature)}
-                          alt="Manager signature"
-                          className="max-h-14 max-w-full object-contain"
-                        />
+                      <div className="rounded-xl border border-slate-200 bg-white px-4 py-3">
+                        <img src={resolveMediaSrc(pip.managerSignature)} alt="Manager signature" className="max-h-14 max-w-full object-contain" />
                       </div>
                     ) : pip.managerSignature ? (
-                      <p className="text-sm font-medium text-slate-800">{pip.managerSignature}</p>
+                      <p className="text-sm font-bold text-slate-800">{pip.managerSignature}</p>
                     ) : null}
-                    <p className="mt-1 text-sm font-medium text-slate-800">
+                    <p className="mt-1 text-xs font-bold text-slate-500">
                       {pip.managerSignatureDate ? `Signed on ${formatDateTime(pip.managerSignatureDate)}` : 'Pending'}
                     </p>
                   </div>
                   <div>
-                    <p className="text-xs text-slate-500">Employee Signature</p>
+                    <p className="text-[10px] font-black uppercase tracking-widest text-slate-400 mb-2">Employee Signature</p>
                     {pip.employeeSignature && isImageSignature(pip.employeeSignature) ? (
-                      <div className="mt-1 rounded-md border border-slate-200 bg-slate-50 px-3 py-2">
-                        <img
-                          src={resolveMediaSrc(pip.employeeSignature)}
-                          alt="Employee signature"
-                          className="max-h-14 max-w-full object-contain"
-                        />
+                      <div className="rounded-xl border border-slate-200 bg-white px-4 py-3">
+                        <img src={resolveMediaSrc(pip.employeeSignature)} alt="Employee signature" className="max-h-14 max-w-full object-contain" />
                       </div>
                     ) : pip.employeeSignature ? (
-                      <p className="text-sm font-medium text-slate-800">{pip.employeeSignature}</p>
+                      <p className="text-sm font-bold text-slate-800">{pip.employeeSignature}</p>
                     ) : null}
-                    <p className="mt-1 text-sm font-medium text-slate-800">
+                    <p className="mt-1 text-xs font-bold text-slate-500">
                       {pip.employeeSignatureDate ? `Signed on ${formatDateTime(pip.employeeSignatureDate)}` : 'Pending'}
                     </p>
                   </div>
                 </div>
               )}
               {pip.reopenReason && (
-                <div className="pt-4 border-t border-slate-100">
-                  <p className="text-xs text-slate-500">Employee Reopen Reason</p>
-                  <p className="text-sm font-medium text-orange-600 whitespace-pre-wrap">{pip.reopenReason}</p>
+                <div className="rounded-2xl border border-orange-100 bg-orange-50/50 p-4">
+                  <p className="text-[10px] font-black uppercase tracking-widest text-orange-600 mb-1">Reopen Reason</p>
+                  <p className="text-sm font-bold text-orange-800 whitespace-pre-wrap">{pip.reopenReason}</p>
                 </div>
               )}
               {pip.reopenDecision && (
-                <div className="pt-4 border-t border-slate-100">
-                  <p className="text-xs text-slate-500">Manager Reopen Decision</p>
-                  <p className="text-sm font-medium text-slate-800">
+                <div className="flex justify-between items-center rounded-2xl bg-slate-50/80 px-5 py-4">
+                  <span className="text-xs font-bold text-slate-400">Reopen Decision</span>
+                  <span className="text-sm font-black text-slate-800">
                     {pip.reopenDecision}
-                    {pip.reopenDecisionDate ? ` on ${formatDateTime(pip.reopenDecisionDate)}` : ''}
-                  </p>
+                    {pip.reopenDecisionDate ? ` (${formatDateTime(pip.reopenDecisionDate)})` : ''}
+                  </span>
                 </div>
               )}
               {pip.reviewReason && (
-                <div className="pt-4 border-t border-slate-100">
-                  <p className="text-xs text-slate-500">Manager Rejection Reason</p>
-                  <p className="text-sm font-medium text-red-600 whitespace-pre-wrap">{pip.reviewReason}</p>
+                <div className="rounded-2xl border border-red-100 bg-red-50/50 p-4">
+                  <p className="text-[10px] font-black uppercase tracking-widest text-red-600 mb-1">Rejection Reason</p>
+                  <p className="text-sm font-bold text-red-800 whitespace-pre-wrap">{pip.reviewReason}</p>
                 </div>
               )}
             </div>
@@ -1116,26 +1170,31 @@ export default function PipDetailPage() {
         </div>
       </div>
 
-      {/* MODALS (Simplified using standard positioning) */}
+      {/* MODALS */}
       {showUpdateModal.open && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4">
-          <div className="w-full max-w-md rounded-xl bg-white p-6 shadow-xl">
-            <h3 className="mb-4 text-lg font-bold">Extend Hour</h3>
-            <div className="space-y-4">
-              <div className="rounded-lg border border-slate-200 bg-slate-50 p-3 text-xs text-slate-600">
-                <div className="flex justify-between gap-3">
-                  <span>Allowed PIP Hours</span>
-                  <strong className="text-slate-900">{formatHours(allowedPipHours)}</strong>
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/50 p-4 backdrop-blur-sm">
+          <div className="w-full max-w-md rounded-[2rem] bg-white p-8 shadow-2xl animate-scale-in">
+            <div className="mb-6 flex items-center justify-between">
+              <h3 className="text-xl font-black text-slate-900 tracking-tight">Extend Hour</h3>
+              <button onClick={() => setShowUpdateModal({ open: false, objectiveId: null })} className="flex h-8 w-8 items-center justify-center rounded-xl bg-slate-100 text-slate-500 hover:bg-slate-200">
+                <i className="bi bi-x" />
+              </button>
+            </div>
+            <div className="space-y-5">
+              <div className="rounded-2xl border border-slate-100 bg-slate-50/80 p-4">
+                <div className="flex justify-between gap-3 mb-2">
+                  <span className="text-xs font-bold text-slate-400">Allowed PIP Hours</span>
+                  <span className="text-sm font-black text-slate-900">{formatHours(allowedPipHours)}</span>
                 </div>
-                <div className="mt-1 flex justify-between gap-3">
-                  <span>Current Objective Hours</span>
-                  <strong className="text-slate-900">{formatHours(summedObjectiveHours)}</strong>
+                <div className="flex justify-between gap-3">
+                  <span className="text-xs font-bold text-slate-400">Current Objective Hours</span>
+                  <span className="text-sm font-black text-slate-900">{formatHours(summedObjectiveHours)}</span>
                 </div>
               </div>
               <div>
-                <label className="block text-sm font-medium text-slate-700">Objective</label>
+                <label className="block mb-2 text-xs font-black uppercase tracking-widest text-slate-400">Objective</label>
                 <select
-                  className="mt-1 block w-full rounded-lg border border-slate-300 px-4 py-2 text-sm focus:border-[#2463eb] focus:outline-none"
+                  className="block w-full rounded-2xl border border-slate-200 bg-white px-4 py-3 text-sm font-bold text-slate-700 shadow-sm focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-200"
                   value={showUpdateModal.objectiveId ?? ''}
                   onChange={(e) => setShowUpdateModal({ open: true, objectiveId: Number(e.target.value) || null })}
                 >
@@ -1146,27 +1205,25 @@ export default function PipDetailPage() {
                 </select>
               </div>
               <div>
-                <label className="block text-sm font-medium text-slate-700">Current Total Hours</label>
-                <div className="mt-1 rounded-lg border border-slate-200 bg-slate-50 px-4 py-2 text-sm font-bold text-slate-700">
-                  {selectedObjective?.totalHours ?? 0} hours
-                </div>
+                <label className="block mb-2 text-xs font-black uppercase tracking-widest text-slate-400">Current Total Hours</label>
+                <div className="rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3 text-sm font-black text-slate-700">{selectedObjective?.totalHours ?? 0} hours</div>
               </div>
               <div>
-                <label className="block text-sm font-medium text-slate-700">Additional Hours</label>
+                <label className="block mb-2 text-xs font-black uppercase tracking-widest text-slate-400">Additional Hours</label>
                 <input
                   type="number"
                   min="0.25"
                   step="0.25"
-                  className="mt-1 block w-full rounded-lg border border-slate-300 px-4 py-2 text-sm focus:border-[#2463eb] focus:outline-none"
+                  className="block w-full rounded-2xl border border-slate-200 bg-white px-4 py-3 text-sm font-bold text-slate-700 shadow-sm focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-200"
                   value={updateValue.additionalHours || ''}
                   onChange={(e) => setUpdateValue({ ...updateValue, additionalHours: Number(e.target.value) })}
                 />
-                <p className="mt-1 text-[10px] text-slate-400">Managers can only increase objective hours.</p>
+                <p className="mt-1.5 text-[10px] font-bold text-slate-400">Managers can only increase objective hours.</p>
               </div>
               <div>
-                <label className="block text-sm font-medium text-slate-700">Required Note</label>
+                <label className="block mb-2 text-xs font-black uppercase tracking-widest text-slate-400">Required Note</label>
                 <textarea
-                  className="mt-1 block w-full rounded-lg border border-slate-300 p-3 text-sm focus:border-[#2463eb] focus:outline-none"
+                  className="block w-full rounded-2xl border border-slate-200 bg-white p-4 text-sm font-bold text-slate-700 shadow-sm focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-200"
                   rows={3}
                   placeholder="Explain why these hours are being increased..."
                   value={updateValue.note}
@@ -1174,12 +1231,12 @@ export default function PipDetailPage() {
                 />
               </div>
             </div>
-            <div className="mt-6 flex justify-end gap-3">
-              <button onClick={() => setShowUpdateModal({ open: false, objectiveId: null })} className="px-4 py-2 text-sm font-medium text-slate-600">Cancel</button>
+            <div className="mt-8 flex justify-end gap-3">
+              <button onClick={() => setShowUpdateModal({ open: false, objectiveId: null })} className="rounded-2xl border border-slate-200 px-6 py-3 text-xs font-black text-slate-500 transition-all hover:bg-slate-50">Cancel</button>
               <button
                 onClick={handleUpdateProgress}
                 disabled={!showUpdateModal.objectiveId || updateValue.additionalHours <= 0 || !updateValue.note.trim()}
-                className="rounded-lg bg-[#2463eb] px-4 py-2 text-sm font-medium text-white hover:bg-[#1d4ed8] disabled:cursor-not-allowed disabled:bg-slate-300"
+                className="rounded-2xl bg-blue-600 px-6 py-3 text-xs font-black text-white shadow-[0_4px_10px_-2px_rgba(37,99,235,0.3)] transition-all hover:bg-blue-700 disabled:cursor-not-allowed disabled:opacity-50"
               >
                 Extend Hour
               </button>
@@ -1189,16 +1246,16 @@ export default function PipDetailPage() {
       )}
 
       {showHoursLimitModal && (
-        <div className="fixed inset-0 z-[60] flex items-center justify-center bg-black/50 p-4">
-          <div className="w-full max-w-md rounded-xl bg-white p-6 text-center shadow-xl">
-            <div className="mx-auto mb-4 flex h-12 w-12 items-center justify-center rounded-full bg-red-50 text-red-600">
-              <i className="bi bi-exclamation-triangle text-xl" />
+        <div className="fixed inset-0 z-[60] flex items-center justify-center bg-slate-950/50 p-4 backdrop-blur-sm">
+          <div className="w-full max-w-md rounded-[2rem] bg-white p-8 text-center shadow-2xl animate-scale-in">
+            <div className="mx-auto mb-5 flex h-14 w-14 items-center justify-center rounded-2xl bg-red-50 text-red-600">
+              <i className="bi bi-exclamation-triangle text-2xl" />
             </div>
-            <p className="text-sm font-medium text-slate-800">{PIP_HOURS_LIMIT_MESSAGE}</p>
+            <p className="text-sm font-bold text-slate-700 leading-relaxed">{PIP_HOURS_LIMIT_MESSAGE}</p>
             <button
               type="button"
               onClick={() => setShowHoursLimitModal(false)}
-              className="mt-6 rounded-lg bg-[#2463eb] px-5 py-2 text-sm font-semibold text-white hover:bg-[#1d4ed8]"
+              className="mt-8 rounded-2xl bg-blue-600 px-8 py-3 text-xs font-black text-white shadow-[0_4px_10px_-2px_rgba(37,99,235,0.3)] transition-all hover:bg-blue-700"
             >
               OK
             </button>
@@ -1207,17 +1264,22 @@ export default function PipDetailPage() {
       )}
 
       {showExtendDateModal && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4">
-          <div className="w-full max-w-md rounded-xl bg-white p-6 shadow-xl">
-            <h3 className="mb-4 text-lg font-bold">Extend PIP Date</h3>
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/50 p-4 backdrop-blur-sm">
+          <div className="w-full max-w-md rounded-[2rem] bg-white p-8 shadow-2xl animate-scale-in">
+            <div className="mb-6 flex items-center justify-between">
+              <h3 className="text-xl font-black text-slate-900 tracking-tight">Extend PIP Date</h3>
+              <button onClick={() => setShowExtendDateModal(false)} className="flex h-8 w-8 items-center justify-center rounded-xl bg-slate-100 text-slate-500 hover:bg-slate-200">
+                <i className="bi bi-x" />
+              </button>
+            </div>
             <div>
-              <label className="block text-sm font-medium text-slate-700">Extended End Date</label>
-              <div className="relative mt-1">
+              <label className="block mb-2 text-xs font-black uppercase tracking-widest text-slate-400">Extended End Date</label>
+              <div className="relative">
                 <input
                   type="text"
                   placeholder="dd/mm/yyyy"
                   inputMode="numeric"
-                  className="block w-full rounded-lg border border-slate-300 px-4 py-2 pr-12 focus:border-[#2463eb] focus:outline-none"
+                  className="block w-full rounded-2xl border border-slate-200 bg-white px-4 py-3 pr-12 text-sm font-bold text-slate-700 shadow-sm focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-200"
                   value={pipExtendedEndDate}
                   onChange={(e) => setPipExtendedEndDate(e.target.value)}
                 />
@@ -1225,38 +1287,23 @@ export default function PipDetailPage() {
                   type="button"
                   onClick={() => {
                     const picker = extendDatePickerRef.current as (HTMLInputElement & { showPicker?: () => void }) | null
-                    if (picker?.showPicker) {
-                      picker.showPicker()
-                    } else {
-                      picker?.click()
-                    }
+                    if (picker?.showPicker) { picker.showPicker() } else { picker?.click() }
                   }}
-                  className="absolute inset-y-0 right-0 flex w-11 items-center justify-center text-slate-400 hover:text-[#2463eb]"
+                  className="absolute inset-y-0 right-0 flex w-12 items-center justify-center text-slate-400 hover:text-blue-600"
                   aria-label="Choose extended PIP end date"
                 >
                   <i className="bi bi-calendar3" />
                 </button>
-                <input
-                  ref={extendDatePickerRef}
-                  type="date"
-                  min={minPipExtendedDate}
-                  value={toIsoDate(pipExtendedEndDate)}
-                  onChange={(e) => setPipExtendedEndDate(toDisplayDateFromIso(e.target.value))}
-                  className="sr-only"
-                  tabIndex={-1}
-                  aria-hidden="true"
-                />
+                <input ref={extendDatePickerRef} type="date" min={minPipExtendedDate} value={toIsoDate(pipExtendedEndDate)} onChange={(e) => setPipExtendedEndDate(toDisplayDateFromIso(e.target.value))} className="sr-only" tabIndex={-1} aria-hidden="true" />
               </div>
-              <p className="mt-2 text-xs text-slate-500">
-                Current PIP end date: {formatDate(effectiveEndDate)}
-              </p>
+              <p className="mt-2 text-xs font-bold text-slate-400">Current PIP end date: {formatDate(effectiveEndDate)}</p>
             </div>
-            <div className="mt-6 flex justify-end gap-3">
-              <button onClick={() => setShowExtendDateModal(false)} className="px-4 py-2 text-sm font-medium text-slate-600">Cancel</button>
+            <div className="mt-8 flex justify-end gap-3">
+              <button onClick={() => setShowExtendDateModal(false)} className="rounded-2xl border border-slate-200 px-6 py-3 text-xs font-black text-slate-500 transition-all hover:bg-slate-50">Cancel</button>
               <button
                 onClick={handleExtendPipDate}
                 disabled={isExtendingPipDate || !pipExtendedEndDate}
-                className="rounded-lg bg-[#2463eb] px-4 py-2 text-sm font-medium text-white hover:bg-[#1d4ed8] disabled:cursor-not-allowed disabled:bg-[#93c5fd]"
+                className="rounded-2xl bg-blue-600 px-6 py-3 text-xs font-black text-white shadow-[0_4px_10px_-2px_rgba(37,99,235,0.3)] transition-all hover:bg-blue-700 disabled:cursor-not-allowed disabled:opacity-50"
               >
                 {isExtendingPipDate ? 'Extending...' : 'Extend Date'}
               </button>
@@ -1266,14 +1313,19 @@ export default function PipDetailPage() {
       )}
 
       {showCloseModal && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4">
-          <div className="w-full max-w-md rounded-xl bg-white p-6 shadow-xl">
-            <h3 className="mb-4 text-lg font-bold">Mark PIP Result</h3>
-            <div className="space-y-4">
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/50 p-4 backdrop-blur-sm">
+          <div className="w-full max-w-md rounded-[2rem] bg-white p-8 shadow-2xl animate-scale-in">
+            <div className="mb-6 flex items-center justify-between">
+              <h3 className="text-xl font-black text-slate-900 tracking-tight">Mark PIP Result</h3>
+              <button onClick={() => setShowCloseModal(false)} className="flex h-8 w-8 items-center justify-center rounded-xl bg-slate-100 text-slate-500 hover:bg-slate-200">
+                <i className="bi bi-x" />
+              </button>
+            </div>
+            <div className="space-y-5">
               <div>
-                <label className="block text-sm font-medium text-slate-700">Result</label>
+                <label className="block mb-2 text-xs font-black uppercase tracking-widest text-slate-400">Result</label>
                 <select
-                  className="mt-1 block w-full rounded-lg border border-slate-300 px-4 py-2 focus:border-[#2463eb] focus:outline-none"
+                  className="block w-full rounded-2xl border border-slate-200 bg-white px-4 py-3 text-sm font-bold text-slate-700 shadow-sm focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-200"
                   value={closeData.finalOutcome}
                   onChange={(e) => setCloseData({ ...closeData, finalOutcome: e.target.value })}
                 >
@@ -1283,9 +1335,9 @@ export default function PipDetailPage() {
                 </select>
               </div>
               <div>
-                <label className="block text-sm font-medium text-slate-700">Manager Comments</label>
+                <label className="block mb-2 text-xs font-black uppercase tracking-widest text-slate-400">Manager Comments</label>
                 <textarea
-                  className="mt-1 block w-full rounded-lg border border-slate-300 p-3 text-sm focus:border-[#2463eb] focus:outline-none"
+                  className="block w-full rounded-2xl border border-slate-200 bg-white p-4 text-sm font-bold text-slate-700 shadow-sm focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-200"
                   rows={4}
                   placeholder="Sum up the improvement journey..."
                   value={closeData.closingRemarks}
@@ -1293,12 +1345,12 @@ export default function PipDetailPage() {
                 />
               </div>
             </div>
-            <div className="mt-6 flex justify-end gap-3">
-              <button onClick={() => setShowCloseModal(false)} className="px-4 py-2 text-sm font-medium text-slate-600">Cancel</button>
+            <div className="mt-8 flex justify-end gap-3">
+              <button onClick={() => setShowCloseModal(false)} className="rounded-2xl border border-slate-200 px-6 py-3 text-xs font-black text-slate-500 transition-all hover:bg-slate-50">Cancel</button>
               <button
                 onClick={handleClosePip}
                 disabled={!closeData.finalOutcome.trim() || !closeData.closingRemarks.trim()}
-                className="rounded-lg bg-[#2463eb] px-4 py-2 text-sm font-medium text-white hover:bg-[#1d4ed8] disabled:cursor-not-allowed disabled:bg-[#93c5fd]"
+                className="rounded-2xl bg-blue-600 px-6 py-3 text-xs font-black text-white shadow-[0_4px_10px_-2px_rgba(37,99,235,0.3)] transition-all hover:bg-blue-700 disabled:cursor-not-allowed disabled:opacity-50"
               >
                 Save Result
               </button>
@@ -1308,41 +1360,40 @@ export default function PipDetailPage() {
       )}
 
       {showEmployeeSignModal && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4">
-          <div className="w-full max-w-md rounded-xl bg-white p-6 shadow-xl">
-            <h3 className="mb-4 text-lg font-bold">Sign PIP Acknowledgement</h3>
-            <div className="space-y-4">
-              <div className="rounded-lg border border-slate-200 bg-slate-50 p-4">
-                <div className="flex items-start justify-between gap-3">
-                  <div>
-                    <p className="text-sm font-medium text-slate-900">Default Signature</p>
-                    <p className="mt-1 text-xs text-slate-500">Your signature from Signature Settings will be recorded for this PIP.</p>
-                  </div>
-                  <Link to={signatureSettingsPath} className="shrink-0 text-xs font-semibold text-[#2463eb] hover:underline">
-                    Signature Settings
-                  </Link>
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/50 p-4 backdrop-blur-sm">
+          <div className="w-full max-w-md rounded-[2rem] bg-white p-8 shadow-2xl animate-scale-in">
+            <div className="mb-6 flex items-center justify-between">
+              <h3 className="text-xl font-black text-slate-900 tracking-tight">Sign PIP Acknowledgement</h3>
+              <button onClick={() => setShowEmployeeSignModal(false)} className="flex h-8 w-8 items-center justify-center rounded-xl bg-slate-100 text-slate-500 hover:bg-slate-200">
+                <i className="bi bi-x" />
+              </button>
+            </div>
+            <div className="rounded-2xl border border-slate-100 bg-slate-50/80 p-5">
+              <div className="flex items-start justify-between gap-3">
+                <div>
+                  <p className="text-sm font-black text-slate-900">Default Signature</p>
+                  <p className="mt-1 text-xs font-bold text-slate-500">Your signature from Signature Settings will be recorded for this PIP.</p>
                 </div>
-                <div className="mt-3 flex min-h-[72px] items-center justify-center rounded-md border border-dashed border-slate-300 bg-white px-3 py-2">
-                  {isDefaultSigLoading ? (
-                    <span className="text-xs text-slate-500">Loading signature...</span>
-                  ) : defaultSignature?.signatureData ? (
-                    <img
-                      src={resolveMediaSrc(defaultSignature.signatureData)}
-                      alt="Your default signature"
-                      className="max-h-14 max-w-full object-contain"
-                    />
-                  ) : (
-                    <p className="text-center text-xs text-slate-500">No default signature yet.</p>
-                  )}
-                </div>
+                <Link to={signatureSettingsPath} className="shrink-0 inline-flex items-center gap-1 rounded-xl bg-blue-50 px-3 py-2 text-[10px] font-black text-blue-700 hover:bg-blue-100">
+                  Settings <i className="bi bi-chevron-right text-[8px]" />
+                </Link>
+              </div>
+              <div className="mt-4 flex min-h-[80px] items-center justify-center rounded-2xl border-2 border-dashed border-slate-200 bg-white px-4 py-3">
+                {isDefaultSigLoading ? (
+                  <span className="text-xs font-bold text-slate-400">Loading signature...</span>
+                ) : defaultSignature?.signatureData ? (
+                  <img src={resolveMediaSrc(defaultSignature.signatureData)} alt="Your default signature" className="max-h-14 max-w-full object-contain" />
+                ) : (
+                  <p className="text-center text-xs font-bold text-slate-400">No default signature yet.</p>
+                )}
               </div>
             </div>
-            <div className="mt-6 flex justify-end gap-3">
-              <button onClick={() => setShowEmployeeSignModal(false)} className="px-4 py-2 text-sm font-medium text-slate-600">Cancel</button>
+            <div className="mt-8 flex justify-end gap-3">
+              <button onClick={() => setShowEmployeeSignModal(false)} className="rounded-2xl border border-slate-200 px-6 py-3 text-xs font-black text-slate-500 transition-all hover:bg-slate-50">Cancel</button>
               <button
                 onClick={handleEmployeeSign}
                 disabled={isSigningEmployee || isDefaultSigLoading || !hasDefaultSignature}
-                className="rounded-lg bg-[#2463eb] px-4 py-2 text-sm font-medium text-white hover:bg-[#1d4ed8] disabled:cursor-not-allowed disabled:bg-[#93c5fd]"
+                className="rounded-2xl bg-blue-600 px-6 py-3 text-xs font-black text-white shadow-[0_4px_10px_-2px_rgba(37,99,235,0.3)] transition-all hover:bg-blue-700 disabled:cursor-not-allowed disabled:opacity-50"
               >
                 {isSigningEmployee ? 'Signing...' : 'Sign PIP'}
               </button>
@@ -1352,41 +1403,40 @@ export default function PipDetailPage() {
       )}
 
       {showManagerSignModal && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4">
-          <div className="w-full max-w-md rounded-xl bg-white p-6 shadow-xl">
-            <h3 className="mb-4 text-lg font-bold">Sign PIP Result</h3>
-            <div className="space-y-4">
-              <div className="rounded-lg border border-slate-200 bg-slate-50 p-4">
-                <div className="flex items-start justify-between gap-3">
-                  <div>
-                    <p className="text-sm font-medium text-slate-900">Default Signature</p>
-                    <p className="mt-1 text-xs text-slate-500">Your signature from Signature Settings will be recorded for this PIP.</p>
-                  </div>
-                  <Link to={signatureSettingsPath} className="shrink-0 text-xs font-semibold text-[#2463eb] hover:underline">
-                    Signature Settings
-                  </Link>
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/50 p-4 backdrop-blur-sm">
+          <div className="w-full max-w-md rounded-[2rem] bg-white p-8 shadow-2xl animate-scale-in">
+            <div className="mb-6 flex items-center justify-between">
+              <h3 className="text-xl font-black text-slate-900 tracking-tight">Sign PIP Result</h3>
+              <button onClick={() => setShowManagerSignModal(false)} className="flex h-8 w-8 items-center justify-center rounded-xl bg-slate-100 text-slate-500 hover:bg-slate-200">
+                <i className="bi bi-x" />
+              </button>
+            </div>
+            <div className="rounded-2xl border border-slate-100 bg-slate-50/80 p-5">
+              <div className="flex items-start justify-between gap-3">
+                <div>
+                  <p className="text-sm font-black text-slate-900">Default Signature</p>
+                  <p className="mt-1 text-xs font-bold text-slate-500">Your signature from Signature Settings will be recorded for this PIP.</p>
                 </div>
-                <div className="mt-3 flex min-h-[72px] items-center justify-center rounded-md border border-dashed border-slate-300 bg-white px-3 py-2">
-                  {isDefaultSigLoading ? (
-                    <span className="text-xs text-slate-500">Loading signature...</span>
-                  ) : defaultSignature?.signatureData ? (
-                    <img
-                      src={resolveMediaSrc(defaultSignature.signatureData)}
-                      alt="Your default signature"
-                      className="max-h-14 max-w-full object-contain"
-                    />
-                  ) : (
-                    <p className="text-center text-xs text-slate-500">No default signature yet.</p>
-                  )}
-                </div>
+                <Link to={signatureSettingsPath} className="shrink-0 inline-flex items-center gap-1 rounded-xl bg-blue-50 px-3 py-2 text-[10px] font-black text-blue-700 hover:bg-blue-100">
+                  Settings <i className="bi bi-chevron-right text-[8px]" />
+                </Link>
+              </div>
+              <div className="mt-4 flex min-h-[80px] items-center justify-center rounded-2xl border-2 border-dashed border-slate-200 bg-white px-4 py-3">
+                {isDefaultSigLoading ? (
+                  <span className="text-xs font-bold text-slate-400">Loading signature...</span>
+                ) : defaultSignature?.signatureData ? (
+                  <img src={resolveMediaSrc(defaultSignature.signatureData)} alt="Your default signature" className="max-h-14 max-w-full object-contain" />
+                ) : (
+                  <p className="text-center text-xs font-bold text-slate-400">No default signature yet.</p>
+                )}
               </div>
             </div>
-            <div className="mt-6 flex justify-end gap-3">
-              <button onClick={() => setShowManagerSignModal(false)} className="px-4 py-2 text-sm font-medium text-slate-600">Cancel</button>
+            <div className="mt-8 flex justify-end gap-3">
+              <button onClick={() => setShowManagerSignModal(false)} className="rounded-2xl border border-slate-200 px-6 py-3 text-xs font-black text-slate-500 transition-all hover:bg-slate-50">Cancel</button>
               <button
                 onClick={handleManagerSign}
                 disabled={isSigningManager || isDefaultSigLoading || !hasDefaultSignature}
-                className="rounded-lg bg-[#2463eb] px-4 py-2 text-sm font-medium text-white hover:bg-[#1d4ed8] disabled:cursor-not-allowed disabled:bg-[#93c5fd]"
+                className="rounded-2xl bg-blue-600 px-6 py-3 text-xs font-black text-white shadow-[0_4px_10px_-2px_rgba(37,99,235,0.3)] transition-all hover:bg-blue-700 disabled:cursor-not-allowed disabled:opacity-50"
               >
                 {isSigningManager ? 'Signing...' : 'Sign PIP'}
               </button>
@@ -1396,14 +1446,19 @@ export default function PipDetailPage() {
       )}
 
       {showReopenModal && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4">
-          <div className="w-full max-w-md rounded-xl bg-white p-6 shadow-xl">
-            <h3 className="mb-4 text-lg font-bold">Submit Reopen Request</h3>
-            <div className="space-y-4">
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/50 p-4 backdrop-blur-sm">
+          <div className="w-full max-w-md rounded-[2rem] bg-white p-8 shadow-2xl animate-scale-in">
+            <div className="mb-6 flex items-center justify-between">
+              <h3 className="text-xl font-black text-slate-900 tracking-tight">Submit Reopen Request</h3>
+              <button onClick={() => setShowReopenModal(false)} className="flex h-8 w-8 items-center justify-center rounded-xl bg-slate-100 text-slate-500 hover:bg-slate-200">
+                <i className="bi bi-x" />
+              </button>
+            </div>
+            <div className="space-y-5">
               <div>
-                <label className="block text-sm font-medium text-slate-700">Reason for Reopening</label>
+                <label className="block mb-2 text-xs font-black uppercase tracking-widest text-slate-400">Reason for Reopening</label>
                 <select
-                  className="mt-1 block w-full rounded-lg border border-slate-300 px-4 py-2 focus:border-[#2463eb] focus:outline-none"
+                  className="block w-full rounded-2xl border border-slate-200 bg-white px-4 py-3 text-sm font-bold text-slate-700 shadow-sm focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-200"
                   value={reopenReasonType}
                   onChange={(e) => setReopenReasonType(e.target.value)}
                 >
@@ -1414,9 +1469,9 @@ export default function PipDetailPage() {
               </div>
               {reopenReasonType === 'Other' && (
                 <div>
-                  <label className="block text-sm font-medium text-slate-700">Custom Reason</label>
+                  <label className="block mb-2 text-xs font-black uppercase tracking-widest text-slate-400">Custom Reason</label>
                   <textarea
-                    className="mt-1 block w-full rounded-lg border border-slate-300 p-3 text-sm focus:border-[#2463eb] focus:outline-none"
+                    className="block w-full rounded-2xl border border-slate-200 bg-white p-4 text-sm font-bold text-slate-700 shadow-sm focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-200"
                     rows={4}
                     placeholder="State the reason for further action..."
                     value={customReason}
@@ -1425,48 +1480,46 @@ export default function PipDetailPage() {
                 </div>
               )}
             </div>
-            <div className="mt-6 flex justify-end gap-3">
-              <button onClick={() => setShowReopenModal(false)} className="px-4 py-2 text-sm font-medium text-slate-600">Cancel</button>
-              <button onClick={handleReopenPip} className="rounded-lg bg-orange-600 px-4 py-2 text-sm font-medium text-white hover:bg-orange-700">Submit Request</button>
+            <div className="mt-8 flex justify-end gap-3">
+              <button onClick={() => setShowReopenModal(false)} className="rounded-2xl border border-slate-200 px-6 py-3 text-xs font-black text-slate-500 transition-all hover:bg-slate-50">Cancel</button>
+              <button onClick={handleReopenPip} className="rounded-2xl bg-orange-600 px-6 py-3 text-xs font-black text-white shadow-sm transition-all hover:bg-orange-700 active:scale-95">Submit Request</button>
             </div>
           </div>
         </div>
       )}
 
       {showApproveReopenModal && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4">
-          <div className="w-full max-w-md rounded-xl bg-white p-6 shadow-xl">
-            <h3 className="mb-4 text-lg font-bold">Approve Reopen Request</h3>
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/50 p-4 backdrop-blur-sm">
+          <div className="w-full max-w-md rounded-[2rem] bg-white p-8 shadow-2xl animate-scale-in">
+            <div className="mb-6 flex items-center justify-between">
+              <h3 className="text-xl font-black text-slate-900 tracking-tight">Approve Reopen Request</h3>
+              <button onClick={() => setShowApproveReopenModal(false)} className="flex h-8 w-8 items-center justify-center rounded-xl bg-slate-100 text-slate-500 hover:bg-slate-200">
+                <i className="bi bi-x" />
+              </button>
+            </div>
             <div>
-              <label className="block text-sm font-medium text-slate-700">Extended End Date</label>
-              <div className="relative mt-1">
+              <label className="block mb-2 text-xs font-black uppercase tracking-widest text-slate-400">Extended End Date</label>
+              <div className="relative">
                 <input
                   type="text"
                   placeholder="dd/mm/yyyy"
                   inputMode="numeric"
-                  className="block w-full rounded-lg border border-slate-300 px-4 py-2 pr-11 focus:border-[#2463eb] focus:outline-none"
+                  className="block w-full rounded-2xl border border-slate-200 bg-white px-4 py-3 pr-12 text-sm font-bold text-slate-700 shadow-sm focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-200"
                   value={extendedEndDate}
                   onChange={(e) => setExtendedEndDate(e.target.value)}
                 />
-                <label className="absolute inset-y-0 right-0 flex w-11 cursor-pointer items-center justify-center text-slate-400 hover:text-[#2463eb]">
+                <label className="absolute inset-y-0 right-0 flex w-12 cursor-pointer items-center justify-center text-slate-400 hover:text-blue-600">
                   <i className="bi bi-calendar3" />
-                  <input
-                    type="date"
-                    min={minReopenApprovalDate}
-                    value={toIsoDate(extendedEndDate)}
-                    onChange={(e) => setExtendedEndDate(toDisplayDateFromIso(e.target.value))}
-                    className="absolute inset-0 h-full w-full cursor-pointer opacity-0"
-                    aria-label="Choose extended end date"
-                  />
+                  <input type="date" min={minReopenApprovalDate} value={toIsoDate(extendedEndDate)} onChange={(e) => setExtendedEndDate(toDisplayDateFromIso(e.target.value))} className="absolute inset-0 h-full w-full cursor-pointer opacity-0" aria-label="Choose extended end date" />
                 </label>
               </div>
             </div>
-            <div className="mt-6 flex justify-end gap-3">
-              <button onClick={() => setShowApproveReopenModal(false)} className="px-4 py-2 text-sm font-medium text-slate-600">Cancel</button>
+            <div className="mt-8 flex justify-end gap-3">
+              <button onClick={() => setShowApproveReopenModal(false)} className="rounded-2xl border border-slate-200 px-6 py-3 text-xs font-black text-slate-500 transition-all hover:bg-slate-50">Cancel</button>
               <button
                 onClick={handleApproveReopen}
                 disabled={!extendedEndDate}
-                className="rounded-lg bg-green-600 px-4 py-2 text-sm font-medium text-white hover:bg-green-700 disabled:cursor-not-allowed disabled:bg-green-300"
+                className="rounded-2xl bg-emerald-600 px-6 py-3 text-xs font-black text-white shadow-sm transition-all hover:bg-emerald-700 disabled:cursor-not-allowed disabled:opacity-50"
               >
                 Approve
               </button>
@@ -1476,14 +1529,19 @@ export default function PipDetailPage() {
       )}
 
       {showReviewDenyModal && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4">
-          <div className="w-full max-w-md rounded-xl bg-white p-6 shadow-xl">
-            <h3 className="mb-4 text-lg font-bold">Deny Request</h3>
-            <div className="space-y-4">
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/50 p-4 backdrop-blur-sm">
+          <div className="w-full max-w-md rounded-[2rem] bg-white p-8 shadow-2xl animate-scale-in">
+            <div className="mb-6 flex items-center justify-between">
+              <h3 className="text-xl font-black text-slate-900 tracking-tight">Deny Request</h3>
+              <button onClick={() => setShowReviewDenyModal(false)} className="flex h-8 w-8 items-center justify-center rounded-xl bg-slate-100 text-slate-500 hover:bg-slate-200">
+                <i className="bi bi-x" />
+              </button>
+            </div>
+            <div className="space-y-5">
               <div>
-                <label className="block text-sm font-medium text-slate-700">Reason</label>
+                <label className="block mb-2 text-xs font-black uppercase tracking-widest text-slate-400">Reason</label>
                 <select
-                  className="mt-1 block w-full rounded-lg border border-slate-300 px-4 py-2 focus:border-[#2463eb] focus:outline-none"
+                  className="block w-full rounded-2xl border border-slate-200 bg-white px-4 py-3 text-sm font-bold text-slate-700 shadow-sm focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-200"
                   value={reviewReasonType}
                   onChange={(e) => setReviewReasonType(e.target.value)}
                 >
@@ -1495,9 +1553,9 @@ export default function PipDetailPage() {
               </div>
               {reviewReasonType === 'Other' && (
                 <div>
-                  <label className="block text-sm font-medium text-slate-700">Custom Reason</label>
+                  <label className="block mb-2 text-xs font-black uppercase tracking-widest text-slate-400">Custom Reason</label>
                   <textarea
-                    className="mt-1 block w-full rounded-lg border border-slate-300 p-3 text-sm focus:border-[#2463eb] focus:outline-none"
+                    className="block w-full rounded-2xl border border-slate-200 bg-white p-4 text-sm font-bold text-slate-700 shadow-sm focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-200"
                     rows={4}
                     placeholder="Enter deny reason..."
                     value={reviewCustomReason}
@@ -1506,9 +1564,9 @@ export default function PipDetailPage() {
                 </div>
               )}
             </div>
-            <div className="mt-6 flex justify-end gap-3">
-              <button onClick={() => setShowReviewDenyModal(false)} className="px-4 py-2 text-sm font-medium text-slate-600">Cancel</button>
-              <button onClick={handleDenyReview} className="rounded-lg bg-red-600 px-4 py-2 text-sm font-medium text-white hover:bg-red-700">Deny Request</button>
+            <div className="mt-8 flex justify-end gap-3">
+              <button onClick={() => setShowReviewDenyModal(false)} className="rounded-2xl border border-slate-200 px-6 py-3 text-xs font-black text-slate-500 transition-all hover:bg-slate-50">Cancel</button>
+              <button onClick={handleDenyReview} className="rounded-2xl bg-red-600 px-6 py-3 text-xs font-black text-white shadow-sm transition-all hover:bg-red-700 active:scale-95">Deny Request</button>
             </div>
           </div>
         </div>
