@@ -38,6 +38,9 @@ public class CopiedSelfAssessmentFormTemplate {
     @Column(name = "five_point_yes_min_rating", nullable = false)
     private Integer fivePointYesMinRating = SelfAssessmentRatingSystem.DEFAULT_FIVE_POINT_YES_MIN_RATING;
 
+    @Column(name = "yes_min_rating")
+    private Integer yesMinRating;
+
     @Column(name = "include_yes_no", nullable = false)
     private boolean includeYesNo = true;
 

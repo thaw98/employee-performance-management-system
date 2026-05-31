@@ -14,5 +14,6 @@ public record UpdateTemplateRequest(
         String ratingSystem,
         Integer tenPointYesMinRating,
         Integer fivePointYesMinRating,
+        Integer yesMinRating,
         Boolean includeYesNo
 ) {}

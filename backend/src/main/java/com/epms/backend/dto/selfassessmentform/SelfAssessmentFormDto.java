@@ -16,6 +16,7 @@ public record SelfAssessmentFormDto(
         String ratingSystem,
         Integer tenPointYesMinRating,
         Integer fivePointYesMinRating,
+        Integer yesMinRating,
         boolean includeYesNo,
         LocalDate startDate,
         LocalDate deadlineDate,
