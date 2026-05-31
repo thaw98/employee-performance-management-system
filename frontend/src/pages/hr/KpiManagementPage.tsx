@@ -2,7 +2,7 @@ import React, { useState, useEffect, useMemo, useRef } from 'react';
 import { useSearchParams, useNavigate } from 'react-router-dom';
 import { useSelector } from 'react-redux';
 import type { RootState } from '../../app/store';
-import { Plus, Trash2, Save, AlertCircle, CheckCircle2, Target, User, Users, X, ClipboardList, FolderOpen, ChevronDown, Ruler, Tag, Settings2, FileSpreadsheet } from 'lucide-react';
+import { Plus, Trash2, Save, AlertCircle, CheckCircle2, Target, User, Users, X, ClipboardList, FolderOpen, ChevronDown, Ruler, Tag, Settings2, FileSpreadsheet, Lock } from 'lucide-react';
 import { Combobox, ComboboxButton, ComboboxInput, ComboboxOption, ComboboxOptions } from '@headlessui/react';
 import { MonthYearPicker } from '../../components/common/MonthYearPicker';
 import { EmployeeAutocomplete } from '../../components/common/EmployeeAutocomplete';
@@ -27,6 +27,7 @@ import {
   useCreateKpiTemplateMutation
 } from '../../features/kpi/kpiTemplateApi';
 import KpiTemplateImportModal from '../../features/kpi/components/KpiTemplateImportModal';
+import ConfirmActionModal from '../../features/hrEmployeeList/components/ConfirmActionModal';
 import { toast } from 'react-hot-toast';
 
 const getCurrentMonthValue = () => {
@@ -220,6 +221,7 @@ export const KpiManagementPage: React.FC = () => {
   const [createTemplate] = useCreateKpiTemplateMutation();
   const [showTemplates, setShowTemplates] = useState(false);
   const [showSaveTemplateModal, setShowSaveTemplateModal] = useState(false);
+  const [showSaveConfirm, setShowSaveConfirm] = useState(false);
   const [templateNameInput, setTemplateNameInput] = useState('');
   const [isSavingTemplate, setIsSavingTemplate] = useState(false);
 
@@ -413,41 +415,98 @@ export const KpiManagementPage: React.FC = () => {
   const totalWeight = kpis.reduce((sum, kpi) => sum + (Number(kpi.weight) || 0), 0);
   const totalScore = mode === 'individual' ? kpis.reduce((sum, kpi) => sum + (Number(kpi.weightedScore) || 0), 0) : null;
 
-  const handleSave = async () => {
+  const validateBeforeSave = () => {
     if (mode === 'individual' && !selectedEmployeeId) {
       toast.error('Please select an employee');
-      return;
+      return false;
     }
     if (mode === 'position' && (!selectedDeptId || !selectedPosId)) {
       toast.error('Please select department and position');
-      return;
+      return false;
     }
     if (mode === 'department' && !selectedDeptId) {
       toast.error('Please select department');
-      return;
+      return false;
     }
 
     if (kpis.length === 0) {
       toast.error('Please add at least one KPI');
-      return;
+      return false;
     }
 
     const invalidKpis = kpis.filter(kpi => !kpi.name || !kpi.category || !kpi.target || !kpi.weight);
     if (invalidKpis.length > 0) {
       toast.error('Please fill in all required fields (Name, Category, Target, Weight)');
-      return;
+      return false;
     }
 
     if (isMonthInPast(periodMonth)) {
       toast.error('Cannot create KPI setup for past months. Please choose current or a future month.');
-      return;
+      return false;
     }
 
     if (totalWeight !== 100) {
       toast.error(`Total weight must be 100%. Current total: ${totalWeight}%`);
-      return;
+      return false;
     }
 
+    return true;
+  };
+
+  const openSaveConfirmModal = () => {
+    if (!validateBeforeSave()) return;
+    setShowSaveConfirm(true);
+  };
+
+  const saveConfirmConfig = useMemo(() => {
+    const selectedEmployee = employees.find((emp: any) => emp.employeeId === selectedEmployeeId);
+    const employeeName = selectedEmployee?.employeeName || 'the selected employee';
+    const departmentName = selectedDepartment?.departmentName || 'the selected department';
+    const positionName = selectedPosition?.positionName || 'the selected position';
+
+    if (mode === 'individual') {
+      return {
+        title: 'Finalize Individual KPI?',
+        message: `You are about to finalize KPI setup for ${employeeName} for ${selectedPeriodLabel}.`,
+        confirmText: 'Finalize KPI',
+        warningItems: [
+          'Once finalized, KPI targets and weights cannot be modified on this page.',
+          'This action applies to the selected employee and period only.',
+        ],
+      };
+    }
+
+    if (mode === 'position') {
+      return {
+        title: 'Save & Apply to All Employees?',
+        message: `You are about to save and apply KPI setup to all employees in ${positionName} (${departmentName}) for ${selectedPeriodLabel}.`,
+        confirmText: 'Save & Apply',
+        warningItems: [
+          'Once applied, KPI targets and weights cannot be modified on this page.',
+          'All employees in this position will receive these KPI definitions.',
+        ],
+      };
+    }
+
+    return {
+      title: 'Save & Apply to All Employees?',
+      message: `You are about to save and apply KPI setup for ${departmentName} for ${selectedPeriodLabel}.`,
+      confirmText: 'Save & Apply',
+      warningItems: [
+        'Once applied, KPI targets and weights cannot be modified on this page.',
+        'All employees in this department will receive these KPI definitions.',
+      ],
+    };
+  }, [
+    mode,
+    employees,
+    selectedEmployeeId,
+    selectedDepartment,
+    selectedPosition,
+    selectedPeriodLabel,
+  ]);
+
+  const handleSaveConfirm = async () => {
     try {
       const periodPayload = {
         period: selectedPeriodLabel,
@@ -469,6 +528,7 @@ export const KpiManagementPage: React.FC = () => {
         toast.success('Department KPIs saved successfully');
         refetchDeptKpis();
       }
+      setShowSaveConfirm(false);
     } catch (error: any) {
       toast.error(error?.data?.message || 'Failed to save KPI setup');
     }
@@ -778,7 +838,7 @@ export const KpiManagementPage: React.FC = () => {
                 <th className="py-4 px-6 min-w-40 whitespace-nowrap">Category</th>
                 <th className="py-4 px-6 min-w-40 whitespace-nowrap">Target</th>
                 <th className="py-4 px-6 min-w-40 whitespace-nowrap">Unit</th>
-                {mode === 'individual' && <th className="py-4 px-6 min-w-40 whitespace-nowrap">Actual</th>}
+                {mode === 'individual' && <th className="py-4 px-6 min-w-24 whitespace-nowrap">Actual</th>}
                 <th className="py-4 px-6 text-center">Weight (%)</th>
                 {mode === 'individual' && <th className="py-4 px-6 text-center">Score (%)</th>}
                 {mode === 'individual' && <th className="py-4 px-6 text-right">Weighted Score</th>}
@@ -919,14 +979,20 @@ export const KpiManagementPage: React.FC = () => {
 	                    )}
 	                  </td>
                   {mode === 'individual' && (
-                    <td className="py-3 px-6 min-w-40 whitespace-nowrap">
-                      <input
-                        type="text"
-                        className="w-full min-w-40 bg-slate-50 border-none rounded-lg px-3 py-2 text-sm font-bold text-slate-800 whitespace-nowrap focus:ring-2 focus:ring-[#dbeafe] outline-none"
-                        placeholder="Actual"
-                        value={kpi.actual}
-                        onChange={(e) => handleInputChange(idx, 'actual', e.target.value)}
-                      />
+                    <td className="py-3 px-6 min-w-24 whitespace-nowrap">
+                      <div
+                        className="inline-flex w-24 items-center gap-1 rounded-lg bg-slate-100 px-2 py-1.5 cursor-not-allowed"
+                        title="Actual is entered when KPIs are evaluated"
+                      >
+                        <Lock size={13} className="shrink-0 text-slate-600" strokeWidth={2.25} aria-hidden />
+                        <input
+                          type="text"
+                          disabled
+                          className="min-w-0 flex-1 bg-transparent border-none p-0 text-xs font-bold text-slate-500 text-center cursor-not-allowed opacity-70 outline-none"
+                          placeholder="—"
+                          value={kpi.actual}
+                        />
+                      </div>
                     </td>
                   )}
                   <td className="py-3 px-6 text-center">
@@ -942,8 +1008,9 @@ export const KpiManagementPage: React.FC = () => {
                     <td className="py-3 px-6 text-center">
                       <input
                         type="number"
-                        className="w-20 bg-slate-50 border-none rounded-lg px-3 py-2 text-sm font-black text-emerald-600 text-center focus:ring-2 focus:ring-emerald-200 outline-none"
+                        className={`w-20 bg-slate-50 border-none rounded-lg px-3 py-2 text-sm font-black text-emerald-600 text-center focus:ring-2 focus:ring-emerald-200 outline-none ${isAlreadyDefined ? 'cursor-not-allowed opacity-70' : ''}`}
                         value={kpi.score}
+                        readOnly={isAlreadyDefined}
                         onChange={(e) => handleInputChange(idx, 'score', Number(e.target.value))}
                       />
                     </td>
@@ -957,7 +1024,7 @@ export const KpiManagementPage: React.FC = () => {
                     <button
                       onClick={() => !isAlreadyDefined && removeKpiRow(idx)}
                       disabled={isAlreadyDefined}
-                      className={`p-2 rounded-lg transition-all ${isAlreadyDefined ? 'text-slate-200 cursor-not-allowed' : 'text-slate-300 hover:text-red-500 hover:bg-red-50'}`}
+                      className={`p-2 rounded-lg transition-all ${isAlreadyDefined ? 'text-slate-200 cursor-not-allowed' : 'text-red-500 hover:text-red-600 hover:bg-red-50'}`}
                     >
                       <Trash2 size={18} />
                     </button>
@@ -1038,7 +1105,7 @@ export const KpiManagementPage: React.FC = () => {
           <FolderOpen size={18} /> Save as Template
         </button>
         <button
-          onClick={handleSave}
+          onClick={openSaveConfirmModal}
           disabled={isSaving || totalWeight !== 100 || isAlreadyDefined}
           className={`flex items-center gap-2 px-8 py-3 rounded-2xl text-xs font-black transition-all shadow-xl uppercase tracking-widest ${isSaving || totalWeight !== 100 || isAlreadyDefined
             ? 'bg-slate-200 text-slate-400 cursor-not-allowed'
@@ -1053,6 +1120,19 @@ export const KpiManagementPage: React.FC = () => {
           )}
         </button>
       </div>
+
+      <ConfirmActionModal
+        isOpen={showSaveConfirm}
+        onClose={() => !isSaving && setShowSaveConfirm(false)}
+        onConfirm={handleSaveConfirm}
+        title={saveConfirmConfig.title}
+        message={saveConfirmConfig.message}
+        confirmText={saveConfirmConfig.confirmText}
+        cancelText="Cancel"
+        isLoading={isSaving}
+        variant="warning"
+        warningItems={saveConfirmConfig.warningItems}
+      />
 
       {showSaveTemplateModal && (
         <div className="fixed inset-0 z-50 flex items-center justify-center px-4 py-6">

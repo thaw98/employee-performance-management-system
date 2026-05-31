@@ -281,20 +281,35 @@ export const PerformanceReportDetailPage: React.FC<PerformanceReportDetailPagePr
     if (!report) return;
     try {
       const doc = new jsPDF('p', 'mm', 'a4');
-      
+      const margin = 14;
+      const pageWidth = doc.internal.pageSize.getWidth();
+      const logoY = 5;
+      const logoHeight = 12;
+      const titleY = logoY + logoHeight + 5;
+
       const logoDataUrl = await loadPdfLogo();
       if (logoDataUrl) {
-        addPdfHeaderLogo(doc, logoDataUrl, { x: 14, y: 5, width: 24, height: 12 });
+        addPdfHeaderLogo(doc, logoDataUrl, { x: margin, y: logoY, width: 24, height: logoHeight });
       }
 
+      addPdfHeaderBranding(doc, { margin, y: 10 });
+
+      doc.setFont('helvetica', 'bold');
       doc.setFontSize(16);
-      doc.text('Employee Performance Report', 14, 18);
+      doc.setTextColor(30, 41, 59);
+      doc.text('Employee Performance Report', margin, titleY);
+      doc.setFont('helvetica', 'normal');
       doc.setFontSize(10);
-      doc.text(`Export Date: ${format(new Date(), 'dd MMM yyyy')}`, 140, 18);
-      addPdfHeaderBranding(doc, { margin: 14, y: 14 });
+      doc.setTextColor(100, 116, 139);
+      doc.text(
+        `Export Date: ${format(new Date(), 'dd MMM yyyy')}`,
+        pageWidth - margin,
+        titleY,
+        { align: 'right' },
+      );
 
       autoTable(doc, {
-        startY: 30,
+        startY: titleY + 10,
         head: [['Employee Information', '']],
         body: [
           ['Name', report.employeeName],
