@@ -27,13 +27,13 @@ public class ScoreExplanationController {
     private final ScoreExplanationService service;
 
     @GetMapping(params = "module")
-    @PreAuthorize("principal.roleId == 1")
+    @PreAuthorize("isAuthenticated()")
     public ResponseEntity<ApiResponse<List<ScoreExplanationDto>>> getByModule(@RequestParam ScoreExplanationModule module) {
         return ResponseEntity.ok(ApiResponse.ok("Fetched score explanations", service.getByModule(module)));
     }
 
     @GetMapping
-    @PreAuthorize("principal.roleId == 1")
+    @PreAuthorize("isAuthenticated()")
     public ResponseEntity<ApiResponse<Map<String, List<ScoreExplanationDto>>>> getAll() {
         return ResponseEntity.ok(ApiResponse.ok("Fetched score explanations", service.getAll()));
     }

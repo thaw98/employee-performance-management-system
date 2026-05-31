@@ -1415,8 +1415,8 @@ Review Submissions
 
               <SelfAssessmentScoreBandTable
                 bands={scoreBands}
-                loading={scoreBandsLoading}
-                error={scoreBandsError}
+                loading={scoreBandsLoading && !scoreBands?.length}
+                error={scoreBandsError && !scoreBands?.length}
               />
 
               <div className="rounded-xl border border-slate-200/60 bg-white p-5 shadow-sm dark:border-slate-700/60 dark:bg-slate-800/80 animate-fade-in-up" style={{ animationDelay: '120ms' }}>

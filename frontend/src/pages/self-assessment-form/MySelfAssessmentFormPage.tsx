@@ -883,8 +883,8 @@ export const MySelfAssessmentFormPage: React.FC = () => {
       {/* ───── Score Band Reference ───── */}
       <SelfAssessmentScoreBandTable
         bands={scoreBands}
-        loading={scoreBandsLoading}
-        error={scoreBandsError}
+        loading={scoreBandsLoading && !scoreBands?.length}
+        error={scoreBandsError && !scoreBands?.length}
       />
 
       {/* ───── Read-only Banner ───── */}
