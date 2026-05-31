@@ -18,7 +18,7 @@ import {
     sortableKeyboardCoordinates,
 } from '@dnd-kit/sortable';
 import { CSS } from '@dnd-kit/utilities';
-import { Plus, Pencil, Trash2, X, CheckCircle2, ChevronRight, ChevronDown, HelpCircle, GripVertical, RotateCcw, Calendar, Clock, Users, Filter, FileSpreadsheet, FileText, Send, Building2, Check, RefreshCcw, History, Download } from 'lucide-react';
+import { Plus, Pencil, Trash2, X, CheckCircle2, ChevronRight, ChevronDown, HelpCircle, GripVertical, RotateCcw, Calendar, Clock, Users, Filter, FileSpreadsheet, FileText, Send, Building2, Check, RefreshCcw, History, Download, Search, Layers } from 'lucide-react';
 import { SelfAssessmentReviewCycleInfo, formatCycleDate } from '../self-assessment-form/SelfAssessmentReviewCycleInfo';
 import {
     APPRAISAL_PRIMARY,
@@ -558,12 +558,14 @@ export function AppraisalsPage() {
     const [showCatModal, setShowCatModal] = useState(false);
     const [editingCategory, setEditingCategory] = useState<Category | null>(null);
     const [catForm, setCatForm] = useState({ name: '', description: '', status: true });
+    const [categorySearch, setCategorySearch] = useState('');
     
     // Questions State
     const [questions, setQuestions] = useState<Question[]>([]);
     const [selectedCategoryId, setSelectedCategoryId] = useState<number | ''>('');
     const [showQueModal, setShowQueModal] = useState(false);
     const [editingQuestion, setEditingQuestion] = useState<Question | null>(null);
+    const [questionSearch, setQuestionSearch] = useState('');
     const [queForm, setQueForm] = useState<Question>({
         categoryId: 0,
         questionText: '',
@@ -933,6 +935,19 @@ export function AppraisalsPage() {
             return 'recently';
         }
     };
+
+    const filteredCategories = categories.filter((cat) => {
+        const query = categorySearch.trim().toLowerCase();
+        if (!query) return true;
+        return cat.name.toLowerCase().includes(query) || (cat.description || '').toLowerCase().includes(query);
+    });
+    const filteredQuestions = questions.filter((question) => {
+        const query = questionSearch.trim().toLowerCase();
+        if (!query) return true;
+        return question.questionText.toLowerCase().includes(query) || question.answerType.toLowerCase().includes(query);
+    });
+    const activeCategoryCount = categories.filter((cat) => cat.status).length;
+    const selectedCategory = categories.find((cat) => cat.id === selectedCategoryId);
 
     return (
         <div className="p-8 space-y-8 animate-in fade-in duration-500 max-w-7xl mx-auto">
@@ -1569,21 +1584,83 @@ export function AppraisalsPage() {
                 </div>
             ) : activeTab === 'category' ? (
                 <div className="space-y-6">
-                    <div className="flex justify-end">
-                        <button 
-                            onClick={() => { setEditingCategory(null); setCatForm({ name: '', description: '', status: true }); setShowCatModal(true); }}
-                            className="flex items-center gap-2 px-5 py-3 bg-[#2463eb] text-white rounded-2xl font-black text-xs hover:bg-[#1d4ed8] transition-all shadow-lg shadow-[#dbeafe]"
-                        >
-                            <Plus size={16} /> ADD CATEGORY
-                        </button>
+                    <div className="overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm">
+                        <div className="flex flex-col gap-5 p-6 lg:flex-row lg:items-center lg:justify-between">
+                            <div className="flex items-start gap-4">
+                                <div className="flex h-12 w-12 items-center justify-center rounded-2xl bg-blue-50 text-[#2463eb]">
+                                    <Layers size={24} />
+                                </div>
+                                <div>
+                                    <div className="flex flex-wrap items-center gap-2">
+                                        <h2 className="text-2xl font-black tracking-tight text-slate-900">Appraisal Categories</h2>
+                                        <span className="rounded-full border border-blue-100 bg-blue-50 px-3 py-1 text-[10px] font-black uppercase tracking-wider text-blue-700">
+                                            {categories.length} total
+                                        </span>
+                                    </div>
+                                    <p className="mt-1 max-w-2xl text-sm font-medium text-slate-500">
+                                        Organize appraisal sections and choose which categories move forward to review.
+                                    </p>
+                                </div>
+                            </div>
+                            <button 
+                                onClick={() => { setEditingCategory(null); setCatForm({ name: '', description: '', status: true }); setShowCatModal(true); }}
+                                className="flex items-center justify-center gap-2 rounded-xl bg-[#2463eb] px-5 py-3 text-sm font-black text-white shadow-lg shadow-[#dbeafe] transition-all hover:bg-[#1d4ed8] active:scale-95"
+                            >
+                                <Plus size={17} /> Add Category
+                            </button>
+                        </div>
+                        <div className="grid border-t border-slate-100 bg-slate-50/70 sm:grid-cols-3">
+                            <div className="flex items-center gap-3 border-b border-slate-100 p-5 sm:border-b-0 sm:border-r">
+                                <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-white text-[#2463eb] shadow-sm">
+                                    <FileText size={18} />
+                                </div>
+                                <div>
+                                    <p className="text-[10px] font-black uppercase tracking-wider text-slate-400">Total Categories</p>
+                                    <p className="text-xl font-black text-slate-900">{categories.length}</p>
+                                </div>
+                            </div>
+                            <div className="flex items-center gap-3 border-b border-slate-100 p-5 sm:border-b-0 sm:border-r">
+                                <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-white text-emerald-600 shadow-sm">
+                                    <CheckCircle2 size={18} />
+                                </div>
+                                <div>
+                                    <p className="text-[10px] font-black uppercase tracking-wider text-slate-400">Active</p>
+                                    <p className="text-xl font-black text-slate-900">{activeCategoryCount}</p>
+                                </div>
+                            </div>
+                            <div className="flex items-center gap-3 p-5">
+                                <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-white text-indigo-600 shadow-sm">
+                                    <Check size={18} />
+                                </div>
+                                <div>
+                                    <p className="text-[10px] font-black uppercase tracking-wider text-slate-400">Selected For Review</p>
+                                    <p className="text-xl font-black text-slate-900">{confirmedCategories.length}</p>
+                                </div>
+                            </div>
+                        </div>
                     </div>
 
-                    <div className="bg-white rounded-3xl border border-slate-200 overflow-hidden shadow-sm">
+                    <div className="overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm">
                         {isReorderingCat && (
                             <div className="px-6 py-3 bg-[#eff6ff] border-b border-[#dbeafe] text-[10px] font-bold text-[#2463eb] uppercase tracking-widest animate-pulse">
                                 Reordering categories...
                             </div>
                         )}
+                        <div className="flex flex-col gap-4 border-b border-slate-100 p-5 lg:flex-row lg:items-center lg:justify-between">
+                            <div>
+                                <h3 className="text-sm font-black uppercase tracking-wider text-slate-700">Category List</h3>
+                                <p className="mt-1 text-xs font-medium text-slate-500">Drag categories to control the appraisal order.</p>
+                            </div>
+                            <div className="relative w-full lg:w-80">
+                                <Search className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" size={17} />
+                                <input
+                                    className="h-11 w-full rounded-xl border border-slate-200 bg-slate-50 pl-10 pr-4 text-sm font-semibold text-slate-700 outline-none transition-all placeholder:text-slate-400 focus:border-[#2463eb] focus:bg-white focus:ring-4 focus:ring-blue-50"
+                                    placeholder="Search categories"
+                                    value={categorySearch}
+                                    onChange={(event) => setCategorySearch(event.target.value)}
+                                />
+                            </div>
+                        </div>
                         <div className="overflow-x-auto">
                             <DndContext sensors={sensors} collisionDetection={closestCenter} onDragEnd={handleDragEndCategory}>
                                 <table className="w-full text-left border-collapse">
@@ -1596,23 +1673,27 @@ export function AppraisalsPage() {
                                         </tr>
                                     </thead>
                                     <tbody className="divide-y divide-slate-50">
-                                        <SortableContext items={categories.map(c => c.id!)} strategy={verticalListSortingStrategy}>
-                                            {categories.map((cat, index) => (
-                                                <SortableCategoryRow
-                                                    key={cat.id}
-                                                    category={cat}
-                                                    index={index}
-                                                    isConfirmed={confirmedCategories.includes(cat.id!)}
-                                                    onConfirm={(id) => {
-                                                        setConfirmedCategories(prev =>
-                                                            prev.includes(id) ? prev.filter(v => v !== id) : [...prev, id]
-                                                        );
-                                                    }}
-                                                    onEdit={(cat) => { setEditingCategory(cat); setCatForm({ name: cat.name, description: cat.description, status: cat.status }); setShowCatModal(true); }}
-                                                    onDelete={handleDeleteCategory}
-                                                />
-                                            ))}
-                                        </SortableContext>
+                                        {filteredCategories.length === 0 ? (
+                                            <tr><td colSpan={4} className="p-20 text-center font-bold text-slate-400">{categories.length === 0 ? 'No categories found.' : 'No categories match your search.'}</td></tr>
+                                        ) : (
+                                            <SortableContext items={filteredCategories.map(c => c.id!)} strategy={verticalListSortingStrategy}>
+                                                {filteredCategories.map((cat, index) => (
+                                                    <SortableCategoryRow
+                                                        key={cat.id}
+                                                        category={cat}
+                                                        index={index}
+                                                        isConfirmed={confirmedCategories.includes(cat.id!)}
+                                                        onConfirm={(id) => {
+                                                            setConfirmedCategories(prev =>
+                                                                prev.includes(id) ? prev.filter(v => v !== id) : [...prev, id]
+                                                            );
+                                                        }}
+                                                        onEdit={(cat) => { setEditingCategory(cat); setCatForm({ name: cat.name, description: cat.description, status: cat.status }); setShowCatModal(true); }}
+                                                        onDelete={handleDeleteCategory}
+                                                    />
+                                                ))}
+                                            </SortableContext>
+                                        )}
                                     </tbody>
                                 </table>
                             </DndContext>
@@ -1621,26 +1702,52 @@ export function AppraisalsPage() {
                 </div>
             ) : (
                 <div className="space-y-6">
-                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4 items-center">
-                        <div className="relative group">
-                            <select 
-                                value={selectedCategoryId}
-                                onChange={(e) => setSelectedCategoryId(e.target.value ? Number(e.target.value) : '')}
-                                className="w-full bg-white border-2 border-slate-100 rounded-2xl px-5 py-4 text-sm font-bold text-slate-700 appearance-none focus:border-[#2463eb] transition-all outline-none pr-12 shadow-sm"
-                            >
-                                <option value="">Select Category to View Questions...</option>
-                                {categories.map(cat => <option key={cat.id} value={cat.id}>{cat.name}</option>)}
-                            </select>
-                            <ChevronRight className="absolute right-5 top-1/2 -translate-y-1/2 text-slate-400 rotate-90" size={18} />
-                        </div>
-                        <div className="flex justify-end">
+                    <div className="overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm">
+                        <div className="flex flex-col gap-5 p-6 lg:flex-row lg:items-center lg:justify-between">
+                            <div className="flex items-start gap-4">
+                                <div className="flex h-12 w-12 items-center justify-center rounded-2xl bg-blue-50 text-[#2463eb]">
+                                    <HelpCircle size={24} />
+                                </div>
+                                <div>
+                                    <h2 className="text-2xl font-black tracking-tight text-slate-900">Category Questions</h2>
+                                    <p className="mt-1 max-w-2xl text-sm font-medium text-slate-500">
+                                        Choose a category, then add and order the questions used in the appraisal form.
+                                    </p>
+                                </div>
+                            </div>
                             <button 
                                 disabled={!selectedCategoryId}
                                 onClick={() => { setEditingQuestion(null); setQueForm({ categoryId: Number(selectedCategoryId), questionText: '', answerType: 'TEXT', isRequired: true, sortOrder: questions.length + 1, status: true }); setShowQueModal(true); }}
-                                className="flex items-center gap-2 px-5 py-4 bg-[#2463eb] text-white rounded-2xl font-black text-xs hover:bg-[#1d4ed8] transition-all shadow-xl shadow-[#dbeafe] disabled:opacity-50 disabled:shadow-none"
+                                className="flex items-center justify-center gap-2 rounded-xl bg-[#2463eb] px-5 py-3 text-sm font-black text-white shadow-xl shadow-[#dbeafe] transition-all hover:bg-[#1d4ed8] active:scale-95 disabled:opacity-50 disabled:shadow-none"
                             >
-                                <Plus size={18} /> ADD NEW QUESTION
+                                <Plus size={17} /> Add Question
                             </button>
+                        </div>
+                        <div className="grid gap-4 border-t border-slate-100 bg-slate-50/70 p-5 lg:grid-cols-[1fr_320px]">
+                            <div className="relative group">
+                                <select 
+                                    value={selectedCategoryId}
+                                    onChange={(e) => {
+                                        setSelectedCategoryId(e.target.value ? Number(e.target.value) : '');
+                                        setQuestionSearch('');
+                                    }}
+                                    className="h-12 w-full appearance-none rounded-xl border border-slate-200 bg-white px-4 pr-12 text-sm font-bold text-slate-700 shadow-sm outline-none transition-all focus:border-[#2463eb] focus:ring-4 focus:ring-blue-50"
+                                >
+                                    <option value="">Select Category to View Questions...</option>
+                                    {categories.map(cat => <option key={cat.id} value={cat.id}>{cat.name}</option>)}
+                                </select>
+                                <ChevronRight className="absolute right-5 top-1/2 -translate-y-1/2 rotate-90 text-slate-400" size={18} />
+                            </div>
+                            <div className="relative">
+                                <Search className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" size={17} />
+                                <input
+                                    disabled={!selectedCategoryId}
+                                    className="h-12 w-full rounded-xl border border-slate-200 bg-white pl-10 pr-4 text-sm font-semibold text-slate-700 outline-none transition-all placeholder:text-slate-400 focus:border-[#2463eb] focus:ring-4 focus:ring-blue-50 disabled:bg-slate-100 disabled:opacity-60"
+                                    placeholder="Search questions"
+                                    value={questionSearch}
+                                    onChange={(event) => setQuestionSearch(event.target.value)}
+                                />
+                            </div>
                         </div>
                     </div>
 
@@ -1655,12 +1762,18 @@ export function AppraisalsPage() {
                             </div>
                         </div>
                     ) : (
-                        <div className="bg-white rounded-3xl border border-slate-200 overflow-hidden shadow-sm">
+                        <div className="overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm">
                             {isReorderingQue && (
                                 <div className="px-6 py-3 bg-[#eff6ff] border-b border-[#dbeafe] text-[10px] font-bold text-[#2463eb] uppercase tracking-widest animate-pulse">
                                     Syncing question sequence...
                                 </div>
                             )}
+                            <div className="flex flex-col gap-2 border-b border-slate-100 p-5">
+                                <h3 className="text-sm font-black uppercase tracking-wider text-slate-700">{selectedCategory?.name || 'Selected Category'}</h3>
+                                <p className="text-xs font-medium text-slate-500">
+                                    {filteredQuestions.length} of {questions.length} question{questions.length === 1 ? '' : 's'} shown. Drag rows to set question order.
+                                </p>
+                            </div>
                             <div className="overflow-x-auto">
                                 <DndContext sensors={sensors} collisionDetection={closestCenter} onDragEnd={handleDragEndQuestion}>
                                     <table className="w-full text-left border-collapse">
@@ -1673,11 +1786,11 @@ export function AppraisalsPage() {
                                             </tr>
                                         </thead>
                                         <tbody className="divide-y divide-slate-50">
-                                            {questions.length === 0 ? (
-                                                <tr><td colSpan={4} className="p-20 text-center text-slate-400 font-bold italic">No questions found for this category.</td></tr>
+                                            {filteredQuestions.length === 0 ? (
+                                                <tr><td colSpan={4} className="p-20 text-center font-bold text-slate-400">{questions.length === 0 ? 'No questions found for this category.' : 'No questions match your search.'}</td></tr>
                                             ) : (
-                                                <SortableContext items={questions.map(q => q.id!)} strategy={verticalListSortingStrategy}>
-                                                    {questions.map((q, index) => (
+                                                <SortableContext items={filteredQuestions.map(q => q.id!)} strategy={verticalListSortingStrategy}>
+                                                    {filteredQuestions.map((q, index) => (
                                                         <SortableQuestionRow
                                                             key={q.id}
                                                             question={q}

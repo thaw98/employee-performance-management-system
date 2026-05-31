@@ -11,7 +11,8 @@ import {
     Layers,
     HelpCircle,
     ChevronRight,
-    Search
+    Search,
+    ListChecks
 } from 'lucide-react';
 
 import { APPRAISAL_PRIMARY } from '../../features/appraisals/appraisalTheme';
@@ -42,6 +43,8 @@ export default function AppraisalConfigPage() {
     const [questions, setQuestions] = useState<Question[]>([]);
     const [selectedCategoryId, setSelectedCategoryId] = useState<number | ''>('');
     const [isLoading, setIsLoading] = useState(false);
+    const [categorySearch, setCategorySearch] = useState('');
+    const [questionSearch, setQuestionSearch] = useState('');
 
     // Modal states
     const [showCategoryModal, setShowCategoryModal] = useState(false);
@@ -203,46 +206,111 @@ export default function AppraisalConfigPage() {
         }
     };
 
+    const categoryQuery = categorySearch.trim().toLowerCase();
+    const questionQuery = questionSearch.trim().toLowerCase();
+    const filteredCategories = categories.filter(cat =>
+        !categoryQuery ||
+        cat.name.toLowerCase().includes(categoryQuery) ||
+        (cat.description || '').toLowerCase().includes(categoryQuery)
+    );
+    const filteredQuestions = questions.filter(question =>
+        !questionQuery ||
+        question.questionText.toLowerCase().includes(questionQuery) ||
+        question.answerType.toLowerCase().includes(questionQuery)
+    );
+    const activeCategoryCount = categories.filter(cat => cat.status).length;
+    const activeQuestionCount = questions.filter(question => question.status).length;
+    const selectedCategory = categories.find(cat => cat.id === selectedCategoryId);
+
     return (
-        <div className="p-8 space-y-8 animate-in fade-in duration-500 max-w-7xl mx-auto">
+        <div className="p-8 space-y-6 animate-in fade-in duration-500 max-w-7xl mx-auto">
             {/* Header Section */}
-            <div className="bg-white p-8 rounded-3xl border border-slate-100 shadow-sm shadow-slate-200/50">
-                <div className="flex flex-col md:flex-row md:items-center justify-between gap-6">
-                    <div>
-                        <h1 className="text-4xl font-black tracking-tight" style={{ color: PRIMARY }}>Appraisal Config</h1>
-                        <p className="text-slate-500 mt-2 font-medium">Manage categories and evaluation questions for performance appraisals.</p>
+            <div className="overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm">
+                <div className="flex flex-col gap-5 p-6 md:flex-row md:items-center md:justify-between">
+                    <div className="flex items-start gap-4">
+                        <div className="flex h-12 w-12 items-center justify-center rounded-2xl bg-blue-50 text-[#2463eb]">
+                            <Layers size={24} strokeWidth={2.5} />
+                        </div>
+                        <div>
+                            <h1 className="text-3xl font-black tracking-tight" style={{ color: PRIMARY }}>Appraisal Config</h1>
+                            <p className="mt-1 max-w-2xl text-sm font-medium text-slate-500">Manage appraisal categories and the questions assigned to each category.</p>
+                        </div>
                     </div>
-                    <div className="flex bg-slate-100 p-1.5 rounded-2xl">
+                    <div className="flex rounded-xl border border-slate-200 bg-slate-50 p-1.5">
                         <button
                             onClick={() => setActiveTab('category')}
-                            className={`px-6 py-3 rounded-xl text-xs font-black transition-all flex items-center gap-2 ${activeTab === 'category' ? 'bg-white text-[#2463eb] shadow-sm' : 'text-slate-500 hover:text-slate-700'}`}
+                            className={`flex items-center gap-2 rounded-lg px-5 py-2.5 text-xs font-black transition-all ${activeTab === 'category' ? 'bg-white text-[#2463eb] shadow-sm' : 'text-slate-500 hover:text-slate-700'}`}
                         >
                             <Layers size={16} />
-                            CATEGORIES
+                            Categories
                         </button>
                         <button
                             onClick={() => setActiveTab('questions')}
-                            className={`px-6 py-3 rounded-xl text-xs font-black transition-all flex items-center gap-2 ${activeTab === 'questions' ? 'bg-white text-[#2463eb] shadow-sm' : 'text-slate-500 hover:text-slate-700'}`}
+                            className={`flex items-center gap-2 rounded-lg px-5 py-2.5 text-xs font-black transition-all ${activeTab === 'questions' ? 'bg-white text-[#2463eb] shadow-sm' : 'text-slate-500 hover:text-slate-700'}`}
                         >
                             <HelpCircle size={16} />
-                            QUESTIONS
+                            Category Questions
                         </button>
+                    </div>
+                </div>
+
+                <div className="grid border-t border-slate-100 bg-slate-50/70 sm:grid-cols-3">
+                    <div className="flex items-center gap-3 border-b border-slate-100 p-5 sm:border-b-0 sm:border-r">
+                        <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-white text-[#2463eb] shadow-sm">
+                            <Layers size={19} />
+                        </div>
+                        <div>
+                            <p className="text-[10px] font-black uppercase tracking-wider text-slate-400">Categories</p>
+                            <p className="text-xl font-black text-slate-900">{categories.length}</p>
+                        </div>
+                    </div>
+                    <div className="flex items-center gap-3 border-b border-slate-100 p-5 sm:border-b-0 sm:border-r">
+                        <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-white text-emerald-600 shadow-sm">
+                            <CheckCircle2 size={19} />
+                        </div>
+                        <div>
+                            <p className="text-[10px] font-black uppercase tracking-wider text-slate-400">Active Categories</p>
+                            <p className="text-xl font-black text-slate-900">{activeCategoryCount}</p>
+                        </div>
+                    </div>
+                    <div className="flex items-center gap-3 p-5">
+                        <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-white text-indigo-600 shadow-sm">
+                            <ListChecks size={19} />
+                        </div>
+                        <div>
+                            <p className="text-[10px] font-black uppercase tracking-wider text-slate-400">Selected Questions</p>
+                            <p className="text-xl font-black text-slate-900">{questions.length}</p>
+                        </div>
                     </div>
                 </div>
             </div>
 
             {/* Content Area */}
             {activeTab === 'category' ? (
-                <div className="bg-white rounded-3xl border border-slate-200 overflow-hidden shadow-sm animate-in slide-in-from-bottom-4 duration-500">
-                    <div className="p-6 border-b border-slate-100 bg-slate-50/50 flex items-center justify-between">
-                        <h3 className="text-xs font-black uppercase text-slate-400 tracking-widest pl-2">Appraisal Categories ({categories.length})</h3>
+                <div className="overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm animate-in slide-in-from-bottom-4 duration-500">
+                    <div className="flex flex-col gap-4 border-b border-slate-100 p-5 lg:flex-row lg:items-center lg:justify-between">
+                        <div>
+                            <h3 className="text-sm font-black uppercase tracking-wider text-slate-700">Appraisal Categories</h3>
+                            <p className="mt-1 text-xs font-medium text-slate-500">{filteredCategories.length} of {categories.length} categories shown</p>
+                        </div>
+                        <div className="flex flex-col gap-3 sm:flex-row">
+                            <div className="relative">
+                                <Search className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" size={17} />
+                                <input
+                                    className="h-10 w-full rounded-xl border border-slate-200 bg-slate-50 pl-10 pr-4 text-sm font-semibold text-slate-700 outline-none transition-all placeholder:text-slate-400 focus:border-[#2463eb] focus:bg-white focus:ring-4 focus:ring-blue-50 sm:w-72"
+                                    placeholder="Search categories"
+                                    value={categorySearch}
+                                    onChange={e => setCategorySearch(e.target.value)}
+                                />
+                            </div>
                         <button
                             onClick={handleOpenCategoryCreate}
-                            className="flex items-center gap-2 px-4 py-2 bg-[#2463eb] hover:bg-[#1d4ed8] text-white rounded-xl font-bold text-xs transition-all shadow-lg shadow-[#dbeafe] active:scale-95"
+                                className="flex items-center justify-center gap-2 rounded-xl bg-[#2463eb] px-4 py-2 text-xs font-bold text-white shadow-lg shadow-[#dbeafe] transition-all hover:bg-[#1d4ed8] active:scale-95"
                         >
                             <Plus size={16} strokeWidth={3} />
-                            ADD CATEGORY
+                                Add Category
                         </button>
+                        </div>
                     </div>
                     <div className="overflow-x-auto">
                         <table className="w-full text-left border-collapse">
@@ -255,10 +323,10 @@ export default function AppraisalConfigPage() {
                                 </tr>
                             </thead>
                             <tbody className="divide-y divide-slate-50">
-                                {categories.length === 0 ? (
-                                    <tr><td colSpan={4} className="p-16 text-center text-slate-400 italic">No categories found.</td></tr>
+                                {filteredCategories.length === 0 ? (
+                                    <tr><td colSpan={4} className="p-16 text-center font-semibold text-slate-400">{categories.length === 0 ? 'No categories found.' : 'No categories match your search.'}</td></tr>
                                 ) : (
-                                    categories.map(cat => (
+                                    filteredCategories.map(cat => (
                                         <tr key={cat.id} className="hover:bg-slate-50/30 transition-colors group">
                                             <td className="p-6">
                                                 <div className="text-base font-bold text-slate-700 group-hover:text-slate-900 transition-colors">{cat.name}</div>
@@ -288,38 +356,61 @@ export default function AppraisalConfigPage() {
             ) : (
                 <div className="space-y-6 animate-in slide-in-from-bottom-4 duration-500">
                     <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-                        <div className="md:col-span-1 bg-white p-6 rounded-3xl border border-slate-200 shadow-sm space-y-4 h-fit sticky top-8">
+                        <div className="md:col-span-1 h-fit space-y-4 rounded-2xl border border-slate-200 bg-white p-5 shadow-sm md:sticky md:top-8">
                             <div className="space-y-1">
                                 <h4 className="text-sm font-black text-slate-800">Select Category</h4>
-                                <p className="text-[10px] font-bold text-slate-400 uppercase">To manage questions</p>
+                                <p className="text-[10px] font-bold uppercase text-slate-400">To manage questions</p>
+                            </div>
+                            <div className="relative">
+                                <Search className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" size={16} />
+                                <input
+                                    className="h-10 w-full rounded-xl border border-slate-200 bg-slate-50 pl-9 pr-3 text-sm font-semibold text-slate-700 outline-none transition-all placeholder:text-slate-400 focus:border-[#2463eb] focus:bg-white focus:ring-4 focus:ring-blue-50"
+                                    placeholder="Search categories"
+                                    value={categorySearch}
+                                    onChange={e => setCategorySearch(e.target.value)}
+                                />
                             </div>
                             <div className="space-y-2">
-                                {categories.map(cat => (
+                                {filteredCategories.map(cat => (
                                     <button
                                         key={cat.id}
                                         onClick={() => setSelectedCategoryId(cat.id)}
-                                        className={`w-full flex items-center justify-between p-4 rounded-2xl border-2 transition-all group ${selectedCategoryId === cat.id ? 'border-[#2463eb] bg-[#eff6ff]/50 text-[#1d4ed8]' : 'border-slate-100 hover:border-slate-200 text-slate-600'}`}
+                                        className={`group flex w-full items-center justify-between rounded-xl border p-4 transition-all ${selectedCategoryId === cat.id ? 'border-[#2463eb] bg-[#eff6ff]/70 text-[#1d4ed8] ring-2 ring-blue-50' : 'border-slate-100 text-slate-600 hover:border-slate-200 hover:bg-slate-50'}`}
                                     >
-                                        <span className="text-xs font-black uppercase text-left">{cat.name}</span>
+                                        <span className="text-left text-xs font-black uppercase">{cat.name}</span>
                                         <ChevronRight size={16} className={`transition-transform ${selectedCategoryId === cat.id ? 'translate-x-1' : 'opacity-0 group-hover:opacity-100'}`} />
                                     </button>
                                 ))}
+                                {filteredCategories.length === 0 && <p className="rounded-xl bg-slate-50 p-4 text-center text-xs font-semibold text-slate-400">No categories found.</p>}
                             </div>
                         </div>
 
-                        <div className="md:col-span-2 bg-white rounded-3xl border border-slate-200 overflow-hidden shadow-sm flex flex-col h-fit">
-                            <div className="p-6 border-b border-slate-100 bg-slate-50/50 flex items-center justify-between">
+                        <div className="md:col-span-2 flex h-fit flex-col overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm">
+                            <div className="flex flex-col gap-4 border-b border-slate-100 p-5 lg:flex-row lg:items-center lg:justify-between">
                                 <div>
-                                    <h3 className="text-xs font-black uppercase text-slate-400 tracking-widest pl-2">Evaluation Questions ({questions.length})</h3>
+                                    <h3 className="text-lg font-black text-slate-900">{selectedCategory?.name || 'Evaluation Questions'}</h3>
+                                    <p className="text-xs font-medium text-slate-500">{selectedCategoryId ? `${filteredQuestions.length} of ${questions.length} questions shown, ${activeQuestionCount} active` : 'Select a category to manage its questions.'}</p>
                                 </div>
-                                <button
-                                    disabled={!selectedCategoryId}
-                                    onClick={handleOpenQuestionCreate}
-                                    className="flex items-center gap-2 px-4 py-2 bg-[#2463eb] hover:bg-[#1d4ed8] disabled:opacity-50 disabled:grayscale text-white rounded-xl font-bold text-xs transition-all shadow-lg shadow-[#dbeafe] active:scale-95"
-                                >
-                                    <Plus size={16} strokeWidth={3} />
-                                    ADD QUESTION
-                                </button>
+                                <div className="flex flex-col gap-3 sm:flex-row">
+                                    <div className="relative">
+                                        <Search className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" size={16} />
+                                        <input
+                                            disabled={!selectedCategoryId}
+                                            className="h-10 w-full rounded-xl border border-slate-200 bg-slate-50 pl-9 pr-3 text-sm font-semibold text-slate-700 outline-none transition-all placeholder:text-slate-400 focus:border-[#2463eb] focus:bg-white focus:ring-4 focus:ring-blue-50 disabled:opacity-50 sm:w-64"
+                                            placeholder="Search questions"
+                                            value={questionSearch}
+                                            onChange={e => setQuestionSearch(e.target.value)}
+                                        />
+                                    </div>
+                                    <button
+                                        disabled={!selectedCategoryId}
+                                        onClick={handleOpenQuestionCreate}
+                                        className="flex items-center justify-center gap-2 rounded-xl bg-[#2463eb] px-4 py-2 text-xs font-bold text-white shadow-lg shadow-[#dbeafe] transition-all hover:bg-[#1d4ed8] active:scale-95 disabled:opacity-50 disabled:grayscale"
+                                    >
+                                        <Plus size={16} strokeWidth={3} />
+                                        Add Question
+                                    </button>
+                                </div>
                             </div>
                             <div className="overflow-x-auto">
                                 {!selectedCategoryId ? (
@@ -343,10 +434,10 @@ export default function AppraisalConfigPage() {
                                             </tr>
                                         </thead>
                                         <tbody className="divide-y divide-slate-50">
-                                            {questions.length === 0 ? (
-                                                <tr><td colSpan={4} className="p-16 text-center text-slate-400 italic">No questions found for this category.</td></tr>
+                                            {filteredQuestions.length === 0 ? (
+                                                <tr><td colSpan={4} className="p-16 text-center font-semibold text-slate-400">{questions.length === 0 ? 'No questions found for this category.' : 'No questions match your search.'}</td></tr>
                                             ) : (
-                                                questions.map(q => (
+                                                filteredQuestions.map(q => (
                                                     <tr key={q.id} className="hover:bg-slate-50/30 transition-colors group">
                                                         <td className="p-6 text-center font-black text-slate-300">#{q.sortOrder}</td>
                                                         <td className="p-6">

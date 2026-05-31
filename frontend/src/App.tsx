@@ -53,7 +53,7 @@ import PipMonitoringPage from './pages/PipMonitoringPage';
 import PipCreatePage from './pages/PipCreatePage';
 import PipDetailPage from './pages/PipDetailPage';
 import PipNotesReviewPage from './pages/hr/PipNotesReviewPage';
-import { CriteriaPage } from './pages/hr/CriteriaPage';
+import FeedbackManagementPage from './pages/hr/FeedbackManagementPage';
 import { AppraisalsPage } from './pages/hr/AppraisalsPage';
 import { GiveFeedbackPage } from './pages/GiveFeedbackPage';
 import { CombinedFeedbackHistoryPage } from './pages/CombinedFeedbackHistoryPage';
@@ -206,7 +206,8 @@ function App() {
             <Route path="pip-monitoring" element={gated('PIP', 'view', <PipMonitoringPage />)} />
             <Route path="pip-monitoring/:id" element={gated('PIP', 'view', <PipDetailPage />)} />
             <Route path="pip-notes" element={gated('PIP', 'review_notes', <PipNotesReviewPage />)} />
-            <Route path="360-feedback/criteria" element={gated('360_FEEDBACK', 'configure', <CriteriaPage />)} />
+            <Route path="360-feedback/management" element={gated('360_FEEDBACK', 'configure', <FeedbackManagementPage />)} />
+            <Route path="360-feedback/criteria" element={<Navigate to="/hr/360-feedback/management" replace />} />
             <Route path="360-feedback/give" element={gated('360_FEEDBACK', 'give', <GiveFeedbackPage />)} />
             <Route path="360-feedback/received" element={gated('360_FEEDBACK', 'view', <GetFeedbackPage />)} />
             <Route path="360-feedback/received/:feedbackId" element={<FeedbackDetailPage />} />
