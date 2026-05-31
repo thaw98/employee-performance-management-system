@@ -26,7 +26,6 @@ import {
   Settings,
   TableProperties,
   MessageSquare,
-  ArrowUpRight,
 } from 'lucide-react';
 import { Outlet } from 'react-router-dom';
 import { useSelector } from 'react-redux';
@@ -154,7 +153,6 @@ const HrLayout: React.FC = () => {
             subItems: [
               { label: 'Feedback Review', path: '/hr/continuous-feedback', icon: <MessageSquare size={16} />, permission: { moduleKey: 'CONTINUOUS_FEEDBACK', actionKey: 'view' } },
               { label: 'Dashboard', path: '/hr/continuous-feedback/dashboard', icon: <BarChart size={16} />, permission: { moduleKey: 'CONTINUOUS_FEEDBACK', actionKey: 'report' } },
-              { label: 'Upward Feedback', path: '/hr/upward-feedback', icon: <ArrowUpRight size={16} />, permission: { moduleKey: 'CONTINUOUS_FEEDBACK', actionKey: 'view' } },
             ],
           },
           {

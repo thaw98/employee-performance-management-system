@@ -21,7 +21,6 @@ import {
     Shield,
     Archive,
     MessageSquare,
-    ArrowUpRight,
 } from 'lucide-react';
 import { Outlet } from 'react-router-dom';
 import { useSelector } from 'react-redux';
@@ -132,7 +131,6 @@ const AuditLayout: React.FC = () => {
                     subItems: [
                         { label: 'Feedback Audit', path: '/audit/continuous-feedback', icon: <MessageSquare size={16} /> },
                         { label: 'Dashboard', path: '/audit/continuous-feedback/dashboard', icon: <BarChart size={16} /> },
-                        { label: 'Upward Feedback', path: '/audit/upward-feedback', icon: <ArrowUpRight size={16} /> },
                     ],
                 },
             ],
