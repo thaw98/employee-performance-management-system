@@ -73,6 +73,7 @@ export const PromotionModal: React.FC<PromotionModalProps> = ({
     }
   };
 
+  const selectedPositionId = selectedKey ? selectedKey.split('-')[0] : '';
   const targetPosition = positions.find(p => p.positionId.toString() === selectedPositionId);
   const targetPositionName = targetPosition ? `${targetPosition.positionName} ${targetPosition.levelCodeName ? `(${targetPosition.levelCodeName})` : ''}` : 'N/A';
 

@@ -40,6 +40,7 @@ public class PerformanceReportService {
     private final SelfAssessmentFormRepository selfAssessmentRepository;
     private final FeedbackRepository feedbackRepository;
     private final PipRepository pipRepository;
+    private final ProfilePictureStorageService profilePictureStorageService;
 
     private static final List<String> ACTIVE_PIP_STATUSES = List.of("ACTIVE", "REOPEN_REQUESTED");
 
@@ -110,13 +111,18 @@ public class PerformanceReportService {
             joinedDateStr = joinedLocalDate.toString();
         }
 
+        String profilePictureUrl = profilePictureStorageService.toPublicUrl(emp.getProfilePictureUrl());
+        if (profilePictureUrl != null && !profilePictureStorageService.isAvailable(profilePictureUrl)) {
+            profilePictureUrl = null;
+        }
+
         return PerformanceReportSummaryDto.builder()
                 .employeeId(emp.getId())
                 .staffNo(emp.getEmployeeId())
                 .employeeName(emp.getEmployeeName())
                 .departmentName(emp.getDepartment() != null ? emp.getDepartment().getName() : null)
                 .positionName(emp.getPosition() != null ? emp.getPosition().getName() : null)
-                .profilePictureUrl(emp.getProfilePictureUrl())
+                .profilePictureUrl(profilePictureUrl)
                 .joinedDate(joinedDateStr)
                 .kpiScore(kpiResult.score)
                 .kpiPeriod(kpiResult.period)
