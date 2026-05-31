@@ -35,7 +35,7 @@ public class PermissionController {
     private final UserRepository userRepository;
 
     @GetMapping("/matrix")
-    @PreAuthorize("principal.roleId == 5")
+    @PreAuthorize("principal.roleId == 1 or principal.roleId == 5")
     public ResponseEntity<ApiResponse<PermissionMatrixDto>> getPermissionMatrix(
             @RequestParam(required = false) Long levelCodeId,
             @RequestParam(required = false) Long roleId,
@@ -45,7 +45,7 @@ public class PermissionController {
     }
 
     @GetMapping("/matrix/positions/{positionId}")
-    @PreAuthorize("principal.roleId == 5")
+    @PreAuthorize("principal.roleId == 1 or principal.roleId == 5")
     public ResponseEntity<ApiResponse<List<PositionPermissionDto>>> getPositionPermissions(
             @PathVariable Long positionId) {
         List<PositionPermissionDto> permissions = permissionService.getPositionPermissions(positionId);
@@ -53,7 +53,7 @@ public class PermissionController {
     }
 
     @PutMapping("/matrix/positions/{positionId}")
-    @PreAuthorize("principal.roleId == 5")
+    @PreAuthorize("principal.roleId == 1 or principal.roleId == 5")
     public ResponseEntity<ApiResponse<String>> updatePositionPermissions(
             @PathVariable Long positionId,
             @RequestBody UpdatePositionPermissionRequest request) {

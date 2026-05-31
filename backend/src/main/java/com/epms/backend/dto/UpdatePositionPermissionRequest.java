@@ -12,6 +12,7 @@ import lombok.NoArgsConstructor;
 @NoArgsConstructor
 @AllArgsConstructor
 public class UpdatePositionPermissionRequest {
+    private String moduleKey;
     private List<PermissionToggleUpdate> permissions;
 
     @Data

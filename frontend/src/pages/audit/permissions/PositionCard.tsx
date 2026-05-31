@@ -10,6 +10,7 @@ interface PositionCardProps {
   onToggle: ReturnType<typeof usePendingChanges>['toggle'];
   onSetAll: ReturnType<typeof usePendingChanges>['setAll'];
   changes: ReturnType<typeof usePendingChanges>['changes'];
+  disabled?: boolean;
 }
 
 export function PositionCard({
@@ -19,6 +20,7 @@ export function PositionCard({
   onToggle,
   onSetAll,
   changes,
+  disabled = false,
 }: PositionCardProps) {
   const hasChanges = changes.some((c) => c.positionId === position.positionId);
   const changeCount = changes.filter((c) => c.positionId === position.positionId).length;
@@ -59,15 +61,22 @@ export function PositionCard({
           <button
             onClick={() =>
               onSetAll(
-                actions.map((a) => ({
-                  positionId: position.positionId,
-                  moduleKey: a.moduleKey,
-                  actionKey: a.actionKey,
-                  allowed: true,
-                }))
+                actions.map((a) => {
+                  const perm = position.permissions.find(
+                    (p) => p.moduleKey === a.moduleKey && p.actionKey === a.actionKey
+                  );
+                  return {
+                    positionId: position.positionId,
+                    moduleKey: a.moduleKey,
+                    actionKey: a.actionKey,
+                    allowed: true,
+                    original: perm?.allowed ?? false,
+                  };
+                })
               )
             }
-            className="inline-flex items-center gap-1 px-2.5 py-1.5 text-[11px] font-medium bg-emerald-100 text-emerald-700 rounded-lg hover:bg-emerald-200 transition-colors dark:bg-emerald-900/30 dark:text-emerald-400 dark:hover:bg-emerald-900/50"
+            disabled={disabled}
+            className="inline-flex items-center gap-1 px-2.5 py-1.5 text-[11px] font-medium bg-emerald-100 text-emerald-700 rounded-lg hover:bg-emerald-200 transition-colors dark:bg-emerald-900/30 dark:text-emerald-400 dark:hover:bg-emerald-900/50 disabled:opacity-40 disabled:cursor-not-allowed"
           >
             <CheckSquare className="h-3.5 w-3.5" />
             Allow All
@@ -75,15 +84,22 @@ export function PositionCard({
           <button
             onClick={() =>
               onSetAll(
-                actions.map((a) => ({
-                  positionId: position.positionId,
-                  moduleKey: a.moduleKey,
-                  actionKey: a.actionKey,
-                  allowed: false,
-                }))
+                actions.map((a) => {
+                  const perm = position.permissions.find(
+                    (p) => p.moduleKey === a.moduleKey && p.actionKey === a.actionKey
+                  );
+                  return {
+                    positionId: position.positionId,
+                    moduleKey: a.moduleKey,
+                    actionKey: a.actionKey,
+                    allowed: false,
+                    original: perm?.allowed ?? false,
+                  };
+                })
               )
             }
-            className="inline-flex items-center gap-1 px-2.5 py-1.5 text-[11px] font-medium bg-red-100 text-red-700 rounded-lg hover:bg-red-200 transition-colors dark:bg-red-900/30 dark:text-red-400 dark:hover:bg-red-900/50"
+            disabled={disabled}
+            className="inline-flex items-center gap-1 px-2.5 py-1.5 text-[11px] font-medium bg-red-100 text-red-700 rounded-lg hover:bg-red-200 transition-colors dark:bg-red-900/30 dark:text-red-400 dark:hover:bg-red-900/50 disabled:opacity-40 disabled:cursor-not-allowed"
           >
             <XSquare className="h-3.5 w-3.5" />
             Deny All
@@ -122,6 +138,7 @@ export function PositionCard({
                   displayName={action.displayName}
                   allowed={effective}
                   isChanged={isChanged}
+                  disabled={disabled}
                   onToggle={() =>
                     onToggle(position.positionId, action.moduleKey, action.actionKey, effective)
                   }

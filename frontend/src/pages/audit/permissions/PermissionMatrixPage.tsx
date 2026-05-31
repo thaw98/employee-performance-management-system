@@ -1,6 +1,8 @@
 import { useState, useMemo, useEffect } from 'react';
-import { Shield, Save, Loader2, AlertCircle, Info } from 'lucide-react';
+import { useSelector } from 'react-redux';
+import { Shield, ClipboardList, Loader2, AlertCircle, Info, X } from 'lucide-react';
 import toast from 'react-hot-toast';
+import type { RootState } from '../../../app/store';
 import {
   useGetPermissionMatrixQuery,
   useUpdatePositionPermissionsMutation,
@@ -10,13 +12,18 @@ import { usePendingChanges, usePositionSearch } from './permissionHooks';
 import { ModuleSidebar } from './ModuleSidebar';
 import { FilterBar } from './FilterBar';
 import { PositionCard } from './PositionCard';
+import { ChangesReviewModal } from './ChangesReviewModal';
 
 export default function PermissionMatrixPage() {
+  const { user } = useSelector((state: RootState) => state.auth);
   const [selectedLevelCode, setSelectedLevelCode] = useState<number | undefined>(undefined);
   const [selectedRoleId, setSelectedRoleId] = useState<number | undefined>(undefined);
   const [selectedModuleKey, setSelectedModuleKey] = useState<string | undefined>(undefined);
+  const [showReviewModal, setShowReviewModal] = useState(false);
 
-  const { changes, hasChanges, getEffective, toggle, setAll, clear } = usePendingChanges();
+  const isAuthorized = user?.roleId === 1 || user?.roleId === 5;
+
+  const { changes, hasChanges, getEffective, toggle, setAll, clear, getChangesForModule } = usePendingChanges();
 
   const { data: matrixResponse, isLoading, isFetching } = useGetPermissionMatrixQuery({
     levelCodeId: selectedLevelCode,
@@ -91,28 +98,58 @@ export default function PermissionMatrixPage() {
   const { search: positionSearch, setSearch: setPositionSearch, filtered: filteredPositions } =
     usePositionSearch(matrix?.positions || []);
 
-  const handleSave = async () => {
-    if (!changes.length) return;
+  const positionNames = useMemo(() => {
+    const map = new Map<number, { name: string; code: string; roleName: string }>();
+    if (!matrix) return map;
+    for (const pos of matrix.positions) {
+      map.set(pos.positionId, { name: pos.positionName, code: pos.positionCode, roleName: pos.roleName });
+    }
+    return map;
+  }, [matrix]);
+
+  const moduleChanges = useMemo(() => {
+    if (!selectedModule) return [];
+    return getChangesForModule(selectedModule.moduleKey);
+  }, [selectedModule, getChangesForModule]);
+
+  const allActions = useMemo(() => {
+    if (!matrix) return [];
+    return matrix.actions;
+  }, [matrix]);
+
+  const handleConfirmSave = async () => {
+    if (!moduleChanges.length || !selectedModule) return;
 
     const byPosition = new Map<number, { moduleKey: string; actionKey: string; allowed: boolean }[]>();
-    for (const c of changes) {
+    for (const c of moduleChanges) {
       if (!byPosition.has(c.positionId)) {
         byPosition.set(c.positionId, []);
       }
       byPosition.get(c.positionId)!.push({ moduleKey: c.moduleKey, actionKey: c.actionKey, allowed: c.allowed });
     }
 
-    const promises: Promise<unknown>[] = [];
-    for (const [positionId, permissions] of byPosition) {
-      promises.push(updatePermissions({ positionId, request: { permissions } }).unwrap());
-    }
+    const moduleKey = selectedModule.moduleKey;
 
     try {
+      const promises: Promise<unknown>[] = [];
+      for (const [positionId, permissions] of byPosition) {
+        promises.push(
+          updatePermissions({
+            positionId,
+            request: { moduleKey, permissions },
+          }).unwrap()
+        );
+      }
       await Promise.all(promises);
-      toast.success(`Permissions updated for ${byPosition.size} position(s)`);
+      toast.success(`Permissions saved for ${byPosition.size} position(s) in "${selectedModule.displayName}"`);
       clear();
-    } catch {
-      toast.error('Failed to update permissions');
+      setShowReviewModal(false);
+    } catch (err: unknown) {
+      const msg =
+        err && typeof err === 'object' && 'data' in err
+          ? (err as { data: { message?: string } }).data?.message
+          : undefined;
+      toast.error(msg || 'Failed to save permissions. Your changes are still staged.');
     }
   };
 
@@ -120,6 +157,14 @@ export default function PermissionMatrixPage() {
     clear();
     toast.success('Changes discarded');
   };
+
+  const handleChangesClick = () => {
+    setShowReviewModal(true);
+  };
+
+  // Check if there are changes outside the current module (for information)
+  const otherModuleChangesCount = changes.length - moduleChanges.length;
+  const hasOtherModuleChanges = otherModuleChangesCount > 0;
 
   if (isLoading) {
     return (
@@ -162,24 +207,31 @@ export default function PermissionMatrixPage() {
             <div className="flex items-center gap-3">
               <span className="hidden sm:inline text-sm text-amber-600 dark:text-amber-400 font-medium">
                 {changes.length} unsaved change{changes.length !== 1 ? 's' : ''}
+                {hasOtherModuleChanges && (
+                  <span className="text-slate-400 dark:text-slate-500 font-normal ml-1">
+                    ({moduleChanges.length} in current module)
+                  </span>
+                )}
               </span>
               <button
                 onClick={handleDiscard}
                 className="px-3 py-2 text-sm font-medium border border-slate-300 dark:border-slate-600 rounded-lg text-slate-700 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-700 transition-colors"
               >
-                Discard
+                <X className="h-4 w-4 sm:hidden" />
+                <span className="hidden sm:inline">Discard</span>
               </button>
               <button
-                onClick={handleSave}
-                disabled={isSaving}
+                onClick={handleChangesClick}
+                disabled={!isAuthorized}
                 className="px-4 py-2 text-sm font-medium bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-1.5 transition-colors shadow-sm shadow-indigo-200 dark:shadow-none"
               >
-                {isSaving ? (
-                  <Loader2 className="h-4 w-4 animate-spin" />
-                ) : (
-                  <Save className="h-4 w-4" />
+                <ClipboardList className="h-4 w-4" />
+                <span className="hidden sm:inline">Changes</span>
+                {moduleChanges.length > 0 && (
+                  <span className="inline-flex items-center justify-center w-5 h-5 text-[10px] font-bold bg-white/20 rounded-full">
+                    {moduleChanges.length}
+                  </span>
                 )}
-                Save Changes
               </button>
             </div>
           )}
@@ -187,6 +239,11 @@ export default function PermissionMatrixPage() {
         {hasChanges && (
           <div className="sm:hidden mt-2 text-sm text-amber-600 dark:text-amber-400 font-medium">
             {changes.length} unsaved change{changes.length !== 1 ? 's' : ''}
+            {hasOtherModuleChanges && (
+              <span className="text-slate-400 dark:text-slate-500 font-normal ml-1">
+                ({moduleChanges.length} in current module)
+              </span>
+            )}
           </div>
         )}
       </div>
@@ -208,7 +265,8 @@ export default function PermissionMatrixPage() {
         <Info className="h-4 w-4 text-blue-500 mt-0.5 shrink-0" />
         <p className="text-sm text-blue-700 dark:text-blue-300 leading-relaxed">
           Permissions are resolved by position. <strong>Green</strong> means the permission is explicitly
-          allowed. Audit role (ID 5) always has full access.
+          allowed. Admin (HR) and Audit roles can manage permissions. Use <strong>Changes</strong> to
+          review and confirm staged edits for the current module only.
         </p>
       </div>
 
@@ -272,12 +330,23 @@ export default function PermissionMatrixPage() {
                   onToggle={toggle}
                   onSetAll={setAll}
                   changes={changes}
+                  disabled={!isAuthorized}
                 />
               ))}
             </div>
           )}
         </div>
       </div>
+
+      {/* Unauthorized warning */}
+      {!isAuthorized && (
+        <div className="bg-amber-50 dark:bg-amber-900/20 border border-amber-200 dark:border-amber-800 rounded-xl p-3.5 flex items-start gap-2.5">
+          <AlertCircle className="h-4 w-4 text-amber-500 mt-0.5 shrink-0" />
+          <p className="text-sm text-amber-700 dark:text-amber-300 leading-relaxed">
+            You do not have permission to edit permissions. Contact an Admin or Audit user to make changes.
+          </p>
+        </div>
+      )}
 
       {/* Summary */}
       {matrix && selectedModule && filteredPositions.length > 0 && (
@@ -287,6 +356,19 @@ export default function PermissionMatrixPage() {
           <strong className="text-slate-500 dark:text-slate-400">{actions.length}</strong> action
           {actions.length !== 1 ? 's' : ''} in &ldquo;{selectedModule.displayName}&rdquo;
         </div>
+      )}
+
+      {/* Changes Review Modal */}
+      {showReviewModal && selectedModule && (
+        <ChangesReviewModal
+          changes={moduleChanges}
+          moduleDisplayName={selectedModule.displayName}
+          positionNames={positionNames}
+          allActions={allActions}
+          onConfirm={handleConfirmSave}
+          onCancel={() => setShowReviewModal(false)}
+          isSaving={isSaving}
+        />
       )}
     </div>
   );

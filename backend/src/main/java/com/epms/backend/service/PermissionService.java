@@ -6,11 +6,14 @@ import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
+import java.util.Set;
 import java.util.stream.Collectors;
 
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import com.epms.backend.audit.AuditActionType;
+import com.epms.backend.audit.AuditTargetType;
 import com.epms.backend.dto.PermissionActionDto;
 import com.epms.backend.dto.PermissionMatrixDto;
 import com.epms.backend.dto.PermissionModuleDto;
@@ -18,6 +21,7 @@ import com.epms.backend.dto.PositionPermissionDto;
 import com.epms.backend.dto.UpdatePositionPermissionRequest;
 import com.epms.backend.dto.UserPermissionDto;
 import com.epms.backend.entity.Employee;
+import com.epms.backend.entity.PermissionAction;
 import com.epms.backend.entity.Position;
 import com.epms.backend.entity.PositionPermission;
 import com.epms.backend.entity.User;
@@ -35,6 +39,7 @@ import lombok.extern.slf4j.Slf4j;
 @Slf4j
 public class PermissionService {
 
+    private static final long HR_ROLE_ID = 1L;
     private static final long AUDIT_ROLE_ID = 5L;
 
     private final PermissionModuleRepository moduleRepository;
@@ -156,6 +161,19 @@ public class PermissionService {
         Position position = positionRepository.findById(positionId)
                 .orElseThrow(() -> new IllegalArgumentException("Position not found: " + positionId));
 
+        // Self-lockout check: if the position being updated belongs to the current user,
+        // prevent removing critical permissions that would lock them out.
+        User performingUser = userRepository.findById(performedByUserId).orElse(null);
+        if (performingUser != null
+                && performingUser.getEmployee() != null
+                && performingUser.getEmployee().getPosition() != null
+                && performingUser.getEmployee().getPosition().getId().equals(positionId)) {
+            // Not Audit (Audit always has full access regardless of position permissions)
+            if (performingUser.getRole() == null || performingUser.getRole().getId() != AUDIT_ROLE_ID) {
+                validateNoSelfLockout(performingUser, position, request);
+            }
+        }
+
         Map<String, PositionPermission> existingMap = positionPermissionRepository
                 .findByPositionIdOrderByModuleKeyAscActionKeyAsc(positionId)
                 .stream()
@@ -164,17 +182,26 @@ public class PermissionService {
                         pp -> pp,
                         (a, b) -> b));
 
-        List<String> beforeKeys = new ArrayList<>(existingMap.keySet());
+        Map<String, PermissionAction> actionDetails = actionRepository.findAll().stream()
+                .collect(Collectors.toMap(a -> a.getModuleKey() + ":" + a.getActionKey(), a -> a));
+
         List<String> beforeDataList = existingMap.values().stream()
                 .map(pp -> pp.getModuleKey() + ":" + pp.getActionKey() + "=" + pp.isAllowed())
                 .collect(Collectors.toList());
-        String beforeData = String.join(",", beforeDataList);
+
+        StringBuilder detailedMetadata = new StringBuilder();
+        detailedMetadata.append("{\"positionName\":\"").append(position.getName()).append("\"")
+                .append(",\"positionCode\":\"").append(position.getCode()).append("\"")
+                .append(",\"roleName\":\"").append(position.getRole() != null ? position.getRole().getName() : "").append("\"")
+                .append(",\"moduleKey\":\"").append(request.getModuleKey() != null ? request.getModuleKey() : "").append("\"");
 
         List<String> afterDataList = new ArrayList<>();
+        List<Map<String, Object>> changeDetails = new ArrayList<>();
 
         for (UpdatePositionPermissionRequest.PermissionToggleUpdate toggle : request.getPermissions()) {
             String key = toggle.getModuleKey() + ":" + toggle.getActionKey();
             PositionPermission existing = existingMap.get(key);
+            boolean beforeAllowed = existing != null && existing.isAllowed();
 
             if (existing != null) {
                 existing.setAllowed(toggle.isAllowed());
@@ -190,21 +217,81 @@ public class PermissionService {
                 pp.setUpdatedAt(Instant.now());
                 positionPermissionRepository.save(pp);
             }
+
+            String actionName = actionDetails.containsKey(key)
+                    ? actionDetails.get(key).getDisplayName()
+                    : toggle.getActionKey();
             afterDataList.add(toggle.getModuleKey() + ":" + toggle.getActionKey() + "=" + toggle.isAllowed());
+
+            Map<String, Object> detail = new LinkedHashMap<>();
+            detail.put("moduleKey", toggle.getModuleKey());
+            detail.put("actionKey", toggle.getActionKey());
+            detail.put("actionName", actionName);
+            detail.put("before", beforeAllowed);
+            detail.put("after", toggle.isAllowed());
+            changeDetails.add(detail);
         }
 
+        detailedMetadata.append(",\"changes\":").append(changeDetails.size());
+        detailedMetadata.append(",\"details\":[");
+        for (int i = 0; i < changeDetails.size(); i++) {
+            Map<String, Object> d = changeDetails.get(i);
+            detailedMetadata.append("{\"moduleKey\":\"").append(d.get("moduleKey"))
+                    .append("\",\"actionKey\":\"").append(d.get("actionKey"))
+                    .append("\",\"actionName\":\"").append(d.get("actionName"))
+                    .append("\",\"before\":").append(d.get("before"))
+                    .append(",\"after\":").append(d.get("after"))
+                    .append("}");
+            if (i < changeDetails.size() - 1) {
+                detailedMetadata.append(",");
+            }
+        }
+        detailedMetadata.append("]}");
+        String metadataJson = detailedMetadata.toString();
+
         String afterData = String.join(",", afterDataList);
+        String beforeData = String.join(",", beforeDataList);
 
         auditService.record(
-                "PERMISSION_MATRIX_UPDATED",
-                "POSITION_PERMISSION",
+                AuditActionType.PERMISSION_MATRIX_UPDATED,
+                AuditTargetType.POSITION_PERMISSION,
                 positionId,
                 performedByUserId,
                 performedByRoleId,
-                "Updated permission matrix for position: " + position.getName(),
-                "{\"positionName\":\"" + position.getName() + "\",\"changes\":" + request.getPermissions().size() + "}",
+                "Updated permission matrix for position: " + position.getName()
+                        + " (" + position.getCode() + ")",
+                metadataJson,
                 beforeData,
                 afterData);
+    }
+
+    private void validateNoSelfLockout(User user, Position position, UpdatePositionPermissionRequest request) {
+        Long userRoleId = user.getRole() != null ? user.getRole().getId() : null;
+        if (userRoleId == null) {
+            return;
+        }
+
+        // Get current permissions for the position
+        Map<String, Boolean> currentPerms = positionPermissionRepository
+                .findByPositionIdOrderByModuleKeyAscActionKeyAsc(position.getId())
+                .stream()
+                .collect(Collectors.toMap(
+                        pp -> pp.getModuleKey() + ":" + pp.getActionKey(),
+                        PositionPermission::isAllowed));
+
+        // Apply the requested changes to see what the final state would be
+        Map<String, Boolean> afterPerms = new LinkedHashMap<>(currentPerms);
+        for (UpdatePositionPermissionRequest.PermissionToggleUpdate toggle : request.getPermissions()) {
+            afterPerms.put(toggle.getModuleKey() + ":" + toggle.getActionKey(), toggle.isAllowed());
+        }
+
+        // Check if at least one "manage" or "view" permission remains
+        boolean hasRemainingAccess = afterPerms.values().stream().anyMatch(v -> v);
+        if (!hasRemainingAccess) {
+            throw new IllegalStateException(
+                    "Cannot save: this would remove all permissions from your position (" + position.getName()
+                            + "), causing a self-lockout. At least one permission must remain enabled.");
+        }
     }
 
     @Transactional(readOnly = true)

@@ -53,6 +53,7 @@ export interface PositionPermissionDto {
 }
 
 export interface UpdatePositionPermissionRequest {
+  moduleKey?: string;
   permissions: {
     moduleKey: string;
     actionKey: string;
