@@ -124,14 +124,6 @@ export const AuditLogDetailsModal: React.FC<AuditLogDetailsModalProps> = ({ log,
                             {log.description}
                         </p>
                     </div>
-                    {log.metadataJson && (
-                        <div className="rounded-lg bg-slate-50 p-4 dark:bg-slate-700/50">
-                            <label className="text-xs font-medium uppercase text-slate-500">Metadata</label>
-                            <pre className="mt-2 max-h-60 overflow-auto rounded-lg bg-white p-3 font-mono text-xs text-slate-700 dark:bg-slate-900 dark:text-slate-300">
-                                {JSON.stringify(log.metadataJson, null, 2)}
-                            </pre>
-                        </div>
-                    )}
                 </div>
             </div>
         </div>
