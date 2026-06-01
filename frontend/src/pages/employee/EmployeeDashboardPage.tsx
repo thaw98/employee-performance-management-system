@@ -161,7 +161,7 @@ export function EmployeeDashboardPage() {
           <h1 className="text-3xl font-black tracking-tight text-slate-950 dark:text-white">My Dashboard</h1>
           <p className="mt-2 text-sm font-semibold text-slate-500">Track your KPIs, appraisals, meetings, and latest performance activity.</p>
         </div>
-        <Link to="/employee/my-kpis" className="inline-flex h-12 items-center justify-center gap-2 rounded-2xl bg-blue-600 px-5 text-sm font-black text-white shadow-lg shadow-blue-200 transition hover:bg-blue-700 dark:shadow-none">
+        <Link to="/employee/kpis" className="inline-flex h-12 items-center justify-center gap-2 rounded-2xl bg-blue-600 px-5 text-sm font-black text-white shadow-lg shadow-blue-200 transition hover:bg-blue-700 dark:shadow-none">
           <Target size={18} /> View My KPIs
         </Link>
       </section>
