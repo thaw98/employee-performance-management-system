@@ -1,5 +1,6 @@
 import * as XLSX from 'xlsx-js-style'
-import type { GroupSummary, PerformerScore, SelfAssessmentReportDto } from './api/selfAssessmentReportApi'
+import type { GroupSummary, SelfAssessmentReportDto } from './api/selfAssessmentReportApi'
+import { selfAssessmentReportExportSuffix, type SelfAssessmentReportExportContext } from './selfAssessmentReportExportTypes'
 
 type SheetRow = (string | number)[]
 
@@ -25,9 +26,6 @@ const statusLabel = (value: string | null | undefined) =>
         .toLowerCase()
         .replace(/\b\w/g, (char) => char.toUpperCase())
 
-const performers = (items: PerformerScore[]) =>
-  items.map((item) => `${item.employeeName} (${score(item.score)})`).join(', ') || '-'
-
 const summaryRows = (rows: GroupSummary[], includeDepartment: boolean): SheetRow[] => [
   includeDepartment
     ? ['Department', 'Position', 'Employees', 'Average', 'Highest', 'Lowest', 'Missed']
@@ -52,6 +50,19 @@ const summaryRows = (rows: GroupSummary[], includeDepartment: boolean): SheetRow
           item.missedCount,
         ],
   ),
+]
+
+const directoryRows = (rows: SelfAssessmentReportExportContext['directoryRows']): SheetRow[] => [
+  ['Staff No', 'Name', 'Department', 'Position', 'Score', 'Performance', 'Status'],
+  ...rows.map((item) => [
+    valueOrDash(item.staffNo),
+    valueOrDash(item.employeeName),
+    valueOrDash(item.departmentName),
+    valueOrDash(item.positionName),
+    score(item.selectedCycleScore),
+    valueOrDash(item.performance),
+    statusLabel(item.status),
+  ]),
 ]
 
 const setColumnWidths = (sheet: XLSX.WorkSheet, widths: number[]) => {
@@ -89,64 +100,56 @@ const appendSheet = (workbook: XLSX.WorkBook, name: string, rows: SheetRow[], wi
   XLSX.utils.book_append_sheet(workbook, sheet, name)
 }
 
-export function exportSelfAssessmentReportExcel(report: SelfAssessmentReportDto) {
+const overviewRows = (report: SelfAssessmentReportDto, role: string): SheetRow[] => [
+  ['Metric', 'Value'],
+  ['Cycle Name', valueOrDash(report.selectedCycle.name)],
+  ['Role', role],
+  ['Generated Date', new Date().toLocaleDateString()],
+  ['Records', report.overallTotals.recordCount],
+  ['Average', score(report.overallTotals.averageScore)],
+  ['Highest', score(report.overallTotals.highestScore)],
+  ['Lowest', score(report.overallTotals.lowestScore)],
+  ['Missed', report.overallTotals.missedCount],
+]
+
+const sheetNameForTab = (context: SelfAssessmentReportExportContext, role: string) => {
+  if (context.tab === 'department') {
+    return role === 'manager' ? 'Department Context' : 'Department Summary'
+  }
+  if (context.tab === 'positions') {
+    return 'Position Summary'
+  }
+  return 'Employee Directory'
+}
+
+export function exportSelfAssessmentReportExcel(
+  report: SelfAssessmentReportDto,
+  context: SelfAssessmentReportExportContext,
+) {
   const workbook = XLSX.utils.book_new()
   const role = report.role === 'manager' ? 'manager' : 'hr'
   const cycleName = report.selectedCycle.name || String(report.selectedCycle.id)
+  const sheetName = sheetNameForTab(context, role)
 
-  appendSheet(workbook, 'Overview', [
-    ['Metric', 'Value'],
-    ['Cycle Name', valueOrDash(report.selectedCycle.name)],
-    ['Role', role],
-    ['Generated Date', new Date().toLocaleDateString()],
-    ['Records', report.overallTotals.recordCount],
-    ['Average', score(report.overallTotals.averageScore)],
-    ['Highest', score(report.overallTotals.highestScore)],
-    ['Lowest', score(report.overallTotals.lowestScore)],
-    ['Missed', report.overallTotals.missedCount],
-  ], [24, 28])
+  const rows: SheetRow[] = [
+    ...overviewRows(report, role),
+    [],
+    ...(context.tab === 'department'
+      ? summaryRows(context.departmentRows, false)
+      : context.tab === 'positions'
+        ? summaryRows(context.positionRows, true)
+        : directoryRows(context.directoryRows)),
+  ]
 
-  appendSheet(workbook, 'Department Summary', summaryRows(report.departmentSummaries, false), [24, 12, 14, 14, 14, 12])
-  appendSheet(workbook, 'Position Summary', summaryRows(report.positionSummaries, true), [24, 24, 12, 14, 14, 14, 12])
+  const widths =
+    context.tab === 'directory'
+      ? [14, 24, 22, 22, 12, 18, 20]
+      : context.tab === 'positions'
+        ? [24, 24, 12, 14, 14, 14, 12]
+        : [24, 12, 14, 14, 14, 12]
 
-  appendSheet(workbook, 'Performance Bands', [
-    ['Group', 'Outstanding', 'Outstanding %', 'Good', 'Good %', 'Meet Requirement', 'Meet Requirement %', 'Need Improvement', 'Need Improvement %', 'Unsatisfactory', 'Unsatisfactory %'],
-    ...report.performanceBandRadar.map((item) => [
-      valueOrDash(item.groupName),
-      item.outstanding,
-      score(item.outstandingPercent),
-      item.good,
-      score(item.goodPercent),
-      item.meetRequirement,
-      score(item.meetRequirementPercent),
-      item.needImprovement,
-      score(item.needImprovementPercent),
-      item.unsatisfactory,
-      score(item.unsatisfactoryPercent),
-    ]),
-  ], [24, 14, 16, 12, 12, 18, 20, 18, 20, 16, 18])
+  appendSheet(workbook, sheetName, rows, widths)
 
-  appendSheet(workbook, 'Performer Highlights', [
-    ['Group', 'Highest Performers', 'Lowest Performers'],
-    ...report.performerHighlights.map((item) => [
-      valueOrDash(item.groupName),
-      performers(item.highestPerformers),
-      performers(item.lowestPerformers),
-    ]),
-  ], [24, 40, 40])
-
-  appendSheet(workbook, 'Employee Directory', [
-    ['Staff No', 'Name', 'Department', 'Position', 'Score', 'Performance', 'Status'],
-    ...report.employeeDirectory.map((item) => [
-      valueOrDash(item.staffNo),
-      valueOrDash(item.employeeName),
-      valueOrDash(item.departmentName),
-      valueOrDash(item.positionName),
-      score(item.selectedCycleScore),
-      valueOrDash(item.performance),
-      statusLabel(item.status),
-    ]),
-  ], [14, 24, 22, 22, 12, 18, 20])
-
-  XLSX.writeFile(workbook, `self-assessment-report-${role}-${slugify(cycleName)}.xlsx`)
+  const tabSlug = selfAssessmentReportExportSuffix(context.tab)
+  XLSX.writeFile(workbook, `self-assessment-report-${role}-${tabSlug}-${slugify(cycleName)}.xlsx`)
 }

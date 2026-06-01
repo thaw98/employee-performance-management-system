@@ -97,6 +97,23 @@ describe('usePermissionState', () => {
     expect(result.current.canViewModule('PIP')).toBe(false);
   });
 
+  it('canViewMeetings checks MEETINGS view permission', async () => {
+    const store = createTestStore({
+      user: { roleId: 4 },
+      permissions: { MEETINGS: { view: true } },
+      loaded: true,
+    });
+    const { result } = renderHook(() => usePermissionState(), { wrapper: wrapper(store) });
+
+    expect(result.current.canViewMeetings()).toBe(true);
+
+    store.dispatch(setPermissions({ MEETINGS: { view: false } }));
+
+    await waitFor(() => {
+      expect(result.current.canViewMeetings()).toBe(false);
+    });
+  });
+
   it('hasAnyPermission returns true if any action matches', () => {
     const store = createTestStore({
       user: { roleId: 4 },

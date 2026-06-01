@@ -1,7 +1,8 @@
 import jsPDF from 'jspdf'
 import autoTable from 'jspdf-autotable'
-import type { SelfAssessmentReportDto } from './api/selfAssessmentReportApi'
+import type { EmployeeDirectoryRow, GroupSummary, SelfAssessmentReportDto } from './api/selfAssessmentReportApi'
 import { addPdfFooterBranding, addPdfHeaderBranding, addPdfHeaderLogo, getPdfHeaderTextX, loadPdfLogo } from '../../utils/pdfBranding'
+import { selfAssessmentReportExportSuffix, type SelfAssessmentReportExportContext } from './selfAssessmentReportExportTypes'
 
 const MARGIN = 12.7
 
@@ -41,10 +42,53 @@ const addTable = (doc: jsPDF, y: number, head: string[][], body: (string | numbe
   return lastY(doc) + 8
 }
 
-const performers = (items: { employeeName: string; score: number }[]) =>
-  items.map((item) => `${item.employeeName} (${score(item.score)})`).join(', ') || '-'
+const summaryBody = (rows: GroupSummary[], includeDepartment: boolean) =>
+  rows.map((item) =>
+    includeDepartment
+      ? [
+          item.departmentName || '-',
+          item.groupName,
+          item.employeeCount,
+          score(item.averageScore),
+          score(item.highestScore),
+          score(item.lowestScore),
+          item.missedCount,
+        ]
+      : [
+          item.groupName,
+          item.employeeCount,
+          score(item.averageScore),
+          score(item.highestScore),
+          score(item.lowestScore),
+          item.missedCount,
+        ],
+  )
 
-export async function exportSelfAssessmentReportPdf(report: SelfAssessmentReportDto) {
+const directoryBody = (rows: EmployeeDirectoryRow[]) =>
+  rows.map((item) => [
+    item.staffNo || '-',
+    item.employeeName,
+    item.departmentName || '-',
+    item.positionName || '-',
+    score(item.selectedCycleScore),
+    item.performance || '-',
+    statusLabel(item.status),
+  ])
+
+const sectionTitleForTab = (context: SelfAssessmentReportExportContext, role: string) => {
+  if (context.tab === 'department') {
+    return role === 'manager' ? 'Department Context' : 'Department Summary'
+  }
+  if (context.tab === 'positions') {
+    return 'Position Summary'
+  }
+  return 'Employee Directory'
+}
+
+export async function exportSelfAssessmentReportPdf(
+  report: SelfAssessmentReportDto,
+  context: SelfAssessmentReportExportContext,
+) {
   const doc = new jsPDF({ orientation: 'portrait', unit: 'mm', format: 'a4' })
   const role = report.role === 'manager' ? 'manager' : 'hr'
   let y = MARGIN
@@ -76,56 +120,29 @@ export async function exportSelfAssessmentReportPdf(report: SelfAssessmentReport
     report.overallTotals.missedCount,
   ]])
 
-  if (role === 'hr') {
-    y = addTitle(doc, 'Department Summary', y)
-    y = addTable(doc, y, [['Department', 'Employees', 'Average', 'Highest', 'Lowest', 'Missed']], report.departmentSummaries.map((item) => [
-      item.groupName,
-      item.employeeCount,
-      score(item.averageScore),
-      score(item.highestScore),
-      score(item.lowestScore),
-      item.missedCount,
-    ]))
+  y = addTitle(doc, sectionTitleForTab(context, role), y)
+
+  if (context.tab === 'department') {
+    y = addTable(
+      doc,
+      y,
+      [['Department', 'Employees', 'Average', 'Highest', 'Lowest', 'Missed']],
+      summaryBody(context.departmentRows, false),
+    )
+  } else if (context.tab === 'positions') {
+    y = addTable(
+      doc,
+      y,
+      [['Department', 'Position', 'Employees', 'Average', 'Highest', 'Lowest', 'Missed']],
+      summaryBody(context.positionRows, true),
+    )
   } else {
-    y = addTitle(doc, 'Position Summary', y)
-    y = addTable(doc, y, [['Position', 'Employees', 'Average', 'Highest', 'Lowest', 'Missed']], report.positionSummaries.map((item) => [
-      item.groupName,
-      item.employeeCount,
-      score(item.averageScore),
-      score(item.highestScore),
-      score(item.lowestScore),
-      item.missedCount,
-    ]))
-  }
-
-  y = addTitle(doc, 'Performance Band Distribution', y)
-  y = addTable(doc, y, [['Group', 'Outstanding', 'Good', 'Meet Req.', 'Need Impr.', 'Unsat.']], report.performanceBandRadar.map((item) => [
-    item.groupName,
-    item.outstanding,
-    item.good,
-    item.meetRequirement,
-    item.needImprovement,
-    item.unsatisfactory,
-  ]))
-
-  y = addTitle(doc, 'Per-Group Performer Highlights', y)
-  y = addTable(doc, y, [['Group', 'Highest Performers', 'Lowest Performers']], report.performerHighlights.map((item) => [
-    item.groupName,
-    performers(item.highestPerformers),
-    performers(item.lowestPerformers),
-  ]))
-
-  if (report.employeeDirectory.length > 0) {
-    y = addTitle(doc, 'Employee Directory', y)
-    addTable(doc, y, [['Staff No', 'Name', 'Department', 'Position', 'Score', 'Performance', 'Status']], report.employeeDirectory.map((item) => [
-      item.staffNo || '-',
-      item.employeeName,
-      item.departmentName || '-',
-      item.positionName || '-',
-      score(item.selectedCycleScore),
-      item.performance || '-',
-      statusLabel(item.status),
-    ]))
+    addTable(
+      doc,
+      y,
+      [['Staff No', 'Name', 'Department', 'Position', 'Score', 'Performance', 'Status']],
+      directoryBody(context.directoryRows),
+    )
   }
 
   const pageCount = (doc as jsPDF & { getNumberOfPages: () => number }).getNumberOfPages()
@@ -137,5 +154,7 @@ export async function exportSelfAssessmentReportPdf(report: SelfAssessmentReport
     doc.text(`Page ${page} of ${pageCount}`, 210 - MARGIN, 297 - 7, { align: 'right' })
   }
 
-  doc.save(`self-assessment-report-${role}-${slugify(report.selectedCycle.name || String(report.selectedCycle.id))}.pdf`)
+  const cycleSlug = slugify(report.selectedCycle.name || String(report.selectedCycle.id))
+  const tabSlug = selfAssessmentReportExportSuffix(context.tab)
+  doc.save(`self-assessment-report-${role}-${tabSlug}-${cycleSlug}.pdf`)
 }

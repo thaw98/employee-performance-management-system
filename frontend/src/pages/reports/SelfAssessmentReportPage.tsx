@@ -241,15 +241,25 @@ export default function SelfAssessmentReportPage({ mode }: Props) {
     setSelectedPosition(null)
   }
 
+  const exportContext = useMemo(
+    () => ({
+      tab: activeTab,
+      departmentRows,
+      positionRows,
+      directoryRows,
+    }),
+    [activeTab, departmentRows, positionRows, directoryRows],
+  )
+
   const handleExport = async () => {
     if (!report) return
-    await exportSelfAssessmentReportPdf(report)
+    await exportSelfAssessmentReportPdf(report, exportContext)
     toast.success('PDF exported')
   }
 
   const handleExportExcel = () => {
     if (!report) return
-    exportSelfAssessmentReportExcel(report)
+    exportSelfAssessmentReportExcel(report, exportContext)
     toast.success('Excel exported')
   }
 
