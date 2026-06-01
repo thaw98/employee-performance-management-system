@@ -48,7 +48,6 @@ import {
   useCheckActiveTemplateConflictsMutation,
   useDeleteCopiedTemplateMutation,
   useGetCopiedTemplateQuery,
-  useGetQuestionBankQuery,
   useGetSelfAssessmentSettingsQuery,
   type QuestionRequest,
   type SelfAssessmentRatingSystem,
@@ -67,6 +66,7 @@ import { SelfAssessmentScoreBandTable } from '../../features/selfAssessmentForm/
 import { formatCycleDate, SelfAssessmentReviewCycleInfo } from './SelfAssessmentReviewCycleInfo';
 import { AudienceCard, createCountBadge, formatEmployeeCount } from './SelfAssessmentAudienceCard';
 import { SelfAssessmentTemplatePreviewModal } from './SelfAssessmentTemplatePreviewModal';
+import { QuestionBankPickerModal } from './QuestionBankPickerModal';
 
 interface QuestionFormData {
   title: string;
@@ -385,7 +385,6 @@ export const CreateSelfAssessmentTemplatePage: React.FC = () => {
     { id: createHybridRuleId(), departmentId: null, positionId: null },
   ]);
   const [isQuestionBankOpen, setIsQuestionBankOpen] = useState(false);
-  const [questionBankSearch, setQuestionBankSearch] = useState('');
   const [positionAudienceSearch, setPositionAudienceSearch] = useState('');
   const [selectedReviewCycleId, setSelectedReviewCycleId] = useState<number | null>(null);
   const [timelineMode, setTimelineMode] = useState<'REVIEW_CYCLE' | 'MANUAL'>('REVIEW_CYCLE');
@@ -720,14 +719,6 @@ export const CreateSelfAssessmentTemplatePage: React.FC = () => {
   const { data: copiedTemplate } = useGetCopiedTemplateQuery(undefined, {
     skip: !isPastingCopiedTemplate,
   });
-  const { data: questionBank = [], isLoading: isQuestionBankLoading } = useGetQuestionBankQuery(
-    { includeInactive: false },
-    { skip: !isQuestionBankOpen }
-  );
-
-  const filteredQuestionBank = questionBank.filter((question) =>
-    question.questionText.toLowerCase().includes(questionBankSearch.trim().toLowerCase())
-  );
 
   const { register, control, handleSubmit, getValues, reset, setValue, watch } = useForm<QuestionFormData>({
     defaultValues: {
@@ -953,26 +944,57 @@ export const CreateSelfAssessmentTemplatePage: React.FC = () => {
     return true;
   };
 
-  const handleUseBankQuestion = (questionText: string) => {
-    const trimmed = questionText.trim();
-    if (!trimmed) {
+  const handleInsertBankQuestions = (questionTexts: string[]) => {
+    const trimmedList = questionTexts.map((text) => text.trim()).filter(Boolean);
+    if (trimmedList.length === 0) {
+      toast.error('No questions selected');
       return;
     }
-    const existing = getValues('questions') ?? [];
-    const key = trimmed.toLowerCase();
-    if (existing.some((q) => q.questionText.trim().toLowerCase() === key)) {
-      toast.error('This question is already in the form');
+
+    const existingKeys = new Set(
+      (getValues('questions') ?? [])
+        .map((q) => q.questionText.trim().toLowerCase())
+        .filter(Boolean),
+    );
+
+    const toInsert: string[] = [];
+    let skipped = 0;
+    for (const text of trimmedList) {
+      const key = text.toLowerCase();
+      if (existingKeys.has(key)) {
+        skipped += 1;
+        continue;
+      }
+      existingKeys.add(key);
+      toInsert.push(text);
+    }
+
+    if (toInsert.length === 0) {
+      toast.error('Selected questions are already in the form');
       return;
     }
-    const firstEmptyIndex = existing.findIndex((q) => !q.questionText.trim());
-    if (firstEmptyIndex !== -1) {
-      setValue(`questions.${firstEmptyIndex}.questionText`, trimmed, { shouldDirty: true, shouldValidate: true });
-    } else {
-      append({ questionText: trimmed });
+
+    for (const text of toInsert) {
+      const current = getValues('questions') ?? [];
+      const firstEmptyIndex = current.findIndex((q) => !q.questionText.trim());
+      if (firstEmptyIndex !== -1) {
+        setValue(`questions.${firstEmptyIndex}.questionText`, text, {
+          shouldDirty: true,
+          shouldValidate: true,
+        });
+      } else {
+        append({ questionText: text });
+      }
     }
+
     setIsQuestionBankOpen(false);
-    setQuestionBankSearch('');
-    toast.success('Question added to form');
+    if (skipped > 0) {
+      toast.success(
+        `Added ${toInsert.length} question${toInsert.length === 1 ? '' : 's'}; ${skipped} skipped (already in form)`,
+      );
+    } else {
+      toast.success(`Added ${toInsert.length} question${toInsert.length === 1 ? '' : 's'} to form`);
+    }
   };
 
   const handleSaveQuestionToBank = async (index: number) => {
@@ -1855,69 +1877,11 @@ export const CreateSelfAssessmentTemplatePage: React.FC = () => {
           questions={watchedQuestions ?? []}
         />
 
-        {/* ─── Question Bank Modal ─── */}
-        {isQuestionBankOpen && (
-          <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 backdrop-blur-sm p-4">
-            <div className="animate-scale-in w-full max-w-xl rounded-2xl border border-slate-200 bg-white shadow-2xl dark:border-slate-700 dark:bg-slate-800">
-              <div className="flex items-center justify-between border-b border-slate-100 px-6 py-4 dark:border-slate-700">
-                <div className="flex items-center gap-3">
-                  <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-emerald-100 text-emerald-600 dark:bg-emerald-900/40 dark:text-emerald-400">
-                    <BookOpen size={16} />
-                  </div>
-                  <h2 className="text-lg font-bold text-slate-900 dark:text-white">Question Bank</h2>
-                </div>
-                <button
-                  type="button"
-                  onClick={() => setIsQuestionBankOpen(false)}
-                  className="rounded-lg p-2 text-slate-400 transition-all hover:bg-slate-100 hover:text-slate-600 dark:text-slate-500 dark:hover:bg-slate-700 dark:hover:text-slate-300"
-                  aria-label="Close question bank"
-                >
-                  <X size={18} />
-                </button>
-              </div>
-
-              <div className="p-6">
-                <div className="relative mb-4">
-                  <Search className="pointer-events-none absolute left-3.5 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400" />
-                  <input
-                    value={questionBankSearch}
-                    onChange={(event) => setQuestionBankSearch(event.target.value)}
-                    type="text"
-                    placeholder="Search questions..."
-                    className={`${inputBase} pl-10`}
-                  />
-                </div>
-
-                <div className="max-h-[50vh] overflow-y-auto rounded-xl border border-slate-200 dark:border-slate-600">
-                  {isQuestionBankLoading ? (
-                    <div className="flex items-center justify-center gap-2 px-4 py-12 text-sm text-slate-400">
-                      <div className="h-4 w-4 animate-spin rounded-full border-2 border-slate-300 border-t-[#2463eb]" />
-                      Loading questions...
-                    </div>
-                  ) : filteredQuestionBank.length > 0 ? (
-                    <div className="divide-y divide-slate-100 dark:divide-slate-700">
-                      {filteredQuestionBank.map((question) => (
-                        <button
-                          key={question.id}
-                          type="button"
-                          onClick={() => handleUseBankQuestion(question.questionText)}
-                          className="flex w-full items-center gap-3 px-4 py-3 text-left text-sm transition-all hover:bg-[#2463eb]/[0.04] dark:hover:bg-[#2463eb]/10"
-                        >
-                          <Plus size={14} className="shrink-0 text-[#2463eb] dark:text-[#60a5fa]" />
-                          <span className="text-slate-800 dark:text-slate-100">{question.questionText}</span>
-                        </button>
-                      ))}
-                    </div>
-                  ) : (
-                    <div className="px-4 py-12 text-center text-sm text-slate-400 dark:text-slate-500">
-                      No active questions found
-                    </div>
-                  )}
-                </div>
-              </div>
-            </div>
-          </div>
-        )}
+        <QuestionBankPickerModal
+          isOpen={isQuestionBankOpen}
+          onClose={() => setIsQuestionBankOpen(false)}
+          onInsert={handleInsertBankQuestions}
+        />
       </div>
     </div>
   );
