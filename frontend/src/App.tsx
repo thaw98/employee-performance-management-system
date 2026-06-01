@@ -88,6 +88,7 @@ import { SelfAssessmentFormQueuePage } from './pages/self-assessment-form/SelfAs
 import { SelfAssessmentActiveFormsPage } from './pages/self-assessment-form/SelfAssessmentActiveFormsPage';
 import { QuestionBankPage } from './pages/self-assessment-form/QuestionBankPage';
 import { SelfAssessmentAssignmentsPage } from './pages/self-assessment-form/SelfAssessmentAssignmentsPage';
+import { SelfAssessmentAssignmentCoveragePage } from './pages/self-assessment-form/SelfAssessmentAssignmentCoveragePage';
 import { AssignSelfAssessmentFormsPage } from './pages/self-assessment-form/AssignSelfAssessmentFormsPage';
 import { SelfAssessmentSettingsPage } from './pages/self-assessment-form/SelfAssessmentSettingsPage';
 import { SelfAssessmentAssignedEmployeesPage } from './pages/self-assessment-form/SelfAssessmentAssignedEmployeesPage';
@@ -242,6 +243,7 @@ function App() {
             <Route path="self-assessment/templates/create" element={gated('SELF_ASSESSMENT', 'manage_templates', <CreateSelfAssessmentTemplatePage />)} />
             <Route path="self-assessment/templates/:templateId/edit" element={gated('SELF_ASSESSMENT', 'manage_templates', <EditSelfAssessmentTemplatePage />)} />
             <Route path="self-assessment/assignments" element={gated('SELF_ASSESSMENT', 'assign', <SelfAssessmentAssignmentsPage />)} />
+            <Route path="self-assessment/assignment-coverage" element={gated('SELF_ASSESSMENT', 'assign', <SelfAssessmentAssignmentCoveragePage />)} />
             <Route path="self-assessment/assignments/:templateId/assigned-employees" element={<SelfAssessmentAssignedEmployeesPage />} />
             <Route
               path="self-assessment/assign-forms"

@@ -90,36 +90,61 @@ const report: SelfAssessmentReportDto = {
   ],
 }
 
+const exportContext = {
+  tab: 'directory' as const,
+  departmentRows: report.departmentSummaries,
+  positionRows: report.positionSummaries,
+  directoryRows: report.employeeDirectory,
+}
+
 beforeEach(() => {
   vi.clearAllMocks()
   xlsxMock.appended.length = 0
 })
 
 describe('exportSelfAssessmentReportExcel', () => {
-  it('creates workbook sheets, writes the expected filename, and includes report rows', () => {
-    exportSelfAssessmentReportExcel(report)
+  it('exports a single sheet for the active tab with overview metrics and tab rows', () => {
+    exportSelfAssessmentReportExcel(report, exportContext)
 
     expect(xlsxMock.bookNew).toHaveBeenCalledTimes(1)
-    expect(xlsxMock.appended.map((sheet) => sheet.name)).toEqual([
-      'Overview',
-      'Department Summary',
-      'Position Summary',
-      'Performance Bands',
-      'Performer Highlights',
-      'Employee Directory',
-    ])
+    expect(xlsxMock.appended.map((sheet) => sheet.name)).toEqual(['Employee Directory'])
     expect(xlsxMock.writeFile).toHaveBeenCalledWith(
       expect.anything(),
-      'self-assessment-report-manager-q2-2026-review.xlsx',
+      'self-assessment-report-manager-employee-directory-q2-2026-review.xlsx',
     )
 
-    expect(xlsxMock.appended.find((sheet) => sheet.name === 'Overview')?.rows).toContainEqual(['Cycle Name', 'Q2 2026 Review'])
-    expect(xlsxMock.appended.find((sheet) => sheet.name === 'Overview')?.rows).toContainEqual(['Average', '72.3%'])
-    expect(xlsxMock.appended.find((sheet) => sheet.name === 'Department Summary')?.rows).toContainEqual(['Engineering', 2, '80.0%', '95.0%', '65.0%', 0])
-    expect(xlsxMock.appended.find((sheet) => sheet.name === 'Position Summary')?.rows).toContainEqual(['Engineering', 'Developer', 2, '80.0%', '95.0%', '65.0%', 0])
-    expect(xlsxMock.appended.find((sheet) => sheet.name === 'Performance Bands')?.rows).toContainEqual(['Engineering', 1, '33.3%', 1, '33.3%', 0, '0.0%', 0, '0.0%', 1, '33.3%'])
-    expect(xlsxMock.appended.find((sheet) => sheet.name === 'Performer Highlights')?.rows).toContainEqual(['Engineering', 'Alice (95.0%)', 'Bob (40.0%)'])
-    expect(xlsxMock.appended.find((sheet) => sheet.name === 'Employee Directory')?.rows).toContainEqual(['EMP-1', 'Alice', 'Engineering', 'Developer', '95.0%', 'Outstanding', 'Finalized Locked'])
-    expect(xlsxMock.appended.find((sheet) => sheet.name === 'Employee Directory')?.rows).toContainEqual(['-', 'Bob', 'Engineering', 'Developer', '40.0%', '-', 'Not Submitted'])
+    const rows = xlsxMock.appended[0]?.rows ?? []
+    expect(rows).toContainEqual(['Cycle Name', 'Q2 2026 Review'])
+    expect(rows).toContainEqual(['Average', '72.3%'])
+    expect(rows).toContainEqual(['EMP-1', 'Alice', 'Engineering', 'Developer', '95.0%', 'Outstanding', 'Finalized Locked'])
+    expect(rows).toContainEqual(['-', 'Bob', 'Engineering', 'Developer', '40.0%', '-', 'Not Submitted'])
+  })
+
+  it('exports department summary rows when the department tab is active', () => {
+    exportSelfAssessmentReportExcel(report, {
+      ...exportContext,
+      tab: 'department',
+    })
+
+    expect(xlsxMock.appended.map((sheet) => sheet.name)).toEqual(['Department Context'])
+    expect(xlsxMock.writeFile).toHaveBeenCalledWith(
+      expect.anything(),
+      'self-assessment-report-manager-department-q2-2026-review.xlsx',
+    )
+    expect(xlsxMock.appended[0]?.rows).toContainEqual(['Engineering', 2, '80.0%', '95.0%', '65.0%', 0])
+  })
+
+  it('exports position summary rows when the positions tab is active', () => {
+    exportSelfAssessmentReportExcel(report, {
+      ...exportContext,
+      tab: 'positions',
+    })
+
+    expect(xlsxMock.appended.map((sheet) => sheet.name)).toEqual(['Position Summary'])
+    expect(xlsxMock.writeFile).toHaveBeenCalledWith(
+      expect.anything(),
+      'self-assessment-report-manager-positions-q2-2026-review.xlsx',
+    )
+    expect(xlsxMock.appended[0]?.rows).toContainEqual(['Engineering', 'Developer', 2, '80.0%', '95.0%', '65.0%', 0])
   })
 })

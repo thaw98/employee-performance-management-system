@@ -85,6 +85,8 @@ function EmployeeFilters({
           onChange={(e) => onStatusChange(e.target.value || undefined)}
         >
           <option value="">All Statuses</option>
+          <option value="Active">Active</option>
+          <option value="Inactive">Inactive</option>
           <option value="Probation">Probation</option>
           <option value="Permanent">Permanent</option>
           <option value="Resigned">Resigned</option>
