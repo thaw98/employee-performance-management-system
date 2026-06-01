@@ -406,7 +406,7 @@ export function ScoreExplanationSettingsPage() {
                       <button
                         type="button"
                         onClick={() => openEdit(row)}
-                        className="flex-shrink-0 inline-flex items-center justify-center w-8 h-8 rounded-lg text-slate-300 dark:text-slate-600 hover:text-indigo-600 hover:bg-indigo-50 dark:hover:text-indigo-400 dark:hover:bg-indigo-900/20 transition-all opacity-0 group-hover:opacity-100 focus:opacity-100 active:scale-90"
+                        className="flex-shrink-0 inline-flex items-center justify-center w-8 h-8 rounded-lg text-slate-400 dark:text-slate-500 hover:text-indigo-600 hover:bg-indigo-50 dark:hover:text-indigo-400 dark:hover:bg-indigo-900/20 transition-all active:scale-90"
                         title="Edit score band"
                       >
                         <Edit3 size={14} />

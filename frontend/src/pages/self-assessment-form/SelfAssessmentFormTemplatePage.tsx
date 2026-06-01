@@ -52,6 +52,7 @@ import {
 import { PaginationBar } from '../../components/common/PaginationBar';
 
 type CyclePhaseFilter = 'all' | 'current' | 'past' | 'upcoming';
+type TemplateStatusFilter = 'all' | 'active' | 'inactive';
 
 function todayIsoLocal(): string {
   const n = new Date();
@@ -77,6 +78,7 @@ export const SelfAssessmentFormTemplatePage: React.FC = () => {
   const routeBase = isManager ? '/manager/self-assessment/templates' : '/hr/self-assessment/templates';
   const [searchQuery, setSearchQuery] = useState('');
   const [cyclePhaseFilter, setCyclePhaseFilter] = useState<CyclePhaseFilter>('all');
+  const [statusFilter, setStatusFilter] = useState<TemplateStatusFilter>('all');
   const [departmentFilter, setDepartmentFilter] = useState<string>('');
   const [positionFilter, setPositionFilter] = useState<string>('');
   const [viewMode, setViewMode] = useState<'table' | 'grid'>('table');
@@ -155,6 +157,8 @@ export const SelfAssessmentFormTemplatePage: React.FC = () => {
   const filteredTemplates = useMemo(() => {
     const q = searchQuery.trim().toLowerCase();
     return allTemplates.filter((template) => {
+      if (statusFilter === 'active' && !template.isActive) return false;
+      if (statusFilter === 'inactive' && template.isActive) return false;
       if (departmentFilter && Number(departmentFilter) !== template.departmentId) return false;
       if (positionFilter && Number(positionFilter) !== template.positionId) return false;
 
@@ -179,6 +183,7 @@ export const SelfAssessmentFormTemplatePage: React.FC = () => {
   }, [
     allTemplates,
     searchQuery,
+    statusFilter,
     departmentFilter,
     positionFilter,
     cyclePhaseFilter,
@@ -195,12 +200,14 @@ export const SelfAssessmentFormTemplatePage: React.FC = () => {
   const hasActiveFilters =
     searchQuery.trim() !== '' ||
     cyclePhaseFilter !== 'all' ||
+    statusFilter !== 'all' ||
     departmentFilter !== '' ||
     positionFilter !== '';
 
   const clearAllFilters = () => {
     setSearchQuery('');
     setCyclePhaseFilter('all');
+    setStatusFilter('all');
     setDepartmentFilter('');
     setPositionFilter('');
   };
@@ -539,7 +546,7 @@ export const SelfAssessmentFormTemplatePage: React.FC = () => {
     if (templateTable.getState().pagination.pageIndex > 0) {
       templateTable.setPageIndex(0);
     }
-  }, [searchQuery, cyclePhaseFilter, departmentFilter, positionFilter, templateTable]);
+  }, [searchQuery, cyclePhaseFilter, statusFilter, departmentFilter, positionFilter, templateTable]);
 
   return (
     <div className="min-h-screen px-6 py-6 md:px-8 animate-fade-in">
@@ -853,7 +860,7 @@ export const SelfAssessmentFormTemplatePage: React.FC = () => {
                   Filters
                   {hasActiveFilters && (
                     <span className="flex h-5 w-5 items-center justify-center rounded-full bg-[#2463eb] text-[10px] font-bold text-white">
-                      {[searchQuery.trim() !== '', cyclePhaseFilter !== 'all', departmentFilter !== '', positionFilter !== ''].filter(Boolean).length}
+                      {[searchQuery.trim() !== '', cyclePhaseFilter !== 'all', statusFilter !== 'all', departmentFilter !== '', positionFilter !== ''].filter(Boolean).length}
                     </span>
                   )}
                   <ChevronDown size={13} className={`transition-transform ${expandedFilters ? 'rotate-180' : ''}`} />
@@ -872,7 +879,22 @@ export const SelfAssessmentFormTemplatePage: React.FC = () => {
 
               {/* Expanded Filters */}
               {expandedFilters && (
-                <div className="mt-3 grid gap-3 sm:grid-cols-3 animate-fade-in">
+                <div className="mt-3 grid gap-3 sm:grid-cols-2 lg:grid-cols-4 animate-fade-in">
+                  <div>
+                    <label htmlFor="sa-template-status" className="mb-1.5 block text-[11px] font-bold uppercase tracking-widest text-slate-400 dark:text-slate-500">
+                      Status
+                    </label>
+                    <select
+                      id="sa-template-status"
+                      value={statusFilter}
+                      onChange={(e) => setStatusFilter(e.target.value as TemplateStatusFilter)}
+                      className={filterControlClass}
+                    >
+                      <option value="all">All statuses</option>
+                      <option value="active">Active</option>
+                      <option value="inactive">Inactive</option>
+                    </select>
+                  </div>
                   <div>
                     <label htmlFor="sa-template-cycle" className="mb-1.5 block text-[11px] font-bold uppercase tracking-widest text-slate-400 dark:text-slate-500">
                       Review Cycle

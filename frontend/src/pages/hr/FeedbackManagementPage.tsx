@@ -1,10 +1,7 @@
-import { useEffect, useMemo, useRef, useState } from 'react'
+import { useEffect, useMemo, useState } from 'react'
 import { toast } from 'react-hot-toast'
-import { Building2, CalendarRange, CheckCircle2, ClipboardList, Copy, Download, Eye, FileText, Filter, LayoutGrid, Pencil, Plus, Search, Table2, Trash2, Upload, Users, X } from 'lucide-react'
-import * as XLSX from 'xlsx'
+import { Building2, CalendarRange, CheckCircle2, ClipboardList, Copy, Eye, FileText, Filter, LayoutGrid, Pencil, Plus, Search, Table2, Trash2, Users, X } from 'lucide-react'
 import axios from '../../app/axiosInstance'
-import { baseApi } from '../../app/baseApi'
-import { useAppDispatch } from '../../app/hooks'
 import { CriteriaPage } from './CriteriaPage'
 import { formatDateTime } from '../../utils/dateUtils'
 import {
@@ -59,112 +56,7 @@ function CurrentInUseBadge() {
 }
 
 export default function FeedbackManagementPage() {
-  const dispatch = useAppDispatch()
   const [activeTab, setActiveTab] = useState<TabKey>('criteria')
-  const fileInputRef = useRef<HTMLInputElement>(null)
-  const [isImporting, setIsImporting] = useState(false)
-
-  const handleDownloadTemplate = () => {
-    const workbook = XLSX.utils.book_new()
-    XLSX.utils.book_append_sheet(workbook, XLSX.utils.aoa_to_sheet([
-      ['Feedback Management Import Template'],
-      ['Fill the Criteria, Feedback Templates, and Peer Progress sheets. Keep the column names unchanged.'],
-      ['For Question Ids, enter criteria IDs separated by commas, for example: 1,2,3.'],
-      ['Review Cycle Id is required for Feedback Templates and Peer Progress. Use a future/upcoming review cycle.'],
-      ['Target Type values: DEPARTMENT, LEVEL_CODE, PERSON. Relationship Type values: MANAGER, PEER, SUBORDINATE.'],
-    ]), 'Instructions')
-    XLSX.utils.book_append_sheet(workbook, XLSX.utils.aoa_to_sheet([
-      ['Name', 'Description', 'Status'],
-      ['Communication', 'Shares clear and timely feedback.', 'ACTIVE'],
-      ['Teamwork', 'Collaborates well with others.', 'ACTIVE'],
-    ]), 'Criteria')
-    XLSX.utils.book_append_sheet(workbook, XLSX.utils.aoa_to_sheet([
-      ['Template Name', 'Review Cycle Id', 'Target Type', 'Target Id', 'Target Name', 'Question Ids', 'Status'],
-      ['Engineering Peer Feedback', 2, 'DEPARTMENT', 1, 'Engineering', '1,2,3', 'ACTIVE'],
-      ['Level L2 Feedback', 2, 'LEVEL_CODE', 2, 'L2', '1,3', 'ACTIVE'],
-      ['Lisa Wong Feedback', 2, 'PERSON', 6, 'Lisa Wong', '2,3', 'ACTIVE'],
-    ]), 'Feedback Templates')
-    XLSX.utils.book_append_sheet(workbook, XLSX.utils.aoa_to_sheet([
-      ['Relationship Type', 'Review Cycle Id', 'Minimum Count', 'Maximum Count'],
-      ['MANAGER', 2, 1, 2],
-      ['PEER', 2, 2, 5],
-      ['SUBORDINATE', 2, 0, 3],
-    ]), 'Peer Progress')
-    XLSX.writeFile(workbook, 'feedback_management_import_template.xlsx')
-  }
-
-  const normalize = (value: unknown) => String(value ?? '').trim()
-  const parseStatus = (value: unknown) => {
-    const status = normalize(value).toUpperCase()
-    return status === '' || status === 'ACTIVE' || status === 'TRUE' || status === 'YES'
-  }
-  const parseIds = (value: unknown) => normalize(value).split(/[,\n;]/).map((item) => Number(item.trim())).filter(Boolean)
-
-  const handleImportFile = async (event: React.ChangeEvent<HTMLInputElement>) => {
-    const file = event.target.files?.[0]
-    if (!file) return
-    setIsImporting(true)
-    try {
-      const workbook = XLSX.read(await file.arrayBuffer(), { type: 'array' })
-      const rows = (sheetName: string) => {
-        const sheet = workbook.Sheets[sheetName]
-        return sheet ? XLSX.utils.sheet_to_json<Record<string, unknown>>(sheet, { defval: '' }) : []
-      }
-
-      let importedCriteria = 0
-      let importedTemplates = 0
-      let importedLimits = 0
-
-      for (const row of rows('Criteria')) {
-        const name = normalize(row['Name'])
-        if (!name) continue
-        await axios.post('/criteria', {
-          name,
-          description: normalize(row['Description']),
-          active: parseStatus(row['Status']),
-          sortOrder: importedCriteria + 1,
-        })
-        importedCriteria += 1
-      }
-
-      for (const row of rows('Feedback Templates')) {
-        const templateName = normalize(row['Template Name'])
-        const targetType = normalize(row['Target Type']).toUpperCase()
-        const reviewCycleId = Number(row['Review Cycle Id'])
-        const targetId = Number(row['Target Id'])
-        const questionIds = parseIds(row['Question Ids'])
-        if (!templateName || !targetType || !reviewCycleId || !targetId || questionIds.length === 0) continue
-        await axios.post('/feedback-management/templates', {
-          templateName,
-          reviewCycleId,
-          targetType,
-          targetId,
-          targetName: normalize(row['Target Name']),
-          questionIds,
-          status: parseStatus(row['Status']) ? 'ACTIVE' : 'INACTIVE',
-        })
-        importedTemplates += 1
-      }
-
-      for (const row of rows('Peer Progress')) {
-        const relationshipType = normalize(row['Relationship Type']).toUpperCase()
-        const reviewCycleId = Number(row['Review Cycle Id'])
-        const minimumCount = Number(row['Minimum Count'])
-        const maximumCount = Number(row['Maximum Count'])
-        if (!relationshipType || !reviewCycleId || Number.isNaN(minimumCount) || Number.isNaN(maximumCount)) continue
-        await axios.post('/feedback-management/limits', { relationshipType, reviewCycleId, minimumCount, maximumCount })
-        importedLimits += 1
-      }
-
-      toast.success(`Imported ${importedCriteria} criteria, ${importedTemplates} templates, and ${importedLimits} limits`)
-      dispatch(baseApi.util.invalidateTags(['Criteria', 'FeedbackManagement']))
-    } catch (error: any) {
-      toast.error(error?.response?.data?.message ?? 'Failed to import feedback management file')
-    } finally {
-      setIsImporting(false)
-      if (fileInputRef.current) fileInputRef.current.value = ''
-    }
-  }
 
   return (
     <div className="p-8 space-y-6 max-w-7xl mx-auto">
@@ -175,46 +67,26 @@ export default function FeedbackManagementPage() {
         </div>
       </div>
 
-      <div className="flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
-        <div className="flex flex-wrap gap-2 rounded-xl border border-slate-200 bg-white p-2 shadow-sm">
-          {[
-            ['criteria', 'Criteria', ClipboardList],
-            ['template', 'Template', FileText],
-            ['progress', 'Peer Progress', Users],
-          ].map(([key, label, Icon]) => {
-            const selected = activeTab === key
-            const TabIcon = Icon as typeof ClipboardList
-            return (
-              <button
-                key={key as string}
-                type="button"
-                onClick={() => setActiveTab(key as TabKey)}
-                className={`flex items-center gap-2 rounded-lg px-4 py-2 text-sm font-bold transition-colors ${selected ? 'bg-blue-600 text-white shadow-sm' : 'text-slate-500 hover:bg-slate-50 hover:text-slate-900'}`}
-              >
-                <TabIcon size={16} />
-                {label as string}
-              </button>
-            )
-          })}
-        </div>
-        <div className="flex flex-wrap items-center gap-3">
-          <button
-            onClick={handleDownloadTemplate}
-            className="inline-flex min-h-11 items-center justify-center gap-2 rounded-xl border border-[#bfdbfe] bg-white px-4 py-2.5 text-sm font-semibold text-[#1d4ed8] shadow-sm transition hover:border-[#93c5fd] hover:bg-[#eff6ff] focus:outline-none focus:ring-4 focus:ring-[#dbeafe]"
-          >
-            <Download size={16} />
-            <span className="whitespace-nowrap">Download Template</span>
-          </button>
-          <button
-            onClick={() => fileInputRef.current?.click()}
-            disabled={isImporting}
-            className="inline-flex min-h-11 items-center justify-center gap-2 rounded-xl bg-gradient-to-r from-[#2463eb] to-[#1d4ed8] px-4 py-2.5 text-sm font-semibold text-white shadow-sm shadow-[#dbeafe] transition hover:from-[#1d4ed8] hover:to-[#1e40af] focus:outline-none focus:ring-4 focus:ring-[#dbeafe] disabled:cursor-not-allowed disabled:opacity-60"
-          >
-            <Upload size={16} />
-            <span className="whitespace-nowrap">{isImporting ? 'Importing...' : 'Import File'}</span>
-          </button>
-          <input ref={fileInputRef} type="file" accept=".xlsx,.xls" className="hidden" onChange={handleImportFile} />
-        </div>
+      <div className="flex flex-wrap gap-2 rounded-xl border border-slate-200 bg-white p-2 shadow-sm">
+        {[
+          ['criteria', 'Criteria', ClipboardList],
+          ['template', 'Template', FileText],
+          ['progress', 'Peer Progress', Users],
+        ].map(([key, label, Icon]) => {
+          const selected = activeTab === key
+          const TabIcon = Icon as typeof ClipboardList
+          return (
+            <button
+              key={key as string}
+              type="button"
+              onClick={() => setActiveTab(key as TabKey)}
+              className={`flex items-center gap-2 rounded-lg px-4 py-2 text-sm font-bold transition-colors ${selected ? 'bg-blue-600 text-white shadow-sm' : 'text-slate-500 hover:bg-slate-50 hover:text-slate-900'}`}
+            >
+              <TabIcon size={16} />
+              {label as string}
+            </button>
+          )
+        })}
       </div>
 
       {activeTab === 'criteria' && <CriteriaPage />}

@@ -599,6 +599,22 @@ export default function KpiReportsPage() {
         });
       }
 
+      const finalY =
+        (doc as jsPDF & { lastAutoTable?: { finalY?: number } }).lastAutoTable?.finalY ?? 30;
+      const pageWidth = doc.internal.pageSize.getWidth();
+      const summaryY = finalY + 8;
+      const summaryText = isEmployeeDetailActive
+        ? `Total KPIs: ${employeeDetailKpis.length}`
+        : isDeptCompActive
+          ? `Total Departments: ${departmentComparisonData.length}`
+          : isDeptActive
+            ? `Total Departments: ${sortedDepartmentData.length}`
+            : `Total Employees: ${filteredData.length}`;
+      doc.setFont('helvetica', 'bold');
+      doc.setFontSize(9);
+      doc.setTextColor(36, 99, 235);
+      doc.text(summaryText, pageWidth - margin, summaryY, { align: 'right' });
+
       const pageCount = doc.getNumberOfPages();
       for (let pageNumber = 1; pageNumber <= pageCount; pageNumber += 1) {
         doc.setPage(pageNumber);

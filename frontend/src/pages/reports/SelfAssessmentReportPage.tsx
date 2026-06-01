@@ -1,7 +1,8 @@
 import { useEffect, useMemo, useState } from 'react'
 import type React from 'react'
 import { BarChart3, Building2, Download, FileSpreadsheet, FileText, TrendingDown, TrendingUp, Users } from 'lucide-react'
-import { Bar, BarChart, CartesianGrid, Radar, RadarChart, PolarGrid, PolarAngleAxis, PolarRadiusAxis, ResponsiveContainer, Tooltip, XAxis, YAxis, Legend } from 'recharts'
+import { Bar, BarChart, CartesianGrid, Cell, Radar, RadarChart, PolarGrid, PolarAngleAxis, PolarRadiusAxis, ResponsiveContainer, Tooltip, XAxis, YAxis, Legend } from 'recharts'
+import { HR_REPORT_CHART_COLORS } from './hrReportsTheme'
 import { toast } from 'react-hot-toast'
 import { useGetReviewCyclesQuery } from '../../features/reviewCycle/api/reviewCycleApi'
 import { useGetSelfAssessmentReportQuery, type EmployeeDirectoryRow, type GroupSummary, type SelfAssessmentReportDto } from '../../features/selfAssessmentForm/api/selfAssessmentReportApi'
@@ -21,8 +22,6 @@ const BAND_KEYS = [
   { key: 'needImprovement', label: 'Need Improvement' },
   { key: 'unsatisfactory', label: 'Unsatisfactory' },
 ] as const
-
-const COLORS = ['#2463eb', '#1d4ed8', '#1e40af', '#d97706', '#ea580c', '#dc2626']
 
 function formatScore(value: number | null | undefined) {
   return `${Number(value ?? 0).toFixed(1)}%`
@@ -352,57 +351,66 @@ export default function SelfAssessmentReportPage({ mode }: Props) {
         </div>
       )}
 
-      <section className="space-y-3">
-        <h2 className="text-lg font-black text-slate-900 dark:text-slate-100">Employee Score Analytics</h2>
-        <div className="h-[500px] overflow-y-auto rounded-lg border border-slate-200 bg-white p-4 dark:border-slate-800 dark:bg-slate-900">
-          {isFetching ? (
-            <div className="flex h-full items-center justify-center text-sm font-semibold text-slate-400">Loading report...</div>
-          ) : employeeChartData.length === 0 ? (
-            <div className="flex h-full items-center justify-center text-sm font-semibold text-slate-400">No employee score data for this cycle.</div>
-          ) : (
-            <div style={{ height: Math.max(500, employeeChartData.length * 40) }}>
-              <ResponsiveContainer width="100%" height="100%">
-                <BarChart data={employeeChartData} layout="vertical" margin={{ left: 0, right: 20, top: 5, bottom: 5 }}>
-                  <CartesianGrid strokeDasharray="3 3" />
-                  <XAxis type="number" domain={[0, 100]} tickFormatter={(v) => `${v}%`} />
-                  <YAxis type="category" dataKey="name" width={150} tick={{ fontSize: 12 }} />
-                  <Tooltip content={<EmployeeScoreTooltip />} />
-                  <Bar dataKey="score" fill="#2463eb" radius={[0, 4, 4, 0]} />
-                </BarChart>
-              </ResponsiveContainer>
-            </div>
-          )}
-        </div>
-      </section>
+      <div className="grid grid-cols-1 gap-4 lg:grid-cols-2">
+        <section className="space-y-2">
+          <h2 className="text-base font-bold text-slate-900 dark:text-slate-100">Employee Score Analytics</h2>
+          <div className="h-[280px] overflow-y-auto rounded-lg border border-slate-200 bg-white p-3 dark:border-slate-800 dark:bg-slate-900">
+            {isFetching ? (
+              <div className="flex h-full items-center justify-center text-sm font-semibold text-slate-400">Loading report...</div>
+            ) : employeeChartData.length === 0 ? (
+              <div className="flex h-full items-center justify-center text-sm font-semibold text-slate-400">No employee score data for this cycle.</div>
+            ) : (
+              <div style={{ height: Math.max(280, employeeChartData.length * 28) }}>
+                <ResponsiveContainer width="100%" height="100%">
+                  <BarChart data={employeeChartData} layout="vertical" margin={{ left: 0, right: 12, top: 4, bottom: 4 }}>
+                    <CartesianGrid strokeDasharray="3 3" />
+                    <XAxis type="number" domain={[0, 100]} tickFormatter={(v) => `${v}%`} tick={{ fontSize: 10 }} />
+                    <YAxis type="category" dataKey="name" width={110} tick={{ fontSize: 10 }} />
+                    <Tooltip content={<EmployeeScoreTooltip />} />
+                    <Bar dataKey="score" radius={[0, 4, 4, 0]}>
+                      {employeeChartData.map((_, index) => (
+                        <Cell
+                          key={`score-${index}`}
+                          fill={HR_REPORT_CHART_COLORS[index % HR_REPORT_CHART_COLORS.length]}
+                        />
+                      ))}
+                    </Bar>
+                  </BarChart>
+                </ResponsiveContainer>
+              </div>
+            )}
+          </div>
+        </section>
 
-      <section className="space-y-3">
-        <h2 className="text-lg font-black text-slate-900 dark:text-slate-100">Competency Radar</h2>
-        <div className="h-[420px] rounded-lg border border-slate-200 bg-white p-4 dark:border-slate-800 dark:bg-slate-900">
-          {isFetching ? (
-            <div className="flex h-full items-center justify-center text-sm font-semibold text-slate-400">Loading report...</div>
-          ) : (
-            <ResponsiveContainer width="100%" height="100%">
-              <RadarChart data={radarData}>
-                <PolarGrid />
-                <PolarAngleAxis dataKey="band" tick={{ fontSize: 12 }} />
-                <PolarRadiusAxis allowDecimals={false} />
-                <Tooltip />
-                <Legend />
-                {radarGroups.map((group, index) => (
-                  <Radar
-                    key={group}
-                    name={group}
-                    dataKey={group}
-                    stroke={COLORS[index % COLORS.length]}
-                    fill={COLORS[index % COLORS.length]}
-                    fillOpacity={0.14}
-                  />
-                ))}
-              </RadarChart>
-            </ResponsiveContainer>
-          )}
-        </div>
-      </section>
+        <section className="space-y-2">
+          <h2 className="text-base font-bold text-slate-900 dark:text-slate-100">Competency Radar</h2>
+          <div className="h-[280px] rounded-lg border border-slate-200 bg-white p-3 dark:border-slate-800 dark:bg-slate-900">
+            {isFetching ? (
+              <div className="flex h-full items-center justify-center text-sm font-semibold text-slate-400">Loading report...</div>
+            ) : (
+              <ResponsiveContainer width="100%" height="100%">
+                <RadarChart data={radarData}>
+                  <PolarGrid />
+                  <PolarAngleAxis dataKey="band" tick={{ fontSize: 10 }} />
+                  <PolarRadiusAxis allowDecimals={false} tick={{ fontSize: 10 }} />
+                  <Tooltip />
+                  <Legend wrapperStyle={{ fontSize: 11 }} />
+                  {radarGroups.map((group, index) => (
+                    <Radar
+                      key={group}
+                      name={group}
+                      dataKey={group}
+                      stroke={HR_REPORT_CHART_COLORS[index % HR_REPORT_CHART_COLORS.length]}
+                      fill={HR_REPORT_CHART_COLORS[index % HR_REPORT_CHART_COLORS.length]}
+                      fillOpacity={0.2}
+                    />
+                  ))}
+                </RadarChart>
+              </ResponsiveContainer>
+            )}
+          </div>
+        </section>
+      </div>
 
       <section className="space-y-3">
         <h2 className="text-lg font-black text-slate-900 dark:text-slate-100">Per-Group Performer Highlights</h2>
