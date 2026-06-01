@@ -27,7 +27,6 @@ import com.epms.backend.repository.KpiRepository;
 import com.epms.backend.repository.PipRepository;
 import com.epms.backend.repository.PromotionProposalRepository;
 import com.epms.backend.repository.SelfAssessmentFormRepository;
-import com.epms.backend.repository.PromotionProposalRepository;
 import com.epms.backend.entity.PromotionProposalStatus;
 
 import lombok.RequiredArgsConstructor;
@@ -46,7 +45,6 @@ public class PerformanceReportService {
     private final PipRepository pipRepository;
     private final PromotionProposalRepository promotionProposalRepository;
     private final ProfilePictureStorageService profilePictureStorageService;
-    private final PromotionProposalRepository promotionProposalRepository;
 
     private static final List<String> ACTIVE_PIP_STATUSES = List.of("ACTIVE", "REOPEN_REQUESTED");
 
