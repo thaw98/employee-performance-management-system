@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { useLocation, useNavigate, useParams, Link } from 'react-router-dom'
 import {
   useGetPipByIdQuery,
@@ -236,20 +236,7 @@ export default function PipDetailPage() {
     }
   }
 
-  const mergedMeetingNotes = useMemo(() => {
-    const notes = oneOnOnePipMeetings.flatMap((meeting) => {
-      const typedNotes = meeting.notes.map((note) => ({
-        id: `meeting-note-${note.id}`,
-        noteType: note.noteType === 'MANAGER_NOTE' ? 'Meeting Note - Manager' : 'Meeting Note - Employee',
-        authorName: note.authorName || 'Unknown author',
-        createdAt: note.createdDate,
-        content: note.content,
-      }))
-      return typedNotes
-    })
-    return notes
-  }, [oneOnOnePipMeetings])
-  const [closePip] = useClosePipMutation()
+  const [closePip, { isLoading: isSavingResult }] = useClosePipMutation()
   const [manualClosePip, { isLoading: isManualClosing }] = useManualClosePipMutation()
   const [extendPipDate, { isLoading: isExtendingPipDate }] = useExtendPipDateMutation()
   const [employeeSign, { isLoading: isSigningEmployee }] = useEmployeeSignMutation()
@@ -390,6 +377,8 @@ export default function PipDetailPage() {
     ].join('\n')
     const params = new URLSearchParams({
       action: 'schedule',
+      source: 'pip',
+      pipId: String(pip.id),
       meetingTitle: 'PIP follow up meeting',
       meetingDescription: description,
     })
@@ -898,8 +887,6 @@ export default function PipDetailPage() {
               canAdd={canAddCommunicationNote}
               currentUserId={user?.id}
               isHr={isAdmin}
-              followUpMeetings={pip.followUpMeetings}
-              meetingNotes={mergedMeetingNotes}
               onError={setActionError}
             />
           </div>
@@ -1313,46 +1300,131 @@ export default function PipDetailPage() {
       )}
 
       {showCloseModal && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/50 p-4 backdrop-blur-sm">
-          <div className="w-full max-w-md rounded-[2rem] bg-white p-8 shadow-2xl animate-scale-in">
-            <div className="mb-6 flex items-center justify-between">
-              <h3 className="text-xl font-black text-slate-900 tracking-tight">Mark PIP Result</h3>
-              <button onClick={() => setShowCloseModal(false)} className="flex h-8 w-8 items-center justify-center rounded-xl bg-slate-100 text-slate-500 hover:bg-slate-200">
-                <i className="bi bi-x" />
-              </button>
-            </div>
-            <div className="space-y-5">
-              <div>
-                <label className="block mb-2 text-xs font-black uppercase tracking-widest text-slate-400">Result</label>
-                <select
-                  className="block w-full rounded-2xl border border-slate-200 bg-white px-4 py-3 text-sm font-bold text-slate-700 shadow-sm focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-200"
-                  value={closeData.finalOutcome}
-                  onChange={(e) => setCloseData({ ...closeData, finalOutcome: e.target.value })}
-                >
-                  <option value="">Select Outcome...</option>
-                  <option value="SUCCESSFUL">Successful</option>
-                  <option value="FAILED">Failed</option>
-                </select>
+        <div className="fixed inset-0 z-50 flex items-start justify-center overflow-y-auto bg-slate-950/55 p-3 backdrop-blur-sm sm:p-4 md:items-center">
+          <div className="my-4 flex max-h-[calc(100vh-2rem)] w-full max-w-3xl flex-col overflow-hidden rounded-[1.5rem] bg-white shadow-2xl animate-scale-in sm:my-6 sm:rounded-[2rem]">
+            <div className="shrink-0 border-b border-slate-100 bg-slate-950 px-5 py-4 text-white sm:px-8 sm:py-5">
+              <div className="flex items-start justify-between gap-4">
+                <div>
+                  <span className="inline-flex items-center gap-2 rounded-full bg-white/10 px-3 py-1 text-[10px] font-black uppercase tracking-[0.2em] text-blue-100">
+                    <i className="bi bi-flag" /> Final Decision
+                  </span>
+                  <h3 className="mt-3 text-xl font-black tracking-tight sm:text-2xl">Mark PIP Result</h3>
+                  <p className="mt-1 max-w-xl text-xs font-semibold leading-5 text-slate-300 sm:text-sm sm:leading-6">
+                    Confirm the final outcome after both signatures are recorded.
+                  </p>
+                </div>
+                <button onClick={() => setShowCloseModal(false)} className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-white/10 text-white transition hover:bg-white/20">
+                  <i className="bi bi-x-lg text-sm" />
+                </button>
               </div>
+              <div className="mt-4 grid gap-3 sm:grid-cols-3">
+                <div className="rounded-2xl border border-white/10 bg-white/10 p-4">
+                  <p className="text-[10px] font-black uppercase tracking-widest text-slate-400">Employee</p>
+                  <p className="mt-1 truncate text-sm font-black text-white">{pip.employee.employee?.employeeName || pip.employee.email}</p>
+                </div>
+                <div className="rounded-2xl border border-white/10 bg-white/10 p-4">
+                  <p className="text-[10px] font-black uppercase tracking-widest text-slate-400">PIP Period</p>
+                  <p className="mt-1 text-sm font-black text-white">{formatDate(pip.startDate)} - {formatDate(effectiveEndDate)}</p>
+                </div>
+                <div className="rounded-2xl border border-white/10 bg-white/10 p-4">
+                  <p className="text-[10px] font-black uppercase tracking-widest text-slate-400">Progress</p>
+                  <p className="mt-1 text-sm font-black text-white">{pip.overallProgressPercentage}% complete</p>
+                </div>
+              </div>
+            </div>
+
+            <div className="flex-1 space-y-5 overflow-y-auto p-5 sm:p-8">
+              <div className="grid gap-3 sm:grid-cols-2">
+                {[
+                  {
+                    value: 'SUCCESSFUL',
+                    title: 'Successful',
+                    description: 'Employee met the PIP expectations.',
+                    icon: 'bi-check2-circle',
+                    className: 'border-emerald-200 bg-emerald-50 text-emerald-700 ring-emerald-200',
+                  },
+                  {
+                    value: 'FAILED',
+                    title: 'Failed',
+                    description: 'Employee did not meet the PIP expectations.',
+                    icon: 'bi-x-circle',
+                    className: 'border-red-200 bg-red-50 text-red-700 ring-red-200',
+                  },
+                ].map((outcome) => {
+                  const isSelected = closeData.finalOutcome === outcome.value
+                  return (
+                    <button
+                      key={outcome.value}
+                      type="button"
+                      onClick={() => setCloseData({ ...closeData, finalOutcome: outcome.value })}
+                      className={`group flex min-h-[104px] items-start gap-4 rounded-2xl border p-4 text-left transition-all hover:-translate-y-0.5 hover:shadow-md sm:min-h-[112px] sm:p-5 ${
+                        isSelected
+                          ? `${outcome.className} ring-2`
+                          : 'border-slate-200 bg-white text-slate-600 hover:border-blue-200 hover:bg-blue-50/40'
+                      }`}
+                    >
+                      <span className={`flex h-11 w-11 shrink-0 items-center justify-center rounded-2xl ${
+                        isSelected ? 'bg-white/80' : 'bg-slate-100 text-slate-500 group-hover:bg-white group-hover:text-blue-600'
+                      }`}>
+                        <i className={`bi ${outcome.icon} text-lg`} />
+                      </span>
+                      <span>
+                        <span className="block text-sm font-black text-slate-900">{outcome.title}</span>
+                        <span className="mt-1 block text-xs font-bold leading-5 text-slate-500">{outcome.description}</span>
+                      </span>
+                    </button>
+                  )
+                })}
+              </div>
+
+              <div className="rounded-2xl border border-slate-100 bg-slate-50/80 p-5">
+                <p className="mb-4 text-xs font-black uppercase tracking-widest text-slate-400">Completion Checks</p>
+                <div className="grid gap-3 sm:grid-cols-2">
+                  <div className="flex items-center gap-3 rounded-2xl bg-white px-4 py-3">
+                    <span className="flex h-8 w-8 items-center justify-center rounded-xl bg-emerald-100 text-emerald-700">
+                      <i className="bi bi-check-lg" />
+                    </span>
+                    <div>
+                      <p className="text-xs font-black text-slate-800">Employee Signed</p>
+                      <p className="text-[11px] font-bold text-slate-500">{pip.employeeSignatureDate ? formatDateTime(pip.employeeSignatureDate) : 'Pending'}</p>
+                    </div>
+                  </div>
+                  <div className="flex items-center gap-3 rounded-2xl bg-white px-4 py-3">
+                    <span className="flex h-8 w-8 items-center justify-center rounded-xl bg-emerald-100 text-emerald-700">
+                      <i className="bi bi-check-lg" />
+                    </span>
+                    <div>
+                      <p className="text-xs font-black text-slate-800">Manager Signed</p>
+                      <p className="text-[11px] font-bold text-slate-500">{pip.managerSignatureDate ? formatDateTime(pip.managerSignatureDate) : 'Pending'}</p>
+                    </div>
+                  </div>
+                </div>
+              </div>
+
               <div>
-                <label className="block mb-2 text-xs font-black uppercase tracking-widest text-slate-400">Manager Comments</label>
+                <div className="mb-2 flex items-center justify-between gap-3">
+                  <label className="text-xs font-black uppercase tracking-widest text-slate-400">Manager Comments</label>
+                  <span className="text-[11px] font-bold text-slate-400">{closeData.closingRemarks.trim().length} characters</span>
+                </div>
                 <textarea
-                  className="block w-full rounded-2xl border border-slate-200 bg-white p-4 text-sm font-bold text-slate-700 shadow-sm focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-200"
-                  rows={4}
-                  placeholder="Sum up the improvement journey..."
+                  className="block min-h-[150px] w-full resize-y rounded-2xl border border-slate-200 bg-white p-4 text-sm font-semibold leading-6 text-slate-700 shadow-sm focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-200"
+                  rows={6}
+                  placeholder="Summarize the final outcome, evidence reviewed, and next steps..."
                   value={closeData.closingRemarks}
                   onChange={(e) => setCloseData({ ...closeData, closingRemarks: e.target.value })}
                 />
               </div>
             </div>
-            <div className="mt-8 flex justify-end gap-3">
-              <button onClick={() => setShowCloseModal(false)} className="rounded-2xl border border-slate-200 px-6 py-3 text-xs font-black text-slate-500 transition-all hover:bg-slate-50">Cancel</button>
+
+            <div className="shrink-0 flex flex-col-reverse gap-3 border-t border-slate-100 bg-slate-50 px-5 py-4 sm:flex-row sm:justify-end sm:px-8 sm:py-5">
+              <button onClick={() => setShowCloseModal(false)} className="rounded-2xl border border-slate-200 bg-white px-6 py-3 text-xs font-black text-slate-500 transition-all hover:bg-slate-50">Cancel</button>
               <button
                 onClick={handleClosePip}
-                disabled={!closeData.finalOutcome.trim() || !closeData.closingRemarks.trim()}
-                className="rounded-2xl bg-blue-600 px-6 py-3 text-xs font-black text-white shadow-[0_4px_10px_-2px_rgba(37,99,235,0.3)] transition-all hover:bg-blue-700 disabled:cursor-not-allowed disabled:opacity-50"
+                disabled={isSavingResult || !closeData.finalOutcome.trim() || !closeData.closingRemarks.trim()}
+                className="inline-flex items-center justify-center gap-2 rounded-2xl bg-blue-600 px-6 py-3 text-xs font-black text-white shadow-[0_4px_10px_-2px_rgba(37,99,235,0.3)] transition-all hover:bg-blue-700 disabled:cursor-not-allowed disabled:opacity-50"
               >
-                Save Result
+                <i className="bi bi-check2-circle" />
+                {isSavingResult ? 'Saving...' : 'Save Result'}
               </button>
             </div>
           </div>

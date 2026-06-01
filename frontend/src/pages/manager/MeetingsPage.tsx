@@ -55,6 +55,7 @@ export function MeetingsPage() {
     const canManageMeetings = !isHistoryOnlyView;
     const hrSection = (searchParams.get('section') || 'schedule') as 'schedule' | 'history';
     const isFaqHrMeeting = searchParams.get('target') === 'hr';
+    const isPipSchedule = searchParams.get('source') === 'pip' || Boolean(searchParams.get('pipId')) || (searchParams.get('meetingDescription') || '').includes('[PIP_ID:');
     const activeTab = (searchParams.get('tab') || 'UPCOMING') as 'UPCOMING' | 'ONGOING' | 'COMPLETED';
     const setActiveTab = (tab: string) => {
         const nextParams = new URLSearchParams(searchParams);
@@ -113,6 +114,22 @@ export function MeetingsPage() {
         () => (isFaqHrMeeting ? eligibleEmployees.filter(isHrEmployeeOption) : eligibleEmployees),
         [eligibleEmployees, isFaqHrMeeting]
     );
+    const requestedEmployeeId = searchParams.get('employeeId');
+    const requestedEmployeeName = searchParams.get('employeeName');
+    const scheduleEmployeeOptions = useMemo(() => {
+        if (!isPipSchedule || !requestedEmployeeId) return selectableEmployees;
+        const exists = selectableEmployees.some((emp) => String(emp.id) === requestedEmployeeId);
+        if (exists) return selectableEmployees;
+        return [
+            {
+                id: Number(requestedEmployeeId),
+                name: requestedEmployeeName || `Employee #${requestedEmployeeId}`,
+                position: 'PIP employee',
+                department: 'PIP',
+            },
+            ...selectableEmployees,
+        ];
+    }, [isPipSchedule, requestedEmployeeId, requestedEmployeeName, selectableEmployees]);
 
     const now = new Date();
     const minDateTime = new Date(now.getTime() - now.getTimezoneOffset() * 60000).toISOString().slice(0, 16);
@@ -144,11 +161,12 @@ export function MeetingsPage() {
     }, [activeTab, page, sortBy, selectedDept, subStatus, hrSection, isHrView, isFaqHrMeeting, canManageMeetings]);
 
     useEffect(() => {
-        const requestedEmployeeId = searchParams.get('employeeId');
-        const requestedEmployeeName = searchParams.get('employeeName');
         const requestedTitle = searchParams.get('meetingTitle');
         const requestedDescription = searchParams.get('meetingDescription');
         const requestedAction = searchParams.get('action');
+        if (isPipSchedule) {
+            setDepartmentMeeting(false);
+        }
         if (requestedTitle) {
             setTitle(requestedTitle);
         }
@@ -160,15 +178,15 @@ export function MeetingsPage() {
             setTitle('FAQ clarification with HR');
             setDescription('Need more information about an FAQ topic.');
         }
-        const matchedEmployee = selectableEmployees.find(emp => String(emp.id) === requestedEmployeeId)
-            || selectableEmployees.find(emp => requestedEmployeeName && emp.name?.trim().toLowerCase() === requestedEmployeeName.trim().toLowerCase());
+        const matchedEmployee = scheduleEmployeeOptions.find(emp => String(emp.id) === requestedEmployeeId)
+            || scheduleEmployeeOptions.find(emp => requestedEmployeeName && emp.name?.trim().toLowerCase() === requestedEmployeeName.trim().toLowerCase());
         if (matchedEmployee) {
             setEmployeeId(String(matchedEmployee.id));
             setIsModalOpen(true);
         } else if (requestedDescription || requestedAction === 'schedule') {
             setIsModalOpen(true);
         }
-    }, [selectableEmployees, searchParams, isFaqHrMeeting, title]);
+    }, [scheduleEmployeeOptions, searchParams, isFaqHrMeeting, isPipSchedule, title, requestedEmployeeId, requestedEmployeeName]);
 
     const fetchMeetings = async () => {
         try {
@@ -276,6 +294,8 @@ export function MeetingsPage() {
         nextParams.delete('employeeName');
         nextParams.delete('meetingTitle');
         nextParams.delete('meetingDescription');
+        nextParams.delete('source');
+        nextParams.delete('pipId');
         setSearchParams(nextParams);
         setIsModalOpen(false);
     };
@@ -287,11 +307,19 @@ export function MeetingsPage() {
             toast.error('Date & Time must be in dd/mm/yyyy HH:mm format');
             return;
         }
+        if (!isPipSchedule && departmentMeeting && !selectedScheduleDept) {
+            toast.error('Please select a department');
+            return;
+        }
+        if ((isPipSchedule || !departmentMeeting) && !employeeId) {
+            toast.error('Please select an employee');
+            return;
+        }
         try {
             const payload = {
-                employeeId: departmentMeeting ? undefined : parseInt(employeeId),
-                departmentId: departmentMeeting ? parseInt(selectedScheduleDept) : undefined,
-                departmentMeeting,
+                employeeId: !isPipSchedule && departmentMeeting ? undefined : parseInt(employeeId),
+                departmentId: !isPipSchedule && departmentMeeting ? parseInt(selectedScheduleDept) : undefined,
+                departmentMeeting: isPipSchedule ? false : departmentMeeting,
                 title,
                 description,
                 scheduledTime: new Date(scheduledTimeValue).toISOString(),
@@ -302,6 +330,7 @@ export function MeetingsPage() {
             setIsModalOpen(false);
             setEmployeeId('');
             setDepartmentMeeting(false);
+            setSelectedScheduleDept('');
             setTitle('');
             setDescription('');
             setScheduledTime('');
@@ -751,7 +780,7 @@ export function MeetingsPage() {
                             </button>
                         </div>
                         <form onSubmit={handleSchedule} className="p-6 space-y-5">
-                            {!isFaqHrMeeting && (
+                            {!isFaqHrMeeting && !isPipSchedule && (
                                 <div className="grid grid-cols-2 gap-2 rounded-xl bg-slate-100 p-1">
                                     <button
                                         type="button"
@@ -772,7 +801,17 @@ export function MeetingsPage() {
                                     </button>
                                 </div>
                             )}
-                            {departmentMeeting ? (
+                            {isPipSchedule ? (
+                                <div>
+                                    <label className="block text-xs font-black text-slate-500 uppercase tracking-wider mb-2">PIP Employee</label>
+                                    <div className="rounded-xl border border-blue-100 bg-blue-50 px-4 py-3">
+                                        <p className="text-sm font-black text-slate-900">
+                                            {requestedEmployeeName || scheduleEmployeeOptions.find(emp => String(emp.id) === employeeId)?.name || 'Selected PIP employee'}
+                                        </p>
+                                        <p className="mt-0.5 text-xs font-semibold text-blue-700">Auto-selected from the PIP record</p>
+                                    </div>
+                                </div>
+                            ) : departmentMeeting ? (
                                 <div>
                                     <label className="block text-xs font-black text-slate-500 uppercase tracking-wider mb-2">Select Department</label>
                                     <select 
@@ -799,12 +838,12 @@ export function MeetingsPage() {
                                     <option value="">
                                         {departmentMeeting ? 'All active employees in your department' : isFaqHrMeeting ? 'Select HR employee...' : 'Select a subordinate...'}
                                     </option>
-                                    {selectableEmployees.length === 0 && (
+                                    {scheduleEmployeeOptions.length === 0 && (
                                         <option value="" disabled>
                                             {isFaqHrMeeting ? 'No HR employees available' : 'No employees available'}
                                         </option>
                                     )}
-                                    {selectableEmployees.map(emp => (
+                                    {scheduleEmployeeOptions.map(emp => (
                                         <option key={emp.id} value={emp.id}>{emp.name} ({emp.position})</option>
                                     ))}
                                 </select>

@@ -1,5 +1,5 @@
 import { useMemo, useState } from 'react'
-import type { FollowUpMeeting, PipCommunicationNote } from '../pipApi'
+import type { PipCommunicationNote } from '../pipApi'
 import {
   useAddPipNoteMutation,
   useDeletePipNoteMutation,
@@ -8,34 +8,25 @@ import {
 } from '../pipApi'
 import { formatDateTime } from '../../../utils/dateUtils'
 
-type PipNoteType = 'COMMUNICATION' | 'FOLLOWUP'
-
 type PipCommunicationNotesProps = {
   pipId: number
   pipStatus: string
   canAdd: boolean
   currentUserId?: number
   isHr?: boolean
-  followUpMeetings?: FollowUpMeeting[]
-  meetingNotes?: Array<{
-    id: string
-    noteType: string
-    content: string
-    authorName: string
-    createdAt: string
-  }>
   onError?: (message: string) => void
 }
-
-const NOTE_SECTIONS: Array<{ type: PipNoteType; label: string; emptyLabel: string }> = [
-  { type: 'COMMUNICATION', label: 'Communication', emptyLabel: 'No communication notes yet.' },
-  { type: 'FOLLOWUP', label: 'Follow-up', emptyLabel: 'No follow-up notes yet.' },
-]
 
 const NOTE_PAGE_SIZE = 100
 
 const getAuthorName = (note: PipCommunicationNote) => {
   return note.author.employee?.employeeName || note.author.email || 'Unknown author'
+}
+
+const getNoteErrorMessage = (error: unknown, fallback: string) => {
+  if (typeof error !== 'object' || error === null) return fallback
+  const apiError = error as { data?: { message?: string }; error?: string }
+  return apiError.data?.message || apiError.error || fallback
 }
 
 export function PipCommunicationNotes({
@@ -44,14 +35,9 @@ export function PipCommunicationNotes({
   canAdd,
   currentUserId,
   isHr = false,
-  followUpMeetings = [],
-  meetingNotes = [],
   onError,
 }: PipCommunicationNotesProps) {
-  const [draftContents, setDraftContents] = useState<Record<PipNoteType, string>>({
-    COMMUNICATION: '',
-    FOLLOWUP: '',
-  })
+  const [draftContent, setDraftContent] = useState('')
   const [editingNoteId, setEditingNoteId] = useState<number | null>(null)
   const [editingContent, setEditingContent] = useState('')
 
@@ -61,44 +47,22 @@ export function PipCommunicationNotes({
     page: 0,
     size: NOTE_PAGE_SIZE,
   })
-  const followupQuery = useGetPipNotesQuery({
-    pipId,
-    noteType: 'FOLLOWUP',
-    page: 0,
-    size: NOTE_PAGE_SIZE,
-  })
 
   const [addPipNote, { isLoading: isAdding }] = useAddPipNoteMutation()
   const [deletePipNote, { isLoading: isDeleting }] = useDeletePipNoteMutation()
   const [updatePipNote, { isLoading: isUpdating }] = useUpdatePipNoteMutation()
-  const isFollowUpWindowOpen = useMemo(() => {
-    const now = Date.now()
-    return followUpMeetings.some((meeting) => {
-      const startValue = meeting.startMeetingTime || meeting.meetingTime
-      const endValue = meeting.endMeetingTime
-      if (!startValue || !endValue) return false
-      const start = new Date(startValue).getTime()
-      const end = new Date(endValue).getTime()
-      return Number.isFinite(start) && Number.isFinite(end) && now >= start && now <= end
-    })
-  }, [followUpMeetings])
-
-  const handleAdd = async (noteType: PipNoteType) => {
-    const trimmedContent = draftContents[noteType].trim()
+  const handleAdd = async () => {
+    const trimmedContent = draftContent.trim()
     if (!trimmedContent) {
       onError?.('Note content is required.')
       return
     }
-    if (noteType === 'FOLLOWUP' && !isFollowUpWindowOpen) {
-      onError?.('Follow-up notes can only be added during a scheduled follow-up meeting time.')
-      return
-    }
 
     try {
-      await addPipNote({ pipId, content: trimmedContent, noteType }).unwrap()
-      setDraftContents((drafts) => ({ ...drafts, [noteType]: '' }))
-    } catch (error: any) {
-      onError?.(error?.data?.message || error?.error || 'Failed to add note.')
+      await addPipNote({ pipId, content: trimmedContent, noteType: 'COMMUNICATION' }).unwrap()
+      setDraftContent('')
+    } catch (error: unknown) {
+      onError?.(getNoteErrorMessage(error, 'Failed to add note.'))
     }
   }
 
@@ -109,8 +73,8 @@ export function PipCommunicationNotes({
         setEditingNoteId(null)
         setEditingContent('')
       }
-    } catch (error: any) {
-      onError?.(error?.data?.message || error?.error || 'Failed to delete note.')
+    } catch (error: unknown) {
+      onError?.(getNoteErrorMessage(error, 'Failed to delete note.'))
     }
   }
 
@@ -130,16 +94,12 @@ export function PipCommunicationNotes({
       onError?.('Note content is required.')
       return
     }
-    if (note.noteType === 'FOLLOWUP' && !isFollowUpWindowOpen) {
-      onError?.('Follow-up notes can only be edited during a scheduled follow-up meeting time.')
-      return
-    }
 
     try {
       await updatePipNote({ noteId: note.id, pipId, content: trimmedContent }).unwrap()
       cancelEdit()
-    } catch (error: any) {
-      onError?.(error?.data?.message || error?.error || 'Failed to update note.')
+    } catch (error: unknown) {
+      onError?.(getNoteErrorMessage(error, 'Failed to update note.'))
     }
   }
 
@@ -148,33 +108,22 @@ export function PipCommunicationNotes({
       id: `pip-${note.id}`,
       source: 'pip' as const,
       note,
-      noteType: note.noteType === 'FOLLOWUP' ? 'Follow-up Note' : 'Communication Note',
-      authorName: getAuthorName(note),
-      createdAt: note.createdAt,
-      content: note.content,
-    }))
-    const followupNotes = (followupQuery.data?.content ?? []).map((note) => ({
-      id: `pip-${note.id}`,
-      source: 'pip' as const,
-      note,
-      noteType: note.noteType === 'FOLLOWUP' ? 'Follow-up Note' : 'Communication Note',
+      noteType: 'Communication Note',
       authorName: getAuthorName(note),
       createdAt: note.createdAt,
       content: note.content,
     }))
 
-    return [...communicationNotes, ...followupNotes].sort((a, b) => {
+    return communicationNotes.sort((a, b) => {
       const bTime = new Date(b.createdAt).getTime()
       const aTime = new Date(a.createdAt).getTime()
       return (Number.isFinite(bTime) ? bTime : 0) - (Number.isFinite(aTime) ? aTime : 0)
     })
-  }, [communicationQuery.data?.content, followupQuery.data?.content])
+  }, [communicationQuery.data?.content])
 
   const isLoadingNotes =
     communicationQuery.isLoading ||
-    communicationQuery.isFetching ||
-    followupQuery.isLoading ||
-    followupQuery.isFetching
+    communicationQuery.isFetching
 
   return (
     <section className="rounded-xl border border-slate-200 bg-white p-6 shadow-sm">
@@ -183,56 +132,46 @@ export function PipCommunicationNotes({
           <h2 className="text-lg font-bold text-slate-900">PIP Notes</h2>
           <p className="mt-1 text-xs font-medium text-slate-400">
             {pipStatus.replace(/_/g, ' ')}
-            {!isFollowUpWindowOpen && ' - follow-up notes open only during scheduled meeting time'}
           </p>
         </div>
       </div>
 
       {canAdd && (
-        <div className="mb-5 grid grid-cols-1 gap-4 xl:grid-cols-2">
-          {NOTE_SECTIONS.map((section) => {
-            return (
-              <form
-                key={section.type}
-                className="rounded-lg border border-slate-100 bg-slate-50/60 p-4"
-                onSubmit={(event) => {
-                  event.preventDefault()
-                  void handleAdd(section.type)
-                }}
-              >
-                <label className="mb-2 block text-xs font-bold uppercase tracking-wider text-slate-500">
-                  {section.type === 'FOLLOWUP' ? 'Follow-up Note' : 'Communication / PIP Note'}
-                </label>
-                <div className="relative">
-                  <textarea
-                    rows={3}
-                    value={draftContents[section.type]}
-                    onChange={(event) => setDraftContents((drafts) => ({ ...drafts, [section.type]: event.target.value }))}
-                    disabled={section.type === 'FOLLOWUP' && !isFollowUpWindowOpen}
-                    className="block w-full resize-none rounded-lg border border-slate-300 bg-white p-3 pr-12 text-sm text-slate-800 focus:border-[#2463eb] focus:outline-none disabled:cursor-not-allowed disabled:bg-slate-100 disabled:text-slate-400"
-                    placeholder={section.type === 'FOLLOWUP' ? 'Add a follow-up note...' : 'Add a PIP note...'}
-                  />
-                  <button
-                    type="submit"
-                    disabled={isAdding || !draftContents[section.type].trim() || (section.type === 'FOLLOWUP' && !isFollowUpWindowOpen)}
-                    className="absolute bottom-3 right-3 flex h-8 w-8 items-center justify-center rounded-lg bg-[#2463eb] text-white hover:bg-[#1d4ed8] disabled:cursor-not-allowed disabled:bg-[#93c5fd]"
-                    aria-label={`Save ${section.label.toLowerCase()} note`}
-                  >
-                    <i className="bi bi-send" />
-                  </button>
-                </div>
-              </form>
-            )
-          })}
-        </div>
+        <form
+          className="mb-5 rounded-lg border border-slate-100 bg-slate-50/60 p-4"
+          onSubmit={(event) => {
+            event.preventDefault()
+            void handleAdd()
+          }}
+        >
+          <label className="mb-2 block text-xs font-bold uppercase tracking-wider text-slate-500">
+            Communication / PIP Note
+          </label>
+          <div className="relative">
+            <textarea
+              rows={3}
+              value={draftContent}
+              onChange={(event) => setDraftContent(event.target.value)}
+              className="block w-full resize-none rounded-lg border border-slate-300 bg-white p-3 pr-12 text-sm text-slate-800 focus:border-[#2463eb] focus:outline-none disabled:cursor-not-allowed disabled:bg-slate-100 disabled:text-slate-400"
+              placeholder="Add a PIP note..."
+            />
+            <button
+              type="submit"
+              disabled={isAdding || !draftContent.trim()}
+              className="absolute bottom-3 right-3 flex h-8 w-8 items-center justify-center rounded-lg bg-[#2463eb] text-white hover:bg-[#1d4ed8] disabled:cursor-not-allowed disabled:bg-[#93c5fd]"
+              aria-label="Save communication note"
+            >
+              <i className="bi bi-send" />
+            </button>
+          </div>
+        </form>
       )}
 
-      <div className="h-[420px] overflow-y-auto rounded-lg border border-slate-100 bg-slate-50/60 p-4 pr-2">
-        {isLoadingNotes && <p className="py-4 text-center text-slate-500">Loading notes...</p>}
+      {(isLoadingNotes || timelineNotes.length > 0) && (
+        <div className="h-[420px] overflow-y-auto rounded-lg border border-slate-100 bg-slate-50/60 p-4 pr-2">
+          {isLoadingNotes && <p className="py-4 text-center text-slate-500">Loading notes...</p>}
 
-        {!isLoadingNotes && timelineNotes.length === 0 && null}
-
-        {!isLoadingNotes && timelineNotes.length > 0 && (
+          {!isLoadingNotes && timelineNotes.length > 0 && (
           <div className="space-y-4">
             {timelineNotes.map((entry) => {
               const note = entry.note
@@ -308,8 +247,9 @@ export function PipCommunicationNotes({
               )
             })}
           </div>
-        )}
-      </div>
+          )}
+        </div>
+      )}
     </section>
   )
 }

@@ -1,7 +1,7 @@
 import { zodResolver } from '@hookform/resolvers/zod'
 import { Alert, Autocomplete, Box, Button, IconButton, InputAdornment, Stack, TextField, Typography } from '@mui/material'
 import type { ClipboardEvent, HTMLAttributes, Key, KeyboardEvent } from 'react'
-import { Controller, useFieldArray, useForm, type Resolver } from 'react-hook-form'
+import { Controller, useFieldArray, useForm, useWatch, type Resolver } from 'react-hook-form'
 import { useEffect, useMemo, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { useSelector } from 'react-redux'
@@ -11,7 +11,7 @@ import type { RootState } from '../app/store'
 
 const BLOCKING_PIP_STATUSES = ['ACTIVE', 'AUTO_CLOSED', 'REOPEN_REQUESTED'] as const
 const DATE_DISPLAY_PATTERN = /^\d{2}\/\d{2}\/\d{4}$/
-const HOURS_PER_DAY = 24
+const HOURS_PER_DAY = 5
 
 function parseDisplayDate(value: string) {
   if (!DATE_DISPLAY_PATTERN.test(value)) return null
@@ -53,8 +53,15 @@ function startOfToday() {
 function getMaxHoursForDateRange(startDate: Date, endDate: Date) {
   const startUtc = Date.UTC(startDate.getFullYear(), startDate.getMonth(), startDate.getDate())
   const endUtc = Date.UTC(endDate.getFullYear(), endDate.getMonth(), endDate.getDate())
-  const days = Math.ceil((endUtc - startUtc) / (1000 * 60 * 60 * 24))
+  const days = Math.round((endUtc - startUtc) / (1000 * 60 * 60 * 24))
   return Math.max(HOURS_PER_DAY, days * HOURS_PER_DAY)
+}
+
+function getSelectedMaxHours(startDateValue: string, endDateValue: string) {
+  const startDate = parseDisplayDate(startDateValue)
+  const endDate = parseDisplayDate(endDateValue)
+  if (!startDate || !endDate || endDate < startDate) return null
+  return getMaxHoursForDateRange(startDate, endDate)
 }
 
 const pipCreateSchema = z
@@ -201,7 +208,6 @@ export function PipCreateForm({ embedded = false, onCreated, onCancel }: PipCrea
     control,
     register,
     handleSubmit,
-    watch,
     trigger,
     formState: { errors },
   } = useForm<PipCreateFormValues>({
@@ -225,9 +231,13 @@ export function PipCreateForm({ embedded = false, onCreated, onCancel }: PipCrea
     append: appendExpectedImprovement,
     remove: removeExpectedImprovement,
   } = useFieldArray({ control, name: 'expectedImprovements' })
-  const watchedStartDate = watch('startDate')
-  const watchedEndDate = watch('endDate')
-  const watchedTotalHours = watch('totalHours')
+  const watchedStartDate = useWatch({ control, name: 'startDate' })
+  const watchedEndDate = useWatch({ control, name: 'endDate' })
+  const watchedTotalHours = useWatch({ control, name: 'totalHours' })
+  const watchedEmployeeId = useWatch({ control, name: 'employeeId' })
+  const selectedMaxHours = getSelectedMaxHours(watchedStartDate, watchedEndDate)
+  const selectedPipDays = selectedMaxHours ? Math.max(1, selectedMaxHours / HOURS_PER_DAY) : null
+  const selectedEmployee = selectableEmployees.find((employee) => employee.employeeId === Number(watchedEmployeeId))
 
   useEffect(() => {
     void trigger('totalHours')
@@ -303,17 +313,29 @@ export function PipCreateForm({ embedded = false, onCreated, onCancel }: PipCrea
   }
 
   return (
-    <div className={embedded ? '' : 'mx-auto max-w-2xl p-8'}>
+    <div className={embedded ? '' : 'mx-auto w-full p-6 lg:w-[80vw] lg:max-w-none lg:p-8'}>
       {!embedded && (
-        <div className="mb-8">
-          <h1 className="text-2xl font-bold text-slate-900">Create New PIP</h1>
-          <p className="text-slate-500">Create a respectful, measurable Performance Improvement Plan focused on support, accountability, and growth.</p>
+        <div className="mb-6 overflow-hidden rounded-3xl border border-blue-100 bg-white shadow-sm">
+          <div className="bg-gradient-to-r from-[#2463eb] to-[#1d4ed8] px-7 py-6 text-white">
+            <p className="text-xs font-black uppercase tracking-[0.22em] text-blue-100">Performance Improvement Plan</p>
+            <h1 className="mt-2 text-3xl font-black tracking-tight">Create New PIP</h1>
+            <p className="mt-2 max-w-3xl text-sm font-medium text-blue-50">
+              Set a focused support plan with clear objectives, measurable improvements, and an hour limit based on the selected PIP dates.
+            </p>
+          </div>
         </div>
       )}
 
-      <Box component="form" onSubmit={handleSubmit(onSubmit)} className={embedded ? 'space-y-6' : 'space-y-6 rounded-xl border border-slate-200 bg-white p-8 shadow-sm'}>
-        <Stack spacing={2}>
-          {submitError ? <Alert severity="error">{submitError}</Alert> : null}
+      <Box component="form" onSubmit={handleSubmit(onSubmit)} className={embedded ? 'space-y-6' : 'rounded-3xl border border-slate-200 bg-white p-5 shadow-sm lg:p-6'}>
+        {submitError ? <Alert severity="error" className="mb-5">{submitError}</Alert> : null}
+        <div className="grid gap-6 xl:grid-cols-[minmax(0,1fr)_320px]">
+          <div className="space-y-5">
+            <section className="rounded-2xl border border-slate-200 bg-slate-50/60 p-5">
+              <div className="mb-4">
+                <p className="text-[11px] font-black uppercase tracking-widest text-[#2463eb]">Step 1</p>
+                <h2 className="text-lg font-black text-slate-900">People & Timeline</h2>
+              </div>
+              <Stack spacing={2}>
           <TextField
             label="Manager"
             value={user?.name || user?.email || 'Current manager'}
@@ -364,6 +386,7 @@ export function PipCreateForm({ embedded = false, onCreated, onCancel }: PipCrea
             slotProps={{
               htmlInput: {
                 min: 1,
+                max: selectedMaxHours ?? undefined,
                 dir: 'ltr',
                 inputMode: 'numeric',
                 pattern: '[0-9]*',
@@ -383,7 +406,7 @@ export function PipCreateForm({ embedded = false, onCreated, onCancel }: PipCrea
             }}
             {...register('totalHours', { valueAsNumber: true })}
             error={Boolean(errors.totalHours)}
-            helperText={errors.totalHours?.message}
+            helperText={errors.totalHours?.message || (selectedMaxHours ? `Maximum ${selectedMaxHours} hours for the selected PIP date range (${HOURS_PER_DAY} hours/day).` : `Select the PIP dates to calculate the maximum hours (${HOURS_PER_DAY} hours/day).`)}
           />
           <Stack direction={{ xs: 'column', sm: 'row' }} spacing={2}>
             <Controller
@@ -455,7 +478,15 @@ export function PipCreateForm({ embedded = false, onCreated, onCancel }: PipCrea
               )}
             />
           </Stack>
-          <Stack spacing={1.5}>
+              </Stack>
+            </section>
+
+            <section className="rounded-2xl border border-slate-200 bg-white p-5">
+              <div className="mb-4">
+                <p className="text-[11px] font-black uppercase tracking-widest text-[#2463eb]">Step 2</p>
+                <h2 className="text-lg font-black text-slate-900">Objectives</h2>
+              </div>
+              <Stack spacing={1.5}>
             <Typography variant="subtitle2">Improvement Objectives</Typography>
             {fields.map((field, index) => (
               <Stack key={field.id} direction="row" spacing={1} sx={{ alignItems: 'flex-start' }}>
@@ -486,7 +517,14 @@ export function PipCreateForm({ embedded = false, onCreated, onCancel }: PipCrea
               </Button>
             </Box>
           </Stack>
-          <Stack spacing={1.5}>
+            </section>
+
+            <section className="rounded-2xl border border-slate-200 bg-white p-5">
+              <div className="mb-4">
+                <p className="text-[11px] font-black uppercase tracking-widest text-[#2463eb]">Step 3</p>
+                <h2 className="text-lg font-black text-slate-900">Expected Improvements</h2>
+              </div>
+              <Stack spacing={1.5}>
             <Typography variant="subtitle2">Expected Improvements</Typography>
             {expectedImprovementFields.map((field, index) => (
               <Stack key={field.id} direction="row" spacing={1} sx={{ alignItems: 'flex-start' }}>
@@ -522,6 +560,9 @@ export function PipCreateForm({ embedded = false, onCreated, onCancel }: PipCrea
               </Button>
             </Box>
           </Stack>
+            </section>
+
+            <section className="rounded-2xl border border-slate-200 bg-white p-5">
           <TextField
             label="Reason for Plan"
             fullWidth
@@ -531,9 +572,36 @@ export function PipCreateForm({ embedded = false, onCreated, onCancel }: PipCrea
             placeholder="Describe the performance issues factually and respectfully, then state that management will provide regular feedback, check-ins, and reasonable support."
             helperText="Include performance issues, timeline context, support from management, and positive encouragement."
           />
-        </Stack>
+            </section>
+          </div>
 
-        <div className="flex justify-end gap-3 pt-4">
+          <aside className="h-fit rounded-2xl border border-slate-200 bg-slate-950 p-5 text-white xl:sticky xl:top-24">
+            <p className="text-[11px] font-black uppercase tracking-widest text-blue-200">PIP Summary</p>
+            <div className="mt-5 space-y-4">
+              <div>
+                <p className="text-xs font-bold text-slate-400">Employee</p>
+                <p className="mt-1 text-sm font-black">{selectedEmployee?.employeeName || 'Not selected'}</p>
+                <p className="text-xs text-slate-400">{selectedEmployee?.departmentName || 'Choose a low performer'}</p>
+              </div>
+              <div className="grid grid-cols-2 gap-3">
+                <div className="rounded-2xl bg-white/10 p-3">
+                  <p className="text-[10px] font-black uppercase tracking-wider text-slate-400">Days</p>
+                  <p className="mt-1 text-2xl font-black">{selectedPipDays ?? '-'}</p>
+                </div>
+                <div className="rounded-2xl bg-white/10 p-3">
+                  <p className="text-[10px] font-black uppercase tracking-wider text-slate-400">Max Hours</p>
+                  <p className="mt-1 text-2xl font-black">{selectedMaxHours ?? '-'}</p>
+                </div>
+              </div>
+              <div className="rounded-2xl border border-blue-400/30 bg-blue-500/10 p-4">
+                <p className="text-xs font-bold text-blue-100">Hour rule</p>
+                <p className="mt-1 text-sm font-semibold text-blue-50">{HOURS_PER_DAY} hours per PIP day. Total hours must stay within the selected date range.</p>
+              </div>
+            </div>
+          </aside>
+        </div>
+
+        <div className="mt-6 flex justify-end gap-3 border-t border-slate-100 pt-5">
           <Button type="button" variant="outlined" onClick={onCancel ?? (() => navigate(routeBase))}>
             Cancel
           </Button>
