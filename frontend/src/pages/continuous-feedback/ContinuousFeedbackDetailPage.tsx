@@ -1,12 +1,13 @@
 import { useEffect, useState } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { toast } from 'react-hot-toast';
-import { ArrowLeft, Check, ClipboardList, Calendar, AlertTriangle, Send, MessageSquare, User, Lock, Clock, CheckCircle, CalendarCheck } from 'lucide-react';
+import { ArrowLeft, Check, ClipboardList, Calendar, AlertTriangle, Send, MessageSquare, User, Lock, Clock, CheckCircle, CalendarCheck, History, XCircle, Edit3 } from 'lucide-react';
 import ConfirmActionModal from '../../features/hrEmployeeList/components/ConfirmActionModal';
 import { continuousFeedbackApi } from '../../features/continuousFeedback/continuousFeedbackApi';
 import type {
   ContinuousFeedback,
   ContinuousFeedbackActionItem,
+  AuditLogEntry,
 } from '../../features/continuousFeedback/types';
 import { FEEDBACK_CATEGORY_LABELS } from '../../features/continuousFeedback/types';
 
@@ -35,6 +36,17 @@ export default function ContinuousFeedbackDetailPage() {
   const [meetingDesc, setMeetingDesc] = useState('');
   const [showConfirmModal, setShowConfirmModal] = useState(false);
   const [isCreatingMeeting, setIsCreatingMeeting] = useState(false);
+  const [auditTimeline, setAuditTimeline] = useState<AuditLogEntry[]>([]);
+  const [showTimeline, setShowTimeline] = useState(false);
+  const [editingScheduled, setEditingScheduled] = useState(false);
+  const [editScheduledDate, setEditScheduledDate] = useState('');
+  const [editScheduledTime, setEditScheduledTime] = useState('');
+  const [editMessage, setEditMessage] = useState('');
+  const [showCancelConfirm, setShowCancelConfirm] = useState(false);
+
+  const isInternal = window.location.pathname.startsWith('/hr')
+    || window.location.pathname.startsWith('/audit')
+    || window.location.pathname.startsWith('/manager');
 
   useEffect(() => {
     if (feedbackId) loadFeedback();
@@ -45,6 +57,12 @@ export default function ContinuousFeedbackDetailPage() {
       setLoading(true);
       const resp = await continuousFeedbackApi.getFeedback(Number(feedbackId));
       setFeedback(resp.data);
+      setEditMessage(resp.data.feedbackMessage || '');
+      if (resp.data.scheduledPublishAt) {
+        const d = new Date(resp.data.scheduledPublishAt);
+        setEditScheduledDate(d.toISOString().slice(0, 10));
+        setEditScheduledTime(d.toISOString().slice(11, 16));
+      }
 
       if (resp.data.pipSuggested) {
         const pipResp = await continuousFeedbackApi.getPipWarning(resp.data.employeeId);
@@ -55,6 +73,16 @@ export default function ContinuousFeedbackDetailPage() {
       toast.error('Failed to load feedback');
     } finally {
       setLoading(false);
+    }
+  };
+
+  const loadAuditTimeline = async () => {
+    try {
+      const resp = await continuousFeedbackApi.getFeedbackAuditTimeline(Number(feedbackId));
+      setAuditTimeline(resp.data);
+      setShowTimeline(true);
+    } catch {
+      toast.error('Failed to load audit timeline');
     }
   };
 
@@ -113,6 +141,35 @@ export default function ContinuousFeedbackDetailPage() {
     }
   };
 
+  const handleUpdateScheduled = async () => {
+    if (!editScheduledDate || !editScheduledTime) {
+      toast.error('Date and time are required');
+      return;
+    }
+    try {
+      await continuousFeedbackApi.updateScheduledFeedback(Number(feedbackId), {
+        feedbackMessage: editMessage,
+        scheduledPublishAt: new Date(`${editScheduledDate}T${editScheduledTime}`).toISOString(),
+      });
+      toast.success('Scheduled feedback updated');
+      setEditingScheduled(false);
+      loadFeedback();
+    } catch {
+      toast.error('Failed to update scheduled feedback');
+    }
+  };
+
+  const handleCancelScheduled = async () => {
+    try {
+      await continuousFeedbackApi.cancelScheduledFeedback(Number(feedbackId));
+      toast.success('Scheduled feedback cancelled');
+      setShowCancelConfirm(false);
+      loadFeedback();
+    } catch {
+      toast.error('Failed to cancel scheduled feedback');
+    }
+  };
+
   const handleCreateMeeting = () => {
     setShowConfirmModal(true);
   };
@@ -126,7 +183,8 @@ export default function ContinuousFeedbackDetailPage() {
       toast.success('Follow-up meeting created');
       setShowConfirmModal(false);
       setMeetingDesc('');
-      navigate(`/${rolePath}/meetings/${resp.data.id}`);
+      const rolePath = window.location.pathname.startsWith('/hr') ? '/hr' : '/manager';
+      navigate(`${rolePath}/meetings/${resp.data.id}`);
     } catch {
       toast.error('Failed to create meeting');
     } finally {
@@ -164,6 +222,9 @@ export default function ContinuousFeedbackDetailPage() {
   }
 
   const isShared = feedback.shared;
+  const isScheduled = feedback.visibilityStatus === 'SCHEDULED';
+  const isCancelled = feedback.visibilityStatus === 'CANCELLED';
+  const isPrivateNote = feedback.visibilityStatus === 'PRIVATE_NOTE';
   const rolePath = window.location.pathname.startsWith('/hr')
     ? '/hr'
     : window.location.pathname.startsWith('/audit')
@@ -186,7 +247,6 @@ export default function ContinuousFeedbackDetailPage() {
 
   return (
     <div className="max-w-4xl mx-auto space-y-6 pb-20 px-4">
-      {/* Back Button */}
       <button
         onClick={() => navigate(-1)}
         className="inline-flex items-center gap-2 text-slate-500 hover:text-slate-800 transition-colors font-bold text-sm bg-white px-4 py-2 rounded-xl border border-slate-100 shadow-sm w-fit"
@@ -211,6 +271,20 @@ export default function ContinuousFeedbackDetailPage() {
                   Shared
                 </div>
               </span>
+            ) : isScheduled ? (
+              <span className="px-3 py-1 rounded-full text-[10px] font-black uppercase tracking-widest border bg-violet-50 text-violet-700 border-violet-200">
+                <div className="flex items-center gap-1">
+                  <Clock size={10} />
+                  Scheduled
+                </div>
+              </span>
+            ) : isCancelled ? (
+              <span className="px-3 py-1 rounded-full text-[10px] font-black uppercase tracking-widest border bg-rose-50 text-rose-700 border-rose-200">
+                <div className="flex items-center gap-1">
+                  <XCircle size={10} />
+                  Cancelled
+                </div>
+              </span>
             ) : (
               <span className="px-3 py-1 rounded-full text-[10px] font-black uppercase tracking-widest border bg-amber-50 text-amber-800 border-amber-200">
                 <div className="flex items-center gap-1">
@@ -229,7 +303,6 @@ export default function ContinuousFeedbackDetailPage() {
             )}
           </div>
 
-          {/* Title & Meta */}
           <div className="flex items-center gap-2 text-[#2463eb] mb-4">
             <MessageSquare size={18} />
             <span className="text-[10px] font-black uppercase tracking-[0.2em]">Feedback Details</span>
@@ -278,6 +351,21 @@ export default function ContinuousFeedbackDetailPage() {
                   </p>
                 </div>
               </div>
+              {feedback.scheduledPublishAt && (
+                <div className="flex items-center gap-3">
+                  <div className="w-10 h-10 rounded-xl bg-violet-50 flex items-center justify-center text-violet-500 shrink-0">
+                    <Clock size={18} />
+                  </div>
+                  <div>
+                    <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Scheduled Publish</p>
+                    <p className="text-sm font-bold text-slate-700">
+                      {new Date(feedback.scheduledPublishAt).toLocaleDateString('en-US', {
+                        month: 'short', day: 'numeric', year: 'numeric', hour: '2-digit', minute: '2-digit'
+                      })}
+                    </p>
+                  </div>
+                </div>
+              )}
               {feedback.sharedAt && (
                 <div className="flex items-center gap-3">
                   <div className="w-10 h-10 rounded-xl bg-slate-50 flex items-center justify-center text-slate-400 shrink-0">
@@ -302,6 +390,21 @@ export default function ContinuousFeedbackDetailPage() {
                     <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Acknowledged</p>
                     <p className="text-sm font-bold text-slate-700">
                       {new Date(feedback.acknowledgedAt).toLocaleDateString('en-US', {
+                        month: 'short', day: 'numeric', year: 'numeric', hour: '2-digit', minute: '2-digit'
+                      })}
+                    </p>
+                  </div>
+                </div>
+              )}
+              {feedback.cancelledAt && (
+                <div className="flex items-center gap-3">
+                  <div className="w-10 h-10 rounded-xl bg-rose-50 flex items-center justify-center text-rose-500 shrink-0">
+                    <XCircle size={18} />
+                  </div>
+                  <div>
+                    <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Cancelled</p>
+                    <p className="text-sm font-bold text-slate-700">
+                      {new Date(feedback.cancelledAt).toLocaleDateString('en-US', {
                         month: 'short', day: 'numeric', year: 'numeric', hour: '2-digit', minute: '2-digit'
                       })}
                     </p>
@@ -336,6 +439,64 @@ export default function ContinuousFeedbackDetailPage() {
         </div>
       </div>
 
+      {/* Scheduled Feedback Controls */}
+      {isScheduled && isInternal && (
+        <div className="bg-violet-50 border border-violet-200 rounded-[32px] p-6 relative overflow-hidden animate-fade-in-up">
+          <div className="absolute top-0 right-0 w-24 h-24 bg-violet-200/30 rounded-bl-[80px] -mr-6 -mt-6"></div>
+          <div className="relative">
+            <div className="flex items-center gap-2 text-violet-600 mb-4">
+              <Clock size={18} />
+              <h3 className="text-xs font-black uppercase tracking-widest">Scheduled Feedback Controls</h3>
+            </div>
+
+            {editingScheduled ? (
+              <div className="space-y-4">
+                <textarea
+                  value={editMessage}
+                  onChange={(e) => setEditMessage(e.target.value)}
+                  rows={3}
+                  className="w-full bg-white border border-violet-200 rounded-2xl px-5 py-3.5 text-sm font-bold focus:border-violet-500 focus:ring-1 focus:ring-violet-200 outline-none transition-all resize-none shadow-inner"
+                  placeholder="Feedback message"
+                />
+                <div className="grid grid-cols-2 gap-3">
+                  <input
+                    type="date"
+                    value={editScheduledDate}
+                    onChange={(e) => setEditScheduledDate(e.target.value)}
+                    className="w-full bg-white border border-violet-200 rounded-2xl px-4 py-3 text-sm font-bold focus:border-violet-500 focus:ring-1 focus:ring-violet-200 outline-none transition-all shadow-inner"
+                  />
+                  <input
+                    type="time"
+                    value={editScheduledTime}
+                    onChange={(e) => setEditScheduledTime(e.target.value)}
+                    className="w-full bg-white border border-violet-200 rounded-2xl px-4 py-3 text-sm font-bold focus:border-violet-500 focus:ring-1 focus:ring-violet-200 outline-none transition-all shadow-inner"
+                  />
+                </div>
+                <div className="flex gap-3">
+                  <button onClick={handleUpdateScheduled} className="px-5 py-2.5 bg-violet-600 hover:bg-violet-700 text-white rounded-xl font-bold text-sm transition-all shadow-md active:scale-95">
+                    Save Changes
+                  </button>
+                  <button onClick={() => setEditingScheduled(false)} className="px-5 py-2.5 bg-white text-slate-600 rounded-xl font-bold text-sm hover:bg-slate-100 transition-all border border-slate-200 active:scale-95">
+                    Cancel
+                  </button>
+                </div>
+              </div>
+            ) : (
+              <div className="flex gap-3">
+                <button onClick={() => setEditingScheduled(true)} className="flex items-center gap-2 px-5 py-2.5 bg-violet-600 hover:bg-violet-700 text-white rounded-xl font-bold text-sm transition-all shadow-md active:scale-95">
+                  <Edit3 size={16} />
+                  Edit Scheduled Feedback
+                </button>
+                <button onClick={() => setShowCancelConfirm(true)} className="flex items-center gap-2 px-5 py-2.5 bg-rose-600 hover:bg-rose-700 text-white rounded-xl font-bold text-sm transition-all shadow-md active:scale-95">
+                  <XCircle size={16} />
+                  Cancel Schedule
+                </button>
+              </div>
+            )}
+          </div>
+        </div>
+      )}
+
       {/* PIP Warning */}
       {showPipWarning && (
         <div className="bg-rose-50 border border-rose-200 rounded-[32px] p-6 relative overflow-hidden animate-fade-in-up">
@@ -361,7 +522,7 @@ export default function ContinuousFeedbackDetailPage() {
       )}
 
       {/* Action Buttons */}
-      {rolePath !== '/employee' && (
+      {rolePath !== '/employee' && !isCancelled && (
         <div className="flex flex-wrap gap-3">
           <button
             onClick={() => setShowAiForm(!showAiForm)}
@@ -377,6 +538,18 @@ export default function ContinuousFeedbackDetailPage() {
             <Calendar size={16} />
             Create Follow-up Meeting
           </button>
+          {isInternal && (
+            <button
+              onClick={() => {
+                if (!showTimeline) loadAuditTimeline();
+                else setShowTimeline(!showTimeline);
+              }}
+              className="flex items-center gap-2 px-5 py-2.5 bg-slate-600 hover:bg-slate-700 text-white rounded-xl font-bold text-sm transition-all shadow-lg active:scale-95"
+            >
+              <History size={16} />
+              {showTimeline ? 'Hide Timeline' : 'Audit Timeline'}
+            </button>
+          )}
         </div>
       )}
 
@@ -446,20 +619,76 @@ export default function ContinuousFeedbackDetailPage() {
                           Due: {new Date(ai.dueDate).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}
                         </span>
                       )}
+                      {ai.completedAt && (
+                        <span className="flex items-center gap-1 text-[10px] font-bold text-emerald-500">
+                          <Check size={12} />
+                          Completed: {new Date(ai.completedAt).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric', hour: '2-digit', minute: '2-digit' })}
+                        </span>
+                      )}
                     </div>
                   </div>
-                  <select
-                    value={ai.status}
-                    onChange={(e) => handleUpdateAiStatus(ai, e.target.value)}
-                    className="shrink-0 px-3 py-2 text-xs font-bold border border-slate-200 rounded-xl bg-white focus:border-[#2463eb] focus:ring-1 focus:ring-[#dbeafe] outline-none transition-all"
-                  >
-                    {ACTION_ITEM_STATUSES.map((s) => (
-                      <option key={s} value={s}>{s}</option>
-                    ))}
-                  </select>
+                  {rolePath !== '/employee' && (
+                    <select
+                      value={ai.status}
+                      onChange={(e) => handleUpdateAiStatus(ai, e.target.value)}
+                      className="shrink-0 px-3 py-2 text-xs font-bold border border-slate-200 rounded-xl bg-white focus:border-[#2463eb] focus:ring-1 focus:ring-[#dbeafe] outline-none transition-all"
+                    >
+                      {ACTION_ITEM_STATUSES.map((s) => (
+                        <option key={s} value={s}>{s}</option>
+                      ))}
+                    </select>
+                  )}
                 </div>
               );
             })}
+          </div>
+        </div>
+      )}
+
+      {/* Audit Timeline - Internal only */}
+      {showTimeline && isInternal && (
+        <div className="bg-white rounded-[32px] shadow-sm border border-slate-100 overflow-hidden animate-fade-in-up">
+          <div className="p-6 border-b border-slate-100 flex items-center gap-2 text-slate-400">
+            <History size={16} />
+            <h3 className="text-[10px] font-black uppercase tracking-widest">Activity Timeline</h3>
+            <span className="text-[10px] font-bold text-slate-400 bg-slate-100 px-2.5 py-0.5 rounded-full ml-auto">{auditTimeline.length} events</span>
+          </div>
+          <div className="p-6">
+            {auditTimeline.length === 0 ? (
+              <div className="flex flex-col items-center justify-center py-8 opacity-40">
+                <History size={32} className="text-slate-300 mb-2" />
+                <p className="text-[10px] font-black uppercase tracking-widest text-slate-400">No timeline events</p>
+              </div>
+            ) : (
+              <div className="relative">
+                <div className="absolute left-[11px] top-2 bottom-2 w-0.5 bg-slate-200" />
+                <div className="space-y-0">
+                  {auditTimeline.map((event, idx) => (
+                    <div key={event.id} className="relative pl-10 pb-6 last:pb-0">
+                      <div className={`absolute left-[5px] w-3.5 h-3.5 rounded-full border-2 border-white ${
+                        idx === 0 ? 'bg-[#2463eb]' : 'bg-slate-300'
+                      }`} />
+                      <div className="bg-slate-50 rounded-2xl p-4 border border-slate-100">
+                        <div className="flex items-center justify-between mb-1">
+                          <span className="text-xs font-black uppercase tracking-widest text-slate-700">
+                            {event.actionType.replace(/_/g, ' ')}
+                          </span>
+                          <span className="text-[10px] font-bold text-slate-400">
+                            {new Date(event.createdAt).toLocaleDateString('en-US', {
+                              month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit'
+                            })}
+                          </span>
+                        </div>
+                        <p className="text-xs font-semibold text-slate-500">{event.description}</p>
+                        {event.performedByUserName && (
+                          <p className="text-[10px] font-bold text-slate-400 mt-1">By: {event.performedByUserName}</p>
+                        )}
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
           </div>
         </div>
       )}
@@ -522,7 +751,6 @@ export default function ContinuousFeedbackDetailPage() {
             )}
           </div>
 
-          {/* Add Comment */}
           <div className="p-6 border-t border-slate-100">
             <div className="flex gap-3">
               <textarea
@@ -569,6 +797,20 @@ export default function ContinuousFeedbackDetailPage() {
         isLoading={isCreatingMeeting}
         variant="success"
         icon={<CalendarCheck size={22} />}
+      />
+
+      <ConfirmActionModal
+        isOpen={showCancelConfirm}
+        onClose={() => setShowCancelConfirm(false)}
+        onConfirm={handleCancelScheduled}
+        title="Cancel Scheduled Feedback"
+        message={`Are you sure you want to cancel this scheduled feedback for ${feedback.employeeName}?`}
+        description="The feedback will not be published to the employee. This action cannot be undone."
+        confirmText="Yes, Cancel"
+        cancelText="No, Keep"
+        isLoading={false}
+        variant="danger"
+        icon={<XCircle size={22} />}
       />
     </div>
   );

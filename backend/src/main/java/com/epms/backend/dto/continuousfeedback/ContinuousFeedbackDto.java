@@ -23,6 +23,10 @@ public class ContinuousFeedbackDto {
     private String feedbackMessage;
     private String privateManagerNote;
     private String visibilityStatus;
+    private Instant scheduledPublishAt;
+    private Long scheduledByUserId;
+    private Instant cancelledAt;
+    private Long cancelledByUserId;
     private boolean shared;
     private Instant sharedAt;
     private boolean acknowledged;

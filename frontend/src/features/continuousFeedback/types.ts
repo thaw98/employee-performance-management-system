@@ -8,7 +8,11 @@ export interface ContinuousFeedback {
   category: ContinuousFeedbackCategory;
   feedbackMessage: string | null;
   privateManagerNote: string | null;
-  visibilityStatus: 'PRIVATE_NOTE' | 'SHARED';
+  visibilityStatus: 'PRIVATE_NOTE' | 'SCHEDULED' | 'SHARED' | 'CANCELLED';
+  scheduledPublishAt: string | null;
+  scheduledByUserId: number | null;
+  cancelledAt: string | null;
+  cancelledByUserId: number | null;
   shared: boolean;
   sharedAt: string | null;
   acknowledged: boolean;
@@ -47,6 +51,8 @@ export const FEEDBACK_CATEGORY_LABELS: Record<ContinuousFeedbackCategory, string
   PERFORMANCE_RISK: 'Performance Risk',
 };
 
+export type PublishMode = 'IMMEDIATE' | 'PRIVATE' | 'SCHEDULED';
+
 export interface ContinuousFeedbackActionItem {
   actionItemId: number;
   feedbackId: number;
@@ -74,11 +80,19 @@ export interface ContinuousFeedbackCreateRequest {
   category: string;
   feedbackMessage?: string;
   privateManagerNote?: string;
-  shareImmediately: boolean;
+  publishMode: PublishMode;
+  scheduledPublishAt?: string;
 }
 
 export interface ContinuousFeedbackUpdatePrivateNoteRequest {
   privateManagerNote: string;
+}
+
+export interface ContinuousFeedbackUpdateScheduledRequest {
+  feedbackMessage?: string;
+  privateManagerNote?: string;
+  category?: string;
+  scheduledPublishAt?: string;
 }
 
 export interface ContinuousFeedbackActionItemRequest {
@@ -109,6 +123,8 @@ export interface ContinuousFeedbackEvidence {
   feedbackId: number;
   category: string;
   feedbackMessage: string;
+  employeeName: string;
+  employeeId: number;
   managerName: string;
   createdAt: string;
   acknowledged: boolean;
@@ -132,6 +148,20 @@ export interface PipWarning {
   negativeFeedbackCount: number;
   message: string;
   latestFeedbackId: number | null;
+}
+
+export interface AuditLogEntry {
+  id: number;
+  actionType: string;
+  targetType: string;
+  targetId: number;
+  performedByUserId: number | null;
+  performedByUserName: string;
+  description: string;
+  metadataJson: string | null;
+  beforeData: string | null;
+  afterData: string | null;
+  createdAt: string;
 }
 
 export interface ApiResponse<T> {

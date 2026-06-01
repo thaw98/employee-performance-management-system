@@ -27,6 +27,7 @@ import com.epms.backend.dto.continuousfeedback.ContinuousFeedbackDto;
 import com.epms.backend.dto.continuousfeedback.ContinuousFeedbackEvidenceDto;
 import com.epms.backend.dto.continuousfeedback.ContinuousFeedbackPipWarningDto;
 import com.epms.backend.dto.continuousfeedback.ContinuousFeedbackUpdatePrivateNoteRequest;
+import com.epms.backend.dto.continuousfeedback.ContinuousFeedbackUpdateScheduledRequest;
 import com.epms.backend.dto.continuousfeedback.CreateFollowUpMeetingFromFeedbackRequest;
 import com.epms.backend.dto.pip.PipCreateRequest;
 import com.epms.backend.entity.ContinuousFeedback;
@@ -93,9 +94,18 @@ public class ContinuousFeedbackService {
         validateManagerEmployeeRelationship(manager, employee);
 
         ContinuousFeedbackCategory category = parseCategory(request.getCategory());
+        String publishMode = request.getPublishMode() != null ? request.getPublishMode().toUpperCase() : "IMMEDIATE";
 
-        if (request.isShareImmediately() && (request.getFeedbackMessage() == null || request.getFeedbackMessage().isBlank())) {
+        if ("IMMEDIATE".equals(publishMode) && (request.getFeedbackMessage() == null || request.getFeedbackMessage().isBlank())) {
             throw new RuntimeException("Feedback message is required when sharing immediately");
+        }
+
+        if ("SCHEDULED".equals(publishMode) && request.getScheduledPublishAt() == null) {
+            throw new RuntimeException("Scheduled publish date is required when using scheduled mode");
+        }
+
+        if ("SCHEDULED".equals(publishMode) && request.getScheduledPublishAt().isBefore(Instant.now())) {
+            throw new RuntimeException("Scheduled publish date must be in the future");
         }
 
         ContinuousFeedback feedback = new ContinuousFeedback();
@@ -104,22 +114,38 @@ public class ContinuousFeedbackService {
         feedback.setCategory(category);
         feedback.setFeedbackMessage(request.getFeedbackMessage());
         feedback.setPrivateManagerNote(request.getPrivateManagerNote());
-        feedback.setVisibilityStatus(request.isShareImmediately()
-                ? ContinuousFeedbackVisibilityStatus.SHARED
-                : ContinuousFeedbackVisibilityStatus.PRIVATE_NOTE);
-        feedback.setShared(request.isShareImmediately());
-        if (request.isShareImmediately()) {
-            feedback.setSharedAt(Instant.now());
-        }
         feedback.setSupportingEvidence(true);
         feedback.setCreatedAt(Instant.now());
         feedback.setCreatedBy(currentUser);
 
+        switch (publishMode) {
+            case "IMMEDIATE":
+                feedback.setVisibilityStatus(ContinuousFeedbackVisibilityStatus.SHARED);
+                feedback.setShared(true);
+                feedback.setSharedAt(Instant.now());
+                break;
+            case "SCHEDULED":
+                feedback.setVisibilityStatus(ContinuousFeedbackVisibilityStatus.SCHEDULED);
+                feedback.setScheduledPublishAt(request.getScheduledPublishAt());
+                feedback.setScheduledBy(currentUser);
+                break;
+            default: // PRIVATE
+                feedback.setVisibilityStatus(ContinuousFeedbackVisibilityStatus.PRIVATE_NOTE);
+                break;
+        }
+
         feedback = feedbackRepository.save(feedback);
+
+        String actionType;
+        if ("SCHEDULED".equals(publishMode)) {
+            actionType = AuditActionType.CONTINUOUS_FEEDBACK_SCHEDULED;
+        } else {
+            actionType = AuditActionType.CONTINUOUS_FEEDBACK_CREATED;
+        }
 
         String metadata = createMetadata(feedback);
         auditService.record(
-                AuditActionType.CONTINUOUS_FEEDBACK_CREATED,
+                actionType,
                 AuditTargetType.CONTINUOUS_FEEDBACK,
                 feedback.getId(),
                 currentUser.getId(),
@@ -128,7 +154,7 @@ public class ContinuousFeedbackService {
                 metadata);
 
         if (feedback.isShared()) {
-            notifyEmployeeOnShare(feedback, currentUser);
+            notifyEmployeeOnShare(feedback);
             checkPipWarning(feedback, currentUser);
         }
 
@@ -144,6 +170,10 @@ public class ContinuousFeedbackService {
 
         if (feedback.isShared()) {
             throw new RuntimeException("Cannot edit private note on shared feedback");
+        }
+
+        if (feedback.getVisibilityStatus() == ContinuousFeedbackVisibilityStatus.CANCELLED) {
+            throw new RuntimeException("Cannot edit cancelled feedback");
         }
 
         String beforeData = feedback.getPrivateManagerNote();
@@ -177,6 +207,10 @@ public class ContinuousFeedbackService {
             throw new RuntimeException("Feedback is already shared");
         }
 
+        if (feedback.getVisibilityStatus() == ContinuousFeedbackVisibilityStatus.CANCELLED) {
+            throw new RuntimeException("Cannot share cancelled feedback");
+        }
+
         if (feedback.getFeedbackMessage() == null || feedback.getFeedbackMessage().isBlank()) {
             throw new RuntimeException("Feedback message is required before sharing");
         }
@@ -197,10 +231,120 @@ public class ContinuousFeedbackService {
                 "Feedback shared with employee " + feedback.getEmployee().getEmployeeName(),
                 createMetadata(feedback));
 
-        notifyEmployeeOnShare(feedback, currentUser);
+        notifyEmployeeOnShare(feedback);
         checkPipWarning(feedback, currentUser);
 
         return toDto(feedback, currentUser);
+    }
+
+    @Transactional
+    public ContinuousFeedbackDto updateScheduledFeedback(Long feedbackId, ContinuousFeedbackUpdateScheduledRequest request, User currentUser) {
+        ContinuousFeedback feedback = feedbackRepository.findById(feedbackId)
+                .orElseThrow(() -> new RuntimeException("Continuous feedback not found"));
+
+        validateFeedbackManager(feedback, currentUser);
+
+        if (feedback.getVisibilityStatus() != ContinuousFeedbackVisibilityStatus.SCHEDULED) {
+            throw new RuntimeException("Feedback is not in scheduled status");
+        }
+
+        if (request.getCategory() != null) {
+            feedback.setCategory(parseCategory(request.getCategory()));
+        }
+        if (request.getFeedbackMessage() != null) {
+            feedback.setFeedbackMessage(request.getFeedbackMessage());
+        }
+        if (request.getPrivateManagerNote() != null) {
+            feedback.setPrivateManagerNote(request.getPrivateManagerNote());
+        }
+        if (request.getScheduledPublishAt() != null) {
+            if (request.getScheduledPublishAt().isBefore(Instant.now())) {
+                throw new RuntimeException("Scheduled publish date must be in the future");
+            }
+            feedback.setScheduledPublishAt(request.getScheduledPublishAt());
+        }
+        feedback.setUpdatedAt(Instant.now());
+        feedback.setUpdatedBy(currentUser);
+        feedback = feedbackRepository.save(feedback);
+
+        auditService.record(
+                AuditActionType.CONTINUOUS_FEEDBACK_SCHEDULE_UPDATED,
+                AuditTargetType.CONTINUOUS_FEEDBACK,
+                feedback.getId(),
+                currentUser.getId(),
+                currentUser.getRole().getId(),
+                "Scheduled feedback " + feedback.getId() + " updated",
+                createMetadata(feedback));
+
+        return toDto(feedback, currentUser);
+    }
+
+    @Transactional
+    public ContinuousFeedbackDto cancelScheduledFeedback(Long feedbackId, User currentUser) {
+        ContinuousFeedback feedback = feedbackRepository.findById(feedbackId)
+                .orElseThrow(() -> new RuntimeException("Continuous feedback not found"));
+
+        validateFeedbackManager(feedback, currentUser);
+
+        if (feedback.getVisibilityStatus() != ContinuousFeedbackVisibilityStatus.SCHEDULED) {
+            throw new RuntimeException("Feedback is not in scheduled status");
+        }
+
+        feedback.setVisibilityStatus(ContinuousFeedbackVisibilityStatus.CANCELLED);
+        feedback.setCancelledAt(Instant.now());
+        feedback.setCancelledBy(currentUser);
+        feedback.setUpdatedAt(Instant.now());
+        feedback.setUpdatedBy(currentUser);
+        feedback = feedbackRepository.save(feedback);
+
+        auditService.record(
+                AuditActionType.CONTINUOUS_FEEDBACK_SCHEDULE_CANCELLED,
+                AuditTargetType.CONTINUOUS_FEEDBACK,
+                feedback.getId(),
+                currentUser.getId(),
+                currentUser.getRole().getId(),
+                "Scheduled feedback " + feedback.getId() + " cancelled",
+                createMetadata(feedback));
+
+        return toDto(feedback, currentUser);
+    }
+
+    @Transactional
+    public void processScheduledFeedback() {
+        List<ContinuousFeedback> dueList = feedbackRepository.findDueScheduledFeedback(
+                ContinuousFeedbackVisibilityStatus.SCHEDULED, Instant.now());
+
+        for (ContinuousFeedback feedback : dueList) {
+            try {
+                if (feedback.getFeedbackMessage() == null || feedback.getFeedbackMessage().isBlank()) {
+                    log.warn("Scheduled feedback {} has no message, skipping auto-publish", feedback.getId());
+                    continue;
+                }
+
+                feedback.setShared(true);
+                feedback.setSharedAt(Instant.now());
+                feedback.setVisibilityStatus(ContinuousFeedbackVisibilityStatus.SHARED);
+                feedbackRepository.save(feedback);
+
+                User systemUser = feedback.getCreatedBy();
+
+                auditService.record(
+                        AuditActionType.CONTINUOUS_FEEDBACK_AUTO_PUBLISHED,
+                        AuditTargetType.CONTINUOUS_FEEDBACK,
+                        feedback.getId(),
+                        systemUser != null ? systemUser.getId() : null,
+                        systemUser != null && systemUser.getRole() != null ? systemUser.getRole().getId() : null,
+                        "Scheduled feedback auto-published for employee " + feedback.getEmployee().getEmployeeName(),
+                        createMetadata(feedback));
+
+                notifyEmployeeOnShare(feedback);
+                checkPipWarning(feedback, systemUser != null ? systemUser : feedback.getManager().getUserAccount());
+
+                log.info("Auto-published scheduled feedback {} for employee {}", feedback.getId(), feedback.getEmployee().getId());
+            } catch (Exception e) {
+                log.error("Error auto-publishing scheduled feedback {}: {}", feedback.getId(), e.getMessage());
+            }
+        }
     }
 
     @Transactional(readOnly = true)
@@ -326,6 +470,9 @@ public class ContinuousFeedbackService {
         actionItem.setCreatedAt(Instant.now());
         actionItem = actionItemRepository.save(actionItem);
 
+        String metadata = "{\"actionItemId\":" + actionItem.getId()
+                + ",\"employeeId\":" + feedback.getEmployee().getId()
+                + ",\"dueDate\":\"" + (request.getDueDate() != null ? request.getDueDate() : "") + "\"}";
         auditService.record(
                 AuditActionType.CONTINUOUS_FEEDBACK_ACTION_ITEM_CREATED,
                 AuditTargetType.CONTINUOUS_FEEDBACK,
@@ -333,7 +480,7 @@ public class ContinuousFeedbackService {
                 currentUser.getId(),
                 currentUser.getRole().getId(),
                 "Action item created for feedback " + feedback.getId(),
-                "{\"actionItemId\":" + actionItem.getId() + ",\"employeeId\":" + feedback.getEmployee().getId() + "}");
+                metadata);
 
         notifyEmployeeOnActionItem(feedback, actionItem, currentUser);
 
@@ -355,10 +502,14 @@ public class ContinuousFeedbackService {
         actionItem.setStatus(newStatus);
         if (newStatus == ContinuousFeedbackActionItemStatus.COMPLETED) {
             actionItem.setCompletedAt(Instant.now());
+        } else {
+            actionItem.setCompletedAt(null);
         }
         actionItem.setUpdatedAt(Instant.now());
         actionItem = actionItemRepository.save(actionItem);
 
+        String metadata = "{\"actionItemId\":" + actionItemId
+                + ",\"dueDate\":\"" + (actionItem.getDueDate() != null ? actionItem.getDueDate() : "") + "\"}";
         auditService.record(
                 AuditActionType.CONTINUOUS_FEEDBACK_ACTION_ITEM_STATUS_UPDATED,
                 AuditTargetType.CONTINUOUS_FEEDBACK,
@@ -366,7 +517,7 @@ public class ContinuousFeedbackService {
                 currentUser.getId(),
                 currentUser.getRole().getId(),
                 "Action item " + actionItemId + " status changed to " + newStatus,
-                "{\"actionItemId\":" + actionItemId + "}",
+                metadata,
                 beforeData,
                 newStatus.name());
 
@@ -623,6 +774,13 @@ public class ContinuousFeedbackService {
         employeeRepository.findById(employeeId)
                 .orElseThrow(() -> new RuntimeException("Employee not found"));
 
+        if (isEmployee(currentUser)) {
+            Employee self = getEmployee(currentUser);
+            if (!self.getId().equals(employeeId)) {
+                throw new RuntimeException("Access denied");
+            }
+        }
+
         Instant effectiveStart = startDate != null ? startDate : Instant.now().minusSeconds(365 * 86400L);
         Instant effectiveEnd = endDate != null ? endDate : Instant.now();
 
@@ -635,6 +793,8 @@ public class ContinuousFeedbackService {
                     .feedbackId(f.getId())
                     .category(f.getCategory().name())
                     .feedbackMessage(f.getFeedbackMessage())
+                    .employeeName(f.getEmployee().getEmployeeName())
+                    .employeeId(f.getEmployee().getId())
                     .managerName(f.getManager().getEmployeeName())
                     .createdAt(f.getCreatedAt())
                     .acknowledged(f.isAcknowledged())
@@ -642,6 +802,50 @@ public class ContinuousFeedbackService {
                     .actionItems(actionItems.stream().map(this::toActionItemDto).collect(Collectors.toList()))
                     .build();
         }).collect(Collectors.toList());
+    }
+
+    @Transactional(readOnly = true)
+    public List<ContinuousFeedbackDto> getHistoryByDateRange(
+            Instant startDate, Instant endDate, Long employeeId, String category, User currentUser) {
+        Instant effectiveStart = startDate != null ? startDate : Instant.now().minusSeconds(365 * 86400L);
+        Instant effectiveEnd = endDate != null ? endDate : Instant.now();
+
+        List<ContinuousFeedback> results;
+
+        if (isHr(currentUser) || isAudit(currentUser)) {
+            results = feedbackRepository.findHistoryByDateRange(effectiveStart, effectiveEnd, employeeId, category);
+        } else if (isManager(currentUser)) {
+            Employee manager = getManagerEmployee(currentUser);
+            if (employeeId != null) {
+                results = feedbackRepository.findHistoryByDateRange(effectiveStart, effectiveEnd, employeeId, category);
+                results = results.stream()
+                        .filter(f -> f.getManager().getId().equals(manager.getId()))
+                        .collect(Collectors.toList());
+            } else {
+                results = feedbackRepository.findHistoryByManagerAndDateRange(manager.getId(), effectiveStart, effectiveEnd, category);
+            }
+        } else {
+            throw new RuntimeException("Access denied");
+        }
+
+        return results.stream()
+                .map(f -> toDto(f, currentUser))
+                .collect(Collectors.toList());
+    }
+
+    @Transactional(readOnly = true)
+    public List<ContinuousFeedbackDto> getScheduledFeedback(User currentUser) {
+        if (isHr(currentUser) || isAudit(currentUser)) {
+            return feedbackRepository.findAllScheduled().stream()
+                    .map(f -> toDto(f, currentUser))
+                    .collect(Collectors.toList());
+        } else if (isManager(currentUser)) {
+            Employee manager = getManagerEmployee(currentUser);
+            return feedbackRepository.findScheduledByManagerId(manager.getId()).stream()
+                    .map(f -> toDto(f, currentUser))
+                    .collect(Collectors.toList());
+        }
+        throw new RuntimeException("Access denied");
     }
 
     private void checkPipWarning(ContinuousFeedback feedback, User currentUser) {
@@ -754,7 +958,7 @@ public class ContinuousFeedbackService {
         }
     }
 
-    private void notifyEmployeeOnShare(ContinuousFeedback feedback, User currentUser) {
+    private void notifyEmployeeOnShare(ContinuousFeedback feedback) {
         User recipient = feedback.getEmployee().getUserAccount();
         if (recipient != null) {
             notificationService.send(
@@ -833,6 +1037,10 @@ public class ContinuousFeedbackService {
                 .feedbackMessage(feedback.getFeedbackMessage())
                 .privateManagerNote(canSeePrivateNote ? feedback.getPrivateManagerNote() : null)
                 .visibilityStatus(feedback.getVisibilityStatus().name())
+                .scheduledPublishAt(feedback.getScheduledPublishAt())
+                .scheduledByUserId(feedback.getScheduledBy() != null ? feedback.getScheduledBy().getId() : null)
+                .cancelledAt(feedback.getCancelledAt())
+                .cancelledByUserId(feedback.getCancelledBy() != null ? feedback.getCancelledBy().getId() : null)
                 .shared(feedback.isShared())
                 .sharedAt(feedback.getSharedAt())
                 .acknowledged(feedback.isAcknowledged())

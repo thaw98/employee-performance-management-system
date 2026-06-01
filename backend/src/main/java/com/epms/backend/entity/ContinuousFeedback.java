@@ -51,6 +51,20 @@ public class ContinuousFeedback {
     @Column(name = "visibility_status", nullable = false, length = 20)
     private ContinuousFeedbackVisibilityStatus visibilityStatus = ContinuousFeedbackVisibilityStatus.PRIVATE_NOTE;
 
+    @Column(name = "scheduled_publish_at")
+    private Instant scheduledPublishAt;
+
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "scheduled_by_user_id")
+    private User scheduledBy;
+
+    @Column(name = "cancelled_at")
+    private Instant cancelledAt;
+
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "cancelled_by_user_id")
+    private User cancelledBy;
+
     @Column(name = "is_shared", nullable = false)
     private boolean shared = false;
 
