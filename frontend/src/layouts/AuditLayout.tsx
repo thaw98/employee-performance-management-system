@@ -161,6 +161,7 @@ const AuditLayout: React.FC = () => {
         {
             label: 'Audit',
             items: [
+                { label: 'Activity', path: '/audit/activity', icon: <History size={18} /> },
                 { label: 'Activity Monitor', path: '/audit/activity-monitor', icon: <Activity size={18} /> },
                 { label: 'Permission Groups', path: '/audit/permissions', icon: <Shield size={18} /> },
             ],

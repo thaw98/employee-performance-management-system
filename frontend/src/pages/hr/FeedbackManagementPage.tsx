@@ -1,6 +1,29 @@
 import { useEffect, useMemo, useState } from 'react'
 import { toast } from 'react-hot-toast'
-import { Building2, CalendarRange, CheckCircle2, ClipboardList, Copy, Eye, FileText, Filter, LayoutGrid, Pencil, Plus, Search, Star, Table2, Trash2, Users, X } from 'lucide-react'
+import {
+  Building2,
+  Briefcase,
+  CalendarRange,
+  CheckCircle2,
+  ClipboardList,
+  Copy,
+  Eye,
+  FileText,
+  Filter,
+  Layers,
+  LayoutGrid,
+  Network,
+  Pencil,
+  Plus,
+  Search,
+  Star,
+  Table2,
+  Trash2,
+  User,
+  Users,
+  X,
+  type LucideIcon,
+} from 'lucide-react'
 import axios from '../../app/axiosInstance'
 import { CriteriaPage } from './CriteriaPage'
 import { formatDateTime } from '../../utils/dateUtils'
@@ -672,6 +695,84 @@ function TemplateTab() {
   )
 }
 
+type FeedbackTargetType = FeedbackTemplateConfig['targetType']
+
+const FEEDBACK_TARGET_TYPE_OPTIONS: {
+  value: FeedbackTargetType
+  label: string
+  description: string
+  icon: LucideIcon
+}[] = [
+  { value: 'DEPARTMENT', label: 'Department', description: 'Assign to all employees in a department.', icon: Building2 },
+  { value: 'LEVEL_CODE', label: 'Level Code', description: 'Assign by organization level code.', icon: Layers },
+  { value: 'PERSON', label: 'Person', description: 'Assign to one employee.', icon: User },
+  { value: 'POSITION', label: 'Position', description: 'Assign by job position.', icon: Briefcase },
+  { value: 'HYBRID', label: 'Hybrid', description: 'Department + optional position per rule.', icon: Network },
+]
+
+function FeedbackTargetTypeCard({
+  label,
+  description,
+  icon: Icon,
+  selected,
+  readOnly,
+  onClick,
+}: {
+  label: string
+  description: string
+  icon: LucideIcon
+  selected: boolean
+  readOnly: boolean
+  onClick: () => void
+}) {
+  return (
+    <button
+      type="button"
+      onClick={() => {
+        if (!readOnly) onClick()
+      }}
+      aria-pressed={selected}
+      className={`group relative flex h-full min-h-[148px] flex-col rounded-2xl border p-4 text-left transition-all duration-200 ${
+        readOnly ? 'cursor-default' : 'cursor-pointer'
+      } ${
+        selected
+          ? 'border-[#2463eb]/50 bg-[#2463eb]/[0.05] shadow-md shadow-[#2463eb]/10 ring-1 ring-[#2463eb]/25'
+          : 'border-slate-200/90 bg-white hover:border-slate-300 hover:bg-slate-50/80 hover:shadow-sm'
+      } ${readOnly && !selected ? 'opacity-55' : ''}`}
+    >
+      {selected && (
+        <div className="pointer-events-none absolute inset-0 rounded-2xl bg-gradient-to-br from-[#2463eb]/[0.04] to-[#1d4ed8]/[0.02]" />
+      )}
+      <div className="relative flex flex-1 flex-col">
+        <div className="mb-3 flex items-start justify-between gap-2">
+          <div
+            className={`flex h-10 w-10 shrink-0 items-center justify-center rounded-xl transition-all duration-200 ${
+              selected
+                ? 'bg-gradient-to-br from-[#2463eb] to-[#1d4ed8] text-white shadow-lg shadow-[#2463eb]/25'
+                : 'bg-slate-100 text-slate-500 group-hover:bg-slate-200/90 group-hover:scale-105'
+            }`}
+          >
+            <Icon size={18} strokeWidth={2.25} />
+          </div>
+          {selected && (
+            <div className="flex h-5 w-5 shrink-0 items-center justify-center rounded-full bg-gradient-to-br from-[#2463eb] to-[#1d4ed8] shadow-sm">
+              <CheckCircle2 size={14} className="text-white" strokeWidth={2.75} />
+            </div>
+          )}
+        </div>
+        <h5
+          className={`text-sm font-bold leading-snug ${
+            selected ? 'text-[#1d4ed8]' : 'text-slate-900'
+          }`}
+        >
+          {label}
+        </h5>
+        <p className="mt-1.5 flex-1 text-xs leading-relaxed text-slate-500">{description}</p>
+      </div>
+    </button>
+  )
+}
+
 function TemplateModal({
   form,
   setForm,
@@ -727,7 +828,7 @@ function TemplateModal({
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/50 p-4">
-      <div className="max-h-[92vh] w-full max-w-5xl overflow-hidden rounded-2xl bg-white shadow-2xl">
+      <div className="max-h-[92vh] w-full max-w-7xl overflow-hidden rounded-2xl bg-white shadow-2xl">
         <div className="relative overflow-hidden border-b border-slate-100 bg-gradient-to-r from-[#2463eb] to-[#1d4ed8] px-6 py-5 text-white">
           <div className="flex items-start justify-between gap-4">
             <div className="flex items-center gap-3">
@@ -820,31 +921,40 @@ function TemplateModal({
                 </div>
               </div>
               <div className="space-y-3">
-                <div className="flex items-center gap-4">
-                  <label className="text-sm font-bold text-slate-700 whitespace-nowrap">
-                    Max Rating: <span className="text-blue-600 text-lg">{form.maxRating ?? 5}</span>
-                  </label>
-                  <div className="flex items-center gap-1">
-                    {[2, 3, 4, 5, 6, 7, 8, 9, 10].map(n => (
-                      <button
-                        key={n}
-                        disabled={readOnly}
-                        onClick={() => setForm({ ...form, maxRating: n })}
-                        className={`w-9 h-9 rounded-lg text-sm font-bold transition-all ${
-                          (form.maxRating ?? 5) === n
-                            ? 'bg-blue-600 text-white shadow-md'
-                            : 'bg-slate-100 text-slate-500 hover:bg-slate-200'
-                        } ${readOnly ? 'cursor-not-allowed opacity-60' : ''}`}
-                      >
+                <div>
+                  <label className="mb-1.5 block text-sm font-bold text-slate-700">Max Rating</label>
+                  <select
+                    disabled={readOnly}
+                    className="w-full rounded-xl border border-slate-300 px-4 py-2.5 text-sm font-semibold focus:border-[#2463eb] focus:outline-none disabled:cursor-not-allowed disabled:bg-slate-50 disabled:text-slate-500"
+                    value={form.maxRating ?? 5}
+                    onChange={(e) => setForm({ ...form, maxRating: Number(e.target.value) })}
+                  >
+                    {[2, 3, 4, 5, 6, 7, 8, 9, 10].map((n) => (
+                      <option key={n} value={n}>
                         {n}
-                      </button>
+                      </option>
                     ))}
-                  </div>
+                  </select>
                 </div>
-                <div className="rounded-xl bg-slate-50 px-4 py-3 border border-slate-100">
-                  <p className="text-xs font-bold text-slate-500">
-                    Preview: <span className="text-slate-800">1 - {form.maxRating ?? 5}</span>
-                  </p>
+                <div className="w-full rounded-xl border border-slate-100 bg-slate-50 px-4 py-3">
+                  <p className="mb-2 text-xs font-bold text-slate-500">Preview</p>
+                  <div className="flex flex-wrap items-center gap-1">
+                    {Array.from({ length: form.maxRating ?? 5 }, (_, i) => i + 1).map((num) => {
+                      const max = form.maxRating ?? 5
+                      const isMax = num === max
+                      return (
+                        <span
+                          key={num}
+                          aria-hidden
+                          className={`flex h-9 w-9 items-center justify-center rounded-lg text-sm font-bold ${
+                            isMax ? 'bg-blue-600 text-white shadow-md' : 'bg-slate-100 text-slate-500'
+                          }`}
+                        >
+                          {num}
+                        </span>
+                      )
+                    })}
+                  </div>
                 </div>
               </div>
             </section>
@@ -860,24 +970,28 @@ function TemplateModal({
                   <p className="text-xs text-slate-500">Match the self-assessment audience style by selecting one target type.</p>
                 </div>
               </div>
-              <div className="grid gap-3 sm:grid-cols-3 md:grid-cols-5">
-                {[
-                  ['DEPARTMENT', 'Department', 'Assign to all employees in a department.'],
-                  ['LEVEL_CODE', 'Level Code', 'Assign by organization level code.'],
-                  ['PERSON', 'Person', 'Assign to one employee.'],
-                  ['POSITION', 'Position', 'Assign by job position.'],
-                  ['HYBRID', 'Hybrid', 'Department + optional position per rule.'],
-                ].map(([value, label, description]) => (
-                  <button
+              <div
+                className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3 2xl:grid-cols-5"
+                role="radiogroup"
+                aria-label="Audience target type"
+              >
+                {FEEDBACK_TARGET_TYPE_OPTIONS.map(({ value, label, description, icon }) => (
+                  <FeedbackTargetTypeCard
                     key={value}
-                    type="button"
-                    disabled={readOnly}
-                    onClick={() => setForm({ ...form, targetType: value as FeedbackTemplateConfig['targetType'], targetId: 0, audienceRules: value === 'HYBRID' ? (form.audienceRules ?? []) : undefined })}
-                    className={`rounded-xl border p-3 text-left transition disabled:cursor-not-allowed ${form.targetType === value ? 'border-[#2463eb] bg-blue-50 ring-2 ring-blue-100' : 'border-slate-200 hover:border-slate-300 hover:bg-slate-50'} ${readOnly && form.targetType !== value ? 'opacity-50' : ''}`}
-                  >
-                    <p className="text-sm font-black text-slate-900">{label}</p>
-                    <p className="mt-1 text-[11px] text-slate-500">{description}</p>
-                  </button>
+                    label={label}
+                    description={description}
+                    icon={icon}
+                    selected={form.targetType === value}
+                    readOnly={readOnly}
+                    onClick={() =>
+                      setForm({
+                        ...form,
+                        targetType: value,
+                        targetId: 0,
+                        audienceRules: value === 'HYBRID' ? (form.audienceRules ?? []) : undefined,
+                      })
+                    }
+                  />
                 ))}
               </div>
 
