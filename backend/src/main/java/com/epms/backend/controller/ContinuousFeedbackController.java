@@ -169,7 +169,7 @@ public class ContinuousFeedbackController {
     }
 
     @PostMapping("/{feedbackId}/action-items")
-    @PreAuthorize("hasAnyRole('DEPARTMENT_HEAD', 'TEAM_HEAD', 'MANAGER', 'HR') and @permissionGuard.has('CONTINUOUS_FEEDBACK', 'manage_action_items')")
+    @PreAuthorize("hasAnyRole('DEPARTMENT_HEAD', 'TEAM_HEAD', 'MANAGER') and @permissionGuard.has('CONTINUOUS_FEEDBACK', 'manage_action_items')")
     public ResponseEntity<ApiResponse<ContinuousFeedbackActionItemDto>> addActionItem(
             @AuthenticationPrincipal UserPrincipal principal,
             @PathVariable Long feedbackId,
@@ -180,7 +180,7 @@ public class ContinuousFeedbackController {
     }
 
     @PatchMapping("/action-items/{actionItemId}/status")
-    @PreAuthorize("hasAnyRole('DEPARTMENT_HEAD', 'TEAM_HEAD', 'MANAGER', 'HR') and @permissionGuard.has('CONTINUOUS_FEEDBACK', 'manage_action_items')")
+    @PreAuthorize("hasAnyRole('DEPARTMENT_HEAD', 'TEAM_HEAD', 'MANAGER') and @permissionGuard.has('CONTINUOUS_FEEDBACK', 'manage_action_items')")
     public ResponseEntity<ApiResponse<ContinuousFeedbackActionItemDto>> updateActionItemStatus(
             @AuthenticationPrincipal UserPrincipal principal,
             @PathVariable Long actionItemId,
@@ -225,7 +225,7 @@ public class ContinuousFeedbackController {
     }
 
     @PostMapping("/{feedbackId}/create-meeting")
-    @PreAuthorize("hasAnyRole('DEPARTMENT_HEAD', 'TEAM_HEAD', 'MANAGER', 'HR') and @permissionGuard.has('CONTINUOUS_FEEDBACK', 'create_followup_meeting')")
+    @PreAuthorize("hasAnyRole('DEPARTMENT_HEAD', 'TEAM_HEAD', 'MANAGER') and @permissionGuard.has('CONTINUOUS_FEEDBACK', 'create_followup_meeting')")
     public ResponseEntity<ApiResponse<MeetingResponse>> createMeetingFromFeedback(
             @AuthenticationPrincipal UserPrincipal principal,
             @PathVariable Long feedbackId,

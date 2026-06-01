@@ -63,6 +63,7 @@ import lombok.extern.slf4j.Slf4j;
 public class ContinuousFeedbackService {
 
     private static final Long MANAGER_ROLE_ID = 2L;
+    private static final Long TEAM_HEAD_ROLE_ID = 3L;
     private static final Long HR_ROLE_ID = 1L;
     private static final Long AUDIT_ROLE_ID = 5L;
     private static final long PIP_WARNING_THRESHOLD = 3;
@@ -454,8 +455,8 @@ public class ContinuousFeedbackService {
         ContinuousFeedback feedback = feedbackRepository.findById(feedbackId)
                 .orElseThrow(() -> new RuntimeException("Continuous feedback not found"));
 
-        if (!isManager(currentUser) && !isHr(currentUser)) {
-            throw new RuntimeException("Only managers and HR can add action items");
+        if (!isManager(currentUser)) {
+            throw new RuntimeException("Only managers can add action items");
         }
 
         if (request.getDescription() == null || request.getDescription().isBlank()) {
@@ -492,8 +493,8 @@ public class ContinuousFeedbackService {
         ContinuousFeedbackActionItem actionItem = actionItemRepository.findById(actionItemId)
                 .orElseThrow(() -> new RuntimeException("Action item not found"));
 
-        if (!isManager(currentUser) && !isHr(currentUser)) {
-            throw new RuntimeException("Only managers and HR can update action item status");
+        if (!isManager(currentUser)) {
+            throw new RuntimeException("Only managers can update action item status");
         }
 
         ContinuousFeedbackActionItemStatus newStatus = parseActionItemStatus(request.getStatus());
@@ -665,8 +666,8 @@ public class ContinuousFeedbackService {
         ContinuousFeedback feedback = feedbackRepository.findById(feedbackId)
                 .orElseThrow(() -> new RuntimeException("Continuous feedback not found"));
 
-        if (!isManager(currentUser) && !isHr(currentUser)) {
-            throw new RuntimeException("Only managers and HR can create follow-up meetings");
+        if (!isManager(currentUser)) {
+            throw new RuntimeException("Only managers can create follow-up meetings");
         }
 
         Employee manager = getManagerEmployee(currentUser);
@@ -913,7 +914,7 @@ public class ContinuousFeedbackService {
     }
 
     private void validateManager(User user) {
-        if (user.getRole() == null || !MANAGER_ROLE_ID.equals(user.getRole().getId())) {
+        if (user.getRole() == null || (!MANAGER_ROLE_ID.equals(user.getRole().getId()) && !TEAM_HEAD_ROLE_ID.equals(user.getRole().getId()))) {
             throw new RuntimeException("Only managers can create continuous feedback");
         }
     }
@@ -1119,7 +1120,7 @@ public class ContinuousFeedbackService {
     }
 
     private boolean isManager(User user) {
-        return user.getRole() != null && MANAGER_ROLE_ID.equals(user.getRole().getId());
+        return user.getRole() != null && (MANAGER_ROLE_ID.equals(user.getRole().getId()) || TEAM_HEAD_ROLE_ID.equals(user.getRole().getId()));
     }
 
     private boolean isEmployee(User user) {

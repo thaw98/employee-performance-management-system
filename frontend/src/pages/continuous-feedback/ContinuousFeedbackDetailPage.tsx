@@ -4,6 +4,7 @@ import { toast } from 'react-hot-toast';
 import { ArrowLeft, Check, ClipboardList, Calendar, AlertTriangle, Send, MessageSquare, User, Lock, Clock, CheckCircle, CalendarCheck, History, XCircle, Edit3 } from 'lucide-react';
 import ConfirmActionModal from '../../features/hrEmployeeList/components/ConfirmActionModal';
 import { continuousFeedbackApi } from '../../features/continuousFeedback/continuousFeedbackApi';
+import { useAppSelector } from '../../app/hooks';
 import type {
   ContinuousFeedback,
   ContinuousFeedbackActionItem,
@@ -43,6 +44,9 @@ export default function ContinuousFeedbackDetailPage() {
   const [editScheduledTime, setEditScheduledTime] = useState('');
   const [editMessage, setEditMessage] = useState('');
   const [showCancelConfirm, setShowCancelConfirm] = useState(false);
+
+  const authUser = useAppSelector((s) => s.auth.user);
+  const canManageFeedbackActions = authUser?.roleId === 2 || authUser?.roleId === 3;
 
   const isInternal = window.location.pathname.startsWith('/hr')
     || window.location.pathname.startsWith('/audit')
@@ -524,20 +528,24 @@ export default function ContinuousFeedbackDetailPage() {
       {/* Action Buttons */}
       {rolePath !== '/employee' && !isCancelled && (
         <div className="flex flex-wrap gap-3">
-          <button
-            onClick={() => setShowAiForm(!showAiForm)}
-            className="flex items-center gap-2 px-5 py-2.5 bg-[#2463eb] hover:bg-[#1d4ed8] text-white rounded-xl font-bold text-sm transition-all shadow-lg shadow-[#dbeafe] active:scale-95"
-          >
-            <ClipboardList size={16} />
-            Add Action Item
-          </button>
-          <button
-            onClick={handleCreateMeeting}
-            className="flex items-center gap-2 px-5 py-2.5 bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl font-bold text-sm transition-all shadow-lg shadow-emerald-100 active:scale-95"
-          >
-            <Calendar size={16} />
-            Create Follow-up Meeting
-          </button>
+          {canManageFeedbackActions && (
+            <button
+              onClick={() => setShowAiForm(!showAiForm)}
+              className="flex items-center gap-2 px-5 py-2.5 bg-[#2463eb] hover:bg-[#1d4ed8] text-white rounded-xl font-bold text-sm transition-all shadow-lg shadow-[#dbeafe] active:scale-95"
+            >
+              <ClipboardList size={16} />
+              Add Action Item
+            </button>
+          )}
+          {canManageFeedbackActions && (
+            <button
+              onClick={handleCreateMeeting}
+              className="flex items-center gap-2 px-5 py-2.5 bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl font-bold text-sm transition-all shadow-lg shadow-emerald-100 active:scale-95"
+            >
+              <Calendar size={16} />
+              Create Follow-up Meeting
+            </button>
+          )}
           {isInternal && (
             <button
               onClick={() => {
@@ -554,7 +562,7 @@ export default function ContinuousFeedbackDetailPage() {
       )}
 
       {/* Add Action Item Form */}
-      {showAiForm && (
+      {canManageFeedbackActions && showAiForm && (
         <div className="bg-white rounded-[32px] shadow-sm border border-slate-100 p-6 animate-fade-in-up">
           <div className="flex items-center gap-2 text-[#2463eb] mb-4">
             <ClipboardList size={16} />
@@ -627,7 +635,7 @@ export default function ContinuousFeedbackDetailPage() {
                       )}
                     </div>
                   </div>
-                  {rolePath !== '/employee' && (
+                  {canManageFeedbackActions && (
                     <select
                       value={ai.status}
                       onChange={(e) => handleUpdateAiStatus(ai, e.target.value)}
