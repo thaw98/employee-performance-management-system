@@ -31,7 +31,7 @@ import lombok.Setter;
 @Getter
 @Setter
 @NoArgsConstructor
-@JsonIgnoreProperties({"hibernateLazyInitializer", "handler"})
+@JsonIgnoreProperties({ "hibernateLazyInitializer", "handler" })
 public class Pip {
 
     @Id
@@ -46,10 +46,6 @@ public class Pip {
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "manager_id", nullable = false)
     private Employee manager;
-
-
-
-
 
     @Column(name = "status", length = 20)
     private String status;
@@ -154,26 +150,28 @@ public class Pip {
     @Column(name = "reason_for_plan", columnDefinition = "text")
     private String reasonForPlan;
 
+    @Column(name = "kpi_score", precision = 6, scale = 2)
+    private BigDecimal kpiScore;
+
     @Transient
     private LocalDateTime employeeSignedAt;
 
     @Transient
     private LocalDateTime managerSignedAt;
 
-    @Transient
-    private BigDecimal kpiScore;
-
     public LocalDateTime getEmployeeSignedAt() {
         if (employeeSignedAt != null) {
             return employeeSignedAt;
         }
-        return employeeSignatureDate == null ? null : LocalDateTime.ofInstant(employeeSignatureDate, ZoneId.systemDefault());
+        return employeeSignatureDate == null ? null
+                : LocalDateTime.ofInstant(employeeSignatureDate, ZoneId.systemDefault());
     }
 
     public LocalDateTime getManagerSignedAt() {
         if (managerSignedAt != null) {
             return managerSignedAt;
         }
-        return managerSignatureDate == null ? null : LocalDateTime.ofInstant(managerSignatureDate, ZoneId.systemDefault());
+        return managerSignatureDate == null ? null
+                : LocalDateTime.ofInstant(managerSignatureDate, ZoneId.systemDefault());
     }
 }
