@@ -144,12 +144,52 @@ public class PerformanceReportService {
 
     // ── KPI Score ──────────────────────────────────────────────────────
 
+    private boolean isFuturePeriod(String period) {
+        if (period == null || period.isBlank()) {
+            return false;
+        }
+        try {
+            java.time.YearMonth currentYM = java.time.YearMonth.now();
+            java.time.YearMonth periodYM;
+            if (period.matches("\\d{4}-\\d{2}")) {
+                periodYM = java.time.YearMonth.parse(period);
+            } else {
+                java.time.format.DateTimeFormatter formatter = new java.time.format.DateTimeFormatterBuilder()
+                        .appendPattern("MMMM yyyy")
+                        .toFormatter(java.util.Locale.ENGLISH);
+                periodYM = java.time.YearMonth.parse(period, formatter);
+            }
+            return periodYM.isAfter(currentYM);
+        } catch (Exception e) {
+            return false;
+        }
+    }
+
     private KpiResult calculateKpiScore(Long employeeId) {
-        Optional<String> latestPeriodOpt = kpiRepository.findLatestPeriodByEmployee_Id(employeeId);
-        if (latestPeriodOpt.isEmpty()) {
+        String period = null;
+        org.springframework.security.core.Authentication auth = org.springframework.security.core.context.SecurityContextHolder.getContext().getAuthentication();
+        if (auth != null && auth.getPrincipal() instanceof com.epms.backend.security.UserPrincipal principal) {
+            Long roleId = principal.getRoleId();
+            if (roleId != null && (roleId == 1L || roleId == 5L)) { // HR or Audit
+                period = kpiRepository.findLatestPeriodByEmployee_Id(employeeId).orElse(null);
+            } else {
+                // Non-HR/Audit: get latest allowed period
+                List<String> allowedPeriods = kpiRepository.findDistinctPeriodsByEmployee_IdOrderByPeriodDesc(employeeId)
+                        .stream()
+                        .filter(p -> !isFuturePeriod(p))
+                        .collect(java.util.stream.Collectors.toList());
+                if (!allowedPeriods.isEmpty()) {
+                    period = allowedPeriods.get(0);
+                }
+            }
+        } else {
+            // Default (e.g. tests or internal)
+            period = kpiRepository.findLatestPeriodByEmployee_Id(employeeId).orElse(null);
+        }
+
+        if (period == null) {
             return new KpiResult(null, null);
         }
-        String period = latestPeriodOpt.get();
         List<EmployeeKpi> kpis = kpiRepository.findByEmployee_IdAndPeriodAndRecordStatus(employeeId, period, "Active");
         if (kpis.isEmpty()) {
             return new KpiResult(null, period);

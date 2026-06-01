@@ -66,6 +66,34 @@ function getInitials(name?: string) {
     .join('');
 }
 
+const parsePeriod = (periodStr?: string) => {
+  if (!periodStr) return null;
+  if (/\d{4}-\d{2}/.test(periodStr)) {
+    const [year, month] = periodStr.split('-').map(Number);
+    return new Date(year, month - 1, 1);
+  }
+  const parts = periodStr.split(' ');
+  if (parts.length === 2) {
+    const monthIndex = [
+      'january', 'february', 'march', 'april', 'may', 'june',
+      'july', 'august', 'september', 'october', 'november', 'december'
+    ].indexOf(parts[0].toLowerCase());
+    const year = parseInt(parts[1], 10);
+    if (monthIndex !== -1 && !isNaN(year)) {
+      return new Date(year, monthIndex, 1);
+    }
+  }
+  return null;
+};
+
+const isFuturePeriod = (periodStr?: string) => {
+  const d = parsePeriod(periodStr);
+  if (!d) return false;
+  const now = new Date();
+  const currentActiveMonth = new Date(now.getFullYear(), now.getMonth(), 1);
+  return d.getTime() > currentActiveMonth.getTime();
+};
+
 export default function ManagerKpiReportsPage() {
   const { data: profileResponse, isLoading: isProfileLoading } = useGetProfileQuery();
   const { data: summaryData = [], isLoading: isSummaryLoading } = useGetKpiHistorySummaryQuery({});
@@ -76,7 +104,9 @@ export default function ManagerKpiReportsPage() {
   const departmentName = profile?.departmentName || '';
 
   const filteredSummaries = useMemo(() => {
-    return summaryData.filter((item) => item.departmentName === departmentName);
+    return summaryData
+      .filter((item) => item.departmentName === departmentName)
+      .filter((item) => !isFuturePeriod(item.period));
   }, [summaryData, departmentName]);
 
   const processedSummaries = useMemo(() => {

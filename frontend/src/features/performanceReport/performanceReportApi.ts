@@ -9,6 +9,7 @@ export interface PerformanceReportSummary {
   profilePictureUrl: string | null;
   joinedDate: string | null;
   kpiScore: number | null;
+  rawKpiScore: number | null;
   kpiPeriod: string | null;
   appraisalScore: number | null;
   appraisalPeriod: string | null;
@@ -37,8 +38,6 @@ export interface PromotionProposalResponse {
   requesterName: string;
   departmentId: number;
   departmentName: string;
-  targetDepartmentId: number | null;
-  targetDepartmentName: string | null;
   effectiveDate: string;
   remarks: string;
   status: 'PENDING' | 'APPROVED' | 'REJECTED';
@@ -73,7 +72,7 @@ export const performanceReportApi = baseApi.injectEndpoints({
         { type: 'PerformanceReport', id: employeeId },
       ],
     }),
-    proposePromotion: builder.mutation<void, { employeeId: number; newPositionId: number; effectiveDate: string; remarks?: string; targetDepartmentId?: number }>({
+    proposePromotion: builder.mutation<void, { employeeId: number; newPositionId: number; effectiveDate: string; remarks?: string }>({
       query: ({ employeeId, ...body }) => ({
         url: `/promotions/employee/${employeeId}/propose`,
         method: 'POST',
