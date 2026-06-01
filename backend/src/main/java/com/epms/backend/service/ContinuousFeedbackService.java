@@ -2,14 +2,22 @@ package com.epms.backend.service;
 
 import java.time.Instant;
 import java.time.LocalDate;
+import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 import java.util.stream.Collectors;
 
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.PageRequest;
+import org.springframework.data.domain.Pageable;
+import org.springframework.data.domain.Sort;
+import org.springframework.data.jpa.domain.Specification;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+
+import jakarta.persistence.criteria.Predicate;
 
 import com.epms.backend.audit.AuditActionType;
 import com.epms.backend.audit.AuditTargetType;
@@ -25,6 +33,7 @@ import com.epms.backend.dto.continuousfeedback.ContinuousFeedbackCreateRequest;
 import com.epms.backend.dto.continuousfeedback.ContinuousFeedbackDashboardDto;
 import com.epms.backend.dto.continuousfeedback.ContinuousFeedbackDto;
 import com.epms.backend.dto.continuousfeedback.ContinuousFeedbackEvidenceDto;
+import com.epms.backend.dto.continuousfeedback.ContinuousFeedbackListResponseDto;
 import com.epms.backend.dto.continuousfeedback.ContinuousFeedbackPipWarningDto;
 import com.epms.backend.dto.continuousfeedback.ContinuousFeedbackUpdatePrivateNoteRequest;
 import com.epms.backend.dto.continuousfeedback.ContinuousFeedbackUpdateScheduledRequest;
@@ -371,12 +380,55 @@ public class ContinuousFeedbackService {
     }
 
     @Transactional(readOnly = true)
-    public List<ContinuousFeedbackDto> getMyFeedback(User currentUser) {
+    public ContinuousFeedbackListResponseDto getMyFeedback(
+            User currentUser,
+            int page,
+            int size,
+            String search,
+            String category,
+            Boolean acknowledged) {
         Employee employee = getEmployee(currentUser);
-        List<ContinuousFeedback> feedbackList = feedbackRepository.findSharedByEmployeeId(employee.getId());
-        return feedbackList.stream()
+        Long employeeId = employee.getId();
+
+        Specification<ContinuousFeedback> spec = (root, query, cb) -> {
+            List<Predicate> predicates = new ArrayList<>();
+            predicates.add(cb.equal(root.get("employee").get("id"), employeeId));
+            predicates.add(cb.isTrue(root.get("shared")));
+
+            if (category != null && !category.isBlank() && !"ALL".equalsIgnoreCase(category)) {
+                predicates.add(cb.equal(root.get("category"), parseCategory(category)));
+            }
+            if (acknowledged != null) {
+                predicates.add(cb.equal(root.get("acknowledged"), acknowledged));
+            }
+            if (search != null && !search.isBlank()) {
+                String pattern = "%" + search.trim().toLowerCase() + "%";
+                predicates.add(cb.or(
+                        cb.like(cb.lower(root.get("manager").get("employeeName")), pattern),
+                        cb.like(cb.lower(cb.coalesce(root.get("feedbackMessage"), "")), pattern)));
+            }
+
+            return cb.and(predicates.toArray(new Predicate[0]));
+        };
+
+        int safePage = Math.max(page, 0);
+        int safeSize = Math.min(Math.max(size, 1), 100);
+        Pageable pageable = PageRequest.of(safePage, safeSize, Sort.by(Sort.Direction.DESC, "createdAt"));
+        Page<ContinuousFeedback> feedbackPage = feedbackRepository.findAll(spec, pageable);
+
+        List<ContinuousFeedbackDto> content = feedbackPage.getContent().stream()
                 .map(f -> toDto(f, currentUser))
                 .collect(Collectors.toList());
+
+        return ContinuousFeedbackListResponseDto.builder()
+                .content(content)
+                .page(feedbackPage.getNumber())
+                .size(feedbackPage.getSize())
+                .totalElements(feedbackPage.getTotalElements())
+                .totalPages(feedbackPage.getTotalPages())
+                .totalShared(feedbackRepository.countByEmployeeIdAndSharedTrue(employeeId))
+                .pendingAcknowledgment(feedbackRepository.countByEmployeeIdAndSharedTrueAndAcknowledgedFalse(employeeId))
+                .build();
     }
 
     @Transactional(readOnly = true)

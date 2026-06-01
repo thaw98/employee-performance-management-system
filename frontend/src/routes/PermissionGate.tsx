@@ -11,9 +11,9 @@ interface PermissionGateProps {
 
 export function PermissionGate({ moduleKey, actionKey = 'view', children }: PermissionGateProps) {
   const location = useLocation();
-  const { isReady, isLoading, hasPermission } = usePermissionState();
+  const { isReady, hasPermission } = usePermissionState();
 
-  if (!isReady || isLoading) {
+  if (!isReady) {
     return (
       <div className="flex min-h-[320px] items-center justify-center text-slate-500 dark:text-slate-400">
         <Loader2 className="mr-2 h-5 w-5 animate-spin" />

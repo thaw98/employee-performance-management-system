@@ -11,6 +11,7 @@ import type {
   ContinuousFeedbackCreateRequest,
   ContinuousFeedbackDashboard,
   ContinuousFeedbackEvidence,
+  ContinuousFeedbackListResponse,
   ContinuousFeedbackUpdatePrivateNoteRequest,
   ContinuousFeedbackUpdateScheduledRequest,
   FollowUpMeetingResponse,
@@ -44,8 +45,16 @@ export const continuousFeedbackApi = {
   getFeedback: (feedbackId: number) =>
     axiosInstance.get<ApiResponse<ContinuousFeedback>>(`${BASE_URL}/${feedbackId}`).then((r) => r.data),
 
-  getMyFeedback: () =>
-    axiosInstance.get<ApiResponse<ContinuousFeedback[]>>(`${BASE_URL}/my`).then((r) => r.data),
+  getMyFeedback: (params?: {
+    page?: number;
+    size?: number;
+    search?: string;
+    category?: string;
+    acknowledged?: boolean;
+  }) =>
+    axiosInstance
+      .get<ApiResponse<ContinuousFeedbackListResponse>>(`${BASE_URL}/my`, { params })
+      .then((r) => r.data),
 
   getTeamFeedback: () =>
     axiosInstance.get<ApiResponse<ContinuousFeedback[]>>(`${BASE_URL}/my-team`).then((r) => r.data),

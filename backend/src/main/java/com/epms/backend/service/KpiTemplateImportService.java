@@ -11,17 +11,12 @@ import java.util.stream.Collectors;
 import org.apache.poi.ss.usermodel.BorderStyle;
 import org.apache.poi.ss.usermodel.Cell;
 import org.apache.poi.ss.usermodel.CellStyle;
-import org.apache.poi.ss.usermodel.DataValidation;
-import org.apache.poi.ss.usermodel.DataValidationConstraint;
-import org.apache.poi.ss.usermodel.DataValidationHelper;
 import org.apache.poi.ss.usermodel.FillPatternType;
 import org.apache.poi.ss.usermodel.Font;
 import org.apache.poi.ss.usermodel.IndexedColors;
-import org.apache.poi.ss.usermodel.Name;
 import org.apache.poi.ss.usermodel.Row;
 import org.apache.poi.ss.usermodel.Sheet;
 import org.apache.poi.ss.usermodel.Workbook;
-import org.apache.poi.ss.util.CellRangeAddressList;
 import org.apache.poi.xssf.usermodel.XSSFWorkbook;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -30,15 +25,11 @@ import org.springframework.web.multipart.MultipartFile;
 import com.epms.backend.dto.KpiTemplateDto;
 import com.epms.backend.dto.KpiTemplateImportCreateRequestDto;
 import com.epms.backend.dto.KpiTemplateImportValidationResponseDto;
-import com.epms.backend.entity.KpiCategory;
 import com.epms.backend.entity.KpiName;
 import com.epms.backend.entity.KpiTemplate;
 import com.epms.backend.entity.KpiTemplateItem;
-import com.epms.backend.entity.KpiUnit;
-import com.epms.backend.repository.KpiCategoryRepository;
 import com.epms.backend.repository.KpiNameRepository;
 import com.epms.backend.repository.KpiTemplateRepository;
-import com.epms.backend.repository.KpiUnitRepository;
 
 import lombok.RequiredArgsConstructor;
 
@@ -48,8 +39,6 @@ public class KpiTemplateImportService {
 
     private final KpiTemplateRepository templateRepository;
     private final KpiNameRepository kpiNameRepository;
-    private final KpiCategoryRepository kpiCategoryRepository;
-    private final KpiUnitRepository kpiUnitRepository;
 
     private static final String DATA_SHEET_NAME = "KPI Template";
     private static final String[] HEADERS = {"KPI Name", "Category", "Target", "Unit", "Weight"};
@@ -64,9 +53,6 @@ public class KpiTemplateImportService {
     @Transactional(readOnly = true)
     public byte[] generateTemplate() {
         try (Workbook wb = new XSSFWorkbook()) {
-            List<KpiCategory> categories = kpiCategoryRepository.findByStatusIgnoreCase("Active");
-            List<KpiUnit> units = kpiUnitRepository.findByStatusIgnoreCase("Active");
-
             CellStyle headerStyle = createHeaderStyle(wb);
             CellStyle unlockedStyle = wb.createCellStyle();
             unlockedStyle.setLocked(false);
@@ -81,7 +67,7 @@ public class KpiTemplateImportService {
 
             // ─── 1. Instructions sheet ────────────────────────────────────────────
             Sheet instrSheet = wb.createSheet("Instructions");
-            addInstructions(wb, instrSheet, categories, units);
+            addInstructions(wb, instrSheet);
 
             // ─── 2. Sample Data sheet (reference only) ────────────────────────────
             Sheet sampleSheet = wb.createSheet("Sample Data");
@@ -96,33 +82,6 @@ public class KpiTemplateImportService {
             dataSheet.createFreezePane(0, 1);
             for (int col = 0; col < HEADERS.length; col++) {
                 dataSheet.setDefaultColumnStyle(col, unlockedStyle);
-            }
-
-            // ─── 4. Lookups sheet (hidden) ────────────────────────────────────────
-            Sheet lookupSheet = wb.createSheet("Lookups");
-            int r = 0;
-            for (KpiCategory category : categories) {
-                Row row = lookupSheet.createRow(r++);
-                row.createCell(0).setCellValue(category.getName());
-            }
-            r = 0;
-            for (KpiUnit unit : units) {
-                Row row = lookupSheet.getRow(r);
-                if (row == null) {
-                    row = lookupSheet.createRow(r);
-                }
-                row.createCell(1).setCellValue(unit.getName());
-                r++;
-            }
-            wb.setSheetHidden(wb.getSheetIndex("Lookups"), true);
-
-            if (!categories.isEmpty()) {
-                createNamedRange(wb, "CategoryList", "Lookups", 0, 0, categories.size() - 1, 0);
-                addDropdown(dataSheet, "CategoryList", 1, 1000, 1, 1);
-            }
-            if (!units.isEmpty()) {
-                createNamedRange(wb, "UnitList", "Lookups", 0, 1, units.size() - 1, 1);
-                addDropdown(dataSheet, "UnitList", 1, 1000, 3, 3);
             }
 
             wb.setActiveSheet(wb.getSheetIndex(dataSheet));
@@ -333,22 +292,6 @@ public class KpiTemplateImportService {
                 newName.setName(kpiName);
                 kpiNameRepository.save(newName);
             }
-
-            String categoryName = item.getCategory().trim();
-            if (!kpiCategoryRepository.existsByNameIgnoreCase(categoryName)) {
-                KpiCategory newCategory = new KpiCategory();
-                newCategory.setName(categoryName);
-                kpiCategoryRepository.save(newCategory);
-            }
-
-            if (item.getUnit() != null && !item.getUnit().isBlank()) {
-                String unitName = item.getUnit().trim();
-                if (!kpiUnitRepository.existsByNameIgnoreCase(unitName)) {
-                    KpiUnit newUnit = new KpiUnit();
-                    newUnit.setName(unitName);
-                    kpiUnitRepository.save(newUnit);
-                }
-            }
         }
     }
 
@@ -409,7 +352,7 @@ public class KpiTemplateImportService {
         sampleSheet.setColumnWidth(0, 20000);
     }
 
-    private void addInstructions(Workbook wb, Sheet sheet, List<KpiCategory> categories, List<KpiUnit> units) {
+    private void addInstructions(Workbook wb, Sheet sheet) {
         Font titleFont = wb.createFont();
         titleFont.setBold(true);
         titleFont.setFontHeightInPoints((short) 14);
@@ -434,9 +377,9 @@ public class KpiTemplateImportService {
                 {"", "normal"},
                 {"STEP 2 — COLUMN GUIDE", "bold"},
                 {"  Col A  KPI Name    Required. Name of the KPI (e.g. Revenue Growth).", "normal"},
-                {"  Col B  Category    Required. Select from dropdown or enter a new category name.", "normal"},
+                {"  Col B  Category    Required. Enter any category name as free text.", "normal"},
                 {"  Col C  Target      Required. Measurable target description for this KPI.", "normal"},
-                {"  Col D  Unit        Optional. Select from dropdown or enter a unit (e.g. %, count, rating).", "normal"},
+                {"  Col D  Unit        Optional. Enter the unit of measurement (e.g. %, count, rating).", "normal"},
                 {"  Col E  Weight      Required. Numeric weight for this KPI. All rows must sum to exactly 100.", "normal"},
                 {"", "normal"},
                 {"STEP 3 — WEIGHT RULES", "bold"},
@@ -444,9 +387,9 @@ public class KpiTemplateImportService {
                 {"  The total weight across all rows must equal 100%.", "normal"},
                 {"  See the 'Sample Data' sheet for a complete example (4 KPIs at 25% each).", "normal"},
                 {"", "normal"},
-                {"STEP 4 — DROPDOWN COLUMNS", "bold"},
-                {"  Use the dropdown arrows in columns B (Category) and D (Unit) when available.", "normal"},
-                {"  You may also type a new category or unit name; it will be created on import.", "normal"},
+                {"STEP 4 — CATEGORY & UNIT", "bold"},
+                {"  Category: Type any category name directly. It is required and will be stored as free text.", "normal"},
+                {"  Unit: Enter the unit name as free text (e.g. %, count, days, rating).", "normal"},
                 {"", "normal"},
                 {"STEP 5 — VALIDATION & IMPORT FLOW", "bold"},
                 {"  1. Upload the file using the 'Import Template' button on KPI Management.", "normal"},
@@ -457,7 +400,7 @@ public class KpiTemplateImportService {
                 {"", "normal"},
                 {"NOTES", "bold"},
                 {"  • KPI Name, Category, Target, and Weight are required on every data row.", "normal"},
-                {"  • New KPI names, categories, and units are automatically added to master data.", "normal"},
+                {"  • New KPI names are automatically added to master data. Category is stored as free text. Unit is stored as free text.", "normal"},
                 {"  • After import, assign the template to employees, departments, or positions.", "normal"},
         };
 
@@ -474,71 +417,6 @@ public class KpiTemplateImportService {
             }
         }
 
-        int startRow = lines.length + 1;
-        Row validHeader = sheet.createRow(startRow++);
-        Font colHFont = wb.createFont();
-        colHFont.setBold(true);
-        colHFont.setColor(IndexedColors.DARK_BLUE.getIndex());
-        CellStyle colHStyle = wb.createCellStyle();
-        colHStyle.setFont(colHFont);
-        Cell headerCell = validHeader.createCell(0);
-        headerCell.setCellValue("VALID DROPDOWN VALUES (from database):");
-        headerCell.setCellStyle(colHStyle);
-
-        appendListSection(sheet, wb, startRow, "Category",
-                categories.stream().map(KpiCategory::getName).toList());
-        startRow += categories.size() + 2;
-        appendListSection(sheet, wb, startRow, "Unit",
-                units.stream().map(KpiUnit::getName).toList());
-    }
-
-    private void appendListSection(Sheet sheet, Workbook wb, int startRow, String sectionName, List<String> values) {
-        Font boldFont = wb.createFont();
-        boldFont.setBold(true);
-        CellStyle boldCs = wb.createCellStyle();
-        boldCs.setFont(boldFont);
-
-        Row titleRow = sheet.createRow(startRow);
-        Cell titleCell = titleRow.createCell(0);
-        titleCell.setCellValue("  " + sectionName + ":");
-        titleCell.setCellStyle(boldCs);
-
-        for (int i = 0; i < values.size(); i++) {
-            Row row = sheet.createRow(startRow + 1 + i);
-            row.createCell(0).setCellValue("    • " + values.get(i));
-        }
-    }
-
-    private void createNamedRange(Workbook wb, String name, String sheetName,
-            int startRow, int startCol, int endRow, int endCol) {
-        if (endRow < startRow) {
-            return;
-        }
-        Name namedRange = wb.createName();
-        namedRange.setNameName(name);
-        namedRange.setRefersToFormula(String.format("'%s'!$%s$%d:$%s$%d",
-                sheetName, col(startCol), startRow + 1, col(endCol), endRow + 1));
-    }
-
-    private void addDropdown(Sheet sheet, String namedRange,
-            int firstRow, int lastRow, int firstCol, int lastCol) {
-        DataValidationHelper dvh = sheet.getDataValidationHelper();
-        DataValidationConstraint dvc = dvh.createFormulaListConstraint(namedRange);
-        DataValidation dv = dvh.createValidation(dvc,
-                new CellRangeAddressList(firstRow, lastRow, firstCol, lastCol));
-        dv.setShowErrorBox(true);
-        sheet.addValidationData(dv);
-    }
-
-    private String col(int col) {
-        StringBuilder sb = new StringBuilder();
-        col++;
-        while (col > 0) {
-            int rem = (col - 1) % 26;
-            sb.insert(0, (char) ('A' + rem));
-            col = (col - 1) / 26;
-        }
-        return sb.toString();
     }
 
     private boolean isRowEmpty(Row row) {
