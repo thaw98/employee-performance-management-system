@@ -205,6 +205,7 @@ export interface PipSummaryReportDto {
   objectivesCount: number
   meetingsCount: number
   finalOutcome: string
+  followUpMeetingsSummary?: string
 }
 
 export interface PipProgressReportDto {

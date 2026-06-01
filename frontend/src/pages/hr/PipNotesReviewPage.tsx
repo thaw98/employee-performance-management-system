@@ -2,7 +2,7 @@ import { useMemo, useState } from 'react'
 import * as XLSX from 'xlsx'
 import { Link, useLocation } from 'react-router-dom'
 import {
-  FileText, MessageSquare, CalendarCheck, Download, ChevronRight,
+  FileText, MessageSquare, Download, ChevronRight,
   Search, SlidersHorizontal, RotateCcw, AlertCircle, Loader2,
   Inbox, ChevronLeft, Users, Building2, UserCircle,
 } from 'lucide-react'
@@ -11,23 +11,14 @@ import { useGetDepartmentsQuery } from '../../features/hrCreateEmployee/hrEmploy
 import { useGetManagersQuery } from '../../features/department/api/departmentApi'
 import { formatDateTime } from '../../utils/dateUtils'
 
-const STATUS_OPTIONS = ['ACTIVE', 'AUTO_CLOSED', 'REOPEN_REQUESTED', 'COMPLETED', 'CLOSED', 'DENIED']
-const NOTE_TYPE_OPTIONS = [
-  { value: 'COMMUNICATION', label: 'Communication Note' },
-  { value: 'FOLLOWUP', label: 'Follow-up Meeting Note' },
-] as const
+const STATUS_OPTIONS = ['ACTIVE', 'AUTO_CLOSED', 'COMPLETED', 'CLOSED']
 
 const getAuthorName = (note: { author: { email: string; employee?: { employeeName?: string } } }) => {
   return note.author.employee?.employeeName || note.author.email || 'Unknown author'
 }
 
-const getNoteTypeLabel = (noteType: string) => {
-  return noteType === 'FOLLOWUP' ? 'Follow-up Meeting Note' : 'Communication Note'
-}
-
 const STYLES = {
   badge: {
-    followup: 'bg-gradient-to-r from-emerald-50 to-emerald-100 text-emerald-700 ring-1 ring-emerald-200',
     communication: 'bg-gradient-to-r from-blue-50 to-blue-100 text-blue-700 ring-1 ring-blue-200',
   },
   status: {
@@ -35,8 +26,6 @@ const STYLES = {
     COMPLETED: 'bg-gradient-to-r from-slate-50 to-slate-100 text-slate-600 ring-1 ring-slate-200',
     CLOSED: 'bg-gradient-to-r from-slate-50 to-slate-100 text-slate-600 ring-1 ring-slate-200',
     AUTO_CLOSED: 'bg-gradient-to-r from-amber-50 to-amber-100 text-amber-700 ring-1 ring-amber-200',
-    REOPEN_REQUESTED: 'bg-gradient-to-r from-amber-50 to-amber-100 text-amber-700 ring-1 ring-amber-200',
-    DENIED: 'bg-gradient-to-r from-red-50 to-red-100 text-red-700 ring-1 ring-red-200',
   },
   input: 'rounded-xl border border-slate-200 bg-white px-4 py-2.5 text-sm text-slate-700 placeholder-slate-400 shadow-sm transition-all duration-200 focus:border-indigo-300 focus:outline-none focus:ring-4 focus:ring-indigo-100',
   select: 'rounded-xl border border-slate-200 bg-white px-4 py-2.5 text-sm text-slate-700 shadow-sm transition-all duration-200 focus:border-indigo-300 focus:outline-none focus:ring-4 focus:ring-indigo-100',
@@ -46,13 +35,18 @@ function getStatusStyle(status?: string) {
   return STYLES.status[status as keyof typeof STYLES.status] || 'bg-gradient-to-r from-slate-50 to-slate-100 text-slate-500 ring-1 ring-slate-200'
 }
 
+function getStatusLabel(status?: string) {
+  if (status === 'REOPEN_REQUESTED') return 'ACTIVE'
+  if (status === 'DENIED') return 'CLOSED'
+  return status || 'UNKNOWN'
+}
+
 export default function PipNotesReviewPage() {
   const location = useLocation()
   const pipMonitoringBasePath = location.pathname.startsWith('/audit/') ? '/audit/pip-monitoring' : '/hr/pip-monitoring'
   const [employeeName, setEmployeeName] = useState('')
   const [managerId, setManagerId] = useState<number | undefined>(undefined)
   const [departmentId, setDepartmentId] = useState<number | undefined>(undefined)
-  const [noteType, setNoteType] = useState<'COMMUNICATION' | 'FOLLOWUP' | ''>('')
   const [pipStatus, setPipStatus] = useState('')
   const [dateFrom, setDateFrom] = useState('')
   const [dateTo, setDateTo] = useState('')
@@ -65,7 +59,7 @@ export default function PipNotesReviewPage() {
     employeeName: employeeName || undefined,
     managerId,
     departmentId,
-    noteType: noteType || undefined,
+    noteType: 'COMMUNICATION',
     pipStatus: pipStatus || undefined,
     dateFrom: dateFrom || undefined,
     dateTo: dateTo || undefined,
@@ -122,14 +116,12 @@ export default function PipNotesReviewPage() {
 
   const notes = notesPage?.content ?? []
   const totalPages = Math.max(notesPage?.totalPages ?? 1, 1)
-  const visibleFollowups = notes.filter((note) => note.noteType === 'FOLLOWUP').length
   const visibleCommunications = notes.filter((note) => note.noteType === 'COMMUNICATION').length
 
   const clearFilters = () => {
     setEmployeeName('')
     setManagerId(undefined)
     setDepartmentId(undefined)
-    setNoteType('')
     setPipStatus('')
     setDateFrom('')
     setDateTo('')
@@ -138,13 +130,12 @@ export default function PipNotesReviewPage() {
 
   const handleExport = () => {
     const rows = [
-      ['Date', 'Employee', 'Department', 'Manager', 'History Type', 'PIP Status', 'Note Content', 'Author'],
+      ['Date', 'Employee', 'Department', 'Manager', 'PIP Status', 'Note Content', 'Author'],
       ...notes.map((note) => [
         formatDateTime(note.createdAt),
         note.employee?.employeeName || '',
         note.employee?.departmentName || '',
         note.manager?.employeeName || '',
-        getNoteTypeLabel(note.noteType),
         note.pipStatus || '',
         note.content,
         getAuthorName(note),
@@ -155,8 +146,8 @@ export default function PipNotesReviewPage() {
     XLSX.writeFile(workbook, `pip-note-history-${new Date().toISOString().slice(0, 10)}.xlsx`)
   }
 
-  const hasActiveFilters = employeeName || departmentId || managerId || noteType || pipStatus || dateFrom || dateTo
-  const activeFilterCount = [employeeName, departmentId, noteType, pipStatus, dateFrom, dateTo].filter(Boolean).length
+  const hasActiveFilters = employeeName || departmentId || managerId || pipStatus || dateFrom || dateTo
+  const activeFilterCount = [employeeName, departmentId, pipStatus, dateFrom, dateTo].filter(Boolean).length
 
   const getPageNumbers = () => {
     const pages: (number | string)[] = []
@@ -191,7 +182,7 @@ export default function PipNotesReviewPage() {
               PIP Note History
             </h1>
             <p className="max-w-2xl text-sm leading-relaxed text-slate-300">
-              Review communication and follow-up meeting notes across all performance improvement plans.
+              Review communication notes across all performance improvement plans.
             </p>
           </div>
           <button
@@ -206,7 +197,7 @@ export default function PipNotesReviewPage() {
         </div>
 
         {/* Stats */}
-        <div className="relative mt-8 grid grid-cols-1 gap-4 md:grid-cols-3">
+        <div className="relative mt-8 grid grid-cols-1 gap-4 md:grid-cols-2">
           <div className="group rounded-xl border border-white/10 bg-white/5 p-5 backdrop-blur-sm transition-all duration-200 hover:bg-white/10">
             <div className="flex items-start justify-between">
               <div>
@@ -215,17 +206,6 @@ export default function PipNotesReviewPage() {
               </div>
               <div className="rounded-lg bg-white/10 p-2.5 text-indigo-300 transition-colors group-hover:bg-white/20">
                 <FileText className="h-5 w-5" />
-              </div>
-            </div>
-          </div>
-          <div className="group rounded-xl border border-white/10 bg-white/5 p-5 backdrop-blur-sm transition-all duration-200 hover:bg-white/10">
-            <div className="flex items-start justify-between">
-              <div>
-                <p className="text-xs font-semibold uppercase tracking-widest text-slate-400">Follow-up Notes</p>
-                <p className="mt-2 text-3xl font-black text-emerald-400">{visibleFollowups}</p>
-              </div>
-              <div className="rounded-lg bg-white/10 p-2.5 text-emerald-300 transition-colors group-hover:bg-white/20">
-                <CalendarCheck className="h-5 w-5" />
               </div>
             </div>
           </div>
@@ -270,7 +250,7 @@ export default function PipNotesReviewPage() {
 
         {filtersVisible && (
           <div className="border-t border-slate-100 px-6 pb-6 pt-5">
-            <div className="grid grid-cols-1 gap-4 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 2xl:grid-cols-7">
+            <div className="grid grid-cols-1 gap-4 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-6">
               <div className="flex flex-col gap-1.5">
                 <label className="flex items-center gap-1.5 text-xs font-bold uppercase tracking-wider text-slate-500">
                   <Search className="h-3 w-3" />
@@ -328,22 +308,6 @@ export default function PipNotesReviewPage() {
                   </option>
                   {managerOptions.map((manager) => (
                     <option key={manager.id} value={manager.id}>{manager.name}</option>
-                  ))}
-                </select>
-              </div>
-              <div className="flex flex-col gap-1.5">
-                <label className="flex items-center gap-1.5 text-xs font-bold uppercase tracking-wider text-slate-500">
-                  <FileText className="h-3 w-3" />
-                  Note Type
-                </label>
-                <select
-                  value={noteType}
-                  onChange={(event) => { setNoteType(event.target.value as typeof noteType); setPage(0) }}
-                  className={STYLES.select}
-                >
-                  <option value="">All Types</option>
-                  {NOTE_TYPE_OPTIONS.map((option) => (
-                    <option key={option.value} value={option.value}>{option.label}</option>
                   ))}
                 </select>
               </div>
@@ -460,29 +424,19 @@ export default function PipNotesReviewPage() {
               >
                 {/* Left accent bar */}
                 <div
-                  className={`absolute bottom-0 left-0 top-0 w-1 rounded-r transition-all duration-200 ${
-                    note.noteType === 'FOLLOWUP'
-                      ? 'bg-gradient-to-b from-emerald-400 to-emerald-500'
-                      : 'bg-gradient-to-b from-blue-400 to-blue-500'
-                  } ${note.noteType === 'FOLLOWUP' ? 'opacity-0 group-hover:opacity-100' : 'opacity-60 group-hover:opacity-100'}`}
+                  className="absolute bottom-0 left-0 top-0 w-1 rounded-r bg-gradient-to-b from-blue-400 to-blue-500 opacity-60 transition-all duration-200 group-hover:opacity-100"
                 />
 
                 <div className="flex flex-col gap-5 xl:flex-row xl:items-start xl:justify-between">
                   <div className="min-w-0 flex-1 space-y-4">
                     {/* Badges row */}
                     <div className="flex flex-wrap items-center gap-2">
-                      <span className={`inline-flex items-center gap-1.5 rounded-full px-3.5 py-1.5 text-xs font-bold ring-1 ${
-                        note.noteType === 'FOLLOWUP' ? STYLES.badge.followup : STYLES.badge.communication
-                      }`}>
-                        {note.noteType === 'FOLLOWUP' ? (
-                          <CalendarCheck className="h-3 w-3" />
-                        ) : (
-                          <MessageSquare className="h-3 w-3" />
-                        )}
-                        {getNoteTypeLabel(note.noteType)}
+                      <span className={`inline-flex items-center gap-1.5 rounded-full px-3.5 py-1.5 text-xs font-bold ring-1 ${STYLES.badge.communication}`}>
+                        <MessageSquare className="h-3 w-3" />
+                        Communication Note
                       </span>
                       <span className={`inline-flex items-center rounded-full px-3.5 py-1.5 text-xs font-bold ring-1 ${getStatusStyle(note.pipStatus)}`}>
-                        {(note.pipStatus || 'UNKNOWN').replace(/_/g, ' ')}
+                        {getStatusLabel(note.pipStatus).replace(/_/g, ' ')}
                       </span>
                       <span className="text-xs font-medium text-slate-400">{formatDateTime(note.createdAt)}</span>
                     </div>

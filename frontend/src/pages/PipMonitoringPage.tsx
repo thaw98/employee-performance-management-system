@@ -16,13 +16,13 @@ import { addPdfFooterBranding, addPdfHeaderBranding, addPdfHeaderLogo, loadPdfLo
 const STATUS_COLORS: Record<string, string> = {
   ACTIVE: 'bg-blue-100 text-blue-700',
   AUTO_CLOSED: 'bg-amber-100 text-amber-700',
-  REOPEN_REQUESTED: 'bg-orange-100 text-orange-700',
   COMPLETED: 'bg-emerald-100 text-emerald-700',
   CLOSED: 'bg-slate-100 text-slate-700',
-  DENIED: 'bg-red-100 text-red-700',
 }
 
 const getStatusDisplayLabel = (status: string, finalOutcome?: string) => {
+  if (status === 'REOPEN_REQUESTED') return 'Active'
+  if (status === 'DENIED') return 'Closed'
   if (status === 'CLOSED' && finalOutcome === 'SUCCESSFUL') return 'Close - Successful'
   if (status === 'CLOSED' && finalOutcome === 'FAILED') return 'Close - Fail'
   if (status === 'AUTO_CLOSED') return 'auto-close'
@@ -239,10 +239,6 @@ const buildPipExportRows = (bundles: PipExportBundle[]) => ({
       'Objectives',
       'Employee Signed At',
       'Manager Signed At',
-      'Reopen Reason',
-      'Review Reason',
-      'Reopen Decision',
-      'Reopen Decision Date',
       'Closing Remarks',
       'Created At',
       'Updated At',
@@ -272,10 +268,6 @@ const buildPipExportRows = (bundles: PipExportBundle[]) => ({
       getPipObjectiveSummary(pip),
       formatDateTimeValue(pip.employeeSignatureDate ?? pip.employeeSignedAt),
       formatDateTimeValue(pip.managerSignatureDate ?? pip.managerSignedAt),
-      pip.reopenReason || '',
-      pip.reviewReason || '',
-      pip.reopenDecision || '',
-      formatDateTimeValue(pip.reopenDecisionDate),
       pip.closingRemarks || '',
       formatDateTimeValue(pip.createdAt),
       formatDateTimeValue(pip.updatedAt),
@@ -495,8 +487,8 @@ export default function PipMonitoringPage() {
       if (selectedEmployeeId == null) return true
       return getPipEmployeeRecordId(pip) === selectedEmployeeId
     }).sort((a, b) => {
-      const isAActive = ['ACTIVE', 'AUTO_CLOSED', 'REOPEN_REQUESTED'].includes(a.status)
-      const isBActive = ['ACTIVE', 'AUTO_CLOSED', 'REOPEN_REQUESTED'].includes(b.status)
+      const isAActive = ['ACTIVE', 'AUTO_CLOSED'].includes(a.status)
+      const isBActive = ['ACTIVE', 'AUTO_CLOSED'].includes(b.status)
       if (isAActive && !isBActive) return -1
       if (!isAActive && isBActive) return 1
 
@@ -639,7 +631,7 @@ export default function PipMonitoringPage() {
 
   const activePipsCount = useMemo(() => scopedPips.filter((p) => p.status === 'ACTIVE').length, [scopedPips])
   const completedPipsCount = useMemo(() => scopedPips.filter((p) => p.status === 'COMPLETED' || (p.status === 'CLOSED' && p.finalOutcome === 'SUCCESSFUL')).length, [scopedPips])
-  const closedPipsCount = useMemo(() => scopedPips.filter((p) => p.status === 'CLOSED' || p.status === 'DENIED' || p.status === 'AUTO_CLOSED').length, [scopedPips])
+  const closedPipsCount = useMemo(() => scopedPips.filter((p) => p.status === 'CLOSED' || p.status === 'AUTO_CLOSED').length, [scopedPips])
   const avgProgress = useMemo(() => {
     if (scopedPips.length === 0) return 0
     const total = scopedPips.reduce((sum, p) => sum + Number(p.overallProgressPercentage || 0), 0)
@@ -1041,8 +1033,6 @@ export default function PipMonitoringPage() {
                       pip.status === 'CLOSED' && pip.finalOutcome === 'SUCCESSFUL' ? 'bg-green-50 text-green-700' :
                       pip.status === 'CLOSED' && pip.finalOutcome === 'FAILED' ? 'bg-red-50 text-red-700' :
                       pip.status === 'AUTO_CLOSED' ? 'bg-amber-50 text-amber-700' :
-                      pip.status === 'REOPEN_REQUESTED' ? 'bg-orange-50 text-orange-700' :
-                      pip.status === 'DENIED' ? 'bg-red-50 text-red-700' :
                       'bg-slate-50 text-slate-600'
                     }`}>
                       <span className={`mr-1.5 inline-block h-1.5 w-1.5 rounded-full ${
@@ -1050,7 +1040,6 @@ export default function PipMonitoringPage() {
                         pip.status === 'COMPLETED' || (pip.status === 'CLOSED' && pip.finalOutcome === 'SUCCESSFUL') ? 'bg-emerald-600' :
                         pip.status === 'CLOSED' && pip.finalOutcome === 'FAILED' ? 'bg-red-600' :
                         pip.status === 'AUTO_CLOSED' ? 'bg-amber-600' :
-                        pip.status === 'REOPEN_REQUESTED' ? 'bg-orange-600' :
                         'bg-slate-400'
                       }`} />
                       {getStatusDisplayLabel(pip.status, pip.finalOutcome)}

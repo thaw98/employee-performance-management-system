@@ -27,4 +27,5 @@ public class PipSummaryReportDto {
     private Integer objectivesCount;
     private Integer meetingsCount;
     private String finalOutcome;
+    private String followUpMeetingsSummary;
 }
