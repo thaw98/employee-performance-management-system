@@ -1,4 +1,5 @@
-import { useState, useCallback, useRef, useMemo } from 'react'
+import { useState, useCallback, useMemo } from 'react'
+import { useSearchParams } from 'react-router-dom'
 import type { SortingState } from '@tanstack/react-table'
 import toast from 'react-hot-toast'
 import {
@@ -14,10 +15,10 @@ import AssignedDepartmentsDrawer from '../components/AssignedDepartmentsDrawer'
 import ConfirmActionModal from '../../hrEmployeeList/components/ConfirmActionModal'
 
 function PositionListPage() {
+  const [searchParams, setSearchParams] = useSearchParams()
   const [page, setPage] = useState(0)
   const [size, setSize] = useState(10)
-  const [search, setSearch] = useState('')
-  const [debouncedSearch, setDebouncedSearch] = useState('')
+  const search = searchParams.get('search') ?? ''
   const [selectedRoleId, setSelectedRoleId] = useState<number | null>(null)
   const [selectedLevelCodeId, setSelectedLevelCodeId] = useState<number | null>(null)
   const [sorting, setSorting] = useState<SortingState>([{ id: 'positionCode', desc: false }])
@@ -27,7 +28,6 @@ function PositionListPage() {
   const [isDeleteOpen, setIsDeleteOpen] = useState(false)
   const [removingPosition, setRemovingPosition] = useState<PositionDto | null>(null)
   const [assignedDepartmentsPosition, setAssignedDepartmentsPosition] = useState<PositionDto | null>(null)
-  const searchDebounceRef = useRef<number | null>(null)
   const user = useAppSelector((state) => state.auth.user)
   const canViewAssignedDepartments = user?.roleId === 1 || user?.roleId === 5
 
@@ -44,7 +44,7 @@ function PositionListPage() {
   const { data: positionsData, isLoading, refetch } = useGetPositionsQuery({
     page,
     size,
-    search: debouncedSearch,
+    search,
     roleId: selectedRoleId || undefined,
     levelCodeId: selectedLevelCodeId || undefined,
     sortBy: sortParams.sortBy,
@@ -57,8 +57,8 @@ function PositionListPage() {
   const [updatePosition] = useUpdatePositionMutation()
   const [deletePosition, { isLoading: isDeleting }] = useDeletePositionMutation()
 
-  const levelCodes = levelCodesData?.data || []
-  const roles = rolesData?.data || []
+  const levelCodes = useMemo(() => levelCodesData?.data ?? [], [levelCodesData?.data])
+  const roles = useMemo(() => rolesData?.data ?? [], [rolesData?.data])
   const selectedLevelCodeLabel = useMemo(
     () =>
       selectedLevelCodeId != null
@@ -70,16 +70,24 @@ function PositionListPage() {
   const totalElements = positionsData?.data?.totalElements || 0
   const totalPages = positionsData?.data?.totalPages || 0
 
+  const syncSearchToUrl = useCallback((value: string) => {
+    setSearchParams((prevParams) => {
+      const nextParams = new URLSearchParams(prevParams)
+      const trimmed = value.trim()
+      if (trimmed) {
+        nextParams.set('search', trimmed)
+      } else {
+        nextParams.delete('search')
+      }
+      nextParams.delete('page')
+      return nextParams
+    }, { replace: true })
+  }, [setSearchParams])
+
   const handleSearchChange = useCallback((value: string) => {
-    setSearch(value)
-    if (searchDebounceRef.current) {
-      window.clearTimeout(searchDebounceRef.current)
-    }
-    searchDebounceRef.current = window.setTimeout(() => {
-      setDebouncedSearch(value)
-      setPage(0)
-    }, 300)
-  }, [])
+    syncSearchToUrl(value)
+    setPage(0)
+  }, [syncSearchToUrl])
 
   const handleEdit = useCallback((id: number) => {
     const position = positionsData?.data?.content.find(p => p.positionId === id)
@@ -333,8 +341,8 @@ function PositionListPage() {
                 {(search || selectedRoleId || selectedLevelCodeId) && (
                   <button
                     onClick={() => {
-                      setSearch('')
-                      setDebouncedSearch('')
+                      syncSearchToUrl('')
+                      setPage(0)
                       setSelectedRoleId(null)
                       setSelectedLevelCodeId(null)
                     }}

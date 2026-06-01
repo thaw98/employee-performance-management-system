@@ -116,7 +116,7 @@ export default function DepartmentListPage() {
   const [isError, setIsError] = useState(false)
 
   const [sorting, setSorting] = useState<SortingState>([])
-  const [globalFilter, setGlobalFilter] = useState('')
+  const globalFilter = searchParams.get('search') ?? ''
   const [pagination, setPagination] = useState<PaginationState>(() => {
     const parsedPage = Number(searchParams.get('page'))
     const parsedPageSize = Number(searchParams.get('pageSize'))
@@ -181,6 +181,21 @@ export default function DepartmentListPage() {
       return { pageIndex: nextPageIndex, pageSize: nextPageSize }
     })
   }, [searchParams])
+
+  const handleSearchChange = useCallback((value: string) => {
+    setPagination((prev) => ({ ...prev, pageIndex: 0 }))
+    setSearchParams((prevParams) => {
+      const nextParams = new URLSearchParams(prevParams)
+      const trimmed = value.trim()
+      if (trimmed) {
+        nextParams.set('search', trimmed)
+      } else {
+        nextParams.delete('search')
+      }
+      nextParams.delete('page')
+      return nextParams
+    }, { replace: true })
+  }, [setSearchParams])
 
   const syncPaginationToUrl = useCallback((nextPagination: PaginationState) => {
     setSearchParams((prevParams) => {
@@ -349,7 +364,10 @@ export default function DepartmentListPage() {
     columns,
     state: { sorting, globalFilter, pagination },
     onSortingChange: setSorting,
-    onGlobalFilterChange: setGlobalFilter,
+    onGlobalFilterChange: (updater) => {
+      const nextValue = typeof updater === 'function' ? updater(globalFilter) : updater
+      handleSearchChange(String(nextValue ?? ''))
+    },
     onPaginationChange: handlePaginationChange,
     autoResetPageIndex: false,
     getCoreRowModel: getCoreRowModel(),
@@ -371,8 +389,11 @@ export default function DepartmentListPage() {
       await loadDepartments()
       toast.success('Department deleted successfully.')
       setIsDeleteOpen(false)
-    } catch (error: any) {
-      toast.error(error?.data?.message || 'Failed to delete department.')
+    } catch (error: unknown) {
+      const message = error && typeof error === 'object' && 'data' in error
+        ? (error as { data?: { message?: string } }).data?.message
+        : undefined
+      toast.error(message || 'Failed to delete department.')
     }
   }
 
@@ -488,7 +509,7 @@ export default function DepartmentListPage() {
             <input
               type="text"
               value={globalFilter ?? ''}
-              onChange={(e) => setGlobalFilter(e.target.value)}
+              onChange={(e) => handleSearchChange(e.target.value)}
               placeholder="Search departments..."
               className="w-full pl-10 pr-4 py-2 bg-slate-50 border border-slate-200 rounded-xl text-sm focus:bg-white focus:ring-2 focus:ring-[#2463eb]/15 focus:border-[#2463eb] outline-none transition-all placeholder:text-slate-400"
             />

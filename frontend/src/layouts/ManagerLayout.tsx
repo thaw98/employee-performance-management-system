@@ -176,7 +176,6 @@ const ManagerLayout: React.FC = () => {
       brandSubtitle="Performance System"
       menuSections={menuSections}
       user={user}
-      searchPlaceholder="Quick find..."
     >
       <Outlet />
     </DashLayoutShell>
