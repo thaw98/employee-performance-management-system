@@ -119,10 +119,13 @@ export const userApi = baseApi.injectEndpoints({
     getDefaultSignature: builder.query<ApiResponse<SignatureDto | null>, void>({
       query: () => '/signatures/default',
       providesTags: ['Signature'],
+      // Prevent serving previous account signatures from cache after logout/login switch.
+      keepUnusedDataFor: 0,
     }),
     getAllSignatures: builder.query<ApiResponse<SignatureDto[]>, void>({
       query: () => '/signatures',
       providesTags: ['Signature'],
+      keepUnusedDataFor: 0,
     }),
     saveDrawnSignature: builder.mutation<ApiResponse<SignatureDto>, { signaturePngDataUrl: string }>({
       query: (body) => ({
