@@ -27,7 +27,7 @@ export default function PipDetailPage() {
   const [reopenPip] = useReopenPipMutation()
   const [reviewPip] = useReviewPipMutation()
 
-  const employeeRecordId = pip?.employee?.employee?.id
+  const employeeRecordId = pip?.employee?.id
   const { data: trainingHistory } = useGetTrainingHistoryQuery(
     employeeRecordId != null ? String(employeeRecordId) : '',
     {
@@ -355,6 +355,26 @@ export default function PipDetailPage() {
               ))}
             </div>
           </section>
+
+          {(pip.expectedImprovements || pip.reasonForPlan) && (
+            <section className="rounded-xl border border-slate-200 bg-white p-6 shadow-sm">
+              <h2 className="mb-4 text-lg font-bold text-slate-900">PIP Details</h2>
+              <div className="space-y-4">
+                {pip.expectedImprovements && (
+                  <div>
+                    <p className="mb-1 text-xs font-semibold uppercase text-slate-400">Expected Improvements</p>
+                    <p className="text-sm text-slate-700 whitespace-pre-wrap">{pip.expectedImprovements}</p>
+                  </div>
+                )}
+                {pip.reasonForPlan && (
+                  <div>
+                    <p className="mb-1 text-xs font-semibold uppercase text-slate-400">Reason for Plan</p>
+                    <p className="text-sm text-slate-700 whitespace-pre-wrap">{pip.reasonForPlan}</p>
+                  </div>
+                )}
+              </div>
+            </section>
+          )}
 
           {/* Follow-up Meetings Section */}
           <section className="rounded-xl border border-slate-200 bg-white p-6 shadow-sm">

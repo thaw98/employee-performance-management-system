@@ -100,6 +100,8 @@ public class PipService {
         pip.setCompletedHours(0);
         pip.setCreatedDate(Instant.now());
         pip.setUpdatedDate(Instant.now());
+        pip.setExpectedImprovements(request.getExpectedImprovements());
+        pip.setReasonForPlan(request.getReasonForPlan());
 
         List<PipObjective> objectives = request.getObjectives().stream().map(desc -> {
             PipObjective obj = new PipObjective();
