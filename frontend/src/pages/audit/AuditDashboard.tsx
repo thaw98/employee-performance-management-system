@@ -1,5 +1,6 @@
 // src/pages/audit/AuditDashboard.tsx
 import React, { useState, useMemo } from 'react';
+import { useNavigate } from 'react-router-dom';
 import {
     Activity,
     Users,
@@ -18,6 +19,7 @@ import {
     PieChart,
     Copy,
     Printer,
+    ArrowRight,
 } from 'lucide-react';
 import { format, subDays, startOfDay, endOfDay } from 'date-fns';
 import {
@@ -57,6 +59,7 @@ const COLORS = {
 const CHART_COLORS = [COLORS.primary, COLORS.secondary, COLORS.warning, COLORS.purple, COLORS.pink, COLORS.indigo];
 
 export const AuditDashboard: React.FC = () => {
+    const navigate = useNavigate();
     const [filters, setFilters] = useState<AuditFilter>({ page: 0, size: 15 });
     const [selectedLog, setSelectedLog] = useState<any>(null);
 
@@ -274,6 +277,13 @@ export const AuditDashboard: React.FC = () => {
                                 {logsData?.totalElements || 0} events
                             </span>
                         </div>
+                        <button
+                            onClick={() => navigate('/audit/activity')}
+                            className="inline-flex items-center gap-1.5 rounded-lg border border-slate-200 px-3 py-1.5 text-sm font-medium text-indigo-600 transition hover:bg-indigo-50 dark:border-slate-700 dark:text-indigo-400 dark:hover:bg-indigo-900/20"
+                        >
+                            View All
+                            <ArrowRight size={14} />
+                        </button>
                         {filters.actionType || filters.targetType || filters.startDate ? (
                             <div className="flex items-center gap-2">
                                 <span className="text-xs text-slate-500">Active filters:</span>
