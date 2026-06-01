@@ -218,69 +218,92 @@ export const PerformanceReportDetailPage: React.FC<PerformanceReportDetailPagePr
   const handleExportExcel = () => {
     if (!report) return;
     try {
-      const data: any[] = [];
-      data.push(['EMPLOYEE PERFORMANCE REPORT', '']);
-      data.push(['', '']);
-      data.push(['Employee Information', '']);
-      data.push(['Name', report.employeeName]);
-      data.push(['Staff No', report.staffNo || '—']);
-      data.push(['Position', report.positionName || 'No Position']);
-      data.push(['Department', report.departmentName || 'No Department']);
-      data.push(['Joined Date', report.joinedDate ? formatDuration(report.joinedDate) : '—']);
-      data.push(['', '']);
-      data.push(['Performance Summary', '']);
-      data.push(['Overall Rating', `${formatScore(report.overallRating)} / 5.0`]);
-      data.push(['Performance Level', report.performanceLevel || '—']);
-      data.push(['KPI Score', `${formatScore(report.kpiScore)} (${report.kpiPeriod || 'N/A'})`]);
-      data.push(['Appraisal Score', `${formatScore(report.appraisalScore)} (${report.appraisalPeriod || 'N/A'})`]);
-      data.push(['Self Assessment', `${formatScore(report.selfAssessmentScore)} (${report.selfAssessmentCycle || 'N/A'})`]);
-      data.push(['Feedback Score', `${formatScore(report.feedbackScore)} (${report.feedbackCount} feedbacks)`]);
-      data.push(['', '']);
-      data.push(['Status & Eligibility', '']);
-      data.push(['PIP Status', report.hasActivePip ? `Active (${report.pipStatus || ''})` : 'No Active PIP']);
-      data.push(['Promotion Eligibility', report.promotionEligible ? 'Eligible' : 'Not Eligible']);
-      
-      const ws = XLSX.utils.aoa_to_sheet(data);
-      ws['!merges'] = [
-        { s: { r: 0, c: 0 }, e: { r: 0, c: 1 } },
-        { s: { r: 2, c: 0 }, e: { r: 2, c: 1 } },
-        { s: { r: 9, c: 0 }, e: { r: 9, c: 1 } },
-        { s: { r: 17, c: 0 }, e: { r: 17, c: 1 } }
-      ];
-      ws['!cols'] = [{ wch: 25 }, { wch: 45 }];
+      const empInfo: any[] = [];
+      empInfo.push(['Employee Information', '']);
+      empInfo.push(['Name', report.employeeName || '—']);
+      empInfo.push(['Staff No', report.staffNo || '—']);
+      empInfo.push(['Position', report.positionName || 'No Position']);
+      empInfo.push(['Department', report.departmentName || 'No Department']);
+      empInfo.push(['Joined Date', report.joinedDate ? formatDuration(report.joinedDate) : '—']);
 
-      for (let r = 0; r < data.length; r++) {
-        for (let c = 0; c < 2; c++) {
-          const cellRef = `${['A', 'B'][c]}${r + 1}`;
-          if (!ws[cellRef]) ws[cellRef] = { t: 's', v: '' };
-          
-          if (r === 0) {
-            ws[cellRef].s = {
-              font: { name: 'Segoe UI', sz: 14, bold: true, color: { rgb: 'FFFFFF' } },
-              fill: { fgColor: { rgb: '2463EB' } },
-              alignment: { horizontal: 'center', vertical: 'center' }
-            };
-          } else if (r === 2 || r === 9 || r === 17) {
-             ws[cellRef].s = {
-               font: { name: 'Segoe UI', sz: 12, bold: true, color: { rgb: '1E40AF' } },
-               fill: { fgColor: { rgb: 'DBEAFE' } },
-               alignment: { horizontal: 'left', vertical: 'center' }
-             };
-          } else if (data[r][0] !== '') {
-             ws[cellRef].s = {
-               font: { name: 'Segoe UI', sz: 11, bold: c === 0 },
-               alignment: { vertical: 'top', wrapText: true },
-               border: {
-                 bottom: { style: 'thin', color: { rgb: 'E2E8F0' } },
-               }
-             };
-          }
-        }
-      }
+      const perf: any[] = [];
+      perf.push(['Performance Summary', '']);
+      perf.push(['Overall Rating', `${formatScore(report.overallRating)} / 5.0`]);
+      perf.push(['Performance Level', report.performanceLevel || '—']);
+      perf.push(['KPI Score', `${formatScore(report.kpiScore)} (${report.kpiPeriod || 'N/A'})`]);
+      perf.push(['Appraisal Score', `${formatScore(report.appraisalScore)} (${report.appraisalPeriod || 'N/A'})`]);
+      perf.push(['Self Assessment', `${formatScore(report.selfAssessmentScore)} (${report.selfAssessmentCycle || 'N/A'})`]);
+      perf.push(['Feedback Score', `${formatScore(report.feedbackScore)} (${report.feedbackCount ?? 0} feedbacks)`]);
+
+      const status: any[] = [];
+      status.push(['Status & Eligibility', '']);
+      status.push(['PIP Status', report.hasActivePip ? `Active (${report.pipStatus || ''})` : 'No Active PIP']);
+      status.push(['Promotion Eligibility', report.promotionEligible ? 'Eligible' : 'Not Eligible']);
+      status.push(['Promotion Recommendation', report.promotionEligibility || '—']);
 
       const wb = XLSX.utils.book_new();
-      XLSX.utils.book_append_sheet(wb, ws, "Performance Report");
-      XLSX.writeFile(wb, `Performance_Report_${report.employeeName.replace(/\s+/g, '_')}_${format(new Date(), 'yyyyMMdd')}.xlsx`);
+
+      const ws1 = XLSX.utils.aoa_to_sheet(empInfo);
+      ws1['!cols'] = [{ wch: 25 }, { wch: 45 }];
+      ws1['A1'].s = {
+        font: { bold: true, sz: 12, color: { rgb: 'FFFFFF' } },
+        fill: { fgColor: { rgb: '2563EB' } },
+        alignment: { horizontal: 'center', vertical: 'center' },
+      };
+      ws1['B1'].s = {
+        font: { bold: true, sz: 12, color: { rgb: 'FFFFFF' } },
+        fill: { fgColor: { rgb: '2563EB' } },
+        alignment: { horizontal: 'center', vertical: 'center' },
+      };
+      for (let row = 2; row <= empInfo.length; row++) {
+        const cellA = `A${row}`;
+        const cellB = `B${row}`;
+        if (ws1[cellA]) ws1[cellA].s = { font: { bold: true, sz: 11 }, alignment: { vertical: 'center', wrapText: true } };
+        if (ws1[cellB]) ws1[cellB].s = { font: { sz: 11 }, alignment: { vertical: 'center', wrapText: true } };
+      }
+      XLSX.utils.book_append_sheet(wb, ws1, 'Employee Info');
+
+      const ws2 = XLSX.utils.aoa_to_sheet(perf);
+      ws2['!cols'] = [{ wch: 30 }, { wch: 50 }];
+      ws2['A1'].s = {
+        font: { bold: true, sz: 12, color: { rgb: 'FFFFFF' } },
+        fill: { fgColor: { rgb: '2563EB' } },
+        alignment: { horizontal: 'center', vertical: 'center' },
+      };
+      ws2['B1'].s = {
+        font: { bold: true, sz: 12, color: { rgb: 'FFFFFF' } },
+        fill: { fgColor: { rgb: '2563EB' } },
+        alignment: { horizontal: 'center', vertical: 'center' },
+      };
+      for (let row = 2; row <= perf.length; row++) {
+        const cellA = `A${row}`;
+        const cellB = `B${row}`;
+        if (ws2[cellA]) ws2[cellA].s = { font: { bold: true, sz: 11 }, alignment: { vertical: 'center', wrapText: true } };
+        if (ws2[cellB]) ws2[cellB].s = { font: { sz: 11 }, alignment: { vertical: 'center', wrapText: true } };
+      }
+      XLSX.utils.book_append_sheet(wb, ws2, 'Performance Summary');
+
+      const ws3 = XLSX.utils.aoa_to_sheet(status);
+      ws3['!cols'] = [{ wch: 30 }, { wch: 50 }];
+      ws3['A1'].s = {
+        font: { bold: true, sz: 12, color: { rgb: 'FFFFFF' } },
+        fill: { fgColor: { rgb: '2563EB' } },
+        alignment: { horizontal: 'center', vertical: 'center' },
+      };
+      ws3['B1'].s = {
+        font: { bold: true, sz: 12, color: { rgb: 'FFFFFF' } },
+        fill: { fgColor: { rgb: '2563EB' } },
+        alignment: { horizontal: 'center', vertical: 'center' },
+      };
+      for (let row = 2; row <= status.length; row++) {
+        const cellA = `A${row}`;
+        const cellB = `B${row}`;
+        if (ws3[cellA]) ws3[cellA].s = { font: { bold: true, sz: 11 }, alignment: { vertical: 'center', wrapText: true } };
+        if (ws3[cellB]) ws3[cellB].s = { font: { sz: 11 }, alignment: { vertical: 'center', wrapText: true } };
+      }
+      XLSX.utils.book_append_sheet(wb, ws3, 'Status & Eligibility');
+
+      XLSX.writeFile(wb, `Performance_Report_${(report.employeeName || 'employee').replace(/\s+/g, '_')}_${format(new Date(), 'yyyyMMdd')}.xlsx`);
     } catch (e) {
       console.error(e);
     }
