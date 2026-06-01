@@ -9,6 +9,7 @@ import {
 } from 'lucide-react';
 import { useSelector } from 'react-redux';
 import type { RootState } from '../../app/store';
+import { formatDate, formatDateTime } from '../../utils/dateUtils';
 
 export function MeetingDetailPage() {
     const { id } = useParams<{ id: string }>();
@@ -21,25 +22,8 @@ export function MeetingDetailPage() {
     const [summaryNotes, setSummaryNotes] = useState('');
     const [newNote, setNewNote] = useState('');
 
-    const formatDate = (dateString: string) => {
-        if (!dateString) return 'N/A';
-        const date = new Date(dateString);
-        const day = date.getDate().toString().padStart(2, '0');
-        const month = (date.getMonth() + 1).toString().padStart(2, '0');
-        const year = date.getFullYear();
-        return `${day}/${month}/${year}`;
-    };
-
-    const formatDateTime = (dateString: string) => {
-        if (!dateString) return 'N/A';
-        const date = new Date(dateString);
-        const day = date.getDate().toString().padStart(2, '0');
-        const month = (date.getMonth() + 1).toString().padStart(2, '0');
-        const year = date.getFullYear();
-        const hours = date.getHours().toString().padStart(2, '0');
-        const minutes = date.getMinutes().toString().padStart(2, '0');
-        return `${day}/${month}/${year} ${hours}:${minutes}`;
-    };
+    const formatNoteTime = (dateString: string) =>
+        new Date(dateString).toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit', hour12: true });
 
     useEffect(() => {
         if (id) {
@@ -363,7 +347,7 @@ export function MeetingDetailPage() {
                                     <div className="mb-2 flex items-center justify-between gap-3">
                                         <p className="text-xs font-black text-slate-700">{note.authorName}</p>
                                         <p className="text-[10px] text-slate-400 font-bold">
-                                            {formatDate(note.createdDate)} {new Date(note.createdDate).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                                            {formatDate(note.createdDate)} {formatNoteTime(note.createdDate)}
                                         </p>
                                     </div>
                                     <p className="text-slate-700 text-sm whitespace-pre-wrap font-medium">{note.content}</p>
@@ -413,7 +397,7 @@ export function MeetingDetailPage() {
                                 <div key={note.id} className="bg-white p-4 rounded-2xl shadow-sm border border-[#dbeafe]">
                                     <p className="text-slate-700 text-sm whitespace-pre-wrap font-medium">{note.content}</p>
                                     <p className="text-[10px] text-slate-400 mt-2 font-bold text-right">
-                                        {formatDate(note.createdDate)} {new Date(note.createdDate).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                                        {formatDate(note.createdDate)} {formatNoteTime(note.createdDate)}
                                     </p>
                                 </div>
                             ))}
@@ -461,7 +445,7 @@ export function MeetingDetailPage() {
                                 <div key={note.id} className="bg-white p-4 rounded-2xl shadow-sm border border-[#dbeafe]">
                                     <p className="text-slate-700 text-sm whitespace-pre-wrap font-medium">{note.content}</p>
                                     <p className="text-[10px] text-slate-400 mt-2 font-bold text-right">
-                                        {formatDate(note.createdDate)} {new Date(note.createdDate).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                                        {formatDate(note.createdDate)} {formatNoteTime(note.createdDate)}
                                     </p>
                                 </div>
                             ))}

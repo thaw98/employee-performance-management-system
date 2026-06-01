@@ -28,7 +28,7 @@ import * as XLSX from 'xlsx-js-style';
 import jsPDF from 'jspdf';
 import autoTable from 'jspdf-autotable';
 import { format } from 'date-fns';
-import { addPdfFooterBranding, addPdfHeaderBranding, addPdfHeaderLogo, loadPdfLogo } from '../../utils/pdfBranding';
+import { addPdfHeaderBranding, addPdfHeaderLogo, addPdfProfessionalFooter, loadPdfLogo } from '../../utils/pdfBranding';
 
 /* ── Helpers ─────────────────────────────────────────── */
 
@@ -575,7 +575,11 @@ export const PerformanceReportDetailPage: React.FC<PerformanceReportDetailPagePr
         });
       }
 
-      addPdfFooterBranding(doc, { align: 'left', margin: 14, y: doc.internal.pageSize.getHeight() - 8 });
+      const pageCount = doc.getNumberOfPages();
+      for (let pageNumber = 1; pageNumber <= pageCount; pageNumber += 1) {
+        doc.setPage(pageNumber);
+        addPdfProfessionalFooter(doc, pageNumber, pageCount, { margin });
+      }
       doc.save(`Performance_Report_${report.employeeName.replace(/\s+/g, '_')}_${format(new Date(), 'yyyyMMdd')}.pdf`);
     } catch (e) {
       console.error(e);

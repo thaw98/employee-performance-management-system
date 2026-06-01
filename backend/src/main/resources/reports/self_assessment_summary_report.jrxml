@@ -253,7 +253,7 @@
             <textField>
                 <reportElement x="616" y="12" width="160" height="14" forecolor="#475569" uuid="9706f0c4-28a0-43fc-a402-f25f3632b72d"/>
                 <textElement textAlignment="Right"><font fontName="DejaVu Sans" size="9" isBold="true"/></textElement>
-                <textFieldExpression><![CDATA["Total Employees: " + String.valueOf($V{REPORT_COUNT})]]></textFieldExpression>
+                <textFieldExpression><![CDATA["Total Entries: " + String.valueOf($V{REPORT_COUNT})]]></textFieldExpression>
             </textField>
         </band>
     </summary>
