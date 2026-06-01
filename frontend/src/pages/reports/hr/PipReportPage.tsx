@@ -30,7 +30,6 @@ const STATUS_OPTIONS = [
   { value: 'COMPLETED', label: 'Completed' },
   { value: 'CLOSED', label: 'Closed' },
   { value: 'AUTO_CLOSED', label: 'Auto Closed' },
-  { value: 'REOPEN_REQUESTED', label: 'Reopen Requested' },
 ]
 
 const CHART_COLORS = {
@@ -38,11 +37,11 @@ const CHART_COLORS = {
   COMPLETED: '#059669',
   CLOSED: '#6366f1',
   AUTO_CLOSED: '#d97706',
-  REOPEN_REQUESTED: '#ea580c',
-  DENIED: '#dc2626',
 }
 
 const getStatusDisplayLabel = (status: string, finalOutcome?: string) => {
+  if (status === 'REOPEN_REQUESTED') return 'Active'
+  if (status === 'DENIED') return 'Closed'
   if (status === 'CLOSED' && finalOutcome === 'SUCCESSFUL') return 'Close - Successful'
   if (status === 'CLOSED' && finalOutcome === 'FAILED') return 'Close - Fail'
   if (status === 'AUTO_CLOSED') return 'Auto Close'
@@ -374,10 +373,11 @@ export default function PipReportPage() {
   const statusChartData = useMemo(() => {
     const counts: Record<string, number> = {}
     summaryData.forEach((item: any) => {
-      counts[item.status] = (counts[item.status] || 0) + 1
+      const status = getStatusDisplayLabel(item.status, item.finalOutcome).replace(/ /g, '_').toUpperCase()
+      counts[status] = (counts[status] || 0) + 1
     })
     return Object.entries(counts).map(([status, count]) => ({
-      name: status.replace('_', ' '),
+      name: status.replace(/_/g, ' '),
       value: count,
       color: CHART_COLORS[status as keyof typeof CHART_COLORS] || '#6b7280',
     }))
@@ -399,7 +399,6 @@ export default function PipReportPage() {
       { name: 'Completed', value: progressData.completedPips, color: CHART_COLORS.COMPLETED },
       { name: 'Closed', value: progressData.closedPips, color: CHART_COLORS.CLOSED },
       { name: 'Auto Closed', value: progressData.autoClosedPips, color: CHART_COLORS.AUTO_CLOSED },
-      { name: 'Reopen', value: progressData.reopenRequestedPips, color: CHART_COLORS.REOPEN_REQUESTED },
     ].filter(item => item.value > 0)
   }, [progressData])
 
@@ -724,10 +723,9 @@ export default function PipReportPage() {
                     <StatCard icon={XCircle} label="Closed" value={progressData.closedPips + progressData.autoClosedPips} color="text-slate-600" bgColor="bg-slate-50 dark:bg-slate-500/10" />
                   </div>
 
-                  <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-4">
+                  <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-3">
                     <StatCard icon={TrendingUp} label="Avg Progress" value={`${progressData.averageProgress?.toFixed(1)}%`} color="text-blue-600" bgColor="bg-blue-50 dark:bg-blue-500/10" />
                     <StatCard icon={Clock} label="Hours Completion" value={`${progressData.hoursCompletionPercentage?.toFixed(1)}%`} color="text-emerald-600" bgColor="bg-emerald-50 dark:bg-emerald-500/10" />
-                    <StatCard icon={AlertCircle} label="Reopen Requested" value={progressData.reopenRequestedPips} color="text-orange-600" bgColor="bg-orange-50 dark:bg-orange-500/10" />
                     <StatCard icon={XCircle} label="Auto Closed" value={progressData.autoClosedPips} color="text-amber-600" bgColor="bg-amber-50 dark:bg-amber-500/10" />
                   </div>
 

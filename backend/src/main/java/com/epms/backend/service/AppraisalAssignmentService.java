@@ -50,6 +50,9 @@ public class AppraisalAssignmentService {
             }
             if (a.getPeriod() != null) a.getPeriod().getName();
             if (a.getAnswers() != null) a.getAnswers().size();
+            if (a.getEvaluator() != null) {
+                a.getEvaluator().getEmployeeName();
+            }
         });
         return list;
     }
@@ -65,6 +68,9 @@ public class AppraisalAssignmentService {
                 if (a.getEmployee().getPosition() != null) a.getEmployee().getPosition().getName();
             }
             if (a.getPeriod() != null) a.getPeriod().getName();
+            if (a.getEvaluator() != null) {
+                a.getEvaluator().getEmployeeName();
+            }
         });
         return list;
     }

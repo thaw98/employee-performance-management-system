@@ -79,6 +79,11 @@ interface Assignment {
       name: string;
     };
   };
+  evaluator?: {
+    id: number;
+    employeeName: string;
+    employeeId?: string;
+  };
   period?: {
     id?: number;
     name: string;
@@ -157,7 +162,8 @@ export default function AppraisalReportsPage({ mode = 'hr' }: { mode?: 'hr' | 'm
     return assignments.filter(a => {
       const matchesSearch = 
         a.employee.employeeName.toLowerCase().includes(searchTerm.toLowerCase()) ||
-        a.employee.employeeId?.toLowerCase().includes(searchTerm.toLowerCase());
+        a.employee.employeeId?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+        (a.evaluator?.employeeName && a.evaluator.employeeName.toLowerCase().includes(searchTerm.toLowerCase()));
       
       const matchesDept = 
         selectedDept === 'ALL' || 
@@ -233,7 +239,7 @@ export default function AppraisalReportsPage({ mode = 'hr' }: { mode?: 'hr' | 'm
       const data: any[] = [];
       
       // Header Banner Title
-      data.push(['Employee Performance Appraisal Report', '', '', '', '', '', '', '']);
+      data.push(['Employee Performance Appraisal Report', '', '', '', '', '', '', '', '', '']);
       
       // Meta info
       const todayStr = format(new Date(), 'dd MMM yyyy');
@@ -244,7 +250,9 @@ export default function AppraisalReportsPage({ mode = 'hr' }: { mode?: 'hr' | 'm
         '', 
         '', 
         '', 
+        '',
         `Total Appraisals: ${filteredAssignments.length}`, 
+        '',
         ''
       ]);
 
@@ -252,6 +260,7 @@ export default function AppraisalReportsPage({ mode = 'hr' }: { mode?: 'hr' | 'm
       data.push([
         'No',
         'Employee Name',
+        'Manager',
         'Staff Number',
         'Department',
         'Position',
@@ -266,6 +275,7 @@ export default function AppraisalReportsPage({ mode = 'hr' }: { mode?: 'hr' | 'm
         data.push([
           idx + 1,
           a.employee.employeeName,
+          a.evaluator?.employeeName || '—',
           a.employee.employeeId || 'N/A',
           a.employee.department?.name || 'N/A',
           a.employee.position?.name || 'N/A',
@@ -284,6 +294,7 @@ export default function AppraisalReportsPage({ mode = 'hr' }: { mode?: 'hr' | 'm
         '', 
         '', 
         '', 
+        '', 
         `Avg Score: ${stats.averageScore.toFixed(1)}%`, 
         '', 
         ''
@@ -293,15 +304,16 @@ export default function AppraisalReportsPage({ mode = 'hr' }: { mode?: 'hr' | 'm
       
       // Merges
       ws['!merges'] = [
-        { s: { r: 0, c: 0 }, e: { r: 0, c: 8 } }, // Title
+        { s: { r: 0, c: 0 }, e: { r: 0, c: 9 } }, // Title
         { s: { r: 1, c: 0 }, e: { r: 1, c: 3 } }, // Export Date
-        { s: { r: 1, c: 6 }, e: { r: 1, c: 8 } }  // Total count
+        { s: { r: 1, c: 7 }, e: { r: 1, c: 9 } }  // Total count
       ];
 
       // Columns width
       ws['!cols'] = [
         { wch: 6 },   // No
         { wch: 22 },  // Name
+        { wch: 22 },  // Manager
         { wch: 14 },  // ID
         { wch: 18 },  // Department
         { wch: 18 },  // Position
@@ -317,8 +329,8 @@ export default function AppraisalReportsPage({ mode = 'hr' }: { mode?: 'hr' | 'm
       };
 
       // Styling
-      const numCols = 9;
-      const colLetters = ['A', 'B', 'C', 'D', 'E', 'F', 'G', 'H', 'I'];
+      const numCols = 10;
+      const colLetters = ['A', 'B', 'C', 'D', 'E', 'F', 'G', 'H', 'I', 'J'];
 
       for (let r = 0; r < data.length; r++) {
         for (let c = 0; c < numCols; c++) {
@@ -369,8 +381,8 @@ export default function AppraisalReportsPage({ mode = 'hr' }: { mode?: 'hr' | 'm
           } else {
             // Data Rows
             let align = 'left';
-            if (c === 0 || c === 2 || c === 8) align = 'center';
-            else if (c === 6) align = 'right';
+            if (c === 0 || c === 3 || c === 9) align = 'center';
+            else if (c === 7) align = 'right';
 
             cell.s = {
               font: { name: 'Segoe UI', sz: 10, color: { rgb: '334155' } },
@@ -381,7 +393,7 @@ export default function AppraisalReportsPage({ mode = 'hr' }: { mode?: 'hr' | 'm
             };
 
             // Highlight score col
-            if (c === 6 && cell.v && cell.v !== '-') {
+            if (c === 7 && cell.v && cell.v !== '-') {
               cell.s.font.bold = true;
               cell.s.font.color = { rgb: '2463EB' };
             }
@@ -698,6 +710,7 @@ export default function AppraisalReportsPage({ mode = 'hr' }: { mode?: 'hr' | 'm
             <thead>
               <tr className="bg-slate-50 text-[10px] font-black uppercase text-slate-400 border-b border-slate-100">
                 <th className="p-6">Employee Details</th>
+                <th className="p-6">Manager</th>
                 <th className="p-6">Cycle / Period</th>
                 <th className="p-6 text-center">Appraisal Score</th>
                 <th className="p-6 text-center">Grade</th>
@@ -721,6 +734,14 @@ export default function AppraisalReportsPage({ mode = 'hr' }: { mode?: 'hr' | 'm
                           </div>
                         </div>
                       </div>
+                    </td>
+                    <td className="p-6">
+                      <div className="font-bold text-slate-800">{a.evaluator?.employeeName || '—'}</div>
+                      {a.evaluator?.employeeId && (
+                        <div className="text-[10px] text-slate-400 font-medium uppercase mt-0.5">
+                          {a.evaluator.employeeId}
+                        </div>
+                      )}
                     </td>
                     <td className="p-6 font-medium text-slate-600">
                       {a.period?.name || 'Annual 2026'}
@@ -755,7 +776,7 @@ export default function AppraisalReportsPage({ mode = 'hr' }: { mode?: 'hr' | 'm
                 ))
               ) : (
                 <tr>
-                  <td colSpan={6} className="p-20 text-center text-slate-400 font-semibold">
+                  <td colSpan={7} className="p-20 text-center text-slate-400 font-semibold">
                     No appraisals found.
                   </td>
                 </tr>
