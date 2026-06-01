@@ -75,7 +75,62 @@ public class KpiService {
         this.jdbcTemplate = jdbcTemplate;
     }
 
+    private boolean isFuturePeriod(String period) {
+        if (period == null || period.isBlank()) {
+            return false;
+        }
+        try {
+            java.time.YearMonth currentYM = java.time.YearMonth.now();
+            java.time.YearMonth periodYM;
+            if (period.matches("\\d{4}-\\d{2}")) {
+                periodYM = java.time.YearMonth.parse(period);
+            } else {
+                java.time.format.DateTimeFormatter formatter = new java.time.format.DateTimeFormatterBuilder()
+                        .appendPattern("MMMM yyyy")
+                        .toFormatter(java.util.Locale.ENGLISH);
+                periodYM = java.time.YearMonth.parse(period, formatter);
+            }
+            return periodYM.isAfter(currentYM);
+        } catch (Exception e) {
+            return false;
+        }
+    }
+
+    private boolean isHrOrAudit(Long roleId) {
+        return roleId != null && (roleId == 1L || roleId == 5L);
+    }
+
     public List<KpiDto> getKpisByEmployeeAndPeriod(Long employeeId, String period) {
+        org.springframework.security.core.Authentication auth = org.springframework.security.core.context.SecurityContextHolder.getContext().getAuthentication();
+        if (auth != null && auth.getPrincipal() instanceof com.epms.backend.security.UserPrincipal principal) {
+            Long roleId = principal.getRoleId();
+            Long currentEmployeeId = principal.getEmployeeDbId();
+            
+            if (isHrOrAudit(roleId)) {
+                // Allowed
+            } else if (roleId == 2L || roleId == 3L) { // MANAGER
+                if (isFuturePeriod(period)) {
+                    throw new org.springframework.security.access.AccessDeniedException("Access denied: Managers cannot view future KPI records.");
+                }
+                if (!Objects.equals(employeeId, currentEmployeeId)) {
+                    Employee mgr = employeeRepository.findById(currentEmployeeId).orElse(null);
+                    Employee target = employeeRepository.findById(employeeId).orElse(null);
+                    if (mgr == null || target == null || mgr.getDepartment() == null || target.getDepartment() == null ||
+                        !mgr.getDepartment().getId().equals(target.getDepartment().getId())) {
+                        throw new org.springframework.security.access.AccessDeniedException("Access denied: Managers can only view KPI records of their team members.");
+                    }
+                }
+            } else if (roleId == 4L) { // EMPLOYEE
+                if (isFuturePeriod(period)) {
+                    throw new org.springframework.security.access.AccessDeniedException("Access denied: Employees cannot view future KPI records.");
+                }
+                if (!Objects.equals(employeeId, currentEmployeeId)) {
+                    throw new org.springframework.security.access.AccessDeniedException("Access denied: Employees can only view their own KPI records.");
+                }
+            } else {
+                throw new org.springframework.security.access.AccessDeniedException("Access denied: Invalid role.");
+            }
+        }
         return kpiRepository.findByEmployee_IdAndPeriod(employeeId, period)
                 .stream()
                 .map(this::convertToDto)
@@ -83,13 +138,58 @@ public class KpiService {
     }
 
     public List<String> getEmployeeKpiPeriods(Long employeeId) {
-        return kpiRepository.findDistinctPeriodsByEmployee_IdOrderByPeriodDesc(employeeId);
+        List<String> allPeriods = kpiRepository.findDistinctPeriodsByEmployee_IdOrderByPeriodDesc(employeeId);
+        org.springframework.security.core.Authentication auth = org.springframework.security.core.context.SecurityContextHolder.getContext().getAuthentication();
+        if (auth != null && auth.getPrincipal() instanceof com.epms.backend.security.UserPrincipal principal) {
+            Long roleId = principal.getRoleId();
+            Long currentEmployeeId = principal.getEmployeeDbId();
+            if (isHrOrAudit(roleId)) {
+                return allPeriods;
+            }
+            if (roleId == 2L || roleId == 3L) { // MANAGER
+                if (!Objects.equals(employeeId, currentEmployeeId)) {
+                    Employee mgr = employeeRepository.findById(currentEmployeeId).orElse(null);
+                    Employee target = employeeRepository.findById(employeeId).orElse(null);
+                    if (mgr == null || target == null || mgr.getDepartment() == null || target.getDepartment() == null ||
+                        !mgr.getDepartment().getId().equals(target.getDepartment().getId())) {
+                        throw new org.springframework.security.access.AccessDeniedException("Access denied: Managers can only view KPI periods of their team members.");
+                    }
+                }
+            } else if (roleId == 4L) { // EMPLOYEE
+                if (!Objects.equals(employeeId, currentEmployeeId)) {
+                    throw new org.springframework.security.access.AccessDeniedException("Access denied: Employees can only view their own KPI periods.");
+                }
+            }
+            return allPeriods.stream()
+                    .filter(p -> !isFuturePeriod(p))
+                    .collect(Collectors.toList());
+        }
+        return allPeriods;
     }
 
     public List<KpiDto> getLatestKpisByEmployee(Long employeeId) {
-        return kpiRepository.findLatestPeriodByEmployee_Id(employeeId)
-                .map(period -> getKpisByEmployeeAndPeriod(employeeId, period))
-                .orElse(List.of());
+        String latestPeriod = null;
+        org.springframework.security.core.Authentication auth = org.springframework.security.core.context.SecurityContextHolder.getContext().getAuthentication();
+        if (auth != null && auth.getPrincipal() instanceof com.epms.backend.security.UserPrincipal principal) {
+            Long roleId = principal.getRoleId();
+            if (isHrOrAudit(roleId)) {
+                latestPeriod = kpiRepository.findLatestPeriodByEmployee_Id(employeeId).orElse(null);
+            } else {
+                List<String> allowedPeriods = kpiRepository.findDistinctPeriodsByEmployee_IdOrderByPeriodDesc(employeeId)
+                        .stream()
+                        .filter(p -> !isFuturePeriod(p))
+                        .collect(Collectors.toList());
+                if (!allowedPeriods.isEmpty()) {
+                    latestPeriod = allowedPeriods.get(0);
+                }
+            }
+        } else {
+            latestPeriod = kpiRepository.findLatestPeriodByEmployee_Id(employeeId).orElse(null);
+        }
+        if (latestPeriod == null) {
+            return List.of();
+        }
+        return getKpisByEmployeeAndPeriod(employeeId, latestPeriod);
     }
 
     public List<KpiDto> getMyLatestKpis(Long userId) {
@@ -100,6 +200,25 @@ public class KpiService {
     }
 
     public java.time.Instant getLatestUpdatedDate(Long employeeId) {
+        org.springframework.security.core.Authentication auth = org.springframework.security.core.context.SecurityContextHolder.getContext().getAuthentication();
+        if (auth != null && auth.getPrincipal() instanceof com.epms.backend.security.UserPrincipal principal) {
+            Long roleId = principal.getRoleId();
+            if (!isHrOrAudit(roleId)) {
+                List<String> allowedPeriods = kpiRepository.findDistinctPeriodsByEmployee_IdOrderByPeriodDesc(employeeId)
+                        .stream()
+                        .filter(p -> !isFuturePeriod(p))
+                        .collect(Collectors.toList());
+                if (allowedPeriods.isEmpty()) {
+                    return null;
+                }
+                return kpiRepository.findByEmployee_IdAndPeriod(employeeId, allowedPeriods.get(0))
+                        .stream()
+                        .map(EmployeeKpi::getUpdatedDate)
+                        .filter(Objects::nonNull)
+                        .max(java.util.Comparator.naturalOrder())
+                        .orElse(null);
+            }
+        }
         return kpiRepository.findLatestUpdatedDateByEmployeeId(employeeId).orElse(null);
     }
 
@@ -463,6 +582,12 @@ public class KpiService {
                 throw new IllegalArgumentException("KPI does not belong to the specified employee");
             }
 
+            if (!isHrOrAudit(performerRoleId)) {
+                if (isFuturePeriod(kpi.getPeriod())) {
+                    throw new org.springframework.security.access.AccessDeniedException("Access denied: Cannot modify KPIs for a future period.");
+                }
+            }
+
             // Validation: Actual value is required for submission
             if ("SUBMITTED".equals(status) && (update.getActual() == null || update.getActual().trim().isEmpty())) {
                 throw new IllegalArgumentException("Actual value is required for all KPIs when submitting");
@@ -533,12 +658,20 @@ public class KpiService {
                     map.put("name", e.getEmployeeName());
                     map.put("role", e.getPosition() != null ? e.getPosition().getName() : "");
 
-                    // Get status from latest KPI if exists
-                    String status = kpiRepository.findLatestPeriodByEmployee_Id(e.getId())
-                            .flatMap(period -> kpiRepository.findByEmployee_IdAndPeriod(e.getId(), period).stream()
-                                    .findFirst())
-                            .map(k -> k.getStatus())
-                            .orElse("PENDING");
+                    // Get status from latest allowed KPI if exists
+                    String status = "PENDING";
+                    List<String> allowedPeriods = kpiRepository.findDistinctPeriodsByEmployee_IdOrderByPeriodDesc(e.getId())
+                            .stream()
+                            .filter(p -> !isFuturePeriod(p))
+                            .collect(Collectors.toList());
+                    if (!allowedPeriods.isEmpty()) {
+                        String latestAllowedPeriod = allowedPeriods.get(0);
+                        status = kpiRepository.findByEmployee_IdAndPeriod(e.getId(), latestAllowedPeriod)
+                                .stream()
+                                .findFirst()
+                                .map(EmployeeKpi::getStatus)
+                                .orElse("PENDING");
+                    }
 
                     map.put("status", status);
                     return map;
@@ -546,6 +679,20 @@ public class KpiService {
     }
 
     public List<PositionKpiDto> getPositionKpis(Long departmentId, Long positionId, String period) {
+        org.springframework.security.core.Authentication auth = org.springframework.security.core.context.SecurityContextHolder.getContext().getAuthentication();
+        if (auth != null && auth.getPrincipal() instanceof com.epms.backend.security.UserPrincipal principal) {
+            Long roleId = principal.getRoleId();
+            if (!isHrOrAudit(roleId)) {
+                if (isFuturePeriod(period)) {
+                    throw new org.springframework.security.access.AccessDeniedException("Access denied: Managers cannot view future position KPI templates.");
+                }
+                Long managerEmployeeId = principal.getEmployeeDbId();
+                Employee mgr = employeeRepository.findById(managerEmployeeId).orElse(null);
+                if (mgr == null || mgr.getDepartment() == null || !mgr.getDepartment().getId().equals(departmentId)) {
+                    throw new org.springframework.security.access.AccessDeniedException("Access denied: Managers can only view position KPI templates for their own department.");
+                }
+            }
+        }
         return positionKpiRepository.findByDepartment_IdAndPosition_IdAndPeriod(departmentId, positionId, period)
                 .stream()
                 .map(this::convertToPositionDto)
@@ -553,6 +700,20 @@ public class KpiService {
     }
 
     public List<DepartmentKpiDto> getDepartmentKpis(Long departmentId, String period) {
+        org.springframework.security.core.Authentication auth = org.springframework.security.core.context.SecurityContextHolder.getContext().getAuthentication();
+        if (auth != null && auth.getPrincipal() instanceof com.epms.backend.security.UserPrincipal principal) {
+            Long roleId = principal.getRoleId();
+            if (!isHrOrAudit(roleId)) {
+                if (isFuturePeriod(period)) {
+                    throw new org.springframework.security.access.AccessDeniedException("Access denied: Managers cannot view future department KPIs.");
+                }
+                Long managerEmployeeId = principal.getEmployeeDbId();
+                Employee mgr = employeeRepository.findById(managerEmployeeId).orElse(null);
+                if (mgr == null || mgr.getDepartment() == null || !mgr.getDepartment().getId().equals(departmentId)) {
+                    throw new org.springframework.security.access.AccessDeniedException("Access denied: Managers can only view department KPIs for their own department.");
+                }
+            }
+        }
         return departmentKpiRepository.findByDepartmentIdAndPeriod(departmentId, period)
                 .stream()
                 .map(this::convertToDepartmentDto)
@@ -583,6 +744,14 @@ public class KpiService {
             throw new IllegalArgumentException("All KPI records must use the same month and year.");
         }
 
+        User performer = userRepository.findById(performerUserId).orElseThrow();
+        Long roleId = performer.getRole() != null ? performer.getRole().getId() : null;
+        if (!isHrOrAudit(roleId)) {
+            if (isFuturePeriod(period)) {
+                throw new org.springframework.security.access.AccessDeniedException("Access denied: Only HR can set up KPIs for future periods.");
+            }
+        }
+
         // Check if active position KPIs already exist
         List<PositionKpi> existingActive = positionKpiRepository
                 .findByDepartmentIdAndPositionIdAndPeriodAndRecordStatus(deptId, posId, period, "Active");
@@ -593,7 +762,6 @@ public class KpiService {
 
         Department dept = departmentRepository.findById(deptId).orElseThrow();
         Position pos = positionRepository.findById(posId).orElseThrow();
-        User performer = userRepository.findById(performerUserId).orElseThrow();
 
         List<PositionKpi> entities = dtoList.stream().map(dto -> {
             PositionKpi entity = new PositionKpi();
@@ -653,6 +821,14 @@ public class KpiService {
             throw new IllegalArgumentException("All KPI records must use the same month and year.");
         }
 
+        User performer = userRepository.findById(performerUserId).orElseThrow();
+        Long roleId = performer.getRole() != null ? performer.getRole().getId() : null;
+        if (!isHrOrAudit(roleId)) {
+            if (isFuturePeriod(period)) {
+                throw new org.springframework.security.access.AccessDeniedException("Access denied: Only HR can set up KPIs for future periods.");
+            }
+        }
+
         // Check if active department KPIs already exist
         List<DepartmentKpi> existingActive = departmentKpiRepository.findByDepartmentIdAndPeriodAndRecordStatus(deptId,
                 period, "Active");
@@ -662,7 +838,6 @@ public class KpiService {
         }
 
         Department dept = departmentRepository.findById(deptId).orElseThrow();
-        User performer = userRepository.findById(performerUserId).orElseThrow();
 
         List<DepartmentKpi> entities = dtoList.stream().map(dto -> {
             DepartmentKpi entity = new DepartmentKpi();
@@ -725,6 +900,13 @@ public class KpiService {
     }
 
     public List<PositionKpiStatusDto> getPositionsKpiStatus(Long departmentId, String period) {
+        org.springframework.security.core.Authentication auth = org.springframework.security.core.context.SecurityContextHolder.getContext().getAuthentication();
+        if (auth != null && auth.getPrincipal() instanceof com.epms.backend.security.UserPrincipal principal) {
+            Long roleId = principal.getRoleId();
+            if (!isHrOrAudit(roleId) && isFuturePeriod(period)) {
+                throw new org.springframework.security.access.AccessDeniedException("Access denied: Non-HR users cannot view future KPI statuses.");
+            }
+        }
         List<DepartmentPosition> activeMappings = departmentId != null
                 ? departmentPositionRepository.findActiveByDepartmentIdWithPosition(departmentId)
                 : departmentPositionRepository.findAllActiveWithPosition();
@@ -744,6 +926,13 @@ public class KpiService {
     }
 
     public List<DepartmentKpiStatusDto> getDepartmentsKpiStatus(String period) {
+        org.springframework.security.core.Authentication auth = org.springframework.security.core.context.SecurityContextHolder.getContext().getAuthentication();
+        if (auth != null && auth.getPrincipal() instanceof com.epms.backend.security.UserPrincipal principal) {
+            Long roleId = principal.getRoleId();
+            if (!isHrOrAudit(roleId) && isFuturePeriod(period)) {
+                throw new org.springframework.security.access.AccessDeniedException("Access denied: Non-HR users cannot view future KPI statuses.");
+            }
+        }
         List<Department> activeDepartments = departmentRepository.findAll().stream()
                 .filter(d -> d.getStatus() == null || "active".equalsIgnoreCase(d.getStatus().trim()))
                 .collect(Collectors.toList());
@@ -760,28 +949,130 @@ public class KpiService {
     }
 
     public List<KpiDto> getEmployeeKpiHistory(Long employeeId, String period) {
-        return kpiRepository.findHistory(employeeId, period)
-                .stream()
+        org.springframework.security.core.Authentication auth = org.springframework.security.core.context.SecurityContextHolder.getContext().getAuthentication();
+        if (auth != null && auth.getPrincipal() instanceof com.epms.backend.security.UserPrincipal principal) {
+            Long roleId = principal.getRoleId();
+            Long currentEmployeeId = principal.getEmployeeDbId();
+            
+            if (isHrOrAudit(roleId)) {
+                // Full access
+            } else if (roleId == 2L || roleId == 3L) { // MANAGER
+                if (isFuturePeriod(period)) {
+                    throw new org.springframework.security.access.AccessDeniedException("Access denied: Managers cannot view future KPI history.");
+                }
+                if (!Objects.equals(employeeId, currentEmployeeId)) {
+                    Employee mgr = employeeRepository.findById(currentEmployeeId).orElse(null);
+                    Employee target = employeeRepository.findById(employeeId).orElse(null);
+                    if (mgr == null || target == null || mgr.getDepartment() == null || target.getDepartment() == null ||
+                        !mgr.getDepartment().getId().equals(target.getDepartment().getId())) {
+                        throw new org.springframework.security.access.AccessDeniedException("Access denied: Managers can only view KPI history of their team members.");
+                    }
+                }
+            } else if (roleId == 4L) { // EMPLOYEE
+                if (isFuturePeriod(period)) {
+                    throw new org.springframework.security.access.AccessDeniedException("Access denied: Employees cannot view future KPI history.");
+                }
+                if (!Objects.equals(employeeId, currentEmployeeId)) {
+                    throw new org.springframework.security.access.AccessDeniedException("Access denied: Employees can only view their own KPI history.");
+                }
+            }
+        }
+        List<EmployeeKpi> history = kpiRepository.findHistory(employeeId, period);
+        if (auth != null && auth.getPrincipal() instanceof com.epms.backend.security.UserPrincipal principal) {
+            Long roleId = principal.getRoleId();
+            if (!isHrOrAudit(roleId)) {
+                history = history.stream()
+                        .filter(kpi -> !isFuturePeriod(kpi.getPeriod()))
+                        .collect(Collectors.toList());
+            }
+        }
+        return history.stream()
                 .map(this::convertToDto)
                 .collect(Collectors.toList());
     }
 
     public List<PositionKpiDto> getPositionKpiHistory(Long departmentId, Long positionId, String period) {
-        return positionKpiRepository.findHistory(departmentId, positionId, period)
-                .stream()
+        org.springframework.security.core.Authentication auth = org.springframework.security.core.context.SecurityContextHolder.getContext().getAuthentication();
+        if (auth != null && auth.getPrincipal() instanceof com.epms.backend.security.UserPrincipal principal) {
+            Long roleId = principal.getRoleId();
+            if (!isHrOrAudit(roleId)) {
+                if (isFuturePeriod(period)) {
+                    throw new org.springframework.security.access.AccessDeniedException("Access denied: Managers cannot view future position KPI templates.");
+                }
+                Long managerEmployeeId = principal.getEmployeeDbId();
+                Employee mgr = employeeRepository.findById(managerEmployeeId).orElse(null);
+                if (mgr == null || mgr.getDepartment() == null || !mgr.getDepartment().getId().equals(departmentId)) {
+                    throw new org.springframework.security.access.AccessDeniedException("Access denied: Managers can only view position KPI templates for their own department.");
+                }
+            }
+        }
+        List<PositionKpi> history = positionKpiRepository.findHistory(departmentId, positionId, period);
+        if (auth != null && auth.getPrincipal() instanceof com.epms.backend.security.UserPrincipal principal) {
+            Long roleId = principal.getRoleId();
+            if (!isHrOrAudit(roleId)) {
+                history = history.stream()
+                        .filter(kpi -> !isFuturePeriod(kpi.getPeriod()))
+                        .collect(Collectors.toList());
+            }
+        }
+        return history.stream()
                 .map(this::convertToPositionDto)
                 .collect(Collectors.toList());
     }
 
     public List<DepartmentKpiDto> getDepartmentKpiHistory(Long departmentId, String period) {
-        return departmentKpiRepository.findHistory(departmentId, period)
-                .stream()
+        org.springframework.security.core.Authentication auth = org.springframework.security.core.context.SecurityContextHolder.getContext().getAuthentication();
+        if (auth != null && auth.getPrincipal() instanceof com.epms.backend.security.UserPrincipal principal) {
+            Long roleId = principal.getRoleId();
+            if (!isHrOrAudit(roleId)) {
+                if (isFuturePeriod(period)) {
+                    throw new org.springframework.security.access.AccessDeniedException("Access denied: Managers cannot view future department KPIs.");
+                }
+                Long managerEmployeeId = principal.getEmployeeDbId();
+                Employee mgr = employeeRepository.findById(managerEmployeeId).orElse(null);
+                if (mgr == null || mgr.getDepartment() == null || !mgr.getDepartment().getId().equals(departmentId)) {
+                    throw new org.springframework.security.access.AccessDeniedException("Access denied: Managers can only view department KPIs for their own department.");
+                }
+            }
+        }
+        List<DepartmentKpi> history = departmentKpiRepository.findHistory(departmentId, period);
+        if (auth != null && auth.getPrincipal() instanceof com.epms.backend.security.UserPrincipal principal) {
+            Long roleId = principal.getRoleId();
+            if (!isHrOrAudit(roleId)) {
+                history = history.stream()
+                        .filter(kpi -> !isFuturePeriod(kpi.getPeriod()))
+                        .collect(Collectors.toList());
+            }
+        }
+        return history.stream()
                 .map(this::convertToDepartmentDto)
                 .collect(Collectors.toList());
     }
 
     public List<com.epms.backend.dto.KpiHistorySummaryDto> getAllKpiHistorySummary(String period) {
-        return kpiRepository.findHistorySummary(period);
+        org.springframework.security.core.Authentication auth = org.springframework.security.core.context.SecurityContextHolder.getContext().getAuthentication();
+        List<com.epms.backend.dto.KpiHistorySummaryDto> list = kpiRepository.findHistorySummary(period);
+        if (auth != null && auth.getPrincipal() instanceof com.epms.backend.security.UserPrincipal principal) {
+            Long roleId = principal.getRoleId();
+            Long currentEmployeeId = principal.getEmployeeDbId();
+            if (isHrOrAudit(roleId)) {
+                return list;
+            }
+            if (roleId == 2L || roleId == 3L) { // MANAGER
+                Employee mgr = employeeRepository.findById(currentEmployeeId).orElse(null);
+                String departmentName = (mgr != null && mgr.getDepartment() != null) ? mgr.getDepartment().getName() : "";
+                return list.stream()
+                        .filter(item -> !isFuturePeriod(item.getPeriod()))
+                        .filter(item -> Objects.equals(item.getDepartmentName(), departmentName))
+                        .collect(Collectors.toList());
+            } else if (roleId == 4L) { // EMPLOYEE
+                return list.stream()
+                        .filter(item -> !isFuturePeriod(item.getPeriod()))
+                        .filter(item -> Objects.equals(item.getEmployeeId(), currentEmployeeId))
+                        .collect(Collectors.toList());
+            }
+        }
+        return list;
     }
 
     private KpiDto convertToDto(EmployeeKpi kpi) {
@@ -940,8 +1231,26 @@ public class KpiService {
     }
 
     public List<com.epms.backend.dto.DepartmentDto> getDepartment(String period) {
+        org.springframework.security.core.Authentication auth = org.springframework.security.core.context.SecurityContextHolder.getContext().getAuthentication();
+        if (auth != null && auth.getPrincipal() instanceof com.epms.backend.security.UserPrincipal principal) {
+            Long roleId = principal.getRoleId();
+            if (!isHrOrAudit(roleId)) {
+                if (isFuturePeriod(period)) {
+                    throw new org.springframework.security.access.AccessDeniedException("Access denied: Managers cannot view future department comparison.");
+                }
+            }
+        }
+
         List<Department> departments = departmentRepository.findAll();
         List<com.epms.backend.dto.DepartmentDto> comparisonList = new ArrayList<>();
+
+        List<String> futurePeriods = new ArrayList<>();
+        List<String> allPeriods = jdbcTemplate.queryForList("SELECT DISTINCT period FROM employeekpis", String.class);
+        for (String p : allPeriods) {
+            if (isFuturePeriod(p)) {
+                futurePeriods.add(p);
+            }
+        }
 
         for (Department dept : departments) {
             // 1. Total Staff
@@ -975,6 +1284,14 @@ public class KpiService {
             if (period != null && !period.isBlank()) {
                 scoreSql += " AND k.period = ?";
                 scoreArgs = new Object[] { dept.getId(), period };
+            } else {
+                org.springframework.security.core.Authentication auth2 = org.springframework.security.core.context.SecurityContextHolder.getContext().getAuthentication();
+                if (auth2 != null && auth2.getPrincipal() instanceof com.epms.backend.security.UserPrincipal principal) {
+                    Long roleId = principal.getRoleId();
+                    if (!isHrOrAudit(roleId) && !futurePeriods.isEmpty()) {
+                        scoreSql += " AND k.period NOT IN (" + String.join(",", futurePeriods.stream().map(p -> "'" + p + "'").toList()) + ")";
+                    }
+                }
             }
 
             BigDecimal totalScore = BigDecimal.ZERO;

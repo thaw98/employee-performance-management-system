@@ -138,7 +138,7 @@ export const SelfAssessmentArchiveListPage: React.FC<ArchiveListPageProps> = ({ 
                     <td className="px-4 py-3 text-slate-700 dark:text-slate-300">{snapshot.cycleName || '-'}</td>
                     <td className="px-4 py-3">
                       <span className="inline-flex items-center rounded-full bg-red-50 px-2.5 py-0.5 text-xs font-medium text-red-700 dark:bg-red-900/30 dark:text-red-300">
-                        {snapshot.archivedStatus?.replace(/_/g, ' ')}
+                        {snapshot.archivedStatus}
                       </span>
                     </td>
                     <td className="px-4 py-3 text-slate-700 dark:text-slate-300">{snapshot.hrUserName || '-'}</td>
