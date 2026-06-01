@@ -44,6 +44,7 @@ import EmployeeListPage from './pages/hr/employees/EmployeeListPage';
 import { UserProfilePage } from './pages/UserProfilePage';
 import { SystemSettingsPage } from './pages/SystemSettingsPage';
 import { ScoreExplanationSettingsPage } from './pages/ScoreExplanationSettingsPage';
+import { EditScoreBoundariesPage } from './pages/EditScoreBoundariesPage';
 import { TimeSettingsPage } from './pages/TimeSettingsPage';
 import { DefaultSignaturePage } from './pages/DefaultSignaturePage';
 import { FaqSupportPage } from './pages/hr/FaqSupportPage';
@@ -237,6 +238,7 @@ function App() {
 	            <Route path="settings/system" element={<SystemSettingsPage />} />
 	            <Route path="settings/system/time" element={<TimeSettingsPage />} />
 	            <Route path="settings/system/score-explanations" element={<ScoreExplanationSettingsPage />} />
+	            <Route path="settings/system/score-explanations/edit" element={<EditScoreBoundariesPage />} />
             <Route path="settings/system/score-formulas" element={<FormulaManagementPage />} />
             <Route path="settings/faq-support" element={<FaqSupportPage />} />
             <Route path="faq" element={<FaqPage />} />
