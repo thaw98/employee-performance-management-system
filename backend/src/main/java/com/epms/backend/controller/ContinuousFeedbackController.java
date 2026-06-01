@@ -211,7 +211,7 @@ public class ContinuousFeedbackController {
     }
 
     @PostMapping("/{feedbackId}/create-pip")
-    @PreAuthorize("hasAnyRole('DEPARTMENT_HEAD', 'TEAM_HEAD', 'MANAGER', 'HR') and @permissionGuard.has('CONTINUOUS_FEEDBACK', 'create_pip')")
+    @PreAuthorize("hasAnyRole('DEPARTMENT_HEAD', 'TEAM_HEAD', 'MANAGER') and @permissionGuard.has('CONTINUOUS_FEEDBACK', 'create_pip')")
     public ResponseEntity<ApiResponse<Pip>> createPipFromFeedback(
             @AuthenticationPrincipal UserPrincipal principal,
             @PathVariable Long feedbackId,

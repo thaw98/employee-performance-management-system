@@ -5,6 +5,7 @@ import { ArrowLeft, Check, ClipboardList, Calendar, AlertTriangle, Send, Message
 import ConfirmActionModal from '../../features/hrEmployeeList/components/ConfirmActionModal';
 import { continuousFeedbackApi } from '../../features/continuousFeedback/continuousFeedbackApi';
 import { useAppSelector } from '../../app/hooks';
+import { usePermissionState } from '../../features/permission/usePermission';
 import type {
   ContinuousFeedback,
   ContinuousFeedbackActionItem,
@@ -46,7 +47,9 @@ export default function ContinuousFeedbackDetailPage() {
   const [showCancelConfirm, setShowCancelConfirm] = useState(false);
 
   const authUser = useAppSelector((s) => s.auth.user);
+  const { hasPermission } = usePermissionState();
   const canManageFeedbackActions = authUser?.roleId === 2 || authUser?.roleId === 3;
+  const canManagePipCreation = canManageFeedbackActions && hasPermission('CONTINUOUS_FEEDBACK', 'create_pip');
 
   const isInternal = window.location.pathname.startsWith('/hr')
     || window.location.pathname.startsWith('/audit')
@@ -514,12 +517,14 @@ export default function ContinuousFeedbackDetailPage() {
               <p className="text-sm font-bold text-rose-600 mt-1">
                 This employee has received {pipCount} improvement/performance-risk feedback records within 30 days.
               </p>
-              <button
-                onClick={handleCreatePip}
-                className="mt-4 px-5 py-2.5 bg-rose-600 hover:bg-rose-700 text-white rounded-xl font-bold text-xs uppercase tracking-widest transition-all shadow-lg shadow-rose-200 active:scale-95"
-              >
-                Create PIP
-              </button>
+              {canManagePipCreation && (
+                <button
+                  onClick={handleCreatePip}
+                  className="mt-4 px-5 py-2.5 bg-rose-600 hover:bg-rose-700 text-white rounded-xl font-bold text-xs uppercase tracking-widest transition-all shadow-lg shadow-rose-200 active:scale-95"
+                >
+                  Create PIP
+                </button>
+              )}
             </div>
           </div>
         </div>

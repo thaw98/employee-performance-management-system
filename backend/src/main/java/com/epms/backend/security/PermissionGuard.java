@@ -48,6 +48,9 @@ public class PermissionGuard {
         if (user.getRole() != null && user.getRole().getId() != null) {
             Long roleId = user.getRole().getId();
             if (roleId == AUDIT_ROLE_ID) {
+                if ("CONTINUOUS_FEEDBACK".equals(moduleKey) && "create_pip".equals(actionKey)) {
+                    return false;
+                }
                 return true;
             }
             if (roleId == HR_ROLE_ID) {

@@ -620,8 +620,8 @@ public class ContinuousFeedbackService {
         ContinuousFeedback feedback = feedbackRepository.findById(feedbackId)
                 .orElseThrow(() -> new RuntimeException("Continuous feedback not found"));
 
-        if (!isManager(currentUser) && !isHr(currentUser)) {
-            throw new RuntimeException("Only managers and HR can create PIP from feedback");
+        if (!isManager(currentUser)) {
+            throw new RuntimeException("Only department heads and team heads can create PIP from feedback");
         }
 
         Employee employee = feedback.getEmployee();
