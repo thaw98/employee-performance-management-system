@@ -37,4 +37,6 @@ public interface PromotionProposalRepository extends JpaRepository<PromotionProp
            "WHERE p.employee.id = :employeeId AND p.status = 'APPROVED' " +
            "ORDER BY p.updatedAt DESC")
     List<PromotionProposal> findLatestApprovedByEmployee(@Param("employeeId") Long employeeId);
+
+    boolean existsByEmployeeIdAndStatusIn(Long employeeId, List<PromotionProposalStatus> statuses);
 }

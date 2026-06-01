@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from 'react'
-import { useNavigate } from 'react-router-dom'
+import { useNavigate, useSearchParams } from 'react-router-dom'
 import { useSelector } from 'react-redux'
 import type { RootState } from '../../app/store'
 import {
@@ -150,8 +150,9 @@ export function SelfAssessmentScoreRecordsPage() {
     [isEmployee],
   )
 
+  const [searchParams] = useSearchParams()
   const [sorting, setSorting] = useState<SortingState>([])
-  const [globalFilter, setGlobalFilter] = useState('')
+  const [globalFilter, setGlobalFilter] = useState(searchParams.get('search') || '')
   const [cycleFilter, setCycleFilter] = useState('')
   const [statusFilter, setStatusFilter] = useState('')
   const [isExportingPdf, setIsExportingPdf] = useState(false)
