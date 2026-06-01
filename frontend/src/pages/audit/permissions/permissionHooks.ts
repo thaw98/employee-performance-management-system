@@ -98,16 +98,22 @@ export function useEmployeePendingChanges() {
   const getKey = (employeeId: number, moduleKey: string, actionKey: string) =>
     `emp:${employeeId}:${moduleKey}:${actionKey}`;
 
+  const resolveEffective = (positionAllowed: boolean | null, override: boolean | null): boolean | null => {
+    const position = positionAllowed ?? false;
+    if (override === null) {
+      return positionAllowed;
+    }
+    return position && override;
+  };
+
   const getEffective = useCallback(
     (employeeId: number, moduleKey: string, actionKey: string, positionAllowed: boolean | null, override: boolean | null): boolean | null => {
       const k = getKey(employeeId, moduleKey, actionKey);
       if (pending.has(k)) {
         const val = pending.get(k)!.newValue;
-        if (val === null) return positionAllowed;
-        return val;
+        return resolveEffective(positionAllowed, val);
       }
-      if (override !== null) return override;
-      return positionAllowed;
+      return resolveEffective(positionAllowed, override);
     },
     [pending]
   );

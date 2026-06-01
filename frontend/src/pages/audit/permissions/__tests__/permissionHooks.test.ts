@@ -66,7 +66,7 @@ describe('useEmployeePendingChanges', () => {
     expect(effective).toBe(false);
   });
 
-  it('returns correct effective value for allow override', () => {
+  it('returns denied when allow override but position denies', () => {
     const { result } = renderHook(() => useEmployeePendingChanges());
 
     act(() => {
@@ -74,6 +74,17 @@ describe('useEmployeePendingChanges', () => {
     });
 
     const effective = result.current.getEffective(1, 'KPI', 'view', false, null);
+    expect(effective).toBe(false);
+  });
+
+  it('returns allowed when both position and employee allow', () => {
+    const { result } = renderHook(() => useEmployeePendingChanges());
+
+    act(() => {
+      result.current.setOverride(1, 'CONTINUOUS_FEEDBACK', 'create', true, null);
+    });
+
+    const effective = result.current.getEffective(1, 'CONTINUOUS_FEEDBACK', 'create', true, null);
     expect(effective).toBe(true);
   });
 

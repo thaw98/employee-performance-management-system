@@ -278,6 +278,7 @@ function App() {
             <Route path="performance-reports" element={gated('REPORTS', 'performance_report', <PerformanceReportPage />)} />
             <Route path="performance-reports/:employeeId" element={gated('REPORTS', 'performance_report', <PerformanceReportDetailPage />)} />
             <Route path="continuous-feedback" element={gated('CONTINUOUS_FEEDBACK', 'view', <ContinuousFeedbackPage />)} />
+            <Route path="continuous-feedback/create" element={gated('CONTINUOUS_FEEDBACK', 'create', <ContinuousFeedbackCreatePage />)} />
             <Route path="continuous-feedback/dashboard" element={gated('CONTINUOUS_FEEDBACK', 'report', <ContinuousFeedbackDashboardPage />)} />
             <Route path="continuous-feedback/:feedbackId" element={gated('CONTINUOUS_FEEDBACK', 'view', <ContinuousFeedbackDetailPage />)} />
             <Route path="*" element={<Navigate to="/hr/dashboard" replace />} />

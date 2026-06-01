@@ -1,4 +1,4 @@
-import { Layers } from 'lucide-react';
+import { Shield } from 'lucide-react';
 import type { PermissionModuleDto, PermissionActionDto } from '../../../features/permission/permissionApi';
 
 interface ModuleSidebarProps {
@@ -15,8 +15,8 @@ export function ModuleSidebar({ modules, actionsByModule, selectedModule, onSele
       <div className="hidden lg:block w-64 shrink-0">
         <div className="bg-white dark:bg-slate-800 rounded-xl border border-slate-200 dark:border-slate-700 shadow-sm overflow-hidden sticky top-24">
           <div className="px-4 py-3 border-b border-slate-200 dark:border-slate-700 flex items-center gap-2">
-            <Layers className="h-4 w-4 text-slate-500" />
-            <span className="text-sm font-semibold text-slate-700 dark:text-slate-300">Groups</span>
+            <Shield className="h-4 w-4 text-slate-500" />
+            <span className="text-sm font-semibold text-slate-700 dark:text-slate-300">Modules</span>
           </div>
           <nav className="p-2 space-y-1 max-h-[calc(100vh-12rem)] overflow-y-auto">
             {modules.map((mod) => {
@@ -45,11 +45,6 @@ export function ModuleSidebar({ modules, actionsByModule, selectedModule, onSele
                       {count}
                     </span>
                   </div>
-                  {mod.description && (
-                    <p className="text-[11px] text-slate-400 dark:text-slate-500 mt-0.5 truncate leading-relaxed">
-                      {mod.description}
-                    </p>
-                  )}
                 </button>
               );
             })}

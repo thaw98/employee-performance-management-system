@@ -62,7 +62,7 @@ class PermissionGuardTest {
     }
 
     @Test
-    void employeeAllowOverrideGrantsAccessWhenPositionDenies() {
+    void employeeAllowOverrideDoesNotGrantAccessWhenPositionDenies() {
         when(authentication.getName()).thenReturn("99");
         Position position = new Position();
         position.setId(10L);
@@ -81,8 +81,34 @@ class PermissionGuardTest {
         override.setAllowed(true);
         when(employeePermissionRepository.findByEmployeeIdAndModuleKeyAndActionKey(1L, "KPI", "view"))
                 .thenReturn(Optional.of(override));
+        when(permissionService.hasPermission(10L, "KPI", "view")).thenReturn(false);
 
-        assertThat(permissionGuard.has("KPI", "view")).isTrue();
+        assertThat(permissionGuard.has("KPI", "view")).isFalse();
+    }
+
+    @Test
+    void bothPositionAndEmployeeAllowGrantsAccess() {
+        when(authentication.getName()).thenReturn("99");
+        Position position = new Position();
+        position.setId(10L);
+        Employee employee = new Employee();
+        employee.setId(1L);
+        employee.setPosition(position);
+        Role role = new Role();
+        role.setId(4L);
+        User user = new User();
+        user.setRole(role);
+        user.setEmployee(employee);
+
+        when(userRepository.findById(99L)).thenReturn(Optional.of(user));
+
+        EmployeePermission override = new EmployeePermission();
+        override.setAllowed(true);
+        when(employeePermissionRepository.findByEmployeeIdAndModuleKeyAndActionKey(1L, "CONTINUOUS_FEEDBACK", "create"))
+                .thenReturn(Optional.of(override));
+        when(permissionService.hasPermission(10L, "CONTINUOUS_FEEDBACK", "create")).thenReturn(true);
+
+        assertThat(permissionGuard.has("CONTINUOUS_FEEDBACK", "create")).isTrue();
     }
 
     @Test

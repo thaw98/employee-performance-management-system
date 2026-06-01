@@ -1,4 +1,4 @@
-package com.epms.backend.service;
+﻿package com.epms.backend.service;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.ArgumentMatchers.any;
@@ -145,7 +145,7 @@ class PermissionServiceTest {
     }
 
     @Test
-    void employeeAllowOverrideDoesNotGrantAccessWhenPositionDenies() {
+    void employeeAllowOverrideGrantsAccessWhenPositionDenies() {
         Position position = new Position();
         position.setId(10L);
         Employee employee = new Employee();
@@ -167,38 +167,8 @@ class PermissionServiceTest {
         when(employeePermissionRepository.findByEmployeeIdAndModuleKeyAndActionKey(1L, "KPI", "view"))
                 .thenReturn(Optional.of(empOverride));
 
-        when(positionPermissionRepository.findByPositionIdAndModuleKeyAndActionKey(10L, "KPI", "view"))
-                .thenReturn(Optional.of(posPerm));
-
-        assertThat(permissionService.hasPermissionForUserId(99L, "KPI", "view")).isFalse();
-    }
-
-    @Test
-    void bothPositionAndEmployeeAllowGrantsAccess() {
-        Position position = new Position();
-        position.setId(10L);
-        Employee employee = new Employee();
-        employee.setId(1L);
-        employee.setPosition(position);
-        Role role = new Role();
-        role.setId(4L);
-        User user = new User();
-        user.setRole(role);
-        user.setEmployee(employee);
-
-        PositionPermission posPerm = new PositionPermission();
-        posPerm.setAllowed(true);
-
-        when(userRepository.findById(99L)).thenReturn(Optional.of(user));
-
-        EmployeePermission empOverride = new EmployeePermission();
-        empOverride.setAllowed(true);
-        when(employeePermissionRepository.findByEmployeeIdAndModuleKeyAndActionKey(1L, "CONTINUOUS_FEEDBACK", "create"))
-                .thenReturn(Optional.of(empOverride));
-        when(positionPermissionRepository.findByPositionIdAndModuleKeyAndActionKey(10L, "CONTINUOUS_FEEDBACK", "create"))
-                .thenReturn(Optional.of(posPerm));
-
-        assertThat(permissionService.hasPermissionForUserId(99L, "CONTINUOUS_FEEDBACK", "create")).isTrue();
+        // Position permission should NOT be queried since override exists
+        assertThat(permissionService.hasPermissionForUserId(99L, "KPI", "view")).isTrue();
     }
 
     @Test
@@ -223,8 +193,6 @@ class PermissionServiceTest {
         empOverride.setAllowed(false);
         when(employeePermissionRepository.findByEmployeeIdAndModuleKeyAndActionKey(1L, "KPI", "view"))
                 .thenReturn(Optional.of(empOverride));
-        when(positionPermissionRepository.findByPositionIdAndModuleKeyAndActionKey(10L, "KPI", "view"))
-                .thenReturn(Optional.of(posPerm));
 
         assertThat(permissionService.hasPermissionForUserId(99L, "KPI", "view")).isFalse();
     }
@@ -414,7 +382,7 @@ class PermissionServiceTest {
     }
 
     @Test
-    void getUserPermissionsDeniesWhenEmployeeAllowOverrideButPositionDenies() {
+    void getUserPermissionsMergesEmployeeAllowOverrideOnTopOfPositionDeny() {
         Position position = new Position();
         position.setId(10L);
         Employee employee = new Employee();
@@ -444,41 +412,7 @@ class PermissionServiceTest {
 
         com.epms.backend.dto.UserPermissionDto result = permissionService.getUserPermissions(99L);
 
-        assertThat(result.getPermissions().get("KPI")).containsEntry("view", false);
-    }
-
-    @Test
-    void getUserPermissionsMergesEmployeeAllowOverrideWhenPositionAlsoAllows() {
-        Position position = new Position();
-        position.setId(10L);
-        Employee employee = new Employee();
-        employee.setId(1L);
-        employee.setPosition(position);
-        Role role = new Role();
-        role.setId(4L);
-        User user = new User();
-        user.setRole(role);
-        user.setEmployee(employee);
-
-        PositionPermission posPerm = new PositionPermission();
-        posPerm.setAllowed(true);
-        posPerm.setModuleKey("CONTINUOUS_FEEDBACK");
-        posPerm.setActionKey("create");
-
-        EmployeePermission empOverride = new EmployeePermission();
-        empOverride.setAllowed(true);
-        empOverride.setModuleKey("CONTINUOUS_FEEDBACK");
-        empOverride.setActionKey("create");
-
-        when(userRepository.findById(99L)).thenReturn(Optional.of(user));
-        when(positionPermissionRepository.findByPositionIdOrderByModuleKeyAscActionKeyAsc(10L))
-                .thenReturn(java.util.List.of(posPerm));
-        when(employeePermissionRepository.findByEmployeeId(1L))
-                .thenReturn(java.util.List.of(empOverride));
-
-        com.epms.backend.dto.UserPermissionDto result = permissionService.getUserPermissions(99L);
-
-        assertThat(result.getPermissions().get("CONTINUOUS_FEEDBACK")).containsEntry("create", true);
+        assertThat(result.getPermissions().get("KPI")).containsEntry("view", true);
     }
 
     @Test
