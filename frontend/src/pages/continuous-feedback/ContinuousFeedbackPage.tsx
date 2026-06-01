@@ -393,7 +393,7 @@ export default function ContinuousFeedbackPage() {
                         <button
                           type="button"
                           onClick={() => navigate(`${feedbackBasePath}/${fb.feedbackId}`)}
-                          className="p-2 text-slate-400 hover:text-[#2463eb] hover:bg-[#ebf4ff] rounded-xl transition-all opacity-0 group-hover:opacity-100 focus:opacity-100"
+                          className="p-2 text-slate-400 hover:text-[#2463eb] hover:bg-[#ebf4ff] rounded-xl transition-all"
                           title="View details"
                         >
                           <Eye size={17} />

@@ -81,7 +81,7 @@ export function UserProfilePage() {
     { label: 'Staff No', value: displayValue(user?.staffNo), icon: <IdCard size={18} /> },
     { label: 'Full Name', value: displayValue(user?.fullName || user?.name), icon: <User size={18} /> },
     { label: 'Department', value: displayValue(user?.departmentName), icon: <UsersRound size={18} /> },
-    { label: 'Position', value: displayValue(user?.positionName || user?.role), icon: <BriefcaseBusiness size={18} /> },
+    { label: 'Position', value: displayValue(user?.positionName), icon: <BriefcaseBusiness size={18} /> },
     { label: 'Employment Status', value: formatLabel(user?.employmentStatus), icon: <ShieldCheck size={18} /> },
     { label: 'Email', value: displayValue(user?.email), icon: <Mail size={18} /> },
     { label: 'Gender', value: formatLabel(user?.gender), icon: <User size={18} /> },

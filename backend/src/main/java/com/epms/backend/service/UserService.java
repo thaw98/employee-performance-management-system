@@ -238,11 +238,12 @@ public class UserService {
         if (employee == null) {
             return null;
         }
-        if (employee.getDepartmentPosition() != null && employee.getDepartmentPosition().getPosition() != null) {
-            return employee.getDepartmentPosition().getPosition().getName();
-        }
+        // Current job title is stored on employee.position (same as HR employee list/detail).
         if (employee.getPosition() != null) {
             return employee.getPosition().getName();
+        }
+        if (employee.getDepartmentPosition() != null && employee.getDepartmentPosition().getPosition() != null) {
+            return employee.getDepartmentPosition().getPosition().getName();
         }
         return null;
     }
