@@ -23,6 +23,7 @@ import AuditLayout from './layouts/AuditLayout';
 import { AuditDashboard } from './pages/audit/AuditDashboard';
 import { AuditLogsPage } from './pages/audit/AuditLogsPage';
 import { AuditActivityPage } from './pages/audit/AuditActivityPage';
+import AuditActivityListPage from './pages/audit/AuditActivityListPage';
 import { AuditFeedbackEvaluateeHistoryPage, AuditFeedbackHistoryPage } from './pages/audit/AuditFeedbackHistoryPage';
 import PermissionMatrixPage from './pages/audit/permissions';
 // Dashboard Pages - Using the correct file names from your project
@@ -379,6 +380,7 @@ function App() {
           <Route path="/audit" element={<AuditLayout />}>
             <Route index element={<Navigate to="/audit/dashboard" replace />} />
             <Route path="dashboard" element={<AuditDashboard />} />
+            <Route path="activity" element={<AuditActivityListPage />} />
             <Route path="employees" element={<EmployeeListPage />} />
             <Route path="employees/create-account" element={<CreateEmployeeAccountPage />} />
             <Route path="departments" element={<DepartmentListPage />} />
