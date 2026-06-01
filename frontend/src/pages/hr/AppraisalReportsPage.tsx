@@ -19,6 +19,7 @@ import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContaine
 import * as XLSX from 'xlsx-js-style';
 import { format } from 'date-fns';
 import { exportAppraisalPdf } from '../../utils/exportAppraisalPdf';
+import { exportAppraisalReportListPdf } from '../../utils/exportAppraisalReportListPdf';
 import {
   APPRAISAL_REPORT_CHART_COLORS,
   getAppraisalStatusChartColor,
@@ -398,6 +399,17 @@ export default function AppraisalReportsPage({ mode = 'hr' }: { mode?: 'hr' | 'm
     }
   };
 
+  const handleExportPdf = async () => {
+    try {
+      toast.loading('Generating PDF report...', { id: 'appraisal-report-list-pdf' });
+      await exportAppraisalReportListPdf(filteredAssignments);
+      toast.success('Appraisal reports list PDF exported successfully!', { id: 'appraisal-report-list-pdf' });
+    } catch (err) {
+      console.error(err);
+      toast.error('Failed to export PDF report', { id: 'appraisal-report-list-pdf' });
+    }
+  };
+
   const handleDownloadPdf = async (a: Assignment) => {
     try {
       toast.loading('Generating PDF report...', { id: `pdf-${a.id}` });
@@ -459,13 +471,22 @@ export default function AppraisalReportsPage({ mode = 'hr' }: { mode?: 'hr' | 'm
             Analyze, track progress, and export official performance appraisal evaluations.
           </p>
         </div>
-        <button
-          onClick={handleExportExcel}
-          className={`flex items-center justify-center gap-2.5 px-6 h-12 rounded-2xl font-black text-xs uppercase tracking-wider transition-all cursor-pointer ${appraisalReportBtnPrimary}`}
-        >
-          <FileSpreadsheet size={16} />
-          <span>Export Excel</span>
-        </button>
+        <div className="flex items-center gap-3">
+          <button
+            onClick={handleExportPdf}
+            className="flex items-center justify-center gap-2.5 px-6 h-12 rounded-2xl bg-slate-900 hover:bg-slate-800 text-white font-black text-xs uppercase tracking-wider transition-all cursor-pointer shadow-lg active:scale-95"
+          >
+            <Download size={16} />
+            <span>Export PDF</span>
+          </button>
+          <button
+            onClick={handleExportExcel}
+            className={`flex items-center justify-center gap-2.5 px-6 h-12 rounded-2xl font-black text-xs uppercase tracking-wider transition-all cursor-pointer ${appraisalReportBtnPrimary}`}
+          >
+            <FileSpreadsheet size={16} />
+            <span>Export Excel</span>
+          </button>
+        </div>
       </div>
 
       {/* Stats row */}
