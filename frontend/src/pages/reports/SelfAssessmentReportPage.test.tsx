@@ -45,7 +45,6 @@ const cycles = [{ id: 7, name: 'Q2 2026', requiresEmployeeSubmission: true }]
 const baseReport = {
   role: 'hr',
   selectedCycle: { id: 7, name: 'Q2 2026', startDate: '2026-04-01', endDate: '2026-06-30' },
-  previousCycle: null,
   overallTotals: { recordCount: 2, averageScore: 45, highestScore: 90, lowestScore: 0, missedCount: 1 },
   highestDepartment: { groupId: 10, groupCode: 'ENG', departmentId: 10, departmentName: 'Engineering', groupName: 'Engineering', employeeCount: 2, averageScore: 45, highestScore: 90, lowestScore: 0, missedCount: 1 },
   lowestDepartment: { groupId: 11, groupCode: 'FIN', departmentId: 11, departmentName: 'Finance', groupName: 'Finance', employeeCount: 1, averageScore: 70, highestScore: 70, lowestScore: 70, missedCount: 0 },
@@ -60,9 +59,9 @@ const baseReport = {
   performanceBandRadar: [{ groupName: 'Engineering', outstanding: 1, good: 0, meetRequirement: 0, needImprovement: 0, unsatisfactory: 1, outstandingPercent: 50, goodPercent: 0, meetRequirementPercent: 0, needImprovementPercent: 0, unsatisfactoryPercent: 50 }],
   performerHighlights: [{ groupName: 'Engineering', highestPerformers: [{ employeeName: 'Alice', score: 90 }], lowestPerformers: [{ employeeName: 'Bob', score: 0 }] }],
   employeeDirectory: [
-    { employeeId: 1, staffNo: 'EMP-1', employeeName: 'Alice', departmentId: 10, departmentName: 'Engineering', positionId: 20, positionName: 'Developer', selectedCycleScore: 90, performance: 'Outstanding', status: 'FINALIZED_LOCKED', previousCycleScore: null, previousCycleDelta: null },
-    { employeeId: 2, staffNo: 'EMP-2', employeeName: 'Bob', departmentId: 10, departmentName: 'Engineering', positionId: 20, positionName: 'Developer', selectedCycleScore: 0, performance: 'Unsatisfactory', status: 'NOT_SUBMITTED', previousCycleScore: null, previousCycleDelta: null },
-    { employeeId: 3, staffNo: 'EMP-3', employeeName: 'Cara', departmentId: 11, departmentName: 'Finance', positionId: 21, positionName: 'Analyst', selectedCycleScore: 70, performance: 'Good', status: 'FINALIZED_LOCKED', previousCycleScore: null, previousCycleDelta: null },
+    { employeeId: 1, staffNo: 'EMP-1', employeeName: 'Alice', departmentId: 10, departmentName: 'Engineering', positionId: 20, positionName: 'Developer', selectedCycleScore: 90, performance: 'Outstanding', status: 'FINALIZED_LOCKED' },
+    { employeeId: 2, staffNo: 'EMP-2', employeeName: 'Bob', departmentId: 10, departmentName: 'Engineering', positionId: 20, positionName: 'Developer', selectedCycleScore: 0, performance: 'Unsatisfactory', status: 'NOT_SUBMITTED' },
+    { employeeId: 3, staffNo: 'EMP-3', employeeName: 'Cara', departmentId: 11, departmentName: 'Finance', positionId: 21, positionName: 'Analyst', selectedCycleScore: 70, performance: 'Good', status: 'FINALIZED_LOCKED' },
   ],
 }
 
@@ -88,7 +87,7 @@ describe('SelfAssessmentReportPage', () => {
     expect(screen.getByRole('button', { name: /export excel/i })).toBeEnabled()
   })
 
-  it('renders manager position comparison, employee directory, and delta', async () => {
+  it('renders manager position comparison and employee directory', async () => {
     reviewCyclesHookMock.mockReturnValue({ data: cycles })
     reportHookMock.mockReturnValue({
       data: {
@@ -96,7 +95,7 @@ describe('SelfAssessmentReportPage', () => {
         role: 'manager',
         departmentSummaries: [{ groupId: 10, groupCode: 'ENG', departmentId: 10, departmentName: 'Engineering', groupName: 'Engineering', employeeCount: 1, averageScore: 90, highestScore: 90, lowestScore: 90, missedCount: 0 }],
         positionSummaries: [{ groupId: 20, groupCode: 'DEV', departmentId: 10, departmentName: 'Engineering', groupName: 'Developer', employeeCount: 1, averageScore: 90, highestScore: 90, lowestScore: 90, missedCount: 0 }],
-        employeeDirectory: [{ employeeId: 1, staffNo: 'EMP-1', employeeName: 'Alice', departmentId: 10, departmentName: 'Engineering', positionId: 20, positionName: 'Developer', selectedCycleScore: 90, performance: 'Outstanding', status: 'FINALIZED_LOCKED', previousCycleScore: 80, previousCycleDelta: 10 }],
+        employeeDirectory: [{ employeeId: 1, staffNo: 'EMP-1', employeeName: 'Alice', departmentId: 10, departmentName: 'Engineering', positionId: 20, positionName: 'Developer', selectedCycleScore: 90, performance: 'Outstanding', status: 'FINALIZED_LOCKED' }],
       },
       isFetching: false,
       isError: false,
@@ -108,7 +107,6 @@ describe('SelfAssessmentReportPage', () => {
     expect(screen.getByText('Position Summary')).toBeTruthy()
     await userEvent.click(screen.getByRole('button', { name: 'Employee Directory' }))
     expect(screen.getByText('Alice')).toBeTruthy()
-    expect(screen.getByText('+10.0%')).toBeTruthy()
   })
 
   it('HR Department tab row click filters Positions', async () => {

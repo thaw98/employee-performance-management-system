@@ -9,7 +9,7 @@ import * as XLSX from 'xlsx-js-style';
 import jsPDF from 'jspdf';
 import autoTable from 'jspdf-autotable';
 import { toast } from 'react-hot-toast';
-import { addPdfFooterBranding, addPdfHeaderBranding, addPdfHeaderLogo, loadPdfLogo } from '../../utils/pdfBranding';
+import { addPdfFooterBranding, addPdfHeaderBranding, addPdfHeaderLogo, getPdfHeaderTextX, loadPdfLogo } from '../../utils/pdfBranding';
 import {
   KPI_REPORTS_BAR_FILL,
   KPI_REPORTS_CHART_AXIS,
@@ -523,14 +523,17 @@ export default function KpiReportsPage() {
       const title = isEmployeeDetailActive ? `KPI Details: ${selectedEmployeeForDetail.employeeName}` : (isDeptCompActive ? 'Department Comparison' : (isDeptActive ? 'Department' : 'KPI Report'));
 
       const logoDataUrl = await loadPdfLogo();
+      const margin = 14;
+      const logoWidth = 24;
+      const headerTextX = getPdfHeaderTextX(margin, !!logoDataUrl, { logoWidth });
       if (logoDataUrl) {
-        addPdfHeaderLogo(doc, logoDataUrl, { x: 14, y: 3, width: 24, height: 12 });
+        addPdfHeaderLogo(doc, logoDataUrl, { x: margin, y: 3, width: logoWidth, height: 12 });
       }
 
       doc.setFontSize(16);
-      doc.text(title, 14, 14);
+      doc.text(title, headerTextX, 14);
       doc.setFontSize(10);
-      doc.text(`KPI Period: ${selectedPeriodLabel || format(new Date(), 'MMMM yyyy')}`, 14, 22);
+      doc.text(`KPI Period: ${selectedPeriodLabel || format(new Date(), 'MMMM yyyy')}`, headerTextX, 22);
       doc.text(`Export Date: ${format(new Date(), 'dd MMM yyyy')}`, 230, 22);
       addPdfHeaderBranding(doc, { margin: 14, y: 14 });
 

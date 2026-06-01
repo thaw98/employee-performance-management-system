@@ -114,7 +114,6 @@ class SelfAssessmentReportServiceTest {
         Employee employee = new Employee();
         ReviewCycle cycle = cycle(7L, "Q2 2026");
         when(reviewCycleRepository.findById(7L)).thenReturn(Optional.of(cycle));
-        when(reviewCycleRepository.findAll()).thenReturn(List.of(cycle));
         when(formService.getScoreRecords(employee, 1L)).thenReturn(List.of(
                 record(1L, 7L, "Q2 2026", 90.0, "Engineering", "Developer", "FINALIZED_LOCKED"),
                 record(2L, 7L, "Q2 2026", null, "Engineering", "Developer", "NOT_SUBMITTED"),
@@ -155,7 +154,6 @@ class SelfAssessmentReportServiceTest {
         Employee employee = new Employee();
         ReviewCycle cycle = cycle(7L, "Q2 2026");
         when(reviewCycleRepository.findById(7L)).thenReturn(Optional.of(cycle));
-        when(reviewCycleRepository.findAll()).thenReturn(List.of(cycle));
         when(formService.getScoreRecords(employee, 1L)).thenReturn(List.of(
                 record(1L, 7L, "Q2 2026", 90.0, "Engineering", "Developer", "FINALIZED_LOCKED"),
                 record(2L, 7L, "Q2 2026", 90.0, "Engineering", "Developer", "FINALIZED_LOCKED"),
@@ -173,24 +171,19 @@ class SelfAssessmentReportServiceTest {
     }
 
     @Test
-    void getAnalyticsReportData_managerScopesToCurrentDepartmentAndCalculatesDelta() {
+    void getAnalyticsReportData_managerScopesToCurrentDepartment() {
         Department department = new Department();
         department.setId(10L);
         department.setName("Engineering");
         Employee manager = new Employee();
         manager.setDepartment(department);
-        ReviewCycle previous = cycle(6L, "Q1 2026");
-        previous.setStartDate(LocalDate.of(2026, 1, 1));
-        previous.setEndDate(LocalDate.of(2026, 3, 31));
         ReviewCycle selected = cycle(7L, "Q2 2026");
         selected.setStartDate(LocalDate.of(2026, 4, 1));
         selected.setEndDate(LocalDate.of(2026, 6, 30));
         when(reviewCycleRepository.findById(7L)).thenReturn(Optional.of(selected));
-        when(reviewCycleRepository.findAll()).thenReturn(List.of(previous, selected));
         when(formService.getScoreRecords(manager, 2L)).thenReturn(List.of(
                 record(1L, 7L, "Q2 2026", 90.0, "Engineering", "Developer", "FINALIZED_LOCKED"),
-                record(2L, 7L, "Q2 2026", 80.0, "Finance", "Analyst", "FINALIZED_LOCKED"),
-                record(1L, 6L, "Q1 2026", 70.0, "Engineering", "Developer", "FINALIZED_LOCKED")
+                record(2L, 7L, "Q2 2026", 80.0, "Finance", "Analyst", "FINALIZED_LOCKED")
         ));
 
         SelfAssessmentAnalyticsReportDto data = reportService.getAnalyticsReportData(manager, 2L, 7L);
@@ -198,9 +191,7 @@ class SelfAssessmentReportServiceTest {
         assertEquals(1, data.employeeDirectory().size());
         assertEquals("Developer", data.positionSummaries().get(0).groupName());
         assertEquals(10L, data.positionSummaries().get(0).departmentId());
-        assertEquals(20.0, data.employeeDirectory().get(0).previousCycleDelta());
         assertTrue(data.employeeDirectory().stream().noneMatch(row -> "Finance".equals(row.departmentName())));
-        assertEquals(6L, data.previousCycle().id());
     }
 
     private static ReviewCycle cycle(Long id, String name) {

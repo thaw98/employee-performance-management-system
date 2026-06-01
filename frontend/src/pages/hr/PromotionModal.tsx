@@ -5,7 +5,7 @@ import * as XLSX from 'xlsx-js-style';
 import jsPDF from 'jspdf';
 import autoTable from 'jspdf-autotable';
 import { format } from 'date-fns';
-import { addPdfFooterBranding, addPdfHeaderBranding, addPdfHeaderLogo, loadPdfLogo } from '../../utils/pdfBranding';
+import { addPdfFooterBranding, addPdfHeaderBranding, addPdfHeaderLogo, getPdfHeaderTextX, loadPdfLogo } from '../../utils/pdfBranding';
 
 interface PromotionModalProps {
   isOpen: boolean;
@@ -137,12 +137,15 @@ export const PromotionModal: React.FC<PromotionModalProps> = ({
       const doc = new jsPDF('p', 'mm', 'a4');
 
       const logoDataUrl = await loadPdfLogo();
+      const margin = 14;
+      const logoWidth = 24;
+      const headerTextX = getPdfHeaderTextX(margin, !!logoDataUrl, { logoWidth });
       if (logoDataUrl) {
-        addPdfHeaderLogo(doc, logoDataUrl, { x: 14, y: 5, width: 24, height: 12 });
+        addPdfHeaderLogo(doc, logoDataUrl, { x: margin, y: 5, width: logoWidth, height: 12 });
       }
 
       doc.setFontSize(16);
-      doc.text('Promotion Proposal Form', 14, 18);
+      doc.text('Promotion Proposal Form', headerTextX, 18);
       doc.setFontSize(10);
       doc.text(`Export Date: ${format(new Date(), 'dd MMM yyyy')}`, 140, 18);
       addPdfHeaderBranding(doc, { margin: 14, y: 14 });

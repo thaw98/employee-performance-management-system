@@ -2,7 +2,7 @@ import jsPDF from 'jspdf';
 import autoTable from 'jspdf-autotable';
 import { resolveMediaSrc } from './mediaUrl';
 import { formatRatingCategory } from './formatRatingCategory';
-import { addPdfFooterBranding, addPdfHeaderBranding, addPdfHeaderLogo, loadPdfLogo } from './pdfBranding';
+import { addPdfFooterBranding, addPdfHeaderBranding, addPdfHeaderLogo, getPdfHeaderTextX, loadPdfLogo } from './pdfBranding';
 
 interface Question {
   id: number;
@@ -171,20 +171,23 @@ export async function exportAppraisalPdf(assignment: AppraisalAssignmentForPdf):
   const contentWidth = pageWidth - pageMargin * 2;
 
   const logoDataUrl = await loadPdfLogo();
+  const logoWidth = 24;
+  const logoHeight = 12;
+  const headerTextX = getPdfHeaderTextX(pageMargin, !!logoDataUrl, { logoWidth });
 
   // Header Banner
   doc.setFillColor(...navy);
   doc.rect(0, 0, pageWidth, 26, 'F');
   if (logoDataUrl) {
-    addPdfHeaderLogo(doc, logoDataUrl, { x: pageMargin, y: 5, width: 24, height: 12 });
+    addPdfHeaderLogo(doc, logoDataUrl, { x: pageMargin, y: 5, width: logoWidth, height: logoHeight });
   }
   doc.setTextColor(255, 255, 255);
   doc.setFont('helvetica', 'bold');
   doc.setFontSize(14);
-  doc.text('Performance Appraisal Report', pageMargin, 11);
+  doc.text('Performance Appraisal Report', headerTextX, 11);
   doc.setFont('helvetica', 'normal');
   doc.setFontSize(8);
-  doc.text('Official Evaluation Record', pageMargin, 17);
+  doc.text('Official Evaluation Record', headerTextX, 17);
 
   doc.setFont('helvetica', 'bold');
   doc.setFontSize(8.5);

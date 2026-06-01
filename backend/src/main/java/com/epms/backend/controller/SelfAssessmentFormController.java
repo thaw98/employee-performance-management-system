@@ -174,6 +174,17 @@ public class SelfAssessmentFormController {
         }
     }
 
+    @GetMapping("/hr/assignment-coverage")
+    @PreAuthorize("principal.roleId == 1 and @permissionGuard.has('SELF_ASSESSMENT', 'assign')")
+    public ResponseEntity<ApiResponse<AssignmentCoverageDto>> getAssignmentCoverage() {
+        try {
+            AssignmentCoverageDto coverage = selfAssessmentFormService.getAssignmentCoverage();
+            return ResponseEntity.ok(ApiResponse.ok("Assignment coverage retrieved", coverage));
+        } catch (RuntimeException ex) {
+            return ResponseEntity.badRequest().body(ApiResponse.fail(ex.getMessage()));
+        }
+    }
+
     @PostMapping("/hr/assignments")
     @PreAuthorize("principal.roleId == 1 and @permissionGuard.has('SELF_ASSESSMENT', 'assign')")
     public ResponseEntity<ApiResponse<SelfAssessmentAssignmentResponse>> assignSelfAssessmentForms(

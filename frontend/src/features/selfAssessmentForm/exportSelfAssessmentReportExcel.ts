@@ -25,11 +25,6 @@ const statusLabel = (value: string | null | undefined) =>
         .toLowerCase()
         .replace(/\b\w/g, (char) => char.toUpperCase())
 
-const deltaLabel = (value: number | null | undefined) => {
-  if (value == null) return '-'
-  return `${value >= 0 ? '+' : ''}${score(value)}`
-}
-
 const performers = (items: PerformerScore[]) =>
   items.map((item) => `${item.employeeName} (${score(item.score)})`).join(', ') || '-'
 
@@ -109,7 +104,6 @@ export function exportSelfAssessmentReportExcel(report: SelfAssessmentReportDto)
     ['Highest', score(report.overallTotals.highestScore)],
     ['Lowest', score(report.overallTotals.lowestScore)],
     ['Missed', report.overallTotals.missedCount],
-    ['Previous Cycle', report.previousCycle?.name ?? '-'],
   ], [24, 28])
 
   appendSheet(workbook, 'Department Summary', summaryRows(report.departmentSummaries, false), [24, 12, 14, 14, 14, 12])
@@ -142,7 +136,7 @@ export function exportSelfAssessmentReportExcel(report: SelfAssessmentReportDto)
   ], [24, 40, 40])
 
   appendSheet(workbook, 'Employee Directory', [
-    ['Staff No', 'Name', 'Department', 'Position', 'Score', 'Performance', 'Status', 'Previous Score', 'Previous Delta'],
+    ['Staff No', 'Name', 'Department', 'Position', 'Score', 'Performance', 'Status'],
     ...report.employeeDirectory.map((item) => [
       valueOrDash(item.staffNo),
       valueOrDash(item.employeeName),
@@ -151,10 +145,8 @@ export function exportSelfAssessmentReportExcel(report: SelfAssessmentReportDto)
       score(item.selectedCycleScore),
       valueOrDash(item.performance),
       statusLabel(item.status),
-      item.previousCycleScore == null ? '-' : score(item.previousCycleScore),
-      deltaLabel(item.previousCycleDelta),
     ]),
-  ], [14, 24, 22, 22, 12, 18, 20, 16, 16])
+  ], [14, 24, 22, 22, 12, 18, 20])
 
   XLSX.writeFile(workbook, `self-assessment-report-${role}-${slugify(cycleName)}.xlsx`)
 }

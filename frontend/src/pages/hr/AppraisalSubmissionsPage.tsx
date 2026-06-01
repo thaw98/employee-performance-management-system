@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef } from 'react';
+import { useState, useEffect, useRef, useMemo } from 'react';
 import { useSearchParams, useLocation } from 'react-router-dom';
 import axios from '../../app/axiosInstance';
 import { toast } from 'react-hot-toast';
@@ -10,7 +10,7 @@ import { resolveMediaSrc } from '../../utils/mediaUrl';
 import { jsPDF } from 'jspdf';
 import autoTable from 'jspdf-autotable';
 import { exportAppraisalPdf } from '../../utils/exportAppraisalPdf';
-import { addPdfFooterBranding, addPdfHeaderBranding, addPdfHeaderLogo, loadPdfLogo } from '../../utils/pdfBranding';
+import { addPdfFooterBranding, addPdfHeaderBranding, addPdfHeaderLogo, getPdfHeaderTextX, loadPdfLogo } from '../../utils/pdfBranding';
 import {
     APPRAISAL_PRIMARY,
     appraisalGradientBtn,
@@ -20,6 +20,8 @@ import {
 import ConfirmActionModal from '../../features/hrEmployeeList/components/ConfirmActionModal';
 import ReturnConfirmationModal from '../../features/appraisals/ReturnConfirmationModal';
 import { displayKpiTarget, displayKpiUnit } from '../../features/kpi/kpiDisplay';
+import { useGetScoreExplanationsQuery } from '../../features/scoreExplanation/scoreExplanationApi';
+import { SelfAssessmentScoreBandTable } from '../../features/selfAssessmentForm/components/SelfAssessmentScoreBandTable';
 
 type ConfirmableAction = 'approve' | 'reject' | 'return' | 'unlock' | 'lock' | 'reset';
 
@@ -119,6 +121,12 @@ export function AppraisalSubmissionsPage() {
     const [lockTargetId, setLockTargetId] = useState<number | null>(null);
     const [resetTargetId, setResetTargetId] = useState<number | null>(null);
     const [showReturnModal, setShowReturnModal] = useState(false);
+
+    const { data: scoreExplanationsByModule, isLoading: scoreBandsLoading, isError: scoreBandsError } = useGetScoreExplanationsQuery();
+    const scoreBands = useMemo(
+        () => scoreExplanationsByModule?.APPRAISAL ?? null,
+        [scoreExplanationsByModule],
+    );
 
     // KPI Edit Modal for HR
     const [isKpiModalOpen, setIsKpiModalOpen] = useState(false);
@@ -545,23 +553,26 @@ export function AppraisalSubmissionsPage() {
         const dateStr = new Date().toLocaleDateString();
 
         const logoDataUrl = await loadPdfLogo();
+        const margin = 15;
+        const logoWidth = 24;
+        const headerTextX = getPdfHeaderTextX(margin, !!logoDataUrl, { logoWidth });
 
         // Header
         doc.setFillColor(8, 85, 191);
         doc.rect(0, 0, 297, 40, 'F');
         if (logoDataUrl) {
-            addPdfHeaderLogo(doc, logoDataUrl, { x: 15, y: 5, width: 24, height: 12 });
+            addPdfHeaderLogo(doc, logoDataUrl, { x: margin, y: 5, width: logoWidth, height: 12 });
         }
         
         doc.setTextColor(255, 255, 255);
         doc.setFontSize(24);
         doc.setFont('helvetica', 'bold');
-        doc.text('HR PERFORMANCE SUMMARY REPORT', 15, 20);
+        doc.text('HR PERFORMANCE SUMMARY REPORT', headerTextX, 20);
         
         doc.setFontSize(10);
         doc.setFont('helvetica', 'normal');
-        doc.text(`Status: ${targetStatus === 'LOCKED' ? 'FINALIZED' : 'HR APPROVED'}`, 15, 30);
-        doc.text(`Generated on: ${dateStr}`, 15, 35);
+        doc.text(`Status: ${targetStatus === 'LOCKED' ? 'FINALIZED' : 'HR APPROVED'}`, headerTextX, 30);
+        doc.text(`Generated on: ${dateStr}`, headerTextX, 35);
         doc.text(`Filter: ${filterDept === 'ALL' ? 'ALL DEPARTMENTS' : 'DEPARTMENTAL'} | ${filterPos === 'ALL' ? 'ALL POSITIONS' : String(filterPos).toUpperCase()}`, 282, 35, { align: 'right' });
         addPdfHeaderBranding(doc, { margin: 15, y: 12, textColor: [255, 255, 255] });
 
@@ -1052,6 +1063,12 @@ export function AppraisalSubmissionsPage() {
                                     </p>
                                 </div>
                             </div>
+
+                            <SelfAssessmentScoreBandTable
+                                bands={scoreBands}
+                                loading={scoreBandsLoading && !scoreBands?.length}
+                                error={scoreBandsError && !scoreBands?.length}
+                            />
 
                             {/* Detailed Answers Section */}
                             <div className="space-y-6">

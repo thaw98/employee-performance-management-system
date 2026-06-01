@@ -159,6 +159,12 @@ vi.mock('../../features/selfAssessmentForm/api/selfAssessmentFormApi', () => ({
   useSubmitFormMutation: () => [mocks.submitForm, { isLoading: false }],
   useEmployeeAcknowledgeMutation: () => [mocks.employeeAcknowledge, { isLoading: false }],
   useEmployeeDisputeMutation: () => [mocks.employeeDispute, { isLoading: false }],
+  useEmployeeRetakeSubmitMutation: () => [vi.fn(), { isLoading: false }],
+  useRequestSelfAssessmentUnlockMutation: () => [vi.fn(), { isLoading: false }],
+}))
+
+vi.mock('../../features/scoreExplanation/scoreExplanationApi', () => ({
+  useGetScoreExplanationsQuery: () => ({ data: undefined, isLoading: false, isError: false }),
 }))
 
 vi.mock('../../features/selfAssessmentForm/components/SelfAssessmentRatingPicker', () => ({
@@ -169,9 +175,13 @@ vi.mock('../../features/selfAssessmentForm/components/SelfAssessmentRatingPicker
   ),
 }))
 
-vi.mock('../../features/selfAssessmentForm/ratingSystem', () => ({
-  isRatingValidForAnswer: () => true,
-}))
+vi.mock('../../features/selfAssessmentForm/ratingSystem', async (importOriginal) => {
+  const actual = await importOriginal<typeof import('../../features/selfAssessmentForm/ratingSystem')>()
+  return {
+    ...actual,
+    isRatingValidForAnswer: () => true,
+  }
+})
 
 vi.mock('../../features/user/userApi', () => ({
   useGetDefaultSignatureQuery: () => ({
@@ -230,6 +240,7 @@ describe('MySelfAssessmentFormPage autosave', () => {
     mocks.formStatus.deadlinePassed = false
     mocks.formStatus.message = null
     mocks.editableFormData.status = 'DRAFT'
+    mocks.editableFormData.includeYesNo = true
     mocks.editableFormData.totalScore = null
     mocks.editableFormData.managerRevisedTotalScore = null
     mocks.editableFormData.managerComments = null
@@ -337,15 +348,25 @@ describe('MySelfAssessmentFormPage autosave', () => {
     expect(toast.error).not.toHaveBeenCalled()
   })
 
-  it('does not show live total mark while editing answers', async () => {
+  it('shows live score while editing answers', async () => {
+    renderPage()
+
+    expect(await screen.findByText('Did you meet your goals?')).toBeTruthy()
+    expect(screen.getByText('Live Score')).toBeTruthy()
+    expect(screen.getByText('0.0%')).toBeTruthy()
+    expect(screen.queryByText('Total Mark')).toBeNull()
+  })
+
+  it('reflects answered ratings in the live score panel', async () => {
     mocks.editableFormData.answers[0].yesNoAnswer = 'Yes'
     mocks.editableFormData.answers[0].rating = 4
 
     renderPage()
 
     expect(await screen.findByText('Did you meet your goals?')).toBeTruthy()
-    expect(screen.queryByText('Total Mark')).toBeNull()
-    expect(screen.queryByText(/80\.0%/)).toBeNull()
+    expect(screen.getByText('80.0%')).toBeTruthy()
+    expect(screen.getByText('Good')).toBeTruthy()
+    expect(screen.getByText('Points Achieved')).toBeTruthy()
   })
 
   it('shows manager review actions for expired forms pending employee review', async () => {

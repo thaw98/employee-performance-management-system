@@ -16,7 +16,7 @@ import * as XLSX from 'xlsx'
 import jsPDF from 'jspdf'
 import autoTable from 'jspdf-autotable'
 import { addFeedbackScorePerformanceSection, feedbackPercentageFromAverage } from '../../utils/feedbackScorePdf'
-import { addPdfFooterBranding, addPdfHeaderBranding, addPdfHeaderLogo, loadPdfLogo } from '../../utils/pdfBranding'
+import { addPdfFooterBranding, addPdfHeaderBranding, addPdfHeaderLogo, getPdfHeaderTextX, loadPdfLogo } from '../../utils/pdfBranding'
 import { useAppSelector } from '../../app/hooks'
 import { AlertTriangle, ArrowLeft, Award, ChevronLeft, ChevronRight, Download, FileText, Filter, Trophy } from 'lucide-react'
 import {
@@ -1005,14 +1005,16 @@ function EmployeeOwnFeedbackReport() {
       const margin = 10
       const usableWidth = pageWidth - margin * 2
       const logoDataUrl = await loadPdfLogo()
+      const logoWidth = 24
+      const headerTextX = getPdfHeaderTextX(margin, !!logoDataUrl, { logoWidth })
       if (logoDataUrl) {
-        addPdfHeaderLogo(doc, logoDataUrl, { x: margin, y: 3, width: 24, height: 12 })
+        addPdfHeaderLogo(doc, logoDataUrl, { x: margin, y: 3, width: logoWidth, height: 12 })
       }
       doc.setFontSize(16)
-      doc.text(getExportReportTitle('individual'), margin, 14)
+      doc.text(getExportReportTitle('individual'), headerTextX, 14)
       addPdfHeaderBranding(doc, { margin, y: 14 })
       doc.setFontSize(12)
-      doc.text('Individual', margin, 22)
+      doc.text('Individual', headerTextX, 22)
       autoTable(doc, {
         startY: 27,
         body: reportInfoRows(getExportReportTitle('individual')),
@@ -1385,14 +1387,16 @@ function HrManagerFeedbackReport({ mode }: { mode: 'hr' | 'manager' | 'audit' })
       const margin = 10
       const usableWidth = pageWidth - margin * 2
       const logoDataUrl = await loadPdfLogo()
+      const logoWidth = 24
+      const headerTextX = getPdfHeaderTextX(margin, !!logoDataUrl, { logoWidth })
       if (logoDataUrl) {
-        addPdfHeaderLogo(doc, logoDataUrl, { x: margin, y: 3, width: 24, height: 12 })
+        addPdfHeaderLogo(doc, logoDataUrl, { x: margin, y: 3, width: logoWidth, height: 12 })
       }
       doc.setFontSize(16)
-      doc.text(reportTitle, margin, 14)
+      doc.text(reportTitle, headerTextX, 14)
       addPdfHeaderBranding(doc, { margin, y: 14 })
       doc.setFontSize(12)
-      doc.text(sectionLabel, margin, 22)
+      doc.text(sectionLabel, headerTextX, 22)
 
       if (section === 'summary') {
         autoTable(doc, {

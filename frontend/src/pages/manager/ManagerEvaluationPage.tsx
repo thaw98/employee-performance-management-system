@@ -38,6 +38,8 @@ import {
     appraisalGradientBtn,
     appraisalGradientSoft,
 } from '../../features/appraisals/appraisalTheme';
+import { useGetScoreExplanationsQuery } from '../../features/scoreExplanation/scoreExplanationApi';
+import { SelfAssessmentScoreBandTable } from '../../features/selfAssessmentForm/components/SelfAssessmentScoreBandTable';
 interface EvaluationFormData {
     answers: Record<string, { rating: number; comments: string }>;
     comments: string;
@@ -165,6 +167,11 @@ export const ManagerEvaluationPage: React.FC = () => {
     const [isSavingInlineSignature, setIsSavingInlineSignature] = useState(false);
     const inlineSignaturePadRef = useRef<InlineDefaultSignaturePadHandle>(null);
     const { data: defaultSigResponse, isLoading: isDefaultSigLoading, refetch: refetchDefaultSig } = useGetDefaultSignatureQuery();
+    const { data: scoreExplanationsByModule, isLoading: scoreBandsLoading, isError: scoreBandsError } = useGetScoreExplanationsQuery();
+    const scoreBands = useMemo(
+        () => scoreExplanationsByModule?.APPRAISAL ?? null,
+        [scoreExplanationsByModule],
+    );
     const hasDefaultSignature = Boolean(defaultSigResponse?.data?.signatureData);
     const form = useForm<EvaluationFormData>({
         defaultValues: {
@@ -611,6 +618,12 @@ export const ManagerEvaluationPage: React.FC = () => {
                         </div>
                     </div>
                 )}
+
+                <SelfAssessmentScoreBandTable
+                    bands={scoreBands}
+                    loading={scoreBandsLoading && !scoreBands?.length}
+                    error={scoreBandsError && !scoreBands?.length}
+                />
 
                 {/* Evaluation Categories */}
                 {assignment.template?.categories?.map((category) => (

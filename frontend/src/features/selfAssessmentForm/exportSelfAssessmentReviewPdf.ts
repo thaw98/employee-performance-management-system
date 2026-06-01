@@ -6,7 +6,7 @@ import type {
   SelfAssessmentSubmissionAttemptDto,
 } from './api/selfAssessmentFormApi'
 import { resolveMediaSrc } from '../../utils/mediaUrl'
-import { addPdfFooterBranding, addPdfHeaderBranding, addPdfHeaderLogo, loadPdfLogo } from '../../utils/pdfBranding'
+import { addPdfFooterBranding, addPdfHeaderBranding, addPdfHeaderLogo, getPdfHeaderTextX, loadPdfLogo } from '../../utils/pdfBranding'
 
 interface SignatureExportItem {
   label: string
@@ -330,19 +330,22 @@ export const resolveAttemptsForExport = (
 const addReportHeader = (doc: jsPDF, form: SelfAssessmentFormDto, logoDataUrl: string | null): number => {
   const pageWidth = doc.internal.pageSize.getWidth()
   const contentWidth = pageWidth - pageMargin * 2
+  const logoWidth = 24
+  const logoHeight = 12
+  const headerTextX = getPdfHeaderTextX(pageMargin, !!logoDataUrl, { logoWidth })
 
   doc.setFillColor(...navy)
   doc.rect(0, 0, pageWidth, 26, 'F')
   if (logoDataUrl) {
-    addPdfHeaderLogo(doc, logoDataUrl, { x: pageMargin, y: 5, width: 24, height: 12 })
+    addPdfHeaderLogo(doc, logoDataUrl, { x: pageMargin, y: 5, width: logoWidth, height: logoHeight })
   }
   doc.setTextColor(255, 255, 255)
   doc.setFont('helvetica', 'bold')
   doc.setFontSize(15)
-  doc.text('Self-Assessment Review Report', pageMargin, 11)
+  doc.text('Self-Assessment Review Report', headerTextX, 11)
   doc.setFont('helvetica', 'normal')
   doc.setFontSize(8)
-  doc.text('Review Record', pageMargin, 17)
+  doc.text('Review Record', headerTextX, 17)
 
   doc.setFont('helvetica', 'normal')
   doc.setFontSize(8.5)

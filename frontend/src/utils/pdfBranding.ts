@@ -46,11 +46,26 @@ export async function loadPdfLogo(): Promise<string | null> {
   return result
 }
 
+export const PDF_HEADER_LOGO_DEFAULT_WIDTH = 24
+export const PDF_HEADER_LOGO_TEXT_GAP = 3
+
 export interface PdfHeaderLogoOptions {
   x?: number
   y?: number
   width?: number
   height?: number
+}
+
+/** X position for header text placed to the right of the logo. */
+export function getPdfHeaderTextX(
+  margin: number,
+  hasLogo: boolean,
+  options?: { logoWidth?: number; gap?: number },
+): number {
+  if (!hasLogo) return margin
+  const logoWidth = options?.logoWidth ?? PDF_HEADER_LOGO_DEFAULT_WIDTH
+  const gap = options?.gap ?? PDF_HEADER_LOGO_TEXT_GAP
+  return margin + logoWidth + gap
 }
 
 export function addPdfHeaderLogo(

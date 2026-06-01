@@ -587,6 +587,30 @@ export interface SelfAssessmentArchiveSnapshotDto {
   formSnapshot: string
 }
 
+export interface CoverageEmployeeRow {
+  employeeId: number
+  employeeCode: string
+  employeeName: string
+  departmentName: string | null
+  positionName: string | null
+  managerName: string | null
+  assignmentStatus: string
+  assignedDate: string | null
+  templateTitle: string | null
+  unassignedReason: string | null
+}
+
+export interface AssignmentCoverageDto {
+  activeCycle: CycleInfoDto | null
+  eligibleCount: number
+  assignedCount: number
+  leftToAssignCount: number
+  noTemplateCount: number
+  coveragePercent: number
+  assignedEmployees: CoverageEmployeeRow[]
+  unassignedEmployees: CoverageEmployeeRow[]
+}
+
 export const SELF_ASSESSMENT_UNLOCK_REASON_OPTIONS: { value: SelfAssessmentUnlockReasonCode; label: string }[] = [
   { value: 'TYPO_COMMENT', label: 'Typo or comment correction' },
   { value: 'WRONG_RATING', label: 'Wrong rating selected' },
@@ -1226,6 +1250,36 @@ export interface SelfAssessmentTemplateImportValidationResponse {
   invalidRowsData: SelfAssessmentTemplateImportInvalidRow[]
 }
 
+const normalizeCoverageEmployeeRow = (row: unknown): CoverageEmployeeRow => {
+  const source = isRecord(row) ? row : {}
+  return {
+    employeeId: getNumber(source.employeeId),
+    employeeCode: getString(source.employeeCode),
+    employeeName: getString(source.employeeName),
+    departmentName: getOptionalString(source.departmentName) ?? null,
+    positionName: getOptionalString(source.positionName) ?? null,
+    managerName: getOptionalString(source.managerName) ?? null,
+    assignmentStatus: getString(source.assignmentStatus),
+    assignedDate: getOptionalString(source.assignedDate) ?? null,
+    templateTitle: getOptionalString(source.templateTitle) ?? null,
+    unassignedReason: getOptionalString(source.unassignedReason) ?? null,
+  }
+}
+
+const normalizeCoverage = (data: unknown): AssignmentCoverageDto => {
+  const source = isRecord(data) ? data : {}
+  return {
+    activeCycle: normalizeCycleInfo(source.activeCycle),
+    eligibleCount: getNumber(source.eligibleCount),
+    assignedCount: getNumber(source.assignedCount),
+    leftToAssignCount: getNumber(source.leftToAssignCount),
+    noTemplateCount: getNumber(source.noTemplateCount),
+    coveragePercent: getNumber(source.coveragePercent),
+    assignedEmployees: getArray(source.assignedEmployees).map(normalizeCoverageEmployeeRow),
+    unassignedEmployees: getArray(source.unassignedEmployees).map(normalizeCoverageEmployeeRow),
+  }
+}
+
 export const selfAssessmentFormApi = baseApi.injectEndpoints({
   endpoints: (builder) => ({
     getMyFormStatus: builder.query<FormStatusDto, void>({
@@ -1295,6 +1349,12 @@ export const selfAssessmentFormApi = baseApi.injectEndpoints({
           forms: getArray(source.forms).map(normalizeFormList),
         }
       },
+    }),
+
+    getAssignmentCoverage: builder.query<AssignmentCoverageDto, void>({
+      query: () => '/self-assessment-forms/hr/assignment-coverage',
+      providesTags: ['SelfAssessmentForm'],
+      transformResponse: (response: unknown) => normalizeCoverage(getResponseData(response)),
     }),
 
     getActiveCycleFormsForManager: builder.query<ActiveCycleFormsDto, void>({
@@ -1718,6 +1778,7 @@ export const {
   useGetHrReviewFormsQuery,
   useGetAllFormsForHrQuery,
   useGetActiveCycleFormsForHrQuery,
+  useGetAssignmentCoverageQuery,
   useGetActiveCycleFormsForManagerQuery,
   useGetFormByIdQuery,
   useManagerReviewMutation,

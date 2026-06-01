@@ -462,13 +462,14 @@ export const SelfAssessmentFormReviewPage: React.FC<SelfAssessmentFormReviewPage
   const [showManagerRetakeModal, setShowManagerRetakeModal] = useState(false);
   const [approvalMode, setApprovalMode] = useState<'adjustment' | 'final'>('final');
   const [retakeHasPadDrawing, setRetakeHasPadDrawing] = useState(false);
-  const [retakeNeedsInlineSignature, setRetakeNeedsInlineSignature] = useState(false);
   const [isSavingRetakeInlineSignature, setIsSavingRetakeInlineSignature] = useState(false);
   const retakeInlineSignaturePadRef = useRef<InlineDefaultSignaturePadHandle>(null);
   const [approveHasPadDrawing, setApproveHasPadDrawing] = useState(false);
-  const [approveNeedsInlineSignature, setApproveNeedsInlineSignature] = useState(false);
   const [isSavingApproveInlineSignature, setIsSavingApproveInlineSignature] = useState(false);
   const approveInlineSignaturePadRef = useRef<InlineDefaultSignaturePadHandle>(null);
+  const [approveRetakeHasPadDrawing, setApproveRetakeHasPadDrawing] = useState(false);
+  const [isSavingApproveRetakeInlineSignature, setIsSavingApproveRetakeInlineSignature] = useState(false);
+  const approveRetakeInlineSignaturePadRef = useRef<InlineDefaultSignaturePadHandle>(null);
   const { data: defaultSigResponse, isLoading: isDefaultSigLoading, refetch: refetchDefaultSig } = useGetDefaultSignatureQuery(undefined, {
     skip: isEmployeeDetail || isReadOnly,
   });
@@ -538,26 +539,49 @@ export const SelfAssessmentFormReviewPage: React.FC<SelfAssessmentFormReviewPage
   );
 
   useEffect(() => {
-    if (!showManagerRetakeModal) {
-      setRetakeHasPadDrawing(false);
-      setRetakeNeedsInlineSignature(false);
-      return;
-    }
-    if (!isDefaultSigLoading && !hasDefaultSignature) {
-      setRetakeNeedsInlineSignature(true);
-    }
-  }, [showManagerRetakeModal, isDefaultSigLoading, hasDefaultSignature]);
+    if (!showManagerRetakeModal) setRetakeHasPadDrawing(false);
+  }, [showManagerRetakeModal]);
 
   useEffect(() => {
-    if (!showManagerApproveModal) {
-      setApproveHasPadDrawing(false);
-      setApproveNeedsInlineSignature(false);
-      return;
+    if (!showManagerApproveModal) setApproveHasPadDrawing(false);
+  }, [showManagerApproveModal]);
+
+  useEffect(() => {
+    if (!showManagerApproveRetakeModal) setApproveRetakeHasPadDrawing(false);
+  }, [showManagerApproveRetakeModal]);
+
+  const ensureDefaultSignatureBeforeAction = async (
+    padRef: React.RefObject<InlineDefaultSignaturePadHandle | null>,
+    setIsSaving: (value: boolean) => void,
+  ): Promise<boolean> => {
+    if (hasDefaultSignature) return true;
+
+    const pad = padRef.current;
+    if (!pad) {
+      toast.error('Signature pad is not ready. Please try again.');
+      return false;
     }
-    if (!isDefaultSigLoading && !hasDefaultSignature) {
-      setApproveNeedsInlineSignature(true);
+
+    setIsSaving(true);
+    try {
+      const saved = await pad.saveAsDefault();
+      if (!saved) return false;
+      await refetchDefaultSig();
+      return true;
+    } finally {
+      setIsSaving(false);
     }
-  }, [showManagerApproveModal, isDefaultSigLoading, hasDefaultSignature]);
+  };
+
+  const openManagerApproveModal = () => {
+    void refetchDefaultSig();
+    setShowManagerApproveModal(true);
+  };
+
+  const openManagerApproveRetakeModal = () => {
+    void refetchDefaultSig();
+    setShowManagerApproveRetakeModal(true);
+  };
 
   useEffect(() => {
     if (selectedForm?.status !== 'PENDING_RETAKE_MANAGER_REVIEW') {
@@ -597,20 +621,11 @@ export const SelfAssessmentFormReviewPage: React.FC<SelfAssessmentFormReviewPage
     if (!selectedFormId) return;
 
     try {
-      if (approveNeedsInlineSignature && !hasDefaultSignature) {
-        const pad = approveInlineSignaturePadRef.current;
-        if (!pad) {
-          toast.error('Signature pad is not ready. Please try again.');
-          return;
-        }
-        setIsSavingApproveInlineSignature(true);
-        const saved = await pad.saveAsDefault();
-        if (!saved) return;
-        await refetchDefaultSig();
-      } else if (!hasDefaultSignature) {
-        toast.error('Set a default signature in Signature Settings before approving.');
-        return;
-      }
+      const signatureReady = await ensureDefaultSignatureBeforeAction(
+        approveInlineSignaturePadRef,
+        setIsSavingApproveInlineSignature,
+      );
+      if (!signatureReady) return;
 
       await managerReview({
         formId: selectedFormId,
@@ -630,8 +645,6 @@ export const SelfAssessmentFormReviewPage: React.FC<SelfAssessmentFormReviewPage
       }
     } catch (error: any) {
       toast.error(error?.data?.message || 'Failed to approve review');
-    } finally {
-      setIsSavingApproveInlineSignature(false);
     }
   };
 
@@ -668,20 +681,11 @@ export const SelfAssessmentFormReviewPage: React.FC<SelfAssessmentFormReviewPage
     }
 
     try {
-      if (retakeNeedsInlineSignature && !hasDefaultSignature) {
-        const pad = retakeInlineSignaturePadRef.current;
-        if (!pad) {
-          toast.error('Signature pad is not ready. Please try again.');
-          return;
-        }
-        setIsSavingRetakeInlineSignature(true);
-        const saved = await pad.saveAsDefault();
-        if (!saved) return;
-        await refetchDefaultSig();
-      } else if (!hasDefaultSignature) {
-        toast.error('Set a default signature in Signature Settings before requesting a retake.');
-        return;
-      }
+      const signatureReady = await ensureDefaultSignatureBeforeAction(
+        retakeInlineSignaturePadRef,
+        setIsSavingRetakeInlineSignature,
+      );
+      if (!signatureReady) return;
 
       if (canHrAct && isManagerSelfAssessment) {
         await hrRequestRetake({
@@ -707,14 +711,18 @@ export const SelfAssessmentFormReviewPage: React.FC<SelfAssessmentFormReviewPage
       }
     } catch (error: any) {
       toast.error(error?.data?.message || 'Failed to request retake');
-    } finally {
-      setIsSavingRetakeInlineSignature(false);
     }
   };
 
   const handleManagerApproveRetake = async () => {
     if (!selectedFormId) return;
     try {
+      const signatureReady = await ensureDefaultSignatureBeforeAction(
+        approveRetakeInlineSignaturePadRef,
+        setIsSavingApproveRetakeInlineSignature,
+      );
+      if (!signatureReady) return;
+
       await managerApproveRetake({ formId: selectedFormId, request: { comments: managerComments || undefined } }).unwrap();
       toast.success('Retake approved');
       setShowManagerApproveRetakeModal(false);
@@ -1415,8 +1423,8 @@ Review Submissions
 
               <SelfAssessmentScoreBandTable
                 bands={scoreBands}
-                loading={scoreBandsLoading}
-                error={scoreBandsError}
+                loading={scoreBandsLoading && !scoreBands?.length}
+                error={scoreBandsError && !scoreBands?.length}
               />
 
               <div className="rounded-xl border border-slate-200/60 bg-white p-5 shadow-sm dark:border-slate-700/60 dark:bg-slate-800/80 animate-fade-in-up" style={{ animationDelay: '120ms' }}>
@@ -1462,7 +1470,7 @@ Review Submissions
                 </div>
               </div>
 
-              {(selectedForm.employeeRemarks || selectedForm.overallRemarks || selectedForm.managerComments || selectedForm.employeeDisputedAt || selectedForm.hrReviewReason || selectedForm.hrReturnComments || (canManagerAct && selectedForm.status === 'PENDING_RETAKE_MANAGER_REVIEW')) && (
+              {(selectedForm.employeeRemarks || selectedForm.overallRemarks || selectedForm.managerComments || selectedForm.employeeDisputedAt || selectedForm.hrReviewReason || selectedForm.hrReturnComments) && (
                 <div className="rounded-xl border border-slate-200/60 bg-white p-5 shadow-sm dark:border-slate-700/60 dark:bg-slate-800/80 animate-fade-in-up" style={{ animationDelay: '140ms' }}>
                   <div className="flex items-center gap-2 mb-4">
                     <MessageSquare size={15} className="text-[#2463eb] dark:text-[#60a5fa]" />
@@ -1535,45 +1543,6 @@ Review Submissions
                           leading={<AlertCircle size={13} className="text-rose-500 dark:text-rose-400" />}
                         />
                         <p className="text-sm text-rose-700 dark:text-rose-200 leading-relaxed">{selectedForm.employeeDisputeReason}</p>
-                      </div>
-                    )}
-                    {canManagerAct && selectedForm.status === 'PENDING_RETAKE_MANAGER_REVIEW' && (
-                      <div className="overflow-hidden rounded-xl border border-emerald-200/70 bg-emerald-50/30 dark:border-emerald-700/50 dark:bg-emerald-900/15">
-                        <div className="flex items-center gap-3 border-b border-emerald-100 px-4 py-3 dark:border-emerald-800/50">
-                          <div className="flex h-9 w-9 items-center justify-center rounded-lg bg-emerald-600 shadow-md shadow-emerald-500/20">
-                            <ClipboardCheck size={16} className="text-white" />
-                          </div>
-                          <div>
-                            <h4 className="text-sm font-bold text-slate-900 dark:text-white">Review Retake</h4>
-                            <p className="text-xs text-slate-400 dark:text-slate-500">Approve the submitted retake or schedule a meeting</p>
-                          </div>
-                        </div>
-                        <div className="flex flex-wrap justify-end gap-3 p-4">
-	                          <button
-	                            type="button"
-	                            onClick={handleScheduleMeeting}
-	                            className="inline-flex items-center gap-2 rounded-xl border border-slate-200 px-5 py-2.5 text-sm font-bold text-slate-700 transition-all hover:bg-slate-50 dark:border-slate-700 dark:text-slate-200 dark:hover:bg-slate-700/60"
-	                          >
-	                            <CalendarDays size={16} />
-	                            Schedule Meeting
-	                          </button>
-	                          <button
-	                            type="button"
-	                            onClick={() => setShowForceChangeModal(true)}
-	                            className="inline-flex items-center gap-2 rounded-xl border border-amber-300 bg-amber-50 px-5 py-2.5 text-sm font-bold text-amber-800 transition-all hover:bg-amber-100 dark:border-amber-700/60 dark:bg-amber-900/20 dark:text-amber-200 dark:hover:bg-amber-900/35"
-	                          >
-	                            <PenLine size={16} />
-	                            Manager Override
-	                          </button>
-	                          <button
-                            type="button"
-                            onClick={() => setShowManagerApproveRetakeModal(true)}
-                            className="inline-flex items-center gap-2 rounded-xl bg-gradient-to-r from-emerald-600 to-teal-600 px-6 py-2.5 text-sm font-bold text-white shadow-lg shadow-emerald-500/20 transition-all hover:shadow-xl"
-                          >
-                            <CheckCircle2 size={16} />
-                            Approve
-                          </button>
-                        </div>
                       </div>
                     )}
                   </div>
@@ -1801,6 +1770,48 @@ Review Submissions
                     isManagerSelfAssessment={isManagerSelfAssessment}
                   />
                 </div>
+
+                {canManagerAct && selectedForm.status === 'PENDING_RETAKE_MANAGER_REVIEW' && (
+                  <div className="border-t border-slate-100 px-6 py-5 dark:border-slate-700/60">
+                    <div className="overflow-hidden rounded-xl border border-emerald-200/70 bg-emerald-50/30 dark:border-emerald-700/50 dark:bg-emerald-900/15">
+                      <div className="flex items-center gap-3 border-b border-emerald-100 px-4 py-3 dark:border-emerald-800/50">
+                        <div className="flex h-9 w-9 items-center justify-center rounded-lg bg-emerald-600 shadow-md shadow-emerald-500/20">
+                          <ClipboardCheck size={16} className="text-white" />
+                        </div>
+                        <div>
+                          <h4 className="text-sm font-bold text-slate-900 dark:text-white">Review Retake</h4>
+                          <p className="text-xs text-slate-400 dark:text-slate-500">Approve the submitted retake or schedule a meeting</p>
+                        </div>
+                      </div>
+                      <div className="flex flex-wrap justify-end gap-3 p-4">
+                        <button
+                          type="button"
+                          onClick={handleScheduleMeeting}
+                          className="inline-flex items-center gap-2 rounded-xl border border-slate-200 px-5 py-2.5 text-sm font-bold text-slate-700 transition-all hover:bg-slate-50 dark:border-slate-700 dark:text-slate-200 dark:hover:bg-slate-700/60"
+                        >
+                          <CalendarDays size={16} />
+                          Schedule Meeting
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => setShowForceChangeModal(true)}
+                          className="inline-flex items-center gap-2 rounded-xl border border-amber-300 bg-amber-50 px-5 py-2.5 text-sm font-bold text-amber-800 transition-all hover:bg-amber-100 dark:border-amber-700/60 dark:bg-amber-900/20 dark:text-amber-200 dark:hover:bg-amber-900/35"
+                        >
+                          <PenLine size={16} />
+                          Manager Override
+                        </button>
+                        <button
+                          type="button"
+                          onClick={openManagerApproveRetakeModal}
+                          className="inline-flex items-center gap-2 rounded-xl bg-gradient-to-r from-emerald-600 to-teal-600 px-6 py-2.5 text-sm font-bold text-white shadow-lg shadow-emerald-500/20 transition-all hover:shadow-xl"
+                        >
+                          <CheckCircle2 size={16} />
+                          Approve
+                        </button>
+                      </div>
+                    </div>
+                  </div>
+                )}
               </div>
 
               {canManagerAct && isManagerReviewActionable && (
@@ -1965,9 +1976,7 @@ Review Submissions
                       </button>
                       <button
                         type="button"
-                        onClick={() => {
-                          setShowManagerApproveModal(true);
-                        }}
+                        onClick={openManagerApproveModal}
                         disabled={showAdjustments}
                         title={showAdjustments ? 'Turn off Request Retake to approve' : 'Approve employee answers'}
                         className="inline-flex items-center gap-2 px-6 py-2.5 text-sm font-bold text-white rounded-xl bg-gradient-to-r from-emerald-600 to-teal-600 shadow-lg shadow-emerald-500/25 hover:shadow-xl hover:shadow-emerald-500/30 disabled:opacity-50 disabled:cursor-not-allowed transition-all"
@@ -2352,7 +2361,7 @@ Review Submissions
               for {buildRetakeRequests().length} selected question{buildRetakeRequests().length === 1 ? '' : 's'}.
               {isHr && isManagerSelfAssessment ? ' The manager' : ' The employee'} will receive a notification to update only the warned questions.
             </p>
-            {retakeNeedsInlineSignature ? (
+            {isMissingDefaultSignature ? (
               <div className="mb-5 rounded-xl border border-amber-200 bg-amber-50/90 px-4 py-3.5 dark:border-amber-800/60 dark:bg-amber-900/20">
                 <p className="text-sm font-semibold text-amber-900 dark:text-amber-100">
                   Signature required for this action.
@@ -2390,7 +2399,7 @@ Review Submissions
                   isRetakeRequesting
                   || isSavingRetakeInlineSignature
                   || isDefaultSigLoading
-                  || (!hasDefaultSignature && (!retakeNeedsInlineSignature || !retakeHasPadDrawing))
+                  || (isMissingDefaultSignature && !retakeHasPadDrawing)
                 }
                 className="inline-flex items-center gap-2 px-6 py-2.5 text-sm font-bold text-white rounded-xl bg-gradient-to-r from-[#2463eb] to-[#1d4ed8] shadow-lg shadow-[#2463eb]/25 disabled:opacity-50 disabled:cursor-not-allowed transition-all"
               >
@@ -2558,7 +2567,7 @@ Review Submissions
         <div className="fixed inset-0 z-50 flex items-center justify-center px-4">
           <div
             className="absolute inset-0 bg-black/40 backdrop-blur-sm"
-            onClick={() => !isApprovingRetake && setShowManagerApproveRetakeModal(false)}
+            onClick={() => !isApprovingRetake && !isSavingApproveRetakeInlineSignature && setShowManagerApproveRetakeModal(false)}
           />
           <div className="relative w-full max-w-md rounded-2xl border border-slate-200/60 bg-white p-6 shadow-2xl dark:border-slate-700/60 dark:bg-slate-800 animate-fade-in-up">
             <div className="mb-5 flex items-center gap-3">
@@ -2578,25 +2587,33 @@ Review Submissions
               </span>
               &apos;s submitted retake answers. The form will move to HR for final approval.
             </p>
-            <div className="mb-5 rounded-xl border border-slate-200/80 bg-slate-50/50 p-3 dark:border-slate-700/60 dark:bg-slate-700/20">
-              <p className="flex items-center gap-1.5 text-xs text-slate-500 dark:text-slate-400">
-                <PenLine size={12} />
-                Your default signature will be recorded for this action.
-              </p>
-              {isMissingDefaultSignature && (
-                <p className="mt-2 text-xs font-semibold text-amber-700 dark:text-amber-400">
-                  No default signature set.{' '}
-                  <Link to="/manager/settings/signature" className="text-[#2463eb] underline">
-                    Open Signature Settings
-                  </Link>
+            {isMissingDefaultSignature ? (
+              <div className="mb-5 rounded-xl border border-amber-200 bg-amber-50/90 px-4 py-3.5 dark:border-amber-800/60 dark:bg-amber-900/20">
+                <p className="text-sm font-semibold text-amber-900 dark:text-amber-100">
+                  Signature required for this action.
                 </p>
-              )}
-            </div>
+                <p className="mt-1 text-xs text-amber-800 dark:text-amber-200">
+                  Sign below. Your signature will be saved as your default when you confirm approval.
+                </p>
+                <InlineDefaultSignaturePad
+                  ref={approveRetakeInlineSignaturePadRef}
+                  onDrawingChange={setApproveRetakeHasPadDrawing}
+                  disabled={isSavingApproveRetakeInlineSignature || isApprovingRetake}
+                />
+              </div>
+            ) : (
+              <div className="mb-5 rounded-xl border border-slate-200/80 bg-slate-50/50 p-3 dark:border-slate-700/60 dark:bg-slate-700/20">
+                <p className="flex items-center gap-1.5 text-xs text-slate-500 dark:text-slate-400">
+                  <PenLine size={12} />
+                  Your default signature will be recorded for this action.
+                </p>
+              </div>
+            )}
             <div className="flex justify-end gap-3">
               <button
                 type="button"
                 onClick={() => setShowManagerApproveRetakeModal(false)}
-                disabled={isApprovingRetake}
+                disabled={isApprovingRetake || isSavingApproveRetakeInlineSignature}
                 className="px-5 py-2.5 text-sm font-semibold text-slate-600 dark:text-slate-300 rounded-xl border border-slate-200 dark:border-slate-700 hover:bg-slate-50 dark:hover:bg-slate-700/60 transition-all disabled:opacity-50"
               >
                 Cancel
@@ -2604,15 +2621,20 @@ Review Submissions
               <button
                 type="button"
                 onClick={() => void handleManagerApproveRetake()}
-                disabled={isApprovingRetake || isDefaultSigLoading || !hasDefaultSignature}
+                disabled={
+                  isApprovingRetake
+                  || isSavingApproveRetakeInlineSignature
+                  || isDefaultSigLoading
+                  || (isMissingDefaultSignature && !approveRetakeHasPadDrawing)
+                }
                 className="inline-flex items-center gap-2 px-6 py-2.5 text-sm font-bold text-white rounded-xl bg-gradient-to-r from-emerald-600 to-teal-600 shadow-md shadow-emerald-500/20 disabled:opacity-50 disabled:cursor-not-allowed transition-all"
               >
-                {isApprovingRetake ? (
+                {isApprovingRetake || isSavingApproveRetakeInlineSignature ? (
                   <Loader2 size={16} className="animate-spin" />
                 ) : (
                   <CheckCircle2 size={16} />
                 )}
-                Confirm Approval
+                {isSavingApproveRetakeInlineSignature ? 'Saving signature…' : 'Confirm Approval'}
               </button>
             </div>
           </div>
@@ -2643,7 +2665,7 @@ Review Submissions
               </span>
               &apos;s self-assessment. Active HR users will receive a notification to complete final approval.
             </p>
-            {approveNeedsInlineSignature ? (
+            {isMissingDefaultSignature ? (
               <div className="mb-5 rounded-xl border border-amber-200 bg-amber-50/90 px-4 py-3.5 dark:border-amber-800/60 dark:bg-amber-900/20">
                 <p className="text-sm font-semibold text-amber-900 dark:text-amber-100">
                   Signature required for this action.
@@ -2681,7 +2703,7 @@ Review Submissions
                   isApprovingReview
                   || isSavingApproveInlineSignature
                   || isDefaultSigLoading
-                  || (!hasDefaultSignature && (!approveNeedsInlineSignature || !approveHasPadDrawing))
+                  || (isMissingDefaultSignature && !approveHasPadDrawing)
                 }
                 className="inline-flex items-center gap-2 px-6 py-2.5 text-sm font-bold text-white rounded-xl bg-gradient-to-r from-emerald-600 to-teal-600 shadow-md shadow-emerald-500/20 disabled:opacity-50 disabled:cursor-not-allowed transition-all"
               >

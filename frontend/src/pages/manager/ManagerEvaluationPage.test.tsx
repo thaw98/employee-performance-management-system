@@ -123,6 +123,10 @@ vi.mock('../../features/user/userApi', () => ({
   }),
 }))
 
+vi.mock('../../features/scoreExplanation/scoreExplanationApi', () => ({
+  useGetScoreExplanationsQuery: () => ({ data: undefined, isLoading: false, isError: false }),
+}))
+
 vi.mock('react-signature-canvas', () => ({
   default: React.forwardRef((props: any, ref: React.Ref<any>) => {
     React.useImperativeHandle(ref, () => ({

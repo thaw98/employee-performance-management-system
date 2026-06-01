@@ -1,7 +1,7 @@
 import jsPDF from 'jspdf'
 import autoTable from 'jspdf-autotable'
 import type { SelfAssessmentReportDto } from './api/selfAssessmentReportApi'
-import { addPdfFooterBranding, addPdfHeaderBranding, addPdfHeaderLogo, loadPdfLogo } from '../../utils/pdfBranding'
+import { addPdfFooterBranding, addPdfHeaderBranding, addPdfHeaderLogo, getPdfHeaderTextX, loadPdfLogo } from '../../utils/pdfBranding'
 
 const MARGIN = 12.7
 
@@ -50,20 +50,22 @@ export async function exportSelfAssessmentReportPdf(report: SelfAssessmentReport
   let y = MARGIN
 
   const logoDataUrl = await loadPdfLogo()
+  const logoWidth = 24
+  const headerTextX = getPdfHeaderTextX(MARGIN, !!logoDataUrl, { logoWidth })
   if (logoDataUrl) {
-    addPdfHeaderLogo(doc, logoDataUrl, { x: MARGIN, y: 3, width: 24, height: 12 })
+    addPdfHeaderLogo(doc, logoDataUrl, { x: MARGIN, y: 3, width: logoWidth, height: 12 })
   }
 
   doc.setFont('helvetica', 'bold')
   doc.setFontSize(16)
-  doc.text('Self-Assessment Report', MARGIN, y)
+  doc.text('Self-Assessment Report', headerTextX, y)
   addPdfHeaderBranding(doc, { margin: MARGIN, y })
   y += 7
   doc.setFont('helvetica', 'normal')
   doc.setFontSize(9)
-  doc.text(`Cycle: ${report.selectedCycle.name}`, MARGIN, y)
+  doc.text(`Cycle: ${report.selectedCycle.name}`, headerTextX, y)
   y += 5
-  doc.text(`Generated: ${new Date().toLocaleDateString()}`, MARGIN, y)
+  doc.text(`Generated: ${new Date().toLocaleDateString()}`, headerTextX, y)
   y += 8
 
   y = addTable(doc, y, [['Records', 'Average', 'Highest', 'Lowest', 'Missed']], [[
@@ -115,7 +117,7 @@ export async function exportSelfAssessmentReportPdf(report: SelfAssessmentReport
 
   if (report.employeeDirectory.length > 0) {
     y = addTitle(doc, 'Employee Directory', y)
-    addTable(doc, y, [['Staff No', 'Name', 'Department', 'Position', 'Score', 'Performance', 'Status', 'Prev. Data']], report.employeeDirectory.map((item) => [
+    addTable(doc, y, [['Staff No', 'Name', 'Department', 'Position', 'Score', 'Performance', 'Status']], report.employeeDirectory.map((item) => [
       item.staffNo || '-',
       item.employeeName,
       item.departmentName || '-',
@@ -123,7 +125,6 @@ export async function exportSelfAssessmentReportPdf(report: SelfAssessmentReport
       score(item.selectedCycleScore),
       item.performance || '-',
       statusLabel(item.status),
-      item.previousCycleDelta == null ? '-' : `${item.previousCycleDelta >= 0 ? '+' : ''}${score(item.previousCycleDelta)}`,
     ]))
   }
 

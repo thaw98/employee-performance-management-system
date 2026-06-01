@@ -43,6 +43,7 @@ import {
 } from '../../features/selfAssessmentForm/api/selfAssessmentFormApi';
 import { useGetDefaultSignatureQuery } from '../../features/user/userApi';
 import { useGetScoreExplanationsQuery } from '../../features/scoreExplanation/scoreExplanationApi';
+import { computeSelfAssessmentLiveScoreStats } from '../../features/selfAssessmentForm/computeSelfAssessmentLiveScore';
 import { isRatingValidForAnswer } from '../../features/selfAssessmentForm/ratingSystem';
 import { SelfAssessmentRatingPicker } from '../../features/selfAssessmentForm/components/SelfAssessmentRatingPicker';
 import { SelfAssessmentScoreBandTable } from '../../features/selfAssessmentForm/components/SelfAssessmentScoreBandTable';
@@ -543,13 +544,24 @@ export const MySelfAssessmentFormPage: React.FC = () => {
   const displayedScore = isReadOnly ? serverDisplayScore : null;
   const displayedScoreCategory = formData?.ratingCategory ?? null;
 
+  const liveEvaluationStats = useMemo(
+    () => computeSelfAssessmentLiveScoreStats(
+      watchAnswers ?? [],
+      ratingSystem,
+      scoreBands ?? null,
+    ),
+    [watchAnswers, ratingSystem, scoreBands],
+  );
+
+  const showLiveScore = !isReadOnly && totalCount > 0;
+
   const showMetadataStrip =
     Boolean(formData?.employee)
     || Boolean(formData?.cycleName)
     || Boolean(formData?.deadlineDate)
     || Boolean(formData?.assessmentDate)
     || displayedScore != null
-    || (!isReadOnly && totalCount > 0);
+    || showLiveScore;
 
   const handleYesNoChange = (index: number, value: string, currentRating: number | null) => {
     if (!includeYesNo) return;
@@ -880,11 +892,43 @@ export const MySelfAssessmentFormPage: React.FC = () => {
         </div>
       )}
 
+      {/* ───── Live score while answering ───── */}
+      {showLiveScore && (
+        <div className="grid grid-cols-1 gap-4 md:grid-cols-3">
+          <div className="space-y-2 rounded-2xl border border-[#bfdbfe] bg-gradient-to-br from-[#eff6ff] to-[#dbeafe]/40 p-5 shadow-sm dark:border-[#1e3a8a]/50 dark:from-[#1e3a8a]/20 dark:to-[#1e3a8a]/5">
+            <p className="text-[10px] font-bold uppercase tracking-wider text-[#2463eb] dark:text-[#60a5fa]">
+              Points Achieved
+            </p>
+            <p className="text-3xl font-black italic text-[#1d4ed8] dark:text-[#93c5fd]">
+              {liveEvaluationStats.pointsAchieved}
+              <span className="mx-2 text-xl font-normal text-[#93c5fd]">/</span>
+              <span className="text-2xl text-[#60a5fa]">{liveEvaluationStats.maxPoints}</span>
+            </p>
+          </div>
+          <div className="space-y-2 rounded-2xl border border-[#bfdbfe] bg-gradient-to-br from-[#eff6ff] to-[#dbeafe]/40 p-5 shadow-sm dark:border-[#1e3a8a]/50 dark:from-[#1e3a8a]/20 dark:to-[#1e3a8a]/5">
+            <p className="text-[10px] font-bold uppercase tracking-wider text-[#2463eb] dark:text-[#60a5fa]">
+              Live Score
+            </p>
+            <p className="text-3xl font-black text-[#1d4ed8] dark:text-[#93c5fd]">
+              {liveEvaluationStats.liveScore.toFixed(1)}%
+            </p>
+          </div>
+          <div className="min-w-0 space-y-2 overflow-hidden rounded-2xl border border-emerald-200 bg-gradient-to-br from-emerald-50 to-emerald-100/50 p-5 shadow-sm dark:border-emerald-800/60 dark:from-emerald-900/20 dark:to-emerald-900/5">
+            <p className="text-[10px] font-bold uppercase tracking-wider text-emerald-600 dark:text-emerald-400">
+              Performance Category
+            </p>
+            <p className="text-lg font-bold leading-snug break-words text-emerald-700 sm:text-xl dark:text-emerald-300">
+              {liveEvaluationStats.ratingCategory ?? '—'}
+            </p>
+          </div>
+        </div>
+      )}
+
       {/* ───── Score Band Reference ───── */}
       <SelfAssessmentScoreBandTable
         bands={scoreBands}
-        loading={scoreBandsLoading}
-        error={scoreBandsError}
+        loading={scoreBandsLoading && !scoreBands?.length}
+        error={scoreBandsError && !scoreBands?.length}
       />
 
       {/* ───── Read-only Banner ───── */}
