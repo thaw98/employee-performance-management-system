@@ -2,6 +2,7 @@ package com.epms.backend.service;
 
 import com.epms.backend.audit.AuditActionType;
 import com.epms.backend.audit.AuditTargetType;
+import com.epms.backend.dto.score.BulkUpdateScoreExplanationRequest;
 import com.epms.backend.dto.score.ScoreExplanationDto;
 import com.epms.backend.dto.score.UpdateScoreExplanationRequest;
 import com.epms.backend.entity.ScoreExplanation;
@@ -89,6 +90,149 @@ class ScoreExplanationServiceTest {
                 List.of("APPRAISAL")), actor))
                 .isInstanceOf(IllegalArgumentException.class)
                 .hasMessageContaining("no gaps or overlaps");
+    }
+
+    @Test
+    void bulkUpdateChangesAllFiveRowsForOneModule() {
+        List<ScoreExplanation> rows = rows(ScoreExplanationModule.SELF_ASSESSMENT);
+        mockModuleFindAll(ScoreExplanationModule.SELF_ASSESSMENT, rows);
+
+        for (ScoreExplanation row : rows) {
+            when(repository.findByModuleAndSortOrder(ScoreExplanationModule.SELF_ASSESSMENT, row.getSortOrder()))
+                    .thenReturn(Optional.of(row));
+        }
+        when(repository.save(any(ScoreExplanation.class))).thenAnswer(invocation -> invocation.getArgument(0));
+
+        UserPrincipal actor = mock(UserPrincipal.class);
+        when(actor.getId()).thenReturn(10L);
+        when(actor.getRoleId()).thenReturn(1L);
+
+        List<BulkUpdateScoreExplanationRequest.BandUpdate> bands = List.of(
+                new BulkUpdateScoreExplanationRequest.BandUpdate(1, 86, 100, "Outstanding", "Exceeds expectations"),
+                new BulkUpdateScoreExplanationRequest.BandUpdate(2, 71, 85, "Good", "Strong performance"),
+                new BulkUpdateScoreExplanationRequest.BandUpdate(3, 60, 70, "Meet Requirement", "Meets standard"),
+                new BulkUpdateScoreExplanationRequest.BandUpdate(4, 40, 59, "Need Improvement", "Needs focus"),
+                new BulkUpdateScoreExplanationRequest.BandUpdate(5, 0, 39, "Unsatisfactory", "Below expected"));
+
+        List<ScoreExplanationDto> result = service.bulkUpdate(
+                new BulkUpdateScoreExplanationRequest(bands, "Standardize titles", List.of("SELF_ASSESSMENT")), actor);
+
+        assertThat(result).hasSize(5);
+        verify(repository, times(5)).save(any(ScoreExplanation.class));
+        verify(auditService, times(5)).record(
+                eq(AuditActionType.SCORE_EXPLANATION_UPDATED),
+                eq(AuditTargetType.SCORE_EXPLANATION),
+                any(), eq(10L), eq(1L), any(), any(), any(), any());
+    }
+
+    @Test
+    void bulkUpdateAppliesToMultipleSelectedModules() {
+        List<ScoreExplanation> selfRows = rows(ScoreExplanationModule.SELF_ASSESSMENT);
+        List<ScoreExplanation> feedbackRows = rows(ScoreExplanationModule.FEEDBACK_360);
+        List<ScoreExplanation> appraisalRows = rows(ScoreExplanationModule.APPRAISAL);
+
+        mockModuleFindAll(ScoreExplanationModule.SELF_ASSESSMENT, selfRows);
+        mockModuleFindAll(ScoreExplanationModule.FEEDBACK_360, feedbackRows);
+        mockModuleFindAll(ScoreExplanationModule.APPRAISAL, appraisalRows);
+
+        for (ScoreExplanation row : selfRows) {
+            when(repository.findByModuleAndSortOrder(ScoreExplanationModule.SELF_ASSESSMENT, row.getSortOrder()))
+                    .thenReturn(Optional.of(row));
+        }
+        for (ScoreExplanation row : feedbackRows) {
+            when(repository.findByModuleAndSortOrder(ScoreExplanationModule.FEEDBACK_360, row.getSortOrder()))
+                    .thenReturn(Optional.of(row));
+        }
+        when(repository.save(any(ScoreExplanation.class))).thenAnswer(invocation -> invocation.getArgument(0));
+
+        UserPrincipal actor = mock(UserPrincipal.class);
+        when(actor.getId()).thenReturn(10L);
+        when(actor.getRoleId()).thenReturn(1L);
+
+        List<BulkUpdateScoreExplanationRequest.BandUpdate> bands = List.of(
+                new BulkUpdateScoreExplanationRequest.BandUpdate(1, 86, 100, "Outstanding", "Exceeds expectations"),
+                new BulkUpdateScoreExplanationRequest.BandUpdate(2, 71, 85, "Good", "Strong performance"),
+                new BulkUpdateScoreExplanationRequest.BandUpdate(3, 60, 70, "Meet Requirement", "Meets standard"),
+                new BulkUpdateScoreExplanationRequest.BandUpdate(4, 40, 59, "Need Improvement", "Needs focus"),
+                new BulkUpdateScoreExplanationRequest.BandUpdate(5, 0, 39, "Unsatisfactory", "Below expected"));
+
+        List<ScoreExplanationDto> result = service.bulkUpdate(
+                new BulkUpdateScoreExplanationRequest(bands, "Align all modules",
+                        List.of("SELF_ASSESSMENT", "FEEDBACK_360")), actor);
+
+        assertThat(result).hasSize(10);
+        verify(repository, times(10)).save(any(ScoreExplanation.class));
+        verify(auditService, times(10)).record(
+                eq(AuditActionType.SCORE_EXPLANATION_UPDATED),
+                eq(AuditTargetType.SCORE_EXPLANATION),
+                any(), eq(10L), eq(1L), any(), any(), any(), any());
+    }
+
+    @Test
+    void bulkUpdateRejectsInvalidRanges() {
+        UserPrincipal actor = mock(UserPrincipal.class);
+        when(actor.getId()).thenReturn(10L);
+        when(actor.getRoleId()).thenReturn(1L);
+
+        List<BulkUpdateScoreExplanationRequest.BandUpdate> bandsWithGap = List.of(
+                new BulkUpdateScoreExplanationRequest.BandUpdate(1, 86, 100, "Outstanding", "Exceeds"),
+                new BulkUpdateScoreExplanationRequest.BandUpdate(2, 71, 85, "Good", "Strong"),
+                new BulkUpdateScoreExplanationRequest.BandUpdate(3, 60, 70, "Meet Requirement", "Meets"),
+                new BulkUpdateScoreExplanationRequest.BandUpdate(4, 42, 59, "Need Improvement", "Needs"),
+                new BulkUpdateScoreExplanationRequest.BandUpdate(5, 0, 39, "Unsatisfactory", "Below"));
+
+        assertThatThrownBy(() -> service.bulkUpdate(
+                new BulkUpdateScoreExplanationRequest(bandsWithGap, "Test gap", List.of("SELF_ASSESSMENT")), actor))
+                .isInstanceOf(IllegalArgumentException.class)
+                .hasMessageContaining("no gaps or overlaps");
+
+        List<BulkUpdateScoreExplanationRequest.BandUpdate> bandsNotCovering100 = List.of(
+                new BulkUpdateScoreExplanationRequest.BandUpdate(1, 85, 100, "Outstanding", "Exceeds"),
+                new BulkUpdateScoreExplanationRequest.BandUpdate(2, 71, 84, "Good", "Strong"),
+                new BulkUpdateScoreExplanationRequest.BandUpdate(3, 60, 70, "Meet Requirement", "Meets"),
+                new BulkUpdateScoreExplanationRequest.BandUpdate(4, 40, 59, "Need Improvement", "Needs"),
+                new BulkUpdateScoreExplanationRequest.BandUpdate(5, 0, 39, "Unsatisfactory", "Below"));
+
+        assertThatThrownBy(() -> service.bulkUpdate(
+                new BulkUpdateScoreExplanationRequest(bandsNotCovering100, "Test coverage", List.of("SELF_ASSESSMENT")), actor))
+                .isInstanceOf(IllegalArgumentException.class)
+                .hasMessageContaining("no gaps or overlaps");
+    }
+
+    @Test
+    void bulkUpdateRejectsMissingReason() {
+        UserPrincipal actor = mock(UserPrincipal.class);
+        List<BulkUpdateScoreExplanationRequest.BandUpdate> bands = List.of(
+                new BulkUpdateScoreExplanationRequest.BandUpdate(1, 86, 100, "Outstanding", "Exceeds"),
+                new BulkUpdateScoreExplanationRequest.BandUpdate(2, 71, 85, "Good", "Strong"),
+                new BulkUpdateScoreExplanationRequest.BandUpdate(3, 60, 70, "Meet Requirement", "Meets"),
+                new BulkUpdateScoreExplanationRequest.BandUpdate(4, 40, 59, "Need Improvement", "Needs"),
+                new BulkUpdateScoreExplanationRequest.BandUpdate(5, 0, 39, "Unsatisfactory", "Below"));
+
+        assertThatThrownBy(() -> service.bulkUpdate(
+                new BulkUpdateScoreExplanationRequest(bands, "", List.of("SELF_ASSESSMENT")), actor))
+                .isInstanceOf(IllegalArgumentException.class)
+                .hasMessageContaining("Reason is required");
+    }
+
+    @Test
+    void bulkUpdateRejectsEmptyModules() {
+        UserPrincipal actor = mock(UserPrincipal.class);
+        List<BulkUpdateScoreExplanationRequest.BandUpdate> bands = List.of(
+                new BulkUpdateScoreExplanationRequest.BandUpdate(1, 86, 100, "Outstanding", "Exceeds"),
+                new BulkUpdateScoreExplanationRequest.BandUpdate(2, 71, 85, "Good", "Strong"),
+                new BulkUpdateScoreExplanationRequest.BandUpdate(3, 60, 70, "Meet Requirement", "Meets"),
+                new BulkUpdateScoreExplanationRequest.BandUpdate(4, 40, 59, "Need Improvement", "Needs"),
+                new BulkUpdateScoreExplanationRequest.BandUpdate(5, 0, 39, "Unsatisfactory", "Below"));
+
+        assertThatThrownBy(() -> service.bulkUpdate(
+                new BulkUpdateScoreExplanationRequest(bands, "Test", List.of()), actor))
+                .isInstanceOf(IllegalArgumentException.class)
+                .hasMessageContaining("at least one module");
+    }
+
+    private static void mockModuleFindAll(ScoreExplanationModule module, List<ScoreExplanation> rows) {
+        when(repository.findByModuleOrderBySortOrderAsc(module)).thenReturn(rows);
     }
 
     private static List<ScoreExplanation> rows(ScoreExplanationModule module) {

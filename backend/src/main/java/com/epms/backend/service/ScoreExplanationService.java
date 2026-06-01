@@ -3,6 +3,7 @@ package com.epms.backend.service;
 import com.epms.backend.audit.AuditActionType;
 import com.epms.backend.audit.AuditTargetType;
 import com.epms.backend.dto.score.ScoreExplanationDto;
+import com.epms.backend.dto.score.BulkUpdateScoreExplanationRequest;
 import com.epms.backend.dto.score.UpdateScoreExplanationRequest;
 import com.epms.backend.entity.ScoreExplanation;
 import com.epms.backend.entity.ScoreExplanationModule;
@@ -81,6 +82,96 @@ public class ScoreExplanationService {
                     before,
                     after);
             changed.add(toDto(saved));
+        }
+        return changed;
+    }
+
+    @Transactional
+    public List<ScoreExplanationDto> bulkUpdate(BulkUpdateScoreExplanationRequest request, UserPrincipal actor) {
+        if (request == null) throw new IllegalArgumentException("Request is required");
+        if (request.bands() == null || request.bands().size() != 5) {
+            throw new IllegalArgumentException("Exactly five score bands are required");
+        }
+        if (isBlank(request.reason())) {
+            throw new IllegalArgumentException("Reason is required");
+        }
+
+        List<BulkUpdateScoreExplanationRequest.BandUpdate> sortedBands = request.bands().stream()
+                .sorted(Comparator.comparing(BulkUpdateScoreExplanationRequest.BandUpdate::sortOrder))
+                .toList();
+
+        for (int i = 0; i < sortedBands.size(); i++) {
+            var band = sortedBands.get(i);
+            if (band.sortOrder() == null || band.sortOrder() < 1 || band.sortOrder() > 5) {
+                throw new IllegalArgumentException("Invalid sort order");
+            }
+            if (band.minScore() == null || band.maxScore() == null) {
+                throw new IllegalArgumentException("Min and max scores are required for sort order " + band.sortOrder());
+            }
+            if (band.minScore() < 0 || band.maxScore() > 100 || band.minScore() > band.maxScore()) {
+                throw new IllegalArgumentException("Invalid score range for sort order " + band.sortOrder());
+            }
+            if (isBlank(band.title()) || isBlank(band.details())) {
+                throw new IllegalArgumentException("Title and details are required for sort order " + band.sortOrder());
+            }
+            if (i == 0) {
+                if (band.minScore() != 0) {
+                    throw new IllegalArgumentException("Score ranges must cover 0-100 with no gaps or overlaps");
+                }
+            } else {
+                var prev = sortedBands.get(i - 1);
+                if (band.minScore() != prev.maxScore() + 1) {
+                    throw new IllegalArgumentException("Score ranges must cover 0-100 with no gaps or overlaps");
+                }
+            }
+        }
+        if (sortedBands.get(4).maxScore() != 100) {
+            throw new IllegalArgumentException("Score ranges must cover 0-100 with no gaps or overlaps");
+        }
+
+        Set<ScoreExplanationModule> modules = new LinkedHashSet<>();
+        if (request.applyToModules() != null) {
+            for (String value : request.applyToModules()) {
+                if (!isBlank(value)) modules.add(ScoreExplanationModule.valueOf(value.trim()));
+            }
+        }
+        if (modules.isEmpty()) {
+            throw new IllegalArgumentException("At least one module must be selected");
+        }
+
+        List<ScoreExplanationDto> changed = new ArrayList<>();
+        for (ScoreExplanationModule module : modules) {
+            for (var band : sortedBands) {
+                ScoreExplanation row = repository.findByModuleAndSortOrder(module, band.sortOrder())
+                        .orElseThrow(() -> new IllegalStateException(
+                                "Score explanation row not found for " + module + " sort order " + band.sortOrder()));
+
+                String before = toJson(snapshot(row));
+                row.setMinScore(band.minScore());
+                row.setMaxScore(band.maxScore());
+                row.setTitle(band.title().trim());
+                row.setDetails(band.details().trim());
+                row.setUpdatedAt(Instant.now());
+                row.setUpdatedBy(actor.getId());
+                row.setUpdatedByRoleId(actor.getRoleId());
+                ScoreExplanation saved = repository.save(row);
+
+                String after = toJson(snapshot(saved));
+                auditService.record(
+                        AuditActionType.SCORE_EXPLANATION_UPDATED,
+                        AuditTargetType.SCORE_EXPLANATION,
+                        saved.getId(),
+                        actor.getId(),
+                        actor.getRoleId(),
+                        "Bulk updated score explanation for " + module.name() + " row " + saved.getSortOrder(),
+                        toJson(Map.of("reason", request.reason().trim(), "module", module.name(), "sortOrder", saved.getSortOrder())),
+                        before,
+                        after);
+                changed.add(toDto(saved));
+            }
+
+            List<ScoreExplanation> moduleRows = new ArrayList<>(repository.findByModuleOrderBySortOrderAsc(module));
+            validateCoverage(module, moduleRows);
         }
         return changed;
     }

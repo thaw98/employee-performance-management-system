@@ -1,6 +1,7 @@
 package com.epms.backend.controller;
 
 import com.epms.backend.common.ApiResponse;
+import com.epms.backend.dto.score.BulkUpdateScoreExplanationRequest;
 import com.epms.backend.dto.score.ScoreExplanationDto;
 import com.epms.backend.dto.score.UpdateScoreExplanationRequest;
 import com.epms.backend.entity.ScoreExplanationModule;
@@ -45,5 +46,13 @@ public class ScoreExplanationController {
             @RequestBody UpdateScoreExplanationRequest request,
             @AuthenticationPrincipal UserPrincipal principal) {
         return ResponseEntity.ok(ApiResponse.ok("Updated score explanation", service.update(rowId, request, principal)));
+    }
+
+    @PutMapping("/bulk")
+    @PreAuthorize("principal.roleId == 1")
+    public ResponseEntity<ApiResponse<List<ScoreExplanationDto>>> bulkUpdate(
+            @RequestBody BulkUpdateScoreExplanationRequest request,
+            @AuthenticationPrincipal UserPrincipal principal) {
+        return ResponseEntity.ok(ApiResponse.ok("Bulk updated score explanations", service.bulkUpdate(request, principal)));
     }
 }
