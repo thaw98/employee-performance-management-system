@@ -87,7 +87,8 @@ public class PipService {
                         employee.employee().getId(),
                         employee.employee().getEmployeeId(),
                         employee.employee().getEmployeeName(),
-                        employee.employee().getDepartment() == null ? null : employee.employee().getDepartment().getName(),
+                        employee.employee().getDepartment() == null ? null
+                                : employee.employee().getDepartment().getName(),
                         employee.totalScore()))
                 .toList();
     }
@@ -167,6 +168,7 @@ public class PipService {
         pip.setUpdatedDate(Instant.now());
         pip.setExpectedImprovements(request.getExpectedImprovements());
         pip.setReasonForPlan(request.getReasonForPlan());
+        pip.setKpiScore(kpiScore);
 
         BigDecimal objectiveWeight = BigDecimal.valueOf(100)
                 .divide(BigDecimal.valueOf(request.getObjectives().size()), 2, RoundingMode.HALF_UP);
@@ -209,14 +211,17 @@ public class PipService {
             LocalDate startDate, LocalDate endDate, User actor) {
         autoCloseExpiredPips();
         Specification<Pip> spec = (root, query, cb) -> {
-            // Eagerly fetch nested entities to avoid LazyInitializationException and ensure data is present in JSON
+            // Eagerly fetch nested entities to avoid LazyInitializationException and ensure
+            // data is present in JSON
             if (query.getResultType() != Long.class && query.getResultType() != long.class) {
                 query.distinct(true);
-                jakarta.persistence.criteria.Fetch<Pip, Employee> employeeFetch = root.fetch("employee", jakarta.persistence.criteria.JoinType.LEFT);
+                jakarta.persistence.criteria.Fetch<Pip, Employee> employeeFetch = root.fetch("employee",
+                        jakarta.persistence.criteria.JoinType.LEFT);
                 employeeFetch.fetch("department", jakarta.persistence.criteria.JoinType.LEFT);
                 employeeFetch.fetch("position", jakarta.persistence.criteria.JoinType.LEFT);
 
-                jakarta.persistence.criteria.Fetch<Pip, Employee> managerFetch = root.fetch("manager", jakarta.persistence.criteria.JoinType.LEFT);
+                jakarta.persistence.criteria.Fetch<Pip, Employee> managerFetch = root.fetch("manager",
+                        jakarta.persistence.criteria.JoinType.LEFT);
                 managerFetch.fetch("department", jakarta.persistence.criteria.JoinType.LEFT);
             }
 
@@ -233,7 +238,8 @@ public class PipService {
                 }
             } else if (isManager && actor.getEmployee() != null && actor.getEmployee().getDepartment() != null) {
                 // Manager - restricted to their own department
-                predicates.add(cb.equal(root.get("employee").get("department").get("id"), actor.getEmployee().getDepartment().getId()));
+                predicates.add(cb.equal(root.get("employee").get("department").get("id"),
+                        actor.getEmployee().getDepartment().getId()));
             } else if (actor.getEmployee() != null) {
                 // Regular employee - only see their own PIPs
                 predicates.add(cb.equal(root.get("employee").get("id"), actor.getEmployee().getId()));
@@ -251,7 +257,8 @@ public class PipService {
             }
 
             if (employeeName != null && !employeeName.isBlank()) {
-                predicates.add(cb.like(cb.lower(root.get("employee").get("employeeName")), "%" + employeeName.toLowerCase() + "%"));
+                predicates.add(cb.like(cb.lower(root.get("employee").get("employeeName")),
+                        "%" + employeeName.toLowerCase() + "%"));
             }
 
             if (status != null && !status.isBlank()) {
@@ -343,7 +350,8 @@ public class PipService {
         note.setCreatedDate(Instant.now());
         note.setUpdatedDate(Instant.now());
         PipCommunicationNote savedNote = communicationNoteRepository.save(note);
-        notifyPipRelatedUsers(pip, actor, (savedNote.getNoteType() == PipNoteType.FOLLOWUP ? "Followup note added" : "Communication note added"));
+        notifyPipRelatedUsers(pip, actor,
+                (savedNote.getNoteType() == PipNoteType.FOLLOWUP ? "Followup note added" : "Communication note added"));
         return toNoteDto(savedNote);
     }
 
@@ -420,10 +428,12 @@ public class PipService {
                 predicates.add(cb.equal(root.get("pip").get("status"), normalizeStatus(pipStatus)));
             }
             if (dateFrom != null) {
-                predicates.add(cb.greaterThanOrEqualTo(root.get("createdDate"), dateFrom.atStartOfDay(java.time.ZoneOffset.UTC).toInstant()));
+                predicates.add(cb.greaterThanOrEqualTo(root.get("createdDate"),
+                        dateFrom.atStartOfDay(java.time.ZoneOffset.UTC).toInstant()));
             }
             if (dateTo != null) {
-                predicates.add(cb.lessThan(root.get("createdDate"), dateTo.plusDays(1).atStartOfDay(java.time.ZoneOffset.UTC).toInstant()));
+                predicates.add(cb.lessThan(root.get("createdDate"),
+                        dateTo.plusDays(1).atStartOfDay(java.time.ZoneOffset.UTC).toInstant()));
             }
             return cb.and(predicates.toArray(new Predicate[0]));
         };
@@ -443,7 +453,8 @@ public class PipService {
 
     @Transactional
     public PipObjective updateObjectiveProgress(Long objectiveId, ProgressUpdateRequest request, User updatedBy) {
-        throw new RuntimeException("Manual progress editing is no longer supported. Increase objective hours or use employee PIP timer sessions instead.");
+        throw new RuntimeException(
+                "Manual progress editing is no longer supported. Increase objective hours or use employee PIP timer sessions instead.");
     }
 
     @Transactional
@@ -521,11 +532,13 @@ public class PipService {
 
     @Transactional
     public void endActiveEmployeeSessions(User actor) {
-        if (actor.getEmployee() == null) return;
+        if (actor.getEmployee() == null)
+            return;
         List<Pip> pips = pipRepository.findByEmployee(actor.getEmployee());
         Instant endedAt = Instant.now();
         for (Pip pip : pips) {
-            if (pip.getObjectives() == null) continue;
+            if (pip.getObjectives() == null)
+                continue;
             for (PipObjective objective : pip.getObjectives()) {
                 if (objective.getActiveSessionStart() != null) {
                     endObjectiveSessionInternal(objective, endedAt, actor.getEmployee(), "PIP session auto-ended");
@@ -652,7 +665,8 @@ public class PipService {
             throw new RuntimeException("The PIP result can only be marked after the PIP is automatically closed");
         }
         if (pip.getEmployeeSignatureDate() == null) {
-            throw new RuntimeException("The employee must sign the PIP result before the manager can mark the final result");
+            throw new RuntimeException(
+                    "The employee must sign the PIP result before the manager can mark the final result");
         }
         if (pip.getManagerSignatureDate() == null) {
             throw new RuntimeException("The manager must sign the PIP result before marking the final result");
@@ -840,7 +854,8 @@ public class PipService {
         }
         pip.setUpdatedDate(Instant.now());
         Pip savedPip = pipRepository.save(pip);
-        notifyPipRelatedUsers(savedPip, actor, "Reopen request " + ("CONFIRMED".equals(action) ? "approved" : "denied"));
+        notifyPipRelatedUsers(savedPip, actor,
+                "Reopen request " + ("CONFIRMED".equals(action) ? "approved" : "denied"));
         return savedPip;
     }
 
@@ -1008,7 +1023,8 @@ public class PipService {
     }
 
     private BigDecimal calculateTotalObjectiveHours(Pip pip) {
-        if (pip.getObjectives() == null) return BigDecimal.ZERO;
+        if (pip.getObjectives() == null)
+            return BigDecimal.ZERO;
         return pip.getObjectives().stream()
                 .map(objective -> safeDecimal(objective.getTargetValue()))
                 .reduce(BigDecimal.ZERO, BigDecimal::add);
@@ -1045,7 +1061,8 @@ public class PipService {
     }
 
     private BigDecimal calculateCompletedObjectiveHours(Pip pip) {
-        if (pip.getObjectives() == null) return BigDecimal.ZERO;
+        if (pip.getObjectives() == null)
+            return BigDecimal.ZERO;
         return pip.getObjectives().stream()
                 .map(objective -> safeDecimal(objective.getCurrentValue()).min(safeDecimal(objective.getTargetValue())))
                 .reduce(BigDecimal.ZERO, BigDecimal::add);
@@ -1156,7 +1173,8 @@ public class PipService {
         }
         pip.setUpdatedDate(Instant.now());
         Pip savedPip = pipRepository.save(pip);
-        notifyPipRelatedUsers(savedPip, pip.getManager() == null ? null : pip.getManager().getUserAccount(), notificationMessage);
+        notifyPipRelatedUsers(savedPip, pip.getManager() == null ? null : pip.getManager().getUserAccount(),
+                notificationMessage);
     }
 
     private void authorizePipAccess(Pip pip, User actor) {
@@ -1174,7 +1192,8 @@ public class PipService {
             return;
         }
 
-        // Allowed if they are the assigned manager and their current role permits manager access.
+        // Allowed if they are the assigned manager and their current role permits
+        // manager access.
         if (isManagerRole(actor) && pip.getManager() != null && pip.getManager().getId().equals(actorEmployeeId)) {
             return;
         }
@@ -1258,10 +1277,11 @@ public class PipService {
                 pip == null ? null : pip.getId(),
                 note.getContent(),
                 note.getNoteType() == null ? PipNoteType.COMMUNICATION.name() : note.getNoteType().name(),
-                author == null ? null : new PipCommunicationNoteDto.AuthorDto(
-                        author.getId(),
-                        author.getEmail(),
-                        toAuthorEmployeeDto(authorEmployee)),
+                author == null ? null
+                        : new PipCommunicationNoteDto.AuthorDto(
+                                author.getId(),
+                                author.getEmail(),
+                                toAuthorEmployeeDto(authorEmployee)),
                 pip == null ? null : toPipPersonDto(pip.getEmployee()),
                 pip == null ? null : toPipPersonDto(pip.getManager()),
                 pip == null ? null : pip.getStatus(),
@@ -1423,7 +1443,7 @@ public class PipService {
     }
 
     private void attachKpiScore(Pip pip) {
-        if (pip != null) {
+        if (pip != null && pip.getKpiScore() == null) {
             pip.setKpiScore(getLatestKpiTotalScore(pip.getEmployee()));
         }
     }
