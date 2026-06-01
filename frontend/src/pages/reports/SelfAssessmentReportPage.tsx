@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useState } from 'react'
 import type React from 'react'
 import { BarChart3, Building2, Download, FileSpreadsheet, FileText, TrendingDown, TrendingUp, Users } from 'lucide-react'
-import { Radar, RadarChart, PolarGrid, PolarAngleAxis, PolarRadiusAxis, ResponsiveContainer, Tooltip, Legend } from 'recharts'
+import { Bar, BarChart, CartesianGrid, Radar, RadarChart, PolarGrid, PolarAngleAxis, PolarRadiusAxis, ResponsiveContainer, Tooltip, XAxis, YAxis, Legend } from 'recharts'
 import { toast } from 'react-hot-toast'
 import { useGetReviewCyclesQuery } from '../../features/reviewCycle/api/reviewCycleApi'
 import { useGetSelfAssessmentReportQuery, type EmployeeDirectoryRow, type GroupSummary, type SelfAssessmentReportDto } from '../../features/selfAssessmentForm/api/selfAssessmentReportApi'
@@ -162,6 +162,22 @@ function buildRadarData(report: SelfAssessmentReportDto | undefined) {
   })
 }
 
+function EmployeeScoreTooltip({ active, payload }: any) {
+  if (!active || !payload?.length) return null
+  const data = payload[0].payload
+  return (
+    <div className="rounded-lg border border-slate-200 bg-white p-3 shadow-lg dark:border-slate-700 dark:bg-slate-900">
+      <p className="font-bold text-slate-900 dark:text-slate-100">{data.name}</p>
+      <p className="text-xs text-slate-500">Staff No: {data.staffNo || '-'}</p>
+      <p className="text-xs text-slate-500">Department: {data.department || '-'}</p>
+      <p className="text-xs text-slate-500">Position: {data.position || '-'}</p>
+      <p className="text-xs font-semibold text-[#2463eb]">Score: {Number(data.score).toFixed(1)}%</p>
+      <p className="text-xs text-slate-500">Performance: {data.performance || '-'}</p>
+      <p className="text-xs text-slate-500">Status: {statusLabel(data.status)}</p>
+    </div>
+  )
+}
+
 export default function SelfAssessmentReportPage({ mode }: Props) {
   const { data: cycles = [] } = useGetReviewCyclesQuery({ requiresEmployeeSubmission: true })
   const [cycleId, setCycleId] = useState<number | ''>('')
@@ -216,6 +232,21 @@ export default function SelfAssessmentReportPage({ mode }: Props) {
   }, [report, selectedDepartment, selectedPosition])
   const radarData = useMemo(() => buildRadarData(report), [report])
   const radarGroups = report?.performanceBandRadar.map((item) => item.groupName) ?? []
+
+  const employeeChartData = useMemo(() => {
+    if (!report?.employeeDirectory) return []
+    return [...report.employeeDirectory]
+      .sort((a, b) => (b.selectedCycleScore ?? 0) - (a.selectedCycleScore ?? 0))
+      .map((emp) => ({
+        name: emp.employeeName,
+        score: emp.selectedCycleScore ?? 0,
+        staffNo: emp.staffNo,
+        department: emp.departmentName,
+        position: emp.positionName,
+        performance: emp.performance,
+        status: emp.status,
+      }))
+  }, [report])
 
   const handleDepartmentClick = (row: GroupSummary) => {
     setSelectedDepartment(row)
@@ -320,6 +351,29 @@ export default function SelfAssessmentReportPage({ mode }: Props) {
           <MetricCard icon={<Building2 size={20} />} label="Lowest Department" value={report?.lowestDepartment?.groupName ?? '-'} tone="cyan" />
         </div>
       )}
+
+      <section className="space-y-3">
+        <h2 className="text-lg font-black text-slate-900 dark:text-slate-100">Employee Score Analytics</h2>
+        <div className="h-[500px] overflow-y-auto rounded-lg border border-slate-200 bg-white p-4 dark:border-slate-800 dark:bg-slate-900">
+          {isFetching ? (
+            <div className="flex h-full items-center justify-center text-sm font-semibold text-slate-400">Loading report...</div>
+          ) : employeeChartData.length === 0 ? (
+            <div className="flex h-full items-center justify-center text-sm font-semibold text-slate-400">No employee score data for this cycle.</div>
+          ) : (
+            <div style={{ height: Math.max(500, employeeChartData.length * 40) }}>
+              <ResponsiveContainer width="100%" height="100%">
+                <BarChart data={employeeChartData} layout="vertical" margin={{ left: 0, right: 20, top: 5, bottom: 5 }}>
+                  <CartesianGrid strokeDasharray="3 3" />
+                  <XAxis type="number" domain={[0, 100]} tickFormatter={(v) => `${v}%`} />
+                  <YAxis type="category" dataKey="name" width={150} tick={{ fontSize: 12 }} />
+                  <Tooltip content={<EmployeeScoreTooltip />} />
+                  <Bar dataKey="score" fill="#2463eb" radius={[0, 4, 4, 0]} />
+                </BarChart>
+              </ResponsiveContainer>
+            </div>
+          )}
+        </div>
+      </section>
 
       <section className="space-y-3">
         <h2 className="text-lg font-black text-slate-900 dark:text-slate-100">Competency Radar</h2>

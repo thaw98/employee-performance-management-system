@@ -38,6 +38,11 @@ vi.mock('recharts', () => ({
   PolarRadiusAxis: () => <div />,
   Tooltip: () => <div />,
   Legend: () => <div />,
+  BarChart: ({ children }: { children: React.ReactNode }) => <div data-testid="bar-chart">{children}</div>,
+  Bar: () => <div />,
+  CartesianGrid: () => <div />,
+  XAxis: () => <div />,
+  YAxis: () => <div />,
 }))
 
 const cycles = [{ id: 7, name: 'Q2 2026', requiresEmployeeSubmission: true }]
@@ -226,5 +231,54 @@ describe('SelfAssessmentReportPage', () => {
       positionRows: baseReport.positionSummaries,
       directoryRows: baseReport.employeeDirectory,
     })
+  })
+
+  it('renders employee score chart with employee names from employeeDirectory', () => {
+    reviewCyclesHookMock.mockReturnValue({ data: cycles })
+    reportHookMock.mockReturnValue({ data: baseReport, isFetching: false, isError: false })
+
+    render(<SelfAssessmentReportPage mode="hr" />)
+
+    expect(screen.getByText('Employee Score Analytics')).toBeTruthy()
+    expect(screen.getByTestId('bar-chart')).toBeTruthy()
+  })
+
+  it('shows empty state when employeeDirectory is empty', () => {
+    reviewCyclesHookMock.mockReturnValue({ data: cycles })
+    reportHookMock.mockReturnValue({
+      data: { ...baseReport, employeeDirectory: [] },
+      isFetching: false,
+      isError: false,
+    })
+
+    render(<SelfAssessmentReportPage mode="hr" />)
+
+    expect(screen.getByText('No employee score data for this cycle.')).toBeTruthy()
+  })
+
+  it('manager mode chart renders with scoped report data alongside directory', async () => {
+    reviewCyclesHookMock.mockReturnValue({ data: cycles })
+    reportHookMock.mockReturnValue({
+      data: {
+        ...baseReport,
+        role: 'manager',
+        departmentSummaries: [{ groupId: 10, groupCode: 'ENG', departmentId: 10, departmentName: 'Engineering', groupName: 'Engineering', employeeCount: 2, averageScore: 45, highestScore: 90, lowestScore: 0, missedCount: 1 }],
+        positionSummaries: [{ groupId: 20, groupCode: 'DEV', departmentId: 10, departmentName: 'Engineering', groupName: 'Developer', employeeCount: 2, averageScore: 45, highestScore: 90, lowestScore: 0, missedCount: 1 }],
+        employeeDirectory: baseReport.employeeDirectory.filter((row) => row.departmentId === 10),
+      },
+      isFetching: false,
+      isError: false,
+    })
+
+    render(<SelfAssessmentReportPage mode="manager" />)
+
+    expect(screen.getByText('Employee Score Analytics')).toBeTruthy()
+    expect(screen.getByTestId('bar-chart')).toBeTruthy()
+
+    await userEvent.click(screen.getByRole('button', { name: 'Employee Directory' }))
+
+    expect(screen.getByText('Alice')).toBeTruthy()
+    expect(screen.getByText('Bob')).toBeTruthy()
+    expect(screen.queryByText('Cara')).toBeNull()
   })
 })
