@@ -26,6 +26,7 @@ import {
   type PipReportFormat,
 } from '../../../features/pip/pipReportApi'
 import { useGetDepartmentsQuery, useGetDepartmentPositionsQuery } from '../../../features/hrCreateEmployee/hrEmployeeAccountApi'
+import { useGetProfileQuery } from '../../../features/user/userApi'
 import type { RootState } from '../../../app/store'
 import {
   Download, FileText, BarChart3, Filter, X, Calendar, User, Target,
@@ -146,15 +147,41 @@ export default function PipReportPage() {
   const invalidDateRange = isInvalidDateRange(startDate, endDate)
 
   const { data: departmentsResponse } = useGetDepartmentsQuery()
+  const { data: profileResponse } = useGetProfileQuery()
 
-  const departmentId = useMemo(() => {
-    if (!user) return undefined
-    return (user as any).departmentId || (user as any).employee?.department?.id
-  }, [user])
+  const baseDepartmentId = useMemo(() => {
+    const profileDepartmentId = profileResponse?.data?.departmentId
+    if (typeof profileDepartmentId === 'number' && profileDepartmentId > 0) {
+      return profileDepartmentId
+    }
+
+    const profileDepartmentName = profileResponse?.data?.departmentName?.trim()
+    if (profileDepartmentName) {
+      const matchedDepartment = departmentsResponse?.data?.find(
+        (department) => (department.departmentName ?? department.name) === profileDepartmentName,
+      )
+      const matchedId = matchedDepartment?.departmentId ?? matchedDepartment?.id
+      if (typeof matchedId === 'number' && matchedId > 0) {
+        return matchedId
+      }
+    }
+
+    if (user) {
+      const legacyDepartmentId =
+        (user as { departmentId?: number }).departmentId
+        ?? (user as { employee?: { department?: { id?: number; departmentId?: number } } }).employee?.department?.departmentId
+        ?? (user as { employee?: { department?: { id?: number } } }).employee?.department?.id
+      if (typeof legacyDepartmentId === 'number' && legacyDepartmentId > 0) {
+        return legacyDepartmentId
+      }
+    }
+
+    return undefined
+  }, [departmentsResponse?.data, profileResponse?.data, user])
 
   const reportFilters = {
     status: statusFilter || undefined,
-    departmentId,
+    departmentId: baseDepartmentId,
     positionId,
     employeeName: employeeName.trim() || undefined,
     employeeId,
@@ -171,36 +198,57 @@ export default function PipReportPage() {
     queryEnabled ? selectedPipId : 0,
     { skip: !queryEnabled }
   )
-  const { data: positionsResponse } = useGetDepartmentPositionsQuery(departmentId !== undefined ? departmentId : skipToken)
   const { data: pips = [] } = useGetPipsQuery(invalidDateRange ? skipToken : {
-    departmentId, positionId,
+    departmentId: baseDepartmentId, positionId,
     employeeName: employeeName.trim() || undefined,
     status: statusFilter || undefined,
     startDate: startDate || undefined,
     endDate: endDate || undefined,
   })
 
-  const positionOptions = useMemo(() => {
-    const departmentPositions = (positionsResponse?.data ?? [])
-      .filter((position: any) => typeof position.positionId === 'number')
-      .map((position: any) => ({
-        id: position.positionId,
-        name: position.positionName || 'Unnamed Position',
-      }))
-
-    if (departmentPositions.length > 0) {
-      return departmentPositions.sort((a: any, b: any) => a.name.localeCompare(b.name))
+  const departmentId = useMemo(() => {
+    if (typeof baseDepartmentId === 'number' && baseDepartmentId > 0) {
+      return baseDepartmentId
     }
 
-    return pips
-      .map((pip: any) => ({
-        id: pip.employee.employee?.positionId ?? undefined,
-        name: pip.employee.employee?.positionName || pip.employee.employee?.position?.positionName || 'Unnamed Position',
+    const firstPip = pips[0]
+    const employeeWrapper = firstPip?.employee as { employee?: { department?: { id?: number; departmentId?: number } }; department?: { id?: number; departmentId?: number } } | undefined
+    const employeeRecord = employeeWrapper?.employee ?? employeeWrapper
+    const department = employeeRecord?.department
+    const pipDepartmentId = department?.departmentId ?? department?.id
+    if (typeof pipDepartmentId === 'number' && pipDepartmentId > 0) {
+      return pipDepartmentId
+    }
+
+    return undefined
+  }, [baseDepartmentId, pips])
+
+  const { data: positionsResponse } = useGetDepartmentPositionsQuery(
+    typeof departmentId === 'number' ? departmentId : skipToken,
+  )
+
+  const positionOptions = useMemo(() => {
+    const departmentPositions = (positionsResponse?.data ?? [])
+      .filter((position) => typeof position.positionId === 'number' && position.positionId > 0)
+      .map((position) => ({
+        id: position.positionId,
+        name: position.positionName || position.name || 'Unnamed Position',
       }))
-      .filter((position: any): position is { id: number; name: string } => typeof position.id === 'number')
-      .filter((position: any, index: number, all: any[]) => all.findIndex((item) => item.id === position.id) === index)
-      .sort((a: any, b: any) => a.name.localeCompare(b.name))
-  }, [pips, positionsResponse])
+
+    const pipPositions = pips
+      .map((pip) => {
+        const employee = pip.employee?.employee ?? pip.employee
+        return {
+          id: employee?.positionId ?? employee?.position?.id,
+          name: employee?.positionName || employee?.position?.positionName || employee?.position?.name || 'Unnamed Position',
+        }
+      })
+      .filter((position): position is { id: number; name: string } => typeof position.id === 'number' && position.id > 0)
+
+    return [...departmentPositions, ...pipPositions]
+      .filter((position, index, all) => all.findIndex((item) => item.id === position.id) === index)
+      .sort((a, b) => a.name.localeCompare(b.name))
+  }, [pips, positionsResponse?.data])
 
   const employeeOptions = useMemo(() => {
     return pips

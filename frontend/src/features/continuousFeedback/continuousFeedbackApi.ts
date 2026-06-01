@@ -1,6 +1,7 @@
 import axiosInstance from '../../app/axiosInstance';
 import type {
   ApiResponse,
+  AuditLogEntry,
   ContinuousFeedback,
   ContinuousFeedbackActionItem,
   ContinuousFeedbackActionItemRequest,
@@ -11,6 +12,7 @@ import type {
   ContinuousFeedbackDashboard,
   ContinuousFeedbackEvidence,
   ContinuousFeedbackUpdatePrivateNoteRequest,
+  ContinuousFeedbackUpdateScheduledRequest,
   FollowUpMeetingResponse,
   PipWarning,
 } from './types';
@@ -28,6 +30,16 @@ export const continuousFeedbackApi = {
 
   shareFeedback: (feedbackId: number) =>
     axiosInstance.post<ApiResponse<ContinuousFeedback>>(`${BASE_URL}/${feedbackId}/share`).then((r) => r.data),
+
+  updateScheduledFeedback: (feedbackId: number, data: ContinuousFeedbackUpdateScheduledRequest) =>
+    axiosInstance
+      .patch<ApiResponse<ContinuousFeedback>>(`${BASE_URL}/${feedbackId}/scheduled`, data)
+      .then((r) => r.data),
+
+  cancelScheduledFeedback: (feedbackId: number) =>
+    axiosInstance
+      .post<ApiResponse<ContinuousFeedback>>(`${BASE_URL}/${feedbackId}/cancel-schedule`)
+      .then((r) => r.data),
 
   getFeedback: (feedbackId: number) =>
     axiosInstance.get<ApiResponse<ContinuousFeedback>>(`${BASE_URL}/${feedbackId}`).then((r) => r.data),
@@ -80,5 +92,18 @@ export const continuousFeedbackApi = {
       .get<ApiResponse<ContinuousFeedbackEvidence[]>>(`${BASE_URL}/evidence/employee/${employeeId}`, {
         params: { startDate, endDate },
       })
+      .then((r) => r.data),
+
+  getHistory: (params?: { startDate?: string; endDate?: string; employeeId?: number; category?: string }) =>
+    axiosInstance
+      .get<ApiResponse<ContinuousFeedback[]>>(`${BASE_URL}/history`, { params })
+      .then((r) => r.data),
+
+  getScheduledFeedback: () =>
+    axiosInstance.get<ApiResponse<ContinuousFeedback[]>>(`${BASE_URL}/scheduled`).then((r) => r.data),
+
+  getFeedbackAuditTimeline: (feedbackId: number) =>
+    axiosInstance
+      .get<ApiResponse<AuditLogEntry[]>>(`/audit-logs/target/CONTINUOUS_FEEDBACK/${feedbackId}`)
       .then((r) => r.data),
 };

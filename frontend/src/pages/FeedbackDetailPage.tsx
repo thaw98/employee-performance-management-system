@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from 'react';
-import { ArrowLeft, Download, Printer } from 'lucide-react';
+import { ArrowLeft, Download, Building2, Briefcase, Calendar, Tag, User, Shield, MessageSquare, Star } from 'lucide-react';
 import { useLocation, useNavigate, useParams } from 'react-router-dom';
 import { toast } from 'react-hot-toast';
 import jsPDF from 'jspdf';
@@ -38,8 +38,6 @@ interface FeedbackDetailPageData {
   details: FeedbackDetail[];
 }
 
-
-
 interface FeedbackDetailLocationState {
   feedback?: Partial<FeedbackDetailPageData>;
   sourcePath?: string;
@@ -61,19 +59,122 @@ const scoreText = (score?: number | null) => (typeof score === 'number' ? `${sco
 
 const getRemarkColor = (remark?: string | null) => {
   switch (remark) {
-    case 'Outstanding': return 'bg-emerald-50 text-emerald-600 border-emerald-100';
-    case 'Good': return 'bg-blue-50 text-blue-600 border-blue-100';
-    case 'Meet Requirement': return 'bg-amber-50 text-amber-600 border-amber-100';
-    case 'Need Improvement': return 'bg-orange-50 text-orange-600 border-orange-100';
-    case 'Unsatisfactory': return 'bg-red-50 text-red-600 border-red-100';
-    default: return 'bg-slate-50 text-slate-600 border-slate-100';
+    case 'Outstanding': return 'bg-emerald-50 text-emerald-700 ring-1 ring-emerald-200';
+    case 'Good': return 'bg-blue-50 text-blue-700 ring-1 ring-blue-200';
+    case 'Meet Requirement': return 'bg-amber-50 text-amber-700 ring-1 ring-amber-200';
+    case 'Need Improvement': return 'bg-orange-50 text-orange-700 ring-1 ring-orange-200';
+    case 'Unsatisfactory': return 'bg-red-50 text-red-700 ring-1 ring-red-200';
+    default: return 'bg-slate-50 text-slate-600 ring-1 ring-slate-200';
   }
+};
+
+const getScoreColor = (score?: number | null) => {
+  if (!score) return 'text-slate-400';
+  if (score >= 80) return 'text-emerald-600';
+  if (score >= 60) return 'text-blue-600';
+  if (score >= 40) return 'text-amber-600';
+  return 'text-red-600';
+};
+
+const getScoreRingColor = (score?: number | null) => {
+  if (!score) return '#94a3b8';
+  if (score >= 80) return '#059669';
+  if (score >= 60) return '#2563eb';
+  if (score >= 40) return '#d97706';
+  return '#dc2626';
+};
+
+const getInitials = (name?: string | null) => {
+  if (!name || name === '-') return '?';
+  return name.split(' ').map(n => n[0]).join('').toUpperCase().slice(0, 2);
 };
 
 const sourceTitle = (sourcePath?: string, data?: Partial<FeedbackDetailPageData>) =>
   sourcePath?.includes('/received') || data?.direction === 'RECEIVED'
     ? 'Received Feedback Details'
     : 'Feedback Details';
+
+function ScoreGauge({ score, size = 80 }: { score?: number | null; size?: number }) {
+  const strokeWidth = 6;
+  const radius = (size - strokeWidth) / 2;
+  const circumference = 2 * Math.PI * radius;
+  const progress = Math.min(100, Math.max(0, score || 0));
+  const offset = circumference - (progress / 100) * circumference;
+  const color = getScoreRingColor(score);
+
+  return (
+    <div className="relative inline-flex items-center justify-center" style={{ width: size, height: size }}>
+      <svg width={size} height={size} className="-rotate-90">
+        <circle cx={size / 2} cy={size / 2} r={radius} fill="none" stroke="#f1f5f9" strokeWidth={strokeWidth} />
+        <circle
+          cx={size / 2}
+          cy={size / 2}
+          r={radius}
+          fill="none"
+          stroke={color}
+          strokeWidth={strokeWidth}
+          strokeDasharray={circumference}
+          strokeDashoffset={offset}
+          strokeLinecap="round"
+          className="transition-all duration-1000 ease-out"
+        />
+      </svg>
+      <span className={`absolute text-lg font-black ${getScoreColor(score)}`}>
+        {scoreText(score).replace('%', '')}
+        <span className="text-[9px] font-bold">%</span>
+      </span>
+    </div>
+  );
+}
+
+function InfoRow({ icon, label, value }: { icon: React.ReactNode; label: string; value: string | number | null | undefined }) {
+  return (
+    <div className="flex items-center gap-3 py-2.5 border-b border-slate-100 last:border-b-0">
+      <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-slate-100 text-slate-400 shrink-0">
+        {icon}
+      </div>
+      <div className="min-w-0">
+        <p className="text-[10px] font-black uppercase tracking-widest text-slate-400">{label}</p>
+        <p className="text-sm font-bold text-slate-800 truncate">{value || '-'}</p>
+      </div>
+    </div>
+  );
+}
+
+function EmployeeAvatarBadge({ name, staffNo, position, department, label }: {
+  name?: string | null;
+  staffNo?: string | null;
+  position?: string | null;
+  department?: string | null;
+  label: string;
+}) {
+  return (
+    <div className="flex items-start gap-4 p-5 bg-gradient-to-br from-slate-50 to-white rounded-2xl border border-slate-100 hover:shadow-md transition-shadow">
+      <div className="flex h-14 w-14 shrink-0 items-center justify-center rounded-2xl bg-gradient-to-br from-blue-500 to-blue-600 text-white text-lg font-black shadow-sm shadow-blue-200">
+        {getInitials(name)}
+      </div>
+      <div className="min-w-0 flex-1">
+        <p className="text-[10px] font-black uppercase tracking-widest text-blue-500 mb-1">{label}</p>
+        <p className="text-base font-black text-slate-800 truncate">{name || '-'}</p>
+        {staffNo && <p className="text-[11px] font-bold uppercase text-slate-400">{staffNo}</p>}
+        <div className="flex flex-wrap gap-x-4 gap-y-1 mt-1.5">
+          {position && (
+            <div className="flex items-center gap-1.5 text-xs font-semibold text-slate-500">
+              <Briefcase size={12} className="text-slate-400" />
+              {position}
+            </div>
+          )}
+          {department && (
+            <div className="flex items-center gap-1.5 text-xs font-semibold text-slate-500">
+              <Building2 size={12} className="text-slate-400" />
+              {department}
+            </div>
+          )}
+        </div>
+      </div>
+    </div>
+  );
+}
 
 export function FeedbackDetailPage() {
   const { feedbackId } = useParams();
@@ -131,8 +232,6 @@ export function FeedbackDetailPage() {
     }
     navigate(-1);
   };
-
-
 
   const generatePDF = async () => {
     if (!data) return;
@@ -269,92 +368,197 @@ export function FeedbackDetailPage() {
 
   if (loading && !data) {
     return (
-      <div className="p-20 text-center">
-        <div className="w-10 h-10 border-4 border-blue-600 border-t-transparent rounded-full animate-spin mx-auto" />
-        <p className="mt-4 text-xs font-black text-slate-400 uppercase tracking-widest">Fetching details...</p>
+      <div className="flex items-center justify-center min-h-[400px]">
+        <div className="flex flex-col items-center gap-4">
+          <div className="w-12 h-12 border-4 border-blue-600 border-t-transparent rounded-full animate-spin" />
+          <p className="text-xs font-black text-slate-400 uppercase tracking-widest">Loading feedback details...</p>
+        </div>
       </div>
     );
   }
 
   if (!data) {
-    return <div className="p-10 text-sm font-bold text-slate-500">Feedback details could not be loaded.</div>;
+    return (
+      <div className="flex items-center justify-center min-h-[400px]">
+        <div className="text-center">
+          <div className="flex h-16 w-16 items-center justify-center rounded-2xl bg-slate-100 text-slate-300 mx-auto mb-4">
+            <MessageSquare size={28} />
+          </div>
+          <p className="text-base font-black text-slate-400">Feedback details could not be loaded.</p>
+        </div>
+      </div>
+    );
   }
 
   return (
-    <div className="max-w-5xl mx-auto p-4 space-y-6 animate-in fade-in duration-500">
-      <button onClick={handleBack} className="inline-flex items-center gap-2 rounded-xl border border-slate-200 bg-white px-4 py-3 text-xs font-black text-slate-600 hover:bg-slate-50">
-        <ArrowLeft size={16} /> BACK
-      </button>
-
-      <div className="bg-white rounded-[32px] border border-slate-100 shadow-xl shadow-slate-200/50 p-8">
-        <div className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between mb-8">
-          <div className="space-y-1">
-            <h1 className="text-2xl font-black text-slate-800 uppercase tracking-tight">{title}</h1>
-            <p className="text-sm font-bold text-slate-400">
-              {isAuditView ? (
-                <>Evaluator: <span className="text-blue-600">{evaluator?.name}</span></>
-              ) : (
-                <span className="uppercase tracking-widest">
-                  {data.direction === 'RECEIVED' ? 'Received from' : 'Given by'}: <span className="text-blue-600">{evaluator?.name}</span>
-                </span>
-              )}
-            </p>
+    <div className="max-w-6xl mx-auto space-y-6 animate-in fade-in duration-500">
+      <div className="relative overflow-hidden rounded-2xl bg-gradient-to-br from-slate-900 via-slate-800 to-slate-700 px-6 py-5 text-white shadow-xl">
+        <div className="absolute -right-8 -top-8 h-32 w-32 rounded-full bg-white/5 blur-3xl" />
+        <div className="absolute -bottom-6 -left-6 h-24 w-24 rounded-full bg-blue-500/10 blur-3xl" />
+        <div className="relative flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
+          <div className="flex items-center gap-4">
+            <button type="button" onClick={handleBack} className="flex h-10 w-10 items-center justify-center rounded-xl bg-white/10 text-white/70 backdrop-blur-sm transition hover:bg-white/20 hover:text-white">
+              <ArrowLeft size={18} />
+            </button>
+            <div className="h-10 w-px bg-white/10" />
+            <div className="flex items-center gap-4">
+              <div className="flex h-12 w-12 items-center justify-center rounded-xl bg-gradient-to-br from-blue-500 to-blue-600 shadow-lg shadow-blue-500/30">
+                <Star size={22} />
+              </div>
+              <div>
+                <h1 className="text-2xl font-black tracking-tight">{title}</h1>
+                <p className="text-sm font-medium text-slate-300">
+                  360 Feedback Assessment
+                  {data.reviewCycleName && <span className="hidden sm:inline"> &middot; {data.reviewCycleName}</span>}
+                </p>
+              </div>
+            </div>
           </div>
-          {isAuditView ? (
-            <span className={`rounded-full border px-4 py-2 text-xs font-black uppercase ${data.anonymous ? 'border-orange-100 bg-orange-50 text-orange-700' : 'border-emerald-100 bg-emerald-50 text-emerald-700'}`}>
+          <div className="flex items-center gap-3">
+            <span className={`inline-flex items-center gap-1.5 rounded-full px-4 py-2 text-xs font-black uppercase backdrop-blur-sm ${
+              data.anonymous
+                ? 'bg-orange-500/15 text-orange-300 ring-1 ring-orange-500/30'
+                : 'bg-emerald-500/15 text-emerald-300 ring-1 ring-emerald-500/30'
+            }`}>
+              <span className={`h-1.5 w-1.5 rounded-full ${data.anonymous ? 'bg-orange-400' : 'bg-emerald-400'}`} />
               {data.anonymous ? 'Anonymous' : 'Not Anonymous'}
             </span>
-          ) : (
-            <div className={`w-fit px-5 py-2 rounded-2xl border-2 font-black uppercase text-xs tracking-widest ${getRemarkColor(data.remark)}`}>
-              {data.remark || '-'} | {scoreText(data.score)}
-            </div>
-          )}
+            <button type="button" onClick={generatePDF} className="inline-flex items-center gap-2 rounded-xl bg-white/10 px-4 py-2.5 text-xs font-black text-white backdrop-blur-sm transition hover:bg-white/20">
+              <Download size={16} /> PDF
+            </button>
+          </div>
         </div>
+      </div>
 
-        {!isAuditView && (
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-6">
-            <div className="p-5 bg-slate-50 rounded-2xl border border-slate-100">
-              <h2 className="font-black text-slate-800 mb-2">Evaluator</h2>
-              <p className="font-bold text-slate-700">{evaluator?.name || '-'}</p>
-              <p className="text-xs font-bold text-slate-500">{evaluator?.position || '-'}</p>
-              <p className="text-xs font-bold text-slate-400">{evaluator?.department || ''}</p>
-              <p className="text-xs font-bold text-slate-400 mt-1">Type: {feedbackRoleDisplay(data)}</p>
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+        <div className="lg:col-span-2 space-y-6">
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+            <EmployeeAvatarBadge
+              name={evaluator?.name}
+              staffNo={evaluator?.staffNo}
+              position={evaluator?.position}
+              department={evaluator?.department}
+              label="Evaluator"
+            />
+            <EmployeeAvatarBadge
+              name={data.evaluateeName}
+              staffNo={data.evaluateeStaffNo}
+              position={data.evaluateePosition || data.position}
+              department={data.evaluateeDepartment}
+              label="Evaluatee"
+            />
+          </div>
+
+          <div className="bg-white rounded-2xl border border-slate-100 shadow-sm overflow-hidden">
+            <div className="border-b border-slate-100 bg-gradient-to-r from-slate-50/80 to-white px-6 py-4">
+              <div className="flex items-center gap-3">
+                <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-blue-50 text-blue-600">
+                  <Star size={16} />
+                </div>
+                <div>
+                  <h3 className="text-sm font-black text-slate-900">Evaluation Criteria</h3>
+                  <p className="text-xs text-slate-500">{data.details.length} criteria assessed</p>
+                </div>
+              </div>
             </div>
-            <div className="p-5 bg-slate-50 rounded-2xl border border-slate-100">
-              <h2 className="font-black text-slate-800 mb-2">Evaluatee</h2>
-              <p className="font-bold text-slate-700">{data.evaluateeName || '-'}</p>
-              <p className="text-xs font-bold text-slate-500">{data.evaluateePosition || data.position || '-'}</p>
-              <p className="text-xs font-bold text-slate-400">{data.evaluateeDepartment || ''}</p>
+            <div className="divide-y divide-slate-50">
+              {data.details.map((detail, index) => {
+                const ratingPercent = Math.min(100, (detail.rating / 5) * 100);
+                return (
+                  <div key={`${detail.criteriaName}-${index}`} className="px-6 py-5 hover:bg-slate-50/50 transition-colors">
+                    <div className="flex items-center justify-between gap-4 mb-3">
+                      <div className="flex items-center gap-3 min-w-0">
+                        <span className="flex h-7 w-7 shrink-0 items-center justify-center rounded-lg bg-slate-100 text-[11px] font-black text-slate-400">
+                          {index + 1}
+                        </span>
+                        <h4 className="font-black text-slate-800 truncate">{detail.criteriaName}</h4>
+                      </div>
+                      <div className="flex items-center gap-2 shrink-0">
+                        <div className="flex">
+                          {[1, 2, 3, 4, 5].map(star => (
+                            <Star
+                              key={star}
+                              size={14}
+                              className={star <= detail.rating ? 'text-amber-400 fill-amber-400' : 'text-slate-200'}
+                            />
+                          ))}
+                        </div>
+                        <span className="ml-1.5 inline-flex items-center justify-center min-w-[32px] h-8 rounded-lg bg-blue-600 text-white text-sm font-black px-2">
+                          {detail.rating}
+                        </span>
+                      </div>
+                    </div>
+                    <div className="ml-10">
+                      <div className="w-full h-1.5 bg-slate-100 rounded-full mb-3 overflow-hidden">
+                        <div
+                          className="h-full rounded-full transition-all duration-700 ease-out"
+                          style={{
+                            width: `${ratingPercent}%`,
+                            backgroundColor: ratingPercent >= 80 ? '#059669' : ratingPercent >= 60 ? '#2563eb' : ratingPercent >= 40 ? '#d97706' : '#dc2626',
+                          }}
+                        />
+                      </div>
+                      <div className="bg-slate-50/80 rounded-xl border border-slate-100 px-4 py-3">
+                        <p className="text-sm text-slate-600 leading-relaxed">
+                          {detail.comment || <span className="italic text-slate-400">No comments provided for this criteria.</span>}
+                        </p>
+                      </div>
+                    </div>
+                  </div>
+                );
+              })}
             </div>
           </div>
-        )}
+
+          <div className="bg-white rounded-2xl border border-slate-100 shadow-sm overflow-hidden">
+            <div className="border-b border-slate-100 bg-gradient-to-r from-slate-50/80 to-white px-6 py-4">
+              <div className="flex items-center gap-3">
+                <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-violet-50 text-violet-600">
+                  <MessageSquare size={16} />
+                </div>
+                <div>
+                  <h3 className="text-sm font-black text-slate-900">Additional Comments</h3>
+                </div>
+              </div>
+            </div>
+            <div className="px-6 py-5">
+              {data.additionalComments?.trim() ? (
+                <div className="bg-gradient-to-br from-slate-50 to-white rounded-xl border border-slate-100 p-5">
+                  <p className="text-sm text-slate-600 leading-relaxed whitespace-pre-wrap">
+                    {data.additionalComments.trim()}
+                  </p>
+                </div>
+              ) : (
+                <div className="flex items-center justify-center py-8">
+                  <p className="text-sm font-semibold text-slate-400 italic">No additional comments provided.</p>
+                </div>
+              )}
+            </div>
+          </div>
+        </div>
 
         <div className="space-y-6">
-          {data.details.map((detail, index) => (
-            <div key={`${detail.criteriaName}-${index}`} className="p-6 bg-slate-50/50 rounded-2xl border border-slate-100 space-y-4">
-              <div className="flex items-center justify-between gap-4">
-                <h3 className="font-black text-slate-800">{detail.criteriaName}</h3>
-                <span className="w-10 h-10 bg-blue-600 text-white rounded-xl flex items-center justify-center font-black text-lg">{detail.rating}</span>
-              </div>
-              <div className="bg-white p-4 rounded-xl border border-slate-100 italic text-sm text-slate-600 font-medium">
-                {detail.comment || 'No comments provided for this criteria.'}
+          <div className="bg-white rounded-2xl border border-slate-100 shadow-sm overflow-hidden">
+            <div className="bg-gradient-to-br from-slate-900 via-slate-800 to-slate-700 px-6 py-5 text-center">
+              <ScoreGauge score={data.score} size={100} />
+              <div className="mt-3">
+                <p className="text-[10px] font-black uppercase tracking-widest text-slate-400">Performance Score</p>
+                <span className={`mt-1 inline-flex items-center gap-1.5 rounded-full px-3 py-1 text-[11px] font-black uppercase ${getRemarkColor(data.remark)}`}>
+                  {data.remark || 'Not Rated'}
+                </span>
               </div>
             </div>
-          ))}
-          <div className="p-6 bg-slate-50/50 rounded-2xl border border-slate-100 space-y-3">
-            <h3 className="font-black text-slate-800">Additional Comments</h3>
-            <div className="bg-white p-4 rounded-xl border border-slate-100 italic text-sm text-slate-600 font-medium whitespace-pre-wrap">
-              {data.additionalComments?.trim() || 'No additional comments provided.'}
+            <div className="px-5 py-4 space-y-0.5">
+              <InfoRow icon={<User size={14} />} label="Feedback Type" value={data.role || '-'} />
+              <InfoRow icon={<Calendar size={14} />} label="Assessment Date" value={formatPdfDate(data.date)} />
+              <InfoRow icon={<Tag size={14} />} label="Review Cycle" value={data.reviewCycleName || '-'} />
+              <InfoRow icon={<Shield size={14} />} label="Anonymity" value={data.anonymous ? 'Anonymous' : 'Not Anonymous'} />
             </div>
           </div>
-        </div>
 
-
-
-        <div className="mt-10 pt-8 border-t border-slate-100 flex justify-end gap-3">
-          <button onClick={generatePDF} className="flex items-center gap-2 px-8 py-3 bg-blue-600 text-white rounded-xl text-xs font-black hover:bg-blue-700 transition-all">
-            {isAuditView ? <Download size={16} /> : <Printer size={16} />}
-            {isAuditView ? 'PDF REPORT' : 'PRINT REPORT'}
+          <button type="button" onClick={generatePDF} className="w-full inline-flex items-center justify-center gap-2 rounded-xl bg-blue-600 px-5 py-3.5 text-sm font-black text-white shadow-sm shadow-blue-200 hover:bg-blue-700 transition-all">
+            <Download size={18} />
+            Download PDF Report
           </button>
         </div>
       </div>

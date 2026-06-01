@@ -30,6 +30,29 @@ public class ContinuousFeedbackSchemaMigrationInitializer implements BeanPostPro
     private void migrate(DataSource dataSource) {
         JdbcTemplate jdbc = new JdbcTemplate(dataSource);
 
+        if (tableExists(jdbc, "continuous_feedback")) {
+            if (!columnExists(jdbc, "continuous_feedback", "scheduled_publish_at")) {
+                jdbc.execute("ALTER TABLE continuous_feedback ADD COLUMN scheduled_publish_at DATETIME(6) NULL AFTER visibility_status");
+                log.info("Added scheduled_publish_at column to continuous_feedback");
+            }
+            if (!columnExists(jdbc, "continuous_feedback", "scheduled_by_user_id")) {
+                jdbc.execute("ALTER TABLE continuous_feedback ADD COLUMN scheduled_by_user_id BIGINT NULL AFTER scheduled_publish_at, ADD CONSTRAINT fk_cf_scheduled_by FOREIGN KEY (scheduled_by_user_id) REFERENCES user_account(user_id)");
+                log.info("Added scheduled_by_user_id column to continuous_feedback");
+            }
+            if (!columnExists(jdbc, "continuous_feedback", "cancelled_at")) {
+                jdbc.execute("ALTER TABLE continuous_feedback ADD COLUMN cancelled_at DATETIME(6) NULL AFTER scheduled_by_user_id");
+                log.info("Added cancelled_at column to continuous_feedback");
+            }
+            if (!columnExists(jdbc, "continuous_feedback", "cancelled_by_user_id")) {
+                jdbc.execute("ALTER TABLE continuous_feedback ADD COLUMN cancelled_by_user_id BIGINT NULL AFTER cancelled_at, ADD CONSTRAINT fk_cf_cancelled_by FOREIGN KEY (cancelled_by_user_id) REFERENCES user_account(user_id)");
+                log.info("Added cancelled_by_user_id column to continuous_feedback");
+            }
+            if (!columnExists(jdbc, "continuous_feedback", "scheduled_publish_at") && !indexExists(jdbc, "continuous_feedback", "idx_cf_scheduled_publish")) {
+                jdbc.execute("CREATE INDEX idx_cf_scheduled_publish ON continuous_feedback (scheduled_publish_at, is_shared)");
+                log.info("Created idx_cf_scheduled_publish index");
+            }
+        }
+
         if (!tableExists(jdbc, "continuous_feedback")) {
             jdbc.execute("""
                 CREATE TABLE continuous_feedback (
@@ -40,6 +63,10 @@ public class ContinuousFeedbackSchemaMigrationInitializer implements BeanPostPro
                     feedback_message TEXT NULL,
                     private_manager_note TEXT NULL,
                     visibility_status VARCHAR(20) NOT NULL DEFAULT 'PRIVATE_NOTE',
+                    scheduled_publish_at DATETIME(6) NULL,
+                    scheduled_by_user_id BIGINT NULL,
+                    cancelled_at DATETIME(6) NULL,
+                    cancelled_by_user_id BIGINT NULL,
                     is_shared BIT(1) NOT NULL DEFAULT 0,
                     shared_at DATETIME(6) NULL,
                     acknowledged BIT(1) NOT NULL DEFAULT 0,
@@ -52,13 +79,16 @@ public class ContinuousFeedbackSchemaMigrationInitializer implements BeanPostPro
                     created_by_user_id BIGINT NOT NULL,
                     updated_by_user_id BIGINT NULL,
                     CONSTRAINT fk_cf_employee FOREIGN KEY (employee_id) REFERENCES employee(employee_id),
-                    CONSTRAINT fk_cf_manager FOREIGN KEY (manager_id) REFERENCES employee(employee_id),
+                    CONSTRAINT fk_cf_manager FOREIGN KEY (manager_id) REFERENCES employee(manager_id),
                     CONSTRAINT fk_cf_created_by FOREIGN KEY (created_by_user_id) REFERENCES user_account(user_id),
                     CONSTRAINT fk_cf_updated_by FOREIGN KEY (updated_by_user_id) REFERENCES user_account(user_id),
+                    CONSTRAINT fk_cf_scheduled_by FOREIGN KEY (scheduled_by_user_id) REFERENCES user_account(user_id),
+                    CONSTRAINT fk_cf_cancelled_by FOREIGN KEY (cancelled_by_user_id) REFERENCES user_account(user_id),
                     INDEX idx_cf_employee_created (employee_id, created_at),
                     INDEX idx_cf_manager_created (manager_id, created_at),
                     INDEX idx_cf_category_created (category, created_at),
-                    INDEX idx_cf_visibility_created (visibility_status, created_at)
+                    INDEX idx_cf_visibility_created (visibility_status, created_at),
+                    INDEX idx_cf_scheduled_publish (scheduled_publish_at, is_shared)
                 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
                 """);
             log.info("Created continuous_feedback table");
@@ -138,5 +168,17 @@ public class ContinuousFeedbackSchemaMigrationInitializer implements BeanPostPro
         return Boolean.TRUE.equals(jdbc.queryForObject(
             "SELECT COUNT(*) > 0 FROM INFORMATION_SCHEMA.TABLES WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = ?",
             Boolean.class, tableName));
+    }
+
+    private static boolean columnExists(JdbcTemplate jdbc, String tableName, String columnName) {
+        return Boolean.TRUE.equals(jdbc.queryForObject(
+            "SELECT COUNT(*) > 0 FROM INFORMATION_SCHEMA.COLUMNS WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = ? AND COLUMN_NAME = ?",
+            Boolean.class, tableName, columnName));
+    }
+
+    private static boolean indexExists(JdbcTemplate jdbc, String tableName, String indexName) {
+        return Boolean.TRUE.equals(jdbc.queryForObject(
+            "SELECT COUNT(*) > 0 FROM INFORMATION_SCHEMA.STATISTICS WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = ? AND INDEX_NAME = ?",
+            Boolean.class, tableName, indexName));
     }
 }

@@ -5,11 +5,9 @@ import java.time.Instant;
 import lombok.Data;
 
 @Data
-public class ContinuousFeedbackCreateRequest {
-    private Long employeeId;
-    private String category;
+public class ContinuousFeedbackUpdateScheduledRequest {
     private String feedbackMessage;
     private String privateManagerNote;
-    private String publishMode; // IMMEDIATE, PRIVATE, SCHEDULED
+    private String category;
     private Instant scheduledPublishAt;
 }

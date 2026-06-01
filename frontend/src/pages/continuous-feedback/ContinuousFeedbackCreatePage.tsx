@@ -2,12 +2,13 @@ import { useEffect, useMemo, useState } from 'react';
 import { Link, useLocation, useNavigate } from 'react-router-dom';
 import { Combobox, ComboboxButton, ComboboxInput, ComboboxOption, ComboboxOptions } from '@headlessui/react';
 import { toast } from 'react-hot-toast';
-import { ArrowLeft, ChevronDown, Send, MessageSquare, Lock, User } from 'lucide-react';
+import { ArrowLeft, ChevronDown, Send, MessageSquare, Lock, User, Clock } from 'lucide-react';
 import { continuousFeedbackApi } from '../../features/continuousFeedback/continuousFeedbackApi';
 import {
   FEEDBACK_CATEGORY_LABELS,
   type ContinuousFeedbackCategory,
   type ContinuousFeedbackCreateRequest,
+  type PublishMode,
 } from '../../features/continuousFeedback/types';
 import axios from '../../app/axiosInstance';
 
@@ -32,6 +33,12 @@ const categoryColors: Record<string, string> = {
   PERFORMANCE_RISK: 'bg-rose-50 text-rose-700 border-rose-200',
 };
 
+const publishModeOptions: { value: PublishMode; label: string; icon: React.ReactNode; desc: string }[] = [
+  { value: 'IMMEDIATE', label: 'Share Now', icon: <Send size={16} />, desc: 'Share feedback with employee immediately' },
+  { value: 'PRIVATE', label: 'Private Note', icon: <Lock size={16} />, desc: 'Save as private note only' },
+  { value: 'SCHEDULED', label: 'Schedule', icon: <Clock size={16} />, desc: 'Schedule feedback for later publication' },
+];
+
 export default function ContinuousFeedbackCreatePage() {
   const navigate = useNavigate();
   const { pathname } = useLocation();
@@ -46,7 +53,9 @@ export default function ContinuousFeedbackCreatePage() {
   const [category, setCategory] = useState<ContinuousFeedbackCategory>('PRAISE');
   const [feedbackMessage, setFeedbackMessage] = useState('');
   const [privateNote, setPrivateNote] = useState('');
-  const [isPrivateOnly, setIsPrivateOnly] = useState(false);
+  const [publishMode, setPublishMode] = useState<PublishMode>('IMMEDIATE');
+  const [scheduledDate, setScheduledDate] = useState('');
+  const [scheduledTime, setScheduledTime] = useState('');
   const [submitting, setSubmitting] = useState(false);
 
   useEffect(() => {
@@ -88,26 +97,38 @@ export default function ContinuousFeedbackCreatePage() {
       toast.error('Please select an employee');
       return;
     }
-    if (isPrivateOnly && !privateNote) {
+    if (publishMode === 'PRIVATE' && !privateNote) {
       toast.error('Private note is required for private-only feedback');
       return;
     }
-    if (!isPrivateOnly && !feedbackMessage) {
+    if (publishMode !== 'PRIVATE' && !feedbackMessage) {
       toast.error('Feedback message is required for shared feedback');
+      return;
+    }
+    if (publishMode === 'SCHEDULED' && (!scheduledDate || !scheduledTime)) {
+      toast.error('Schedule date and time are required');
       return;
     }
 
     setSubmitting(true);
     try {
+      let scheduledPublishAt: string | undefined;
+      if (publishMode === 'SCHEDULED') {
+        scheduledPublishAt = new Date(`${scheduledDate}T${scheduledTime}`).toISOString();
+      }
+
       const request: ContinuousFeedbackCreateRequest = {
         employeeId: selectedEmployeeId,
         category,
-        feedbackMessage: isPrivateOnly ? undefined : feedbackMessage,
+        feedbackMessage: publishMode === 'PRIVATE' ? undefined : feedbackMessage,
         privateManagerNote: privateNote || undefined,
-        shareImmediately: !isPrivateOnly,
+        publishMode,
+        scheduledPublishAt,
       };
       const created = await continuousFeedbackApi.createFeedback(request);
-      toast.success('Feedback created successfully');
+      toast.success(
+        publishMode === 'SCHEDULED' ? 'Feedback scheduled successfully' : 'Feedback created successfully',
+      );
       const feedbackId = created.data?.feedbackId;
       if (feedbackId) {
         navigate(`${feedbackBasePath}/${feedbackId}`);
@@ -124,9 +145,11 @@ export default function ContinuousFeedbackCreatePage() {
     }
   };
 
+  const now = new Date();
+  const minDateTime = now.toISOString().slice(0, 16);
+
   return (
     <div className="max-w-4xl mx-auto space-y-6 pb-20 px-4">
-      {/* Back Button */}
       <Link
         to={feedbackBasePath}
         className="inline-flex items-center gap-2 text-slate-500 hover:text-slate-800 transition-colors font-bold text-sm bg-white px-4 py-2 rounded-xl border border-slate-100 shadow-sm w-fit"
@@ -135,7 +158,6 @@ export default function ContinuousFeedbackCreatePage() {
         Back to team feedback
       </Link>
 
-      {/* Header Card */}
       <div className="bg-white p-8 rounded-[32px] shadow-sm border border-slate-100 overflow-hidden relative">
         <div className="absolute top-0 right-0 w-36 h-36 bg-[#dbeafe] rounded-bl-[100px] -mr-10 -mt-10 opacity-50"></div>
         <div className="relative">
@@ -144,11 +166,10 @@ export default function ContinuousFeedbackCreatePage() {
             <span className="text-[10px] font-black uppercase tracking-[0.2em]">Feedback</span>
           </div>
           <h1 className="text-3xl font-black text-slate-800 tracking-tight">Create Feedback</h1>
-          <p className="text-sm font-semibold text-slate-500 mt-2">Create and manage feedback for your team</p>
+          <p className="text-sm font-semibold text-slate-500 mt-2">Create, share, or schedule feedback for your team</p>
         </div>
       </div>
 
-      {/* Form Card */}
       <div className="bg-white rounded-[32px] shadow-sm border border-slate-100 p-8">
         <div className="space-y-6">
           {/* Employee Selection */}
@@ -228,25 +249,63 @@ export default function ContinuousFeedbackCreatePage() {
             </div>
           </div>
 
-          {/* Private Note Toggle */}
-          <div className="bg-slate-50 p-4 rounded-2xl border border-slate-100">
-            <label className="flex items-center gap-3 cursor-pointer">
-              <input
-                type="checkbox"
-                id="isPrivateOnly"
-                checked={isPrivateOnly}
-                onChange={(e) => setIsPrivateOnly(e.target.checked)}
-                className="w-5 h-5 rounded-lg border-slate-300 text-[#2463eb] focus:ring-[#dbeafe] focus:ring-2 accent-[#2463eb]"
-              />
-              <div className="flex items-center gap-2">
-                <Lock size={16} className={isPrivateOnly ? 'text-amber-500' : 'text-slate-400'} />
-                <span className="text-sm font-bold text-slate-700">Save as private note only (not shared with employee)</span>
-              </div>
+          {/* Publish Mode Selection */}
+          <div>
+            <label className="flex items-center gap-2 text-xs font-black text-slate-500 uppercase tracking-widest mb-3 ml-1">
+              <Send size={14} className="text-[#2463eb]" />
+              Publish Mode *
             </label>
+            <div className="grid grid-cols-3 gap-3">
+              {publishModeOptions.map((mode) => (
+                <button
+                  key={mode.value}
+                  type="button"
+                  onClick={() => setPublishMode(mode.value)}
+                  className={`p-4 rounded-2xl border text-left transition-all ${
+                    publishMode === mode.value
+                      ? 'bg-[#ebf4ff] border-[#2463eb] shadow-sm'
+                      : 'bg-slate-50 border-slate-200 hover:border-slate-300'
+                  }`}
+                >
+                  <div className={`flex items-center gap-2 mb-1 ${
+                    publishMode === mode.value ? 'text-[#2463eb]' : 'text-slate-500'
+                  }`}>
+                    {mode.icon}
+                    <span className="text-xs font-black uppercase tracking-widest">{mode.label}</span>
+                  </div>
+                  <p className="text-[10px] font-semibold text-slate-400">{mode.desc}</p>
+                </button>
+              ))}
+            </div>
           </div>
 
+          {/* Schedule Date/Time */}
+          {publishMode === 'SCHEDULED' && (
+            <div className="animate-fade-in-up bg-slate-50 p-4 rounded-2xl border border-slate-200">
+              <label className="flex items-center gap-2 text-xs font-black text-slate-500 uppercase tracking-widest mb-3 ml-1">
+                <Clock size={14} className="text-[#2463eb]" />
+                Schedule Publication *
+              </label>
+              <div className="grid grid-cols-2 gap-3">
+                <input
+                  type="date"
+                  value={scheduledDate}
+                  onChange={(e) => setScheduledDate(e.target.value)}
+                  min={now.toISOString().slice(0, 10)}
+                  className="w-full bg-white border border-slate-200 rounded-2xl px-4 py-3 text-sm font-bold focus:border-[#2463eb] focus:ring-1 focus:ring-[#dbeafe] outline-none transition-all shadow-inner"
+                />
+                <input
+                  type="time"
+                  value={scheduledTime}
+                  onChange={(e) => setScheduledTime(e.target.value)}
+                  className="w-full bg-white border border-slate-200 rounded-2xl px-4 py-3 text-sm font-bold focus:border-[#2463eb] focus:ring-1 focus:ring-[#dbeafe] outline-none transition-all shadow-inner"
+                />
+              </div>
+            </div>
+          )}
+
           {/* Feedback Message */}
-          {!isPrivateOnly && (
+          {publishMode !== 'PRIVATE' && (
             <div className="animate-fade-in-up">
               <label className="flex items-center gap-2 text-xs font-black text-slate-500 uppercase tracking-widest mb-3 ml-1">
                 <Send size={14} className="text-[#2463eb]" />
@@ -293,8 +352,8 @@ export default function ContinuousFeedbackCreatePage() {
                 </>
               ) : (
                 <>
-                  <Send size={18} />
-                  {isPrivateOnly ? 'Save Private Note' : 'Create & Share'}
+                  {publishMode === 'SCHEDULED' ? <Clock size={18} /> : publishMode === 'PRIVATE' ? <Lock size={18} /> : <Send size={18} />}
+                  {publishMode === 'SCHEDULED' ? 'Schedule Feedback' : publishMode === 'PRIVATE' ? 'Save Private Note' : 'Create & Share'}
                 </>
               )}
             </button>

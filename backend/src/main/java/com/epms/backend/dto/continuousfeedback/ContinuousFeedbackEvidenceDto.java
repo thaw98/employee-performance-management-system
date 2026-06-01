@@ -16,6 +16,8 @@ public class ContinuousFeedbackEvidenceDto {
     private Long feedbackId;
     private String category;
     private String feedbackMessage;
+    private String employeeName;
+    private Long employeeId;
     private String managerName;
     private Instant createdAt;
     private boolean acknowledged;

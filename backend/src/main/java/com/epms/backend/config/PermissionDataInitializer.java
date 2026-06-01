@@ -221,6 +221,9 @@ public class PermissionDataInitializer implements CommandLineRunner {
             return false;
         }
         if (roleId == AUDIT_ROLE_ID) {
+            if ("CONTINUOUS_FEEDBACK".equals(moduleKey) && "create_pip".equals(actionKey)) {
+                return false;
+            }
             return true;
         }
         if (roleId == HR_ROLE_ID) {

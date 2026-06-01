@@ -4,7 +4,7 @@ import { useSelector } from 'react-redux';
 import { toast } from 'react-hot-toast';
 import type { RootState } from '../../app/store';
 import { getRoleGroup } from '../../utils/dashboardRedirect';
-import { Eye, Plus, Send, MessageSquare, Filter } from 'lucide-react';
+import { Eye, Plus, Send, MessageSquare, Filter, Clock, XCircle, Calendar } from 'lucide-react';
 import { continuousFeedbackApi } from '../../features/continuousFeedback/continuousFeedbackApi';
 import type { ContinuousFeedback } from '../../features/continuousFeedback/types';
 import { FEEDBACK_CATEGORY_LABELS } from '../../features/continuousFeedback/types';
@@ -12,6 +12,8 @@ import { FEEDBACK_CATEGORY_LABELS } from '../../features/continuousFeedback/type
 const statusConfig: Record<string, { bg: string; text: string; border: string }> = {
   Shared: { bg: 'bg-emerald-50', text: 'text-emerald-700', border: 'border-emerald-200' },
   'Private Note': { bg: 'bg-amber-50', text: 'text-amber-800', border: 'border-amber-200' },
+  Scheduled: { bg: 'bg-violet-50', text: 'text-violet-700', border: 'border-violet-200' },
+  Cancelled: { bg: 'bg-rose-50', text: 'text-rose-700', border: 'border-rose-200' },
   Acknowledged: { bg: 'bg-blue-50', text: 'text-[#1d4ed8]', border: 'border-[#bfdbfe]' },
   'PIP Warning': { bg: 'bg-rose-50', text: 'text-rose-700', border: 'border-rose-200' },
 };
@@ -29,6 +31,10 @@ export default function ContinuousFeedbackPage() {
   const [feedbacks, setFeedbacks] = useState<ContinuousFeedback[]>([]);
   const [loading, setLoading] = useState(true);
   const [categoryFilter, setCategoryFilter] = useState<string>('ALL');
+  const [statusFilter, setStatusFilter] = useState<string>('ALL');
+  const [startDate, setStartDate] = useState('');
+  const [endDate, setEndDate] = useState('');
+  const [useDateRange, setUseDateRange] = useState(false);
 
   useEffect(() => {
     loadData();
@@ -46,6 +52,25 @@ export default function ContinuousFeedbackPage() {
     }
   };
 
+  const loadHistory = async () => {
+    if (!startDate && !endDate) {
+      loadData();
+      return;
+    }
+    try {
+      setLoading(true);
+      const params: { startDate?: string; endDate?: string } = {};
+      if (startDate) params.startDate = new Date(startDate).toISOString();
+      if (endDate) params.endDate = new Date(endDate + 'T23:59:59').toISOString();
+      const resp = await continuousFeedbackApi.getHistory(params);
+      setFeedbacks(resp.data);
+    } catch {
+      toast.error('Failed to load history');
+    } finally {
+      setLoading(false);
+    }
+  };
+
   const handleShare = async (feedbackId: number) => {
     try {
       await continuousFeedbackApi.shareFeedback(feedbackId);
@@ -57,9 +82,15 @@ export default function ContinuousFeedbackPage() {
   };
 
   const filteredFeedbacks = useMemo(() => {
-    if (categoryFilter === 'ALL') return feedbacks;
-    return feedbacks.filter((fb) => fb.category === categoryFilter);
-  }, [feedbacks, categoryFilter]);
+    let result = feedbacks;
+    if (categoryFilter !== 'ALL') {
+      result = result.filter((fb) => fb.category === categoryFilter);
+    }
+    if (statusFilter !== 'ALL') {
+      result = result.filter((fb) => fb.visibilityStatus === statusFilter);
+    }
+    return result;
+  }, [feedbacks, categoryFilter, statusFilter]);
 
   return (
     <div className="max-w-7xl mx-auto space-y-6 pb-20 px-4">
@@ -94,33 +125,94 @@ export default function ContinuousFeedbackPage() {
       {/* Filter Bar */}
       {feedbacks.length > 0 && (
         <div className="bg-white p-5 rounded-[20px] shadow-sm border border-slate-100">
-          <div className="flex items-center gap-3">
-            <Filter size={16} className="text-slate-400" />
-            <span className="text-[10px] font-black uppercase tracking-widest text-slate-500">Filter by category</span>
-            <div className="flex gap-2 flex-wrap">
-              <button
-                onClick={() => setCategoryFilter('ALL')}
-                className={`px-4 py-1.5 rounded-full text-[10px] font-black uppercase tracking-widest transition-all ${
-                  categoryFilter === 'ALL'
-                    ? 'bg-[#2463eb] text-white shadow-md'
-                    : 'bg-slate-100 text-slate-600 hover:bg-slate-200'
-                }`}
-              >
-                All
-              </button>
-              {Object.entries(FEEDBACK_CATEGORY_LABELS).map(([key, label]) => (
+          <div className="flex flex-col gap-4">
+            <div className="flex items-center gap-3 flex-wrap">
+              <Filter size={16} className="text-slate-400" />
+              <span className="text-[10px] font-black uppercase tracking-widest text-slate-500">Filter by category</span>
+              <div className="flex gap-2 flex-wrap">
                 <button
-                  key={key}
-                  onClick={() => setCategoryFilter(key)}
+                  onClick={() => setCategoryFilter('ALL')}
                   className={`px-4 py-1.5 rounded-full text-[10px] font-black uppercase tracking-widest transition-all ${
-                    categoryFilter === key
+                    categoryFilter === 'ALL'
                       ? 'bg-[#2463eb] text-white shadow-md'
                       : 'bg-slate-100 text-slate-600 hover:bg-slate-200'
                   }`}
                 >
-                  {label}
+                  All
                 </button>
-              ))}
+                {Object.entries(FEEDBACK_CATEGORY_LABELS).map(([key, label]) => (
+                  <button
+                    key={key}
+                    onClick={() => setCategoryFilter(key)}
+                    className={`px-4 py-1.5 rounded-full text-[10px] font-black uppercase tracking-widest transition-all ${
+                      categoryFilter === key
+                        ? 'bg-[#2463eb] text-white shadow-md'
+                        : 'bg-slate-100 text-slate-600 hover:bg-slate-200'
+                    }`}
+                  >
+                    {label}
+                  </button>
+                ))}
+              </div>
+            </div>
+            <div className="flex items-center gap-3 flex-wrap">
+              <span className="text-[10px] font-black uppercase tracking-widest text-slate-500">Status</span>
+              <div className="flex gap-2 flex-wrap">
+                <button
+                  onClick={() => setStatusFilter('ALL')}
+                  className={`px-4 py-1.5 rounded-full text-[10px] font-black uppercase tracking-widest transition-all ${
+                    statusFilter === 'ALL'
+                      ? 'bg-[#2463eb] text-white shadow-md'
+                      : 'bg-slate-100 text-slate-600 hover:bg-slate-200'
+                  }`}
+                >
+                  All
+                </button>
+                {['SHARED', 'SCHEDULED', 'PRIVATE_NOTE', 'CANCELLED'].map((s) => (
+                  <button
+                    key={s}
+                    onClick={() => setStatusFilter(s)}
+                    className={`px-4 py-1.5 rounded-full text-[10px] font-black uppercase tracking-widest transition-all ${
+                      statusFilter === s
+                        ? 'bg-[#2463eb] text-white shadow-md'
+                        : 'bg-slate-100 text-slate-600 hover:bg-slate-200'
+                    }`}
+                  >
+                    {s === 'PRIVATE_NOTE' ? 'Private Note' : s.charAt(0) + s.slice(1).toLowerCase()}
+                  </button>
+                ))}
+              </div>
+            </div>
+            <div className="flex items-center gap-3 flex-wrap">
+              <Calendar size={16} className="text-slate-400" />
+              <span className="text-[10px] font-black uppercase tracking-widest text-slate-500">Date range</span>
+              <input
+                type="date"
+                value={startDate}
+                onChange={(e) => setStartDate(e.target.value)}
+                className="px-3 py-1.5 rounded-xl text-[10px] font-bold border border-slate-200 bg-white focus:border-[#2463eb] focus:ring-1 focus:ring-[#dbeafe] outline-none transition-all"
+              />
+              <span className="text-[10px] font-bold text-slate-400">to</span>
+              <input
+                type="date"
+                value={endDate}
+                onChange={(e) => setEndDate(e.target.value)}
+                className="px-3 py-1.5 rounded-xl text-[10px] font-bold border border-slate-200 bg-white focus:border-[#2463eb] focus:ring-1 focus:ring-[#dbeafe] outline-none transition-all"
+              />
+              <button
+                onClick={loadHistory}
+                className="px-4 py-1.5 rounded-xl text-[10px] font-black uppercase tracking-widest bg-[#2463eb] text-white shadow-sm hover:bg-[#1d4ed8] transition-all"
+              >
+                Apply
+              </button>
+              {useDateRange && (
+                <button
+                  onClick={() => { setStartDate(''); setEndDate(''); setUseDateRange(false); loadData(); }}
+                  className="px-4 py-1.5 rounded-xl text-[10px] font-black uppercase tracking-widest bg-slate-100 text-slate-600 hover:bg-slate-200 transition-all"
+                >
+                  Clear
+                </button>
+              )}
             </div>
           </div>
         </div>
@@ -166,7 +258,10 @@ export default function ContinuousFeedbackPage() {
             {filteredFeedbacks.map((fb, index) => {
               const badges: { label: string; key: string }[] = [
                 { label: FEEDBACK_CATEGORY_LABELS[fb.category] || fb.category, key: 'cat' },
-                ...(fb.shared ? [{ label: 'Shared', key: 'shared' }] : [{ label: 'Private Note', key: 'private' }]),
+                ...(fb.visibilityStatus === 'SHARED' ? [{ label: 'Shared', key: 'shared' }] : []),
+                ...(fb.visibilityStatus === 'SCHEDULED' ? [{ label: 'Scheduled', key: 'scheduled' }] : []),
+                ...(fb.visibilityStatus === 'CANCELLED' ? [{ label: 'Cancelled', key: 'cancelled' }] : []),
+                ...(fb.visibilityStatus === 'PRIVATE_NOTE' ? [{ label: 'Private Note', key: 'private' }] : []),
                 ...(fb.acknowledged ? [{ label: 'Acknowledged', key: 'ack' }] : []),
                 ...(fb.pipSuggested ? [{ label: 'PIP Warning', key: 'pip' }] : []),
               ];
@@ -208,13 +303,21 @@ export default function ContinuousFeedbackPage() {
                           Private note: {fb.privateManagerNote}
                         </p>
                       )}
-                      <p className="text-[10px] font-bold text-slate-400 mt-2 flex items-center gap-1">
-                        {new Date(fb.createdAt).toLocaleDateString('en-US', {
-                          month: 'short',
-                          day: 'numeric',
-                          year: 'numeric',
-                        })}
-                      </p>
+                      <div className="flex items-center gap-3 mt-2">
+                        <p className="text-[10px] font-bold text-slate-400 flex items-center gap-1">
+                          {new Date(fb.createdAt).toLocaleDateString('en-US', {
+                            month: 'short', day: 'numeric', year: 'numeric',
+                          })}
+                        </p>
+                        {fb.scheduledPublishAt && (
+                          <p className="text-[10px] font-bold text-violet-500 flex items-center gap-1">
+                            <Clock size={10} />
+                            Scheduled: {new Date(fb.scheduledPublishAt).toLocaleDateString('en-US', {
+                              month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit'
+                            })}
+                          </p>
+                        )}
+                      </div>
                     </div>
                     <div className="flex items-center gap-1 shrink-0" onClick={(e) => e.stopPropagation()}>
                       <button
@@ -225,7 +328,7 @@ export default function ContinuousFeedbackPage() {
                       >
                         <Eye size={18} />
                       </button>
-                      {canCreateFeedback && !fb.shared && (
+                      {canCreateFeedback && !fb.shared && fb.visibilityStatus !== 'CANCELLED' && (
                         <button
                           type="button"
                           onClick={() => handleShare(fb.feedbackId)}

@@ -29,6 +29,7 @@ import com.epms.backend.dto.continuousfeedback.ContinuousFeedbackDto;
 import com.epms.backend.dto.continuousfeedback.ContinuousFeedbackEvidenceDto;
 import com.epms.backend.dto.continuousfeedback.ContinuousFeedbackPipWarningDto;
 import com.epms.backend.dto.continuousfeedback.ContinuousFeedbackUpdatePrivateNoteRequest;
+import com.epms.backend.dto.continuousfeedback.ContinuousFeedbackUpdateScheduledRequest;
 import com.epms.backend.dto.continuousfeedback.CreateFollowUpMeetingFromFeedbackRequest;
 import com.epms.backend.entity.Pip;
 import com.epms.backend.entity.User;
@@ -78,13 +79,25 @@ public class ContinuousFeedbackController {
         return ResponseEntity.ok(ApiResponse.ok("Feedback shared successfully", result));
     }
 
-    @GetMapping("/{feedbackId}")
-    public ResponseEntity<ApiResponse<ContinuousFeedbackDto>> getFeedback(
+    @PatchMapping("/{feedbackId}/scheduled")
+    @PreAuthorize("hasAnyRole('DEPARTMENT_HEAD', 'TEAM_HEAD', 'MANAGER') and @permissionGuard.has('CONTINUOUS_FEEDBACK', 'create')")
+    public ResponseEntity<ApiResponse<ContinuousFeedbackDto>> updateScheduledFeedback(
+            @AuthenticationPrincipal UserPrincipal principal,
+            @PathVariable Long feedbackId,
+            @RequestBody ContinuousFeedbackUpdateScheduledRequest request) {
+        User currentUser = userRepository.findById(principal.getId()).orElseThrow();
+        ContinuousFeedbackDto result = service.updateScheduledFeedback(feedbackId, request, currentUser);
+        return ResponseEntity.ok(ApiResponse.ok("Scheduled feedback updated successfully", result));
+    }
+
+    @PostMapping("/{feedbackId}/cancel-schedule")
+    @PreAuthorize("hasAnyRole('DEPARTMENT_HEAD', 'TEAM_HEAD', 'MANAGER') and @permissionGuard.has('CONTINUOUS_FEEDBACK', 'create')")
+    public ResponseEntity<ApiResponse<ContinuousFeedbackDto>> cancelScheduledFeedback(
             @AuthenticationPrincipal UserPrincipal principal,
             @PathVariable Long feedbackId) {
         User currentUser = userRepository.findById(principal.getId()).orElseThrow();
-        ContinuousFeedbackDto result = service.getFeedbackDetail(feedbackId, currentUser);
-        return ResponseEntity.ok(ApiResponse.ok("Feedback retrieved successfully", result));
+        ContinuousFeedbackDto result = service.cancelScheduledFeedback(feedbackId, currentUser);
+        return ResponseEntity.ok(ApiResponse.ok("Scheduled feedback cancelled successfully", result));
     }
 
     @GetMapping("/my")
@@ -103,6 +116,37 @@ public class ContinuousFeedbackController {
         User currentUser = userRepository.findById(principal.getId()).orElseThrow();
         List<ContinuousFeedbackDto> result = service.getTeamFeedback(currentUser);
         return ResponseEntity.ok(ApiResponse.ok("Team feedback retrieved successfully", result));
+    }
+
+    @GetMapping("/history")
+    @PreAuthorize("hasAnyRole('DEPARTMENT_HEAD', 'TEAM_HEAD', 'MANAGER', 'HR', 'AUDIT') and @permissionGuard.has('CONTINUOUS_FEEDBACK', 'view')")
+    public ResponseEntity<ApiResponse<List<ContinuousFeedbackDto>>> getHistory(
+            @AuthenticationPrincipal UserPrincipal principal,
+            @RequestParam(required = false) Instant startDate,
+            @RequestParam(required = false) Instant endDate,
+            @RequestParam(required = false) Long employeeId,
+            @RequestParam(required = false) String category) {
+        User currentUser = userRepository.findById(principal.getId()).orElseThrow();
+        List<ContinuousFeedbackDto> result = service.getHistoryByDateRange(startDate, endDate, employeeId, category, currentUser);
+        return ResponseEntity.ok(ApiResponse.ok("History retrieved successfully", result));
+    }
+
+    @GetMapping("/scheduled")
+    @PreAuthorize("hasAnyRole('DEPARTMENT_HEAD', 'TEAM_HEAD', 'MANAGER', 'HR', 'AUDIT') and @permissionGuard.has('CONTINUOUS_FEEDBACK', 'view')")
+    public ResponseEntity<ApiResponse<List<ContinuousFeedbackDto>>> getScheduledFeedback(
+            @AuthenticationPrincipal UserPrincipal principal) {
+        User currentUser = userRepository.findById(principal.getId()).orElseThrow();
+        List<ContinuousFeedbackDto> result = service.getScheduledFeedback(currentUser);
+        return ResponseEntity.ok(ApiResponse.ok("Scheduled feedback retrieved successfully", result));
+    }
+
+    @GetMapping("/{feedbackId}")
+    public ResponseEntity<ApiResponse<ContinuousFeedbackDto>> getFeedback(
+            @AuthenticationPrincipal UserPrincipal principal,
+            @PathVariable Long feedbackId) {
+        User currentUser = userRepository.findById(principal.getId()).orElseThrow();
+        ContinuousFeedbackDto result = service.getFeedbackDetail(feedbackId, currentUser);
+        return ResponseEntity.ok(ApiResponse.ok("Feedback retrieved successfully", result));
     }
 
     @GetMapping("/employee/{employeeId}")
@@ -125,7 +169,7 @@ public class ContinuousFeedbackController {
     }
 
     @PostMapping("/{feedbackId}/action-items")
-    @PreAuthorize("hasAnyRole('DEPARTMENT_HEAD', 'TEAM_HEAD', 'MANAGER', 'HR') and @permissionGuard.has('CONTINUOUS_FEEDBACK', 'manage_action_items')")
+    @PreAuthorize("hasAnyRole('DEPARTMENT_HEAD', 'TEAM_HEAD', 'MANAGER') and @permissionGuard.has('CONTINUOUS_FEEDBACK', 'manage_action_items')")
     public ResponseEntity<ApiResponse<ContinuousFeedbackActionItemDto>> addActionItem(
             @AuthenticationPrincipal UserPrincipal principal,
             @PathVariable Long feedbackId,
@@ -136,7 +180,7 @@ public class ContinuousFeedbackController {
     }
 
     @PatchMapping("/action-items/{actionItemId}/status")
-    @PreAuthorize("hasAnyRole('DEPARTMENT_HEAD', 'TEAM_HEAD', 'MANAGER', 'HR') and @permissionGuard.has('CONTINUOUS_FEEDBACK', 'manage_action_items')")
+    @PreAuthorize("hasAnyRole('DEPARTMENT_HEAD', 'TEAM_HEAD', 'MANAGER') and @permissionGuard.has('CONTINUOUS_FEEDBACK', 'manage_action_items')")
     public ResponseEntity<ApiResponse<ContinuousFeedbackActionItemDto>> updateActionItemStatus(
             @AuthenticationPrincipal UserPrincipal principal,
             @PathVariable Long actionItemId,
@@ -167,7 +211,7 @@ public class ContinuousFeedbackController {
     }
 
     @PostMapping("/{feedbackId}/create-pip")
-    @PreAuthorize("hasAnyRole('DEPARTMENT_HEAD', 'TEAM_HEAD', 'MANAGER', 'HR') and @permissionGuard.has('CONTINUOUS_FEEDBACK', 'create_pip')")
+    @PreAuthorize("hasAnyRole('DEPARTMENT_HEAD', 'TEAM_HEAD', 'MANAGER') and @permissionGuard.has('CONTINUOUS_FEEDBACK', 'create_pip')")
     public ResponseEntity<ApiResponse<Pip>> createPipFromFeedback(
             @AuthenticationPrincipal UserPrincipal principal,
             @PathVariable Long feedbackId,
@@ -181,7 +225,7 @@ public class ContinuousFeedbackController {
     }
 
     @PostMapping("/{feedbackId}/create-meeting")
-    @PreAuthorize("hasAnyRole('DEPARTMENT_HEAD', 'TEAM_HEAD', 'MANAGER', 'HR') and @permissionGuard.has('CONTINUOUS_FEEDBACK', 'create_followup_meeting')")
+    @PreAuthorize("hasAnyRole('DEPARTMENT_HEAD', 'TEAM_HEAD', 'MANAGER') and @permissionGuard.has('CONTINUOUS_FEEDBACK', 'create_followup_meeting')")
     public ResponseEntity<ApiResponse<MeetingResponse>> createMeetingFromFeedback(
             @AuthenticationPrincipal UserPrincipal principal,
             @PathVariable Long feedbackId,

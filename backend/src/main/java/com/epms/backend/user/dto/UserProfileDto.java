@@ -25,6 +25,7 @@ public class UserProfileDto {
     private String staffNo;
     private String fullName;
     private String departmentName;
+    private Long departmentId;
     private String positionName;
     private String employmentStatus;
     private String gender;
