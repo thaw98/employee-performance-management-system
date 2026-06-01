@@ -25,6 +25,23 @@ export type AppraisalImportValidationResponse = {
   errorFileDownloadUrl?: string
 }
 
+export type AppraisalImportCommitRequest = {
+  validationId: string
+  templateName: string
+  assessmentDate: string
+  effectiveDate: string
+  deadlineDate: string
+  reviewCycleId: number | null
+  maxRating: number
+  positionIds: number[]
+  editedRows: {
+    rowNumber: number
+    categoryName: string
+    categoryDescription: string
+    questionText: string
+  }[]
+}
+
 export type AppraisalImportCommitResponse = {
   success: boolean
   message: string
@@ -33,6 +50,8 @@ export type AppraisalImportCommitResponse = {
   createdQuestionCount: number
   reusedQuestionCount: number
   failedCount: number
+  templateId: number
+  templateName: string
 }
 
 export const appraisalImportApi = baseApi.injectEndpoints({
@@ -49,7 +68,7 @@ export const appraisalImportApi = baseApi.injectEndpoints({
     }),
     commitAppraisalImport: builder.mutation<
       ApiResponse<AppraisalImportCommitResponse>,
-      { validationId: string }
+      AppraisalImportCommitRequest
     >({
       query: (body) => ({
         url: '/appraisals/import/commit',

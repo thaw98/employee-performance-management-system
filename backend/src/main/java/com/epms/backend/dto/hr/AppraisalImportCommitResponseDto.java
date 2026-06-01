@@ -17,4 +17,6 @@ public class AppraisalImportCommitResponseDto {
     private Integer createdQuestionCount;
     private Integer reusedQuestionCount;
     private Integer failedCount;
+    private Long templateId;
+    private String templateName;
 }
