@@ -14,12 +14,15 @@ import {
   User,
   Download,
   FileSpreadsheet,
+  RefreshCw,
+  History,
 } from 'lucide-react';
 import {
   useGetEmployeePerformanceSummaryQuery,
 } from '../../features/performanceReport/performanceReportApi';
 import { useState } from 'react';
 import { resolveProfilePictureSrc } from '../../utils/mediaUrl';
+import { formatDateTime } from '../../utils/dateUtils';
 import { PromotionModal } from './PromotionModal';
 import * as XLSX from 'xlsx-js-style';
 import jsPDF from 'jspdf';
@@ -53,13 +56,25 @@ const getProgressColor = (score: number | null) => {
   return 'bg-red-500';
 };
 
-/** Convert dd/MM/yyyy or yyyy-MM-dd string to a human-friendly relative duration like "2 years 3 months" */
+/** Format yyyy-MM-dd to dd/MM/yyyy */
+const formatDateDDMMYYYY = (dateStr: string | null | undefined): string => {
+  if (!dateStr) return '—';
+  if (dateStr.includes('-')) {
+    const parts = dateStr.split('-');
+    if (parts.length === 3) {
+      return `${parts[2]}/${parts[1]}/${parts[0]}`;
+    }
+  }
+  return dateStr;
+};
+
+/** Convert date string to human-friendly relative duration like "2 years 3 months" */
 const formatDuration = (dateStr: string | null | undefined): string | null => {
   if (!dateStr) return null;
   let day = 1;
   let month = 1;
   let year = 2024;
-  
+
   if (dateStr.includes('-')) {
     const parts = dateStr.split('-');
     if (parts.length === 3) {
@@ -110,6 +125,14 @@ const formatDuration = (dateStr: string | null | undefined): string | null => {
   return segments.join(' ');
 };
 
+/** Format joined date as dd/MM/yyyy (duration) */
+const formatJoinedDate = (dateStr: string | null | undefined): string => {
+  if (!dateStr) return '—';
+  const formatted = formatDateDDMMYYYY(dateStr);
+  const duration = formatDuration(dateStr);
+  return duration ? `${formatted} (${duration})` : formatted;
+};
+
 /* ── Score Card Component ─────────────────────────────── */
 
 const ScoreCard: React.FC<{
@@ -145,7 +168,6 @@ const ScoreCard: React.FC<{
         <span className="text-sm text-slate-400 dark:text-slate-500 mb-1">/ 5.0</span>
       </div>
 
-      {/* Progress bar */}
       <div className="w-full h-2 bg-slate-200 dark:bg-slate-700 rounded-full overflow-hidden mb-2">
         <div
           className={`h-full rounded-full transition-all duration-500 ${getProgressColor(score)}`}
@@ -163,6 +185,101 @@ const ScoreCard: React.FC<{
           {extra}
         </p>
       )}
+    </div>
+  );
+};
+
+/* ── Transfer Log Table Component ─────────────────────── */
+
+const TransferLogTable: React.FC<{
+  logs: {
+    id: number;
+    transferType: string;
+    fromDepartmentName: string | null;
+    toDepartmentName: string | null;
+    fromPositionName: string | null;
+    toPositionName: string | null;
+    effectiveStartDate: string | null;
+    effectiveEndDate: string | null;
+    current: boolean;
+    reason: string | null;
+    remarks: string | null;
+  }[];
+}> = ({ logs }) => {
+  if (logs.length === 0) {
+    return (
+      <div className="text-center py-8 text-slate-400 dark:text-slate-500">
+        <History size={32} className="mx-auto mb-2 opacity-40" />
+        <p className="text-sm font-medium">No transfer history</p>
+        <p className="text-xs mt-1">No temporary or permanent transfers recorded for this employee.</p>
+      </div>
+    );
+  }
+
+  const getTypeBadge = (type: string) => {
+    if (type === 'PERMANENT_TRANSFER') return 'bg-purple-100 text-purple-700 dark:bg-purple-900/30 dark:text-purple-300';
+    if (type === 'TEMPORARY') return 'bg-amber-100 text-amber-700 dark:bg-amber-900/30 dark:text-amber-300';
+    return 'bg-slate-100 text-slate-600 dark:bg-slate-800 dark:text-slate-400';
+  };
+
+  const getTypeLabel = (type: string) => {
+    if (type === 'PERMANENT_TRANSFER') return 'Permanent';
+    if (type === 'TEMPORARY') return 'Temporary';
+    return type;
+  };
+
+  return (
+    <div className="overflow-x-auto">
+      <table className="w-full text-xs">
+        <thead>
+          <tr className="border-b border-slate-200 dark:border-slate-700">
+            <th className="text-left py-2 px-2 font-bold text-slate-600 dark:text-slate-400 uppercase tracking-wide">Type</th>
+            <th className="text-left py-2 px-2 font-bold text-slate-600 dark:text-slate-400 uppercase tracking-wide">From</th>
+            <th className="text-left py-2 px-2 font-bold text-slate-600 dark:text-slate-400 uppercase tracking-wide">To</th>
+            <th className="text-left py-2 px-2 font-bold text-slate-600 dark:text-slate-400 uppercase tracking-wide">Start Date</th>
+            <th className="text-left py-2 px-2 font-bold text-slate-600 dark:text-slate-400 uppercase tracking-wide">End Date</th>
+            <th className="text-left py-2 px-2 font-bold text-slate-600 dark:text-slate-400 uppercase tracking-wide">Current</th>
+            <th className="text-left py-2 px-2 font-bold text-slate-600 dark:text-slate-400 uppercase tracking-wide">Reason</th>
+            <th className="text-left py-2 px-2 font-bold text-slate-600 dark:text-slate-400 uppercase tracking-wide">Remarks</th>
+          </tr>
+        </thead>
+        <tbody>
+          {logs.map((log) => (
+            <tr key={log.id} className="border-b border-slate-100 dark:border-slate-800 hover:bg-slate-50 dark:hover:bg-slate-800/50">
+              <td className="py-2 px-2">
+                <span className={`inline-block px-2 py-0.5 rounded-full text-[10px] font-bold ${getTypeBadge(log.transferType)}`}>
+                  {getTypeLabel(log.transferType)}
+                </span>
+              </td>
+              <td className="py-2 px-2 text-slate-700 dark:text-slate-300">
+                {log.fromDepartmentName || '—'}{log.fromPositionName ? ` / ${log.fromPositionName}` : ''}
+              </td>
+              <td className="py-2 px-2 text-slate-700 dark:text-slate-300">
+                {log.toDepartmentName || '—'}{log.toPositionName ? ` / ${log.toPositionName}` : ''}
+              </td>
+              <td className="py-2 px-2 text-slate-600 dark:text-slate-400">
+                {log.effectiveStartDate ? formatDateDDMMYYYY(log.effectiveStartDate) : '—'}
+              </td>
+              <td className="py-2 px-2 text-slate-600 dark:text-slate-400">
+                {log.effectiveEndDate ? formatDateDDMMYYYY(log.effectiveEndDate) : '—'}
+              </td>
+              <td className="py-2 px-2">
+                {log.current ? (
+                  <span className="inline-block px-1.5 py-0.5 rounded bg-emerald-100 text-emerald-700 dark:bg-emerald-900/30 dark:text-emerald-300 text-[10px] font-bold">Yes</span>
+                ) : (
+                  <span className="text-slate-400">No</span>
+                )}
+              </td>
+              <td className="py-2 px-2 text-slate-600 dark:text-slate-400 max-w-[120px] truncate" title={log.reason || ''}>
+                {log.reason || '—'}
+              </td>
+              <td className="py-2 px-2 text-slate-600 dark:text-slate-400 max-w-[120px] truncate" title={log.remarks || ''}>
+                {log.remarks || '—'}
+              </td>
+            </tr>
+          ))}
+        </tbody>
+      </table>
     </div>
   );
 };
@@ -187,6 +304,8 @@ export const PerformanceReportDetailPage: React.FC<PerformanceReportDetailPagePr
   });
 
   const [isPromotionModalOpen, setIsPromotionModalOpen] = useState(false);
+
+  const isPromoted = !!report?.latestApprovedPromotionId;
 
   if (isLoading) {
     return (
@@ -218,92 +337,110 @@ export const PerformanceReportDetailPage: React.FC<PerformanceReportDetailPagePr
   const handleExportExcel = () => {
     if (!report) return;
     try {
-      const empInfo: any[] = [];
-      empInfo.push(['Employee Information', '']);
-      empInfo.push(['Name', report.employeeName || '—']);
-      empInfo.push(['Staff No', report.staffNo || '—']);
-      empInfo.push(['Position', report.positionName || 'No Position']);
-      empInfo.push(['Department', report.departmentName || 'No Department']);
-      empInfo.push(['Joined Date', report.joinedDate ? formatDuration(report.joinedDate) : '—']);
+      const data: any[] = [];
+      data.push(['EMPLOYEE PERFORMANCE REPORT', '']);
+      data.push(['', '']);
+      data.push(['Employee Information', '']);
+      data.push(['Name', report.employeeName]);
+      data.push(['Staff No', report.staffNo || '—']);
+      data.push(['Position', report.positionName || 'No Position']);
+      data.push(['Department', report.departmentName || 'No Department']);
+      data.push(['Joined Date', formatJoinedDate(report.joinedDate)]);
+      data.push(['', '']);
+      data.push(['Performance Summary', '']);
+      data.push(['Overall Rating', `${formatScore(report.overallRating)} / 5.0`]);
+      data.push(['Performance Level', report.performanceLevel || '—']);
+      data.push(['KPI Score', `${formatScore(report.kpiScore)} (${report.kpiPeriod || 'N/A'})`]);
+      data.push(['Appraisal Score', `${formatScore(report.appraisalScore)} (${report.appraisalPeriod || 'N/A'})`]);
+      data.push(['Self Assessment', `${formatScore(report.selfAssessmentScore)} (${report.selfAssessmentCycle || 'N/A'})`]);
+      data.push(['360 Feedback Score', `${formatScore(report.feedbackScore)} (${report.feedbackCount} feedbacks)`]);
+      data.push(['', '']);
+      data.push(['Status & Eligibility', '']);
+      data.push(['PIP Status', report.hasActivePip ? `Active (${report.pipStatus || ''})` : 'No Active PIP']);
+      data.push(['Promotion Eligibility', report.promotionEligible ? 'Eligible' : 'Not Eligible']);
+      if (report.latestApprovedPromotionReason) {
+        data.push(['Promotion Reason', report.latestApprovedPromotionReason]);
+      }
+      if (report.latestApprovedPromotionApprovedAt) {
+        data.push(['Promotion Approved At', formatDateTime(report.latestApprovedPromotionApprovedAt)]);
+      }
+      if (report.latestApprovedPromotionPreviousPositionName) {
+        data.push(['Previous Position', report.latestApprovedPromotionPreviousPositionName]);
+      }
+      if (report.latestApprovedPromotionTargetPositionName) {
+        data.push(['Promoted Position', report.latestApprovedPromotionTargetPositionName]);
+      }
+      if (report.latestApprovedPromotionEffectiveDate) {
+        data.push(['Promotion Effective Date', formatDateDDMMYYYY(report.latestApprovedPromotionEffectiveDate)]);
+      }
 
-      const perf: any[] = [];
-      perf.push(['Performance Summary', '']);
-      perf.push(['Overall Rating', `${formatScore(report.overallRating)} / 5.0`]);
-      perf.push(['Performance Level', report.performanceLevel || '—']);
-      perf.push(['KPI Score', `${formatScore(report.kpiScore)} (${report.kpiPeriod || 'N/A'})`]);
-      perf.push(['Appraisal Score', `${formatScore(report.appraisalScore)} (${report.appraisalPeriod || 'N/A'})`]);
-      perf.push(['Self Assessment', `${formatScore(report.selfAssessmentScore)} (${report.selfAssessmentCycle || 'N/A'})`]);
-      perf.push(['Feedback Score', `${formatScore(report.feedbackScore)} (${report.feedbackCount ?? 0} feedbacks)`]);
+      // Transfer logs section
+      if (report.transferLogs && report.transferLogs.length > 0) {
+        data.push(['', '']);
+        data.push(['Transfer History', '']);
+        data.push(['Type', 'From', 'To', 'Start Date', 'End Date', 'Current', 'Reason', 'Remarks']);
+        for (const log of report.transferLogs) {
+          const typeLabel = log.transferType === 'PERMANENT_TRANSFER' ? 'Permanent' : log.transferType === 'TEMPORARY' ? 'Temporary' : log.transferType;
+          data.push([
+            typeLabel,
+            `${log.fromDepartmentName || '—'} / ${log.fromPositionName || '—'}`,
+            `${log.toDepartmentName || '—'} / ${log.toPositionName || '—'}`,
+            log.effectiveStartDate ? formatDateDDMMYYYY(log.effectiveStartDate) : '—',
+            log.effectiveEndDate ? formatDateDDMMYYYY(log.effectiveEndDate) : '—',
+            log.current ? 'Yes' : 'No',
+            log.reason || '—',
+            log.remarks || '—',
+          ]);
+        }
+      }
 
-      const status: any[] = [];
-      status.push(['Status & Eligibility', '']);
-      status.push(['PIP Status', report.hasActivePip ? `Active (${report.pipStatus || ''})` : 'No Active PIP']);
-      status.push(['Promotion Eligibility', report.promotionEligible ? 'Eligible' : 'Not Eligible']);
-      status.push(['Promotion Recommendation', report.promotionEligibility || '—']);
+      const ws = XLSX.utils.aoa_to_sheet(data);
+      const merges: any[] = [
+        { s: { r: 0, c: 0 }, e: { r: 0, c: 1 } },
+        { s: { r: 2, c: 0 }, e: { r: 2, c: 1 } },
+        { s: { r: 9, c: 0 }, e: { r: 9, c: 1 } },
+        { s: { r: 17, c: 0 }, e: { r: 17, c: 1 } },
+      ];
+      // Find transfer section header row
+      const transferHeaderRow = data.findIndex((row) => row[0] === 'Transfer History');
+      if (transferHeaderRow > -1) {
+        merges.push({ s: { r: transferHeaderRow, c: 0 }, e: { r: transferHeaderRow, c: 7 } });
+      }
+      ws['!merges'] = merges;
+      ws['!cols'] = [{ wch: 25 }, { wch: 45 }];
+
+      for (let r = 0; r < data.length; r++) {
+        for (let c = 0; c < 2; c++) {
+          const cellRef = `${['A', 'B'][c]}${r + 1}`;
+          if (!ws[cellRef]) ws[cellRef] = { t: 's', v: '' };
+
+          if (r === 0) {
+            ws[cellRef].s = {
+              font: { name: 'Segoe UI', sz: 14, bold: true, color: { rgb: 'FFFFFF' } },
+              fill: { fgColor: { rgb: '2463EB' } },
+              alignment: { horizontal: 'center', vertical: 'center' }
+            };
+          } else if (r === 2 || r === 9 || r === 17 || r === transferHeaderRow) {
+             ws[cellRef].s = {
+               font: { name: 'Segoe UI', sz: 12, bold: true, color: { rgb: '1E40AF' } },
+               fill: { fgColor: { rgb: 'DBEAFE' } },
+               alignment: { horizontal: 'left', vertical: 'center' }
+             };
+          } else if (data[r][0] !== '') {
+             ws[cellRef].s = {
+               font: { name: 'Segoe UI', sz: 11, bold: c === 0 },
+               alignment: { vertical: 'top', wrapText: true },
+               border: {
+                 bottom: { style: 'thin', color: { rgb: 'E2E8F0' } },
+               }
+             };
+          }
+        }
+      }
 
       const wb = XLSX.utils.book_new();
-
-      const ws1 = XLSX.utils.aoa_to_sheet(empInfo);
-      ws1['!cols'] = [{ wch: 25 }, { wch: 45 }];
-      ws1['A1'].s = {
-        font: { bold: true, sz: 12, color: { rgb: 'FFFFFF' } },
-        fill: { fgColor: { rgb: '2563EB' } },
-        alignment: { horizontal: 'center', vertical: 'center' },
-      };
-      ws1['B1'].s = {
-        font: { bold: true, sz: 12, color: { rgb: 'FFFFFF' } },
-        fill: { fgColor: { rgb: '2563EB' } },
-        alignment: { horizontal: 'center', vertical: 'center' },
-      };
-      for (let row = 2; row <= empInfo.length; row++) {
-        const cellA = `A${row}`;
-        const cellB = `B${row}`;
-        if (ws1[cellA]) ws1[cellA].s = { font: { bold: true, sz: 11 }, alignment: { vertical: 'center', wrapText: true } };
-        if (ws1[cellB]) ws1[cellB].s = { font: { sz: 11 }, alignment: { vertical: 'center', wrapText: true } };
-      }
-      XLSX.utils.book_append_sheet(wb, ws1, 'Employee Info');
-
-      const ws2 = XLSX.utils.aoa_to_sheet(perf);
-      ws2['!cols'] = [{ wch: 30 }, { wch: 50 }];
-      ws2['A1'].s = {
-        font: { bold: true, sz: 12, color: { rgb: 'FFFFFF' } },
-        fill: { fgColor: { rgb: '2563EB' } },
-        alignment: { horizontal: 'center', vertical: 'center' },
-      };
-      ws2['B1'].s = {
-        font: { bold: true, sz: 12, color: { rgb: 'FFFFFF' } },
-        fill: { fgColor: { rgb: '2563EB' } },
-        alignment: { horizontal: 'center', vertical: 'center' },
-      };
-      for (let row = 2; row <= perf.length; row++) {
-        const cellA = `A${row}`;
-        const cellB = `B${row}`;
-        if (ws2[cellA]) ws2[cellA].s = { font: { bold: true, sz: 11 }, alignment: { vertical: 'center', wrapText: true } };
-        if (ws2[cellB]) ws2[cellB].s = { font: { sz: 11 }, alignment: { vertical: 'center', wrapText: true } };
-      }
-      XLSX.utils.book_append_sheet(wb, ws2, 'Performance Summary');
-
-      const ws3 = XLSX.utils.aoa_to_sheet(status);
-      ws3['!cols'] = [{ wch: 30 }, { wch: 50 }];
-      ws3['A1'].s = {
-        font: { bold: true, sz: 12, color: { rgb: 'FFFFFF' } },
-        fill: { fgColor: { rgb: '2563EB' } },
-        alignment: { horizontal: 'center', vertical: 'center' },
-      };
-      ws3['B1'].s = {
-        font: { bold: true, sz: 12, color: { rgb: 'FFFFFF' } },
-        fill: { fgColor: { rgb: '2563EB' } },
-        alignment: { horizontal: 'center', vertical: 'center' },
-      };
-      for (let row = 2; row <= status.length; row++) {
-        const cellA = `A${row}`;
-        const cellB = `B${row}`;
-        if (ws3[cellA]) ws3[cellA].s = { font: { bold: true, sz: 11 }, alignment: { vertical: 'center', wrapText: true } };
-        if (ws3[cellB]) ws3[cellB].s = { font: { sz: 11 }, alignment: { vertical: 'center', wrapText: true } };
-      }
-      XLSX.utils.book_append_sheet(wb, ws3, 'Status & Eligibility');
-
-      XLSX.writeFile(wb, `Performance_Report_${(report.employeeName || 'employee').replace(/\s+/g, '_')}_${format(new Date(), 'yyyyMMdd')}.xlsx`);
+      XLSX.utils.book_append_sheet(wb, ws, "Performance Report");
+      XLSX.writeFile(wb, `Performance_Report_${report.employeeName.replace(/\s+/g, '_')}_${format(new Date(), 'yyyyMMdd')}.xlsx`);
     } catch (e) {
       console.error(e);
     }
@@ -340,6 +477,7 @@ export const PerformanceReportDetailPage: React.FC<PerformanceReportDetailPagePr
         { align: 'right' },
       );
 
+      // Employee Information
       autoTable(doc, {
         startY: titleY + 10,
         head: [['Employee Information', '']],
@@ -348,13 +486,14 @@ export const PerformanceReportDetailPage: React.FC<PerformanceReportDetailPagePr
           ['Staff No', report.staffNo || '—'],
           ['Position', report.positionName || 'No Position'],
           ['Department', report.departmentName || 'No Department'],
-          ['Joined Date', report.joinedDate ? formatDuration(report.joinedDate) || '—' : '—'],
+          ['Joined Date', formatJoinedDate(report.joinedDate)],
         ],
         styles: { fontSize: 10, cellPadding: 3 },
         headStyles: { fillColor: [36, 99, 235], textColor: 255 },
         columnStyles: { 0: { fontStyle: 'bold', cellWidth: 50 }, 1: { cellWidth: 'auto' } }
       });
 
+      // Performance Summary
       autoTable(doc, {
         startY: (doc as any).lastAutoTable.finalY + 10,
         head: [['Performance Summary', '']],
@@ -364,28 +503,78 @@ export const PerformanceReportDetailPage: React.FC<PerformanceReportDetailPagePr
           ['KPI Score', `${formatScore(report.kpiScore)} (${report.kpiPeriod || 'N/A'})`],
           ['Appraisal Score', `${formatScore(report.appraisalScore)} (${report.appraisalPeriod || 'N/A'})`],
           ['Self Assessment', `${formatScore(report.selfAssessmentScore)} (${report.selfAssessmentCycle || 'N/A'})`],
-          ['Feedback Score', `${formatScore(report.feedbackScore)} (${report.feedbackCount} feedbacks)`],
+          ['360 Feedback Score', `${formatScore(report.feedbackScore)} (${report.feedbackCount} feedbacks)`],
         ],
         styles: { fontSize: 10, cellPadding: 3 },
         headStyles: { fillColor: [36, 99, 235], textColor: 255 },
         columnStyles: { 0: { fontStyle: 'bold', cellWidth: 50 }, 1: { cellWidth: 'auto' } }
       });
 
+      // Status & Eligibility
+      const statusBody: any[] = [
+        ['PIP Status', report.hasActivePip ? `Active (${report.pipStatus || ''})` : 'No Active PIP'],
+        ['Promotion Eligibility', report.promotionEligible ? 'Eligible' : 'Not Eligible'],
+      ];
+      if (report.latestApprovedPromotionReason) {
+        statusBody.push(['Promotion Reason', report.latestApprovedPromotionReason]);
+      }
+      if (report.latestApprovedPromotionApprovedAt) {
+        statusBody.push(['Promotion Approved At', formatDateTime(report.latestApprovedPromotionApprovedAt)]);
+      }
+      if (report.latestApprovedPromotionPreviousPositionName) {
+        statusBody.push(['Previous Position', report.latestApprovedPromotionPreviousPositionName]);
+      }
+      if (report.latestApprovedPromotionTargetPositionName) {
+        statusBody.push(['Promoted Position', report.latestApprovedPromotionTargetPositionName]);
+      }
+      if (report.latestApprovedPromotionEffectiveDate) {
+        statusBody.push(['Promotion Effective Date', formatDateDDMMYYYY(report.latestApprovedPromotionEffectiveDate)]);
+      }
+
       autoTable(doc, {
         startY: (doc as any).lastAutoTable.finalY + 10,
         head: [['Status & Eligibility', '']],
-        body: [
-          ['PIP Status', report.hasActivePip ? `Active (${report.pipStatus || ''})` : 'No Active PIP'],
-          ['Promotion Eligibility', report.promotionEligible ? 'Eligible' : 'Not Eligible'],
-          ...(report.latestApprovedPromotionReason
-            ? [['Promotion Reason', report.latestApprovedPromotionReason]]
-            : []),
-        ],
+        body: statusBody,
         styles: { fontSize: 10, cellPadding: 3 },
         headStyles: { fillColor: [36, 99, 235], textColor: 255 },
         columnStyles: { 0: { fontStyle: 'bold', cellWidth: 50 }, 1: { cellWidth: 'auto' } }
       });
-      
+
+      // Transfer Log
+      if (report.transferLogs && report.transferLogs.length > 0) {
+        const transferBody = report.transferLogs.map((log) => {
+          const typeLabel = log.transferType === 'PERMANENT_TRANSFER' ? 'Permanent' : log.transferType === 'TEMPORARY' ? 'Temporary' : log.transferType;
+          return [
+            typeLabel,
+            `${log.fromDepartmentName || '—'} / ${log.fromPositionName || '—'}`,
+            `${log.toDepartmentName || '—'} / ${log.toPositionName || '—'}`,
+            log.effectiveStartDate ? formatDateDDMMYYYY(log.effectiveStartDate) : '—',
+            log.effectiveEndDate ? formatDateDDMMYYYY(log.effectiveEndDate) : '—',
+            log.current ? 'Yes' : 'No',
+            log.reason || '—',
+            log.remarks || '—',
+          ];
+        });
+
+        autoTable(doc, {
+          startY: (doc as any).lastAutoTable.finalY + 10,
+          head: [['Type', 'From (Dept / Position)', 'To (Dept / Position)', 'Start Date', 'End Date', 'Current', 'Reason', 'Remarks']],
+          body: transferBody,
+          styles: { fontSize: 8, cellPadding: 2 },
+          headStyles: { fillColor: [36, 99, 235], textColor: 255 },
+          columnStyles: {
+            0: { cellWidth: 22 },
+            1: { cellWidth: 38 },
+            2: { cellWidth: 38 },
+            3: { cellWidth: 20 },
+            4: { cellWidth: 20 },
+            5: { cellWidth: 14 },
+            6: { cellWidth: 28 },
+            7: { cellWidth: 28 },
+          }
+        });
+      }
+
       addPdfFooterBranding(doc, { align: 'left', margin: 14, y: doc.internal.pageSize.getHeight() - 8 });
       doc.save(`Performance_Report_${report.employeeName.replace(/\s+/g, '_')}_${format(new Date(), 'yyyyMMdd')}.pdf`);
     } catch (e) {
@@ -445,7 +634,7 @@ export const PerformanceReportDetailPage: React.FC<PerformanceReportDetailPagePr
               {report.joinedDate && (
                 <>
                   <span className="text-slate-300 dark:text-slate-700">•</span>
-                  <span>Joined: {formatDuration(report.joinedDate)}</span>
+                  <span>Joined: {formatJoinedDate(report.joinedDate)}</span>
                 </>
               )}
             </div>
@@ -489,7 +678,7 @@ export const PerformanceReportDetailPage: React.FC<PerformanceReportDetailPagePr
           onClick={() => navigate(`${prefix}/self-assessment/history?search=${encodeURIComponent(report.employeeName)}`)}
         />
         <ScoreCard
-          title="Feedback Score"
+          title="360 Feedback Score"
           score={report.feedbackScore}
           period={null}
           icon={<MessageSquare size={18} />}
@@ -536,72 +725,27 @@ export const PerformanceReportDetailPage: React.FC<PerformanceReportDetailPagePr
           )}
           <p className="text-[10px] text-slate-400 dark:text-slate-500 mt-1">
             {report.hasActivePip
-              ? 'Employee has an active Performance Improvement Plan — not eligible for promotion'
-              : 'No active PIP — clear for promotion consideration'}
+              ? 'Employee has an active Performance Improvement Plan'
+              : 'No active PIP'}
           </p>
         </div>
       </div>
 
-      {/* Promotion Eligibility Section */}
+      {/* Promotion Section — Always Visible */}
       <div
         className={`rounded-xl border p-6 ${
-          report.promotionEligible
+          isPromoted
+            ? 'border-blue-200 dark:border-blue-800 bg-blue-50/50 dark:bg-blue-900/10'
+            : report.promotionEligible
             ? 'border-emerald-200 dark:border-emerald-800 bg-gradient-to-r from-emerald-50 to-teal-50 dark:from-emerald-900/20 dark:to-teal-900/20'
             : 'border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900'
         }`}
       >
-        <div className="flex items-center justify-between">
+        <div className="flex items-center justify-between mb-4">
           <div>
-            <h2 className="text-lg font-bold text-slate-900 dark:text-slate-100 mb-1">Promotion Eligibility</h2>
-            <div className="flex items-center gap-3">
-              <span className="text-sm text-slate-500 dark:text-slate-400">
-                Overall Rating: <strong className={overallInfo.color}>{formatScore(report.overallRating)} / 5.0</strong>
-              </span>
-              <span className="text-slate-300 dark:text-slate-600">|</span>
-              <span className="text-sm text-slate-500 dark:text-slate-400">
-                PIP: <strong className={report.hasActivePip ? 'text-red-600' : 'text-emerald-600'}>{report.hasActivePip ? 'Active' : 'None'}</strong>
-              </span>
-              <span className="text-slate-300 dark:text-slate-600">|</span>
-              <span
-                className={`inline-block px-3 py-1 rounded-full text-xs font-bold uppercase ${
-                  report.promotionEligibility?.trim().toLowerCase() === 'strongly recommended'
-                    ? 'bg-emerald-100 text-emerald-800 dark:bg-emerald-900/30 dark:text-emerald-300'
-                    : report.promotionEligibility?.trim().toLowerCase() === 'eligible'
-                    ? 'bg-blue-100 text-blue-800 dark:bg-blue-900/30 dark:text-blue-300'
-                    : report.promotionEligibility?.trim().toLowerCase() === 'possible'
-                    ? 'bg-amber-100 text-amber-800 dark:bg-amber-900/30 dark:text-amber-300'
-                    : report.promotionEligibility?.trim().toLowerCase() === 'not eligible'
-                    ? 'bg-red-100 text-red-800 dark:bg-red-900/30 dark:text-red-300'
-                    : 'bg-slate-100 text-slate-600 dark:bg-slate-800 dark:text-slate-400'
-                }`}
-              >
-                {report.promotionEligibility}
-              </span>
-            </div>
+            <h2 className="text-lg font-bold text-slate-900 dark:text-slate-100">Promotion</h2>
           </div>
-
-          {/* Promotion Reason — only when latestApprovedPromotionReason exists */}
-          {report.latestApprovedPromotionReason && (
-            <div className="mt-4 p-4 bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-800 rounded-lg">
-              <p className="text-xs font-bold text-blue-700 dark:text-blue-300 uppercase tracking-wide mb-1">
-                Latest Approved Promotion Reason
-              </p>
-              <p className="text-sm text-slate-800 dark:text-slate-200 font-medium">
-                {report.latestApprovedPromotionReason}
-              </p>
-              <div className="flex flex-wrap gap-x-4 gap-y-0.5 mt-1 text-xs text-slate-500 dark:text-slate-400">
-                {report.latestApprovedPromotionTargetPositionName && (
-                  <span>Target Position: <strong>{report.latestApprovedPromotionTargetPositionName}</strong></span>
-                )}
-                {report.latestApprovedPromotionEffectiveDate && (
-                  <span>Effective Date: <strong>{report.latestApprovedPromotionEffectiveDate}</strong></span>
-                )}
-              </div>
-            </div>
-          )}
-
-          {/* Promote Button — only visible if eligible */}
-          {report.promotionEligible && !readOnly && (
+          {report.promotionEligible && !isPromoted && !readOnly && (
             <button
               className="flex items-center gap-2 px-6 py-3 bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-emerald-700 hover:to-teal-700 text-white rounded-xl font-bold text-sm shadow-lg shadow-emerald-500/25 hover:shadow-emerald-500/40 transition-all active:scale-[0.98]"
               onClick={() => setIsPromotionModalOpen(true)}
@@ -612,21 +756,111 @@ export const PerformanceReportDetailPage: React.FC<PerformanceReportDetailPagePr
           )}
         </div>
 
-        {!report.promotionEligible && (
-          <div className="mt-3 p-3 bg-slate-50 dark:bg-slate-800 rounded-lg">
-            <p className="text-xs text-slate-500 dark:text-slate-400">
-              {report.hasActivePip
-                ? '⚠️ Employee has an active PIP and is not eligible for promotion at this time.'
-                : (report.kpiScore == null || report.selfAssessmentScore == null || report.appraisalScore == null || report.feedbackScore == null)
-                ? '⚠️ All four evaluation components (KPI, Self Assessment, Appraisal, and Feedback) must be completed for promotion eligibility.'
-                : report.overallRating == null
-                ? 'ℹ️ Insufficient performance data to determine eligibility.'
-                : report.overallRating < 3.5
-                ? `⚠️ Overall rating (${formatScore(report.overallRating)}) is below the minimum threshold of 3.5 required for promotion.`
-                : 'ℹ️ Not eligible for promotion.'}
-            </p>
+        {/* Promoted State */}
+        {isPromoted && (
+          <div className="space-y-3">
+            <div className="flex items-center gap-2 mb-3">
+              <CheckCircle2 size={20} className="text-blue-600 dark:text-blue-400" />
+              <span className="text-base font-bold text-blue-700 dark:text-blue-300">Approved Promotion</span>
+              <span className="inline-block px-2 py-0.5 rounded-full text-[10px] font-bold uppercase bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-300">
+                {report.promotionEligibility}
+              </span>
+            </div>
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+              <div className="p-3 bg-white dark:bg-slate-800 rounded-lg border border-slate-200 dark:border-slate-700">
+                <p className="text-[10px] font-bold text-slate-400 dark:text-slate-500 uppercase mb-1">Reason</p>
+                <p className="text-sm font-medium text-slate-800 dark:text-slate-200">{report.latestApprovedPromotionReason || '—'}</p>
+              </div>
+              <div className="p-3 bg-white dark:bg-slate-800 rounded-lg border border-slate-200 dark:border-slate-700">
+                <p className="text-[10px] font-bold text-slate-400 dark:text-slate-500 uppercase mb-1">Approved At</p>
+                <p className="text-sm font-medium text-slate-800 dark:text-slate-200">
+                  {report.latestApprovedPromotionApprovedAt ? formatDateTime(report.latestApprovedPromotionApprovedAt) : '—'}
+                </p>
+              </div>
+              <div className="p-3 bg-white dark:bg-slate-800 rounded-lg border border-slate-200 dark:border-slate-700">
+                <p className="text-[10px] font-bold text-slate-400 dark:text-slate-500 uppercase mb-1">Previous Position</p>
+                <p className="text-sm font-medium text-slate-800 dark:text-slate-200">{report.latestApprovedPromotionPreviousPositionName || '—'}</p>
+              </div>
+              <div className="p-3 bg-white dark:bg-slate-800 rounded-lg border border-slate-200 dark:border-slate-700">
+                <p className="text-[10px] font-bold text-slate-400 dark:text-slate-500 uppercase mb-1">Promoted Position</p>
+                <p className="text-sm font-medium text-slate-800 dark:text-slate-200">{report.latestApprovedPromotionTargetPositionName || report.positionName || '—'}</p>
+              </div>
+              <div className="p-3 bg-white dark:bg-slate-800 rounded-lg border border-slate-200 dark:border-slate-700">
+                <p className="text-[10px] font-bold text-slate-400 dark:text-slate-500 uppercase mb-1">Effective Date</p>
+                <p className="text-sm font-medium text-slate-800 dark:text-slate-200">
+                  {report.latestApprovedPromotionEffectiveDate ? formatDateDDMMYYYY(report.latestApprovedPromotionEffectiveDate) : '—'}
+                </p>
+              </div>
+            </div>
           </div>
         )}
+
+        {/* Eligible but not promoted */}
+        {!isPromoted && report.promotionEligible && (
+          <div className="space-y-3">
+            <div className="flex items-center gap-2 mb-2">
+              <Rocket size={20} className="text-emerald-600 dark:text-emerald-400" />
+              <span className="text-base font-bold text-emerald-700 dark:text-emerald-300">Eligible for Promotion</span>
+              <span className="inline-block px-2 py-0.5 rounded-full text-[10px] font-bold uppercase bg-emerald-100 text-emerald-700 dark:bg-emerald-900/30 dark:text-emerald-300">
+                {report.promotionEligibility}
+              </span>
+            </div>
+            <div className="p-3 bg-emerald-50 dark:bg-emerald-900/20 rounded-lg border border-emerald-200 dark:border-emerald-800">
+              <p className="text-xs text-emerald-700 dark:text-emerald-300 font-medium">
+                No approved promotion yet.
+              </p>
+              <p className="text-xs text-emerald-600 dark:text-emerald-400 mt-1">
+                This employee meets all criteria and is ready for promotion consideration.
+              </p>
+            </div>
+          </div>
+        )}
+
+        {/* Not eligible */}
+        {!isPromoted && !report.promotionEligible && (
+          <div className="space-y-3">
+            <div className="flex items-center gap-2 mb-2">
+              <XCircle size={20} className="text-slate-400 dark:text-slate-500" />
+              <span className="text-base font-bold text-slate-500 dark:text-slate-400">Not Eligible</span>
+              <span className={`inline-block px-2 py-0.5 rounded-full text-[10px] font-bold uppercase ${
+                report.promotionEligibility?.trim().toLowerCase() === 'not eligible'
+                  ? 'bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-300'
+                  : report.promotionEligibility?.trim().toLowerCase() === 'possible'
+                  ? 'bg-amber-100 text-amber-700 dark:bg-amber-900/30 dark:text-amber-300'
+                  : 'bg-slate-100 text-slate-600 dark:bg-slate-800 dark:text-slate-400'
+              }`}>
+                {report.promotionEligibility}
+              </span>
+            </div>
+            <div className="p-3 bg-slate-50 dark:bg-slate-800 rounded-lg border border-slate-200 dark:border-slate-700">
+              <p className="text-xs text-slate-500 dark:text-slate-400">
+                {report.hasActivePip
+                  ? 'Employee has an active PIP and is not eligible for promotion at this time.'
+                  : (report.kpiScore == null || report.selfAssessmentScore == null || report.appraisalScore == null || report.feedbackScore == null)
+                  ? 'All four evaluation components (KPI, Self Assessment, Appraisal, and 360 Feedback) must be completed for promotion eligibility.'
+                  : report.overallRating == null
+                  ? 'Insufficient performance data to determine eligibility.'
+                  : report.overallRating != null && report.overallRating < 3.5
+                  ? `Overall rating (${formatScore(report.overallRating)}) is below the minimum threshold of 3.5 required for promotion.`
+                  : 'Not eligible for promotion.'}
+              </p>
+            </div>
+          </div>
+        )}
+      </div>
+
+      {/* Transfer Log Section */}
+      <div className="bg-white dark:bg-slate-900 rounded-xl border border-slate-200 dark:border-slate-800 p-6">
+        <div className="flex items-center gap-2 mb-4">
+          <RefreshCw size={18} className="text-slate-500 dark:text-slate-400" />
+          <h2 className="text-lg font-bold text-slate-900 dark:text-slate-100">Transfer Log</h2>
+          {report.transferLogs && report.transferLogs.length > 0 && (
+            <span className="text-xs text-slate-400 dark:text-slate-500 ml-1">
+              ({report.transferLogs.length} {report.transferLogs.length === 1 ? 'record' : 'records'})
+            </span>
+          )}
+        </div>
+        <TransferLogTable logs={report.transferLogs || []} />
       </div>
 
       {/* Rating Scale Reference */}

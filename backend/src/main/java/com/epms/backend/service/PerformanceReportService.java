@@ -10,9 +10,11 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import com.epms.backend.dto.PerformanceReportSummaryDto;
+import com.epms.backend.dto.PerformanceReportTransferLogDto;
 import com.epms.backend.entity.AppraisalAssignment;
 import com.epms.backend.entity.AppraisalStatus;
 import com.epms.backend.entity.Employee;
+import com.epms.backend.entity.EmployeeDepartmentHistory;
 import com.epms.backend.entity.EmployeeKpi;
 import com.epms.backend.entity.EmployeeStatus;
 import com.epms.backend.entity.Feedback;
@@ -20,7 +22,9 @@ import com.epms.backend.entity.Pip;
 import com.epms.backend.entity.PromotionProposal;
 import com.epms.backend.entity.SelfAssessmentForm;
 import com.epms.backend.entity.SelfAssessmentFormStatus;
+import com.epms.backend.entity.TransferType;
 import com.epms.backend.repository.AppraisalAssignmentRepository;
+import com.epms.backend.repository.EmployeeDepartmentHistoryRepository;
 import com.epms.backend.repository.EmployeeRepository;
 import com.epms.backend.repository.FeedbackRepository;
 import com.epms.backend.repository.KpiRepository;
@@ -44,6 +48,7 @@ public class PerformanceReportService {
     private final FeedbackRepository feedbackRepository;
     private final PipRepository pipRepository;
     private final PromotionProposalRepository promotionProposalRepository;
+    private final EmployeeDepartmentHistoryRepository employeeDepartmentHistoryRepository;
     private final ProfilePictureStorageService profilePictureStorageService;
 
     private static final List<String> ACTIVE_PIP_STATUSES = List.of("ACTIVE", "REOPEN_REQUESTED");
@@ -134,6 +139,8 @@ public class PerformanceReportService {
         String latestApprovedPromotionReason = null;
         String latestApprovedPromotionEffectiveDate = null;
         String latestApprovedPromotionTargetPositionName = null;
+        String latestApprovedPromotionApprovedAt = null;
+        String latestApprovedPromotionPreviousPositionName = null;
 
         List<PromotionProposal> approvedProposals = promotionProposalRepository.findLatestApprovedByEmployee(emp.getId());
         if (!approvedProposals.isEmpty()) {
@@ -152,6 +159,39 @@ public class PerformanceReportService {
             if (latest.getTargetPosition() != null) {
                 latestApprovedPromotionTargetPositionName = latest.getTargetPosition().getName();
             }
+            if (latest.getUpdatedAt() != null) {
+                latestApprovedPromotionApprovedAt = latest.getUpdatedAt().toString();
+            } else if (latest.getCreatedAt() != null) {
+                latestApprovedPromotionApprovedAt = latest.getCreatedAt().toString();
+            }
+
+            // Fetch latest PROMOTION history row for previous position
+            Optional<EmployeeDepartmentHistory> promotionHistory = employeeDepartmentHistoryRepository
+                    .findFirstByEmployee_IdAndTransferTypeOrderByEffectiveStartDateDesc(emp.getId(), TransferType.PROMOTION);
+            if (promotionHistory.isPresent() && promotionHistory.get().getFromPosition() != null) {
+                latestApprovedPromotionPreviousPositionName = promotionHistory.get().getFromPosition().getName();
+            }
+        }
+
+        // 9. Transfer logs (TEMPORARY and PERMANENT_TRANSFER only)
+        List<PerformanceReportTransferLogDto> transferLogs = new ArrayList<>();
+        List<EmployeeDepartmentHistory> transferHistoryRows = employeeDepartmentHistoryRepository
+                .findByEmployee_IdAndTransferTypeInOrderByEffectiveStartDateDesc(
+                        emp.getId(), List.of(TransferType.TEMPORARY, TransferType.PERMANENT_TRANSFER));
+        for (EmployeeDepartmentHistory h : transferHistoryRows) {
+            transferLogs.add(PerformanceReportTransferLogDto.builder()
+                    .id(h.getId())
+                    .transferType(h.getTransferType().name())
+                    .fromDepartmentName(h.getFromDepartment() != null ? h.getFromDepartment().getName() : null)
+                    .toDepartmentName(h.getToDepartment() != null ? h.getToDepartment().getName() : null)
+                    .fromPositionName(h.getFromPosition() != null ? h.getFromPosition().getName() : null)
+                    .toPositionName(h.getToPosition() != null ? h.getToPosition().getName() : null)
+                    .effectiveStartDate(h.getEffectiveStartDate() != null ? h.getEffectiveStartDate().toString() : null)
+                    .effectiveEndDate(h.getEffectiveEndDate() != null ? h.getEffectiveEndDate().toString() : null)
+                    .current(h.isCurrent())
+                    .reason(h.getReason())
+                    .remarks(h.getRemarks())
+                    .build());
         }
 
         String profilePictureUrl = profilePictureStorageService.toPublicUrl(emp.getProfilePictureUrl());
@@ -186,6 +226,9 @@ public class PerformanceReportService {
                 .latestApprovedPromotionReason(latestApprovedPromotionReason)
                 .latestApprovedPromotionEffectiveDate(latestApprovedPromotionEffectiveDate)
                 .latestApprovedPromotionTargetPositionName(latestApprovedPromotionTargetPositionName)
+                .latestApprovedPromotionApprovedAt(latestApprovedPromotionApprovedAt)
+                .latestApprovedPromotionPreviousPositionName(latestApprovedPromotionPreviousPositionName)
+                .transferLogs(transferLogs)
                 .build();
     }
 

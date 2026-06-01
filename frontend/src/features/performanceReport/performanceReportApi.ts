@@ -1,5 +1,19 @@
 import { baseApi } from '../../app/baseApi';
 
+export interface PerformanceReportTransferLogDto {
+  id: number;
+  transferType: string;
+  fromDepartmentName: string | null;
+  toDepartmentName: string | null;
+  fromPositionName: string | null;
+  toPositionName: string | null;
+  effectiveStartDate: string | null;
+  effectiveEndDate: string | null;
+  current: boolean;
+  reason: string | null;
+  remarks: string | null;
+}
+
 export interface PerformanceReportSummary {
   employeeId: number;
   staffNo: string | null;
@@ -27,6 +41,9 @@ export interface PerformanceReportSummary {
   latestApprovedPromotionReason?: string | null;
   latestApprovedPromotionEffectiveDate?: string | null;
   latestApprovedPromotionTargetPositionName?: string | null;
+  latestApprovedPromotionApprovedAt?: string | null;
+  latestApprovedPromotionPreviousPositionName?: string | null;
+  transferLogs?: PerformanceReportTransferLogDto[];
 }
 
 export interface PromotionProposalResponse {
