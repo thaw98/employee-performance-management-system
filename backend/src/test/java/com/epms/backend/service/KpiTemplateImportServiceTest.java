@@ -28,10 +28,8 @@ import com.epms.backend.dto.KpiTemplateImportValidationResponseDto;
 import com.epms.backend.entity.KpiName;
 import com.epms.backend.entity.KpiTemplate;
 import com.epms.backend.entity.KpiTemplateItem;
-import com.epms.backend.entity.KpiUnit;
 import com.epms.backend.repository.KpiNameRepository;
 import com.epms.backend.repository.KpiTemplateRepository;
-import com.epms.backend.repository.KpiUnitRepository;
 
 @ExtendWith(MockitoExtension.class)
 class KpiTemplateImportServiceTest {
@@ -40,24 +38,18 @@ class KpiTemplateImportServiceTest {
     private KpiTemplateRepository templateRepository;
     @Mock
     private KpiNameRepository kpiNameRepository;
-    @Mock
-    private KpiUnitRepository kpiUnitRepository;
 
     private KpiTemplateImportService service;
 
     @BeforeEach
     void setUp() {
-        service = new KpiTemplateImportService(templateRepository, kpiNameRepository, kpiUnitRepository);
+        service = new KpiTemplateImportService(templateRepository, kpiNameRepository);
     }
 
     // ─── Template generation tests ─────────────────────────────────────────
 
     @Test
-    void generateTemplate_shouldNotHaveCategoryDropdown() throws Exception {
-        KpiUnit unit = new KpiUnit();
-        unit.setName("%");
-        when(kpiUnitRepository.findByStatusIgnoreCase("Active")).thenReturn(List.of(unit));
-
+    void generateTemplate_shouldNotHaveUnitOrCategoryDropdown() throws Exception {
         byte[] template = service.generateTemplate();
 
         try (Workbook wb = new XSSFWorkbook(new ByteArrayInputStream(template))) {
@@ -65,38 +57,29 @@ class KpiTemplateImportServiceTest {
             assertThat(dataSheet).isNotNull();
 
             List<? extends DataValidation> validations = dataSheet.getDataValidations();
-            for (DataValidation dv : validations) {
-                String formula = dv.getValidationConstraint().getFormula1();
-                assertThat(formula).as("Category column should not have dropdown").doesNotContain("CategoryList");
-            }
+            assertThat(validations).as("No column should have dropdown validation").isEmpty();
 
             Sheet lookupSheet = wb.getSheet("Lookups");
-            assertThat(lookupSheet).isNotNull();
-            assertThat(lookupSheet.getPhysicalNumberOfRows()).isEqualTo(1);
-            assertThat(lookupSheet.getRow(0).getCell(0).getStringCellValue()).isEqualTo("%");
+            assertThat(lookupSheet).isNull();
         }
     }
 
     @Test
-    void generateTemplate_shouldHaveUnitDropdown() throws Exception {
-        KpiUnit unit = new KpiUnit();
-        unit.setName("%");
-        when(kpiUnitRepository.findByStatusIgnoreCase("Active")).thenReturn(List.of(unit));
-
+    void generateTemplate_unitColumnShouldBePlainText() throws Exception {
         byte[] template = service.generateTemplate();
 
         try (Workbook wb = new XSSFWorkbook(new ByteArrayInputStream(template))) {
             Sheet dataSheet = wb.getSheet("KPI Template");
+            assertThat(dataSheet).isNotNull();
+            assertThat(dataSheet.getRow(0).getCell(3).getStringCellValue()).isEqualTo("Unit");
+
             List<? extends DataValidation> validations = dataSheet.getDataValidations();
-            assertThat(validations).anyMatch(dv ->
-                    dv.getValidationConstraint().getFormula1().contains("UnitList"));
+            assertThat(validations).as("Unit column should not have dropdown validation").isEmpty();
         }
     }
 
     @Test
     void generateTemplate_shouldHaveCategoryColumnHeader() throws Exception {
-        when(kpiUnitRepository.findByStatusIgnoreCase("Active")).thenReturn(List.of());
-
         byte[] template = service.generateTemplate();
 
         try (Workbook wb = new XSSFWorkbook(new ByteArrayInputStream(template))) {
@@ -108,8 +91,6 @@ class KpiTemplateImportServiceTest {
 
     @Test
     void generateTemplate_shouldHaveBlankEditableCategoryCells() throws Exception {
-        when(kpiUnitRepository.findByStatusIgnoreCase("Active")).thenReturn(List.of());
-
         byte[] template = service.generateTemplate();
 
         try (Workbook wb = new XSSFWorkbook(new ByteArrayInputStream(template))) {

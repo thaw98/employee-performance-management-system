@@ -164,6 +164,16 @@ export interface AuditLogEntry {
   createdAt: string;
 }
 
+export interface ContinuousFeedbackListResponse {
+  content: ContinuousFeedback[];
+  page: number;
+  size: number;
+  totalElements: number;
+  totalPages: number;
+  totalShared: number;
+  pendingAcknowledgment: number;
+}
+
 export interface ApiResponse<T> {
   success: boolean;
   message: string;

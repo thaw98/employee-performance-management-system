@@ -4,13 +4,18 @@ import java.time.Instant;
 import java.util.List;
 
 import org.springframework.data.jpa.repository.JpaRepository;
+import org.springframework.data.jpa.repository.JpaSpecificationExecutor;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
 
 import com.epms.backend.entity.ContinuousFeedback;
 import com.epms.backend.entity.ContinuousFeedbackVisibilityStatus;
 
-public interface ContinuousFeedbackRepository extends JpaRepository<ContinuousFeedback, Long> {
+public interface ContinuousFeedbackRepository extends JpaRepository<ContinuousFeedback, Long>, JpaSpecificationExecutor<ContinuousFeedback> {
+
+    long countByEmployeeIdAndSharedTrue(Long employeeId);
+
+    long countByEmployeeIdAndSharedTrueAndAcknowledgedFalse(Long employeeId);
 
     List<ContinuousFeedback> findByEmployeeIdOrderByCreatedAtDesc(Long employeeId);
 

@@ -27,6 +27,7 @@ import com.epms.backend.dto.continuousfeedback.ContinuousFeedbackCreateRequest;
 import com.epms.backend.dto.continuousfeedback.ContinuousFeedbackDashboardDto;
 import com.epms.backend.dto.continuousfeedback.ContinuousFeedbackDto;
 import com.epms.backend.dto.continuousfeedback.ContinuousFeedbackEvidenceDto;
+import com.epms.backend.dto.continuousfeedback.ContinuousFeedbackListResponseDto;
 import com.epms.backend.dto.continuousfeedback.ContinuousFeedbackPipWarningDto;
 import com.epms.backend.dto.continuousfeedback.ContinuousFeedbackUpdatePrivateNoteRequest;
 import com.epms.backend.dto.continuousfeedback.ContinuousFeedbackUpdateScheduledRequest;
@@ -102,10 +103,16 @@ public class ContinuousFeedbackController {
 
     @GetMapping("/my")
     @PreAuthorize("hasRole('EMPLOYEE') and @permissionGuard.has('CONTINUOUS_FEEDBACK', 'view')")
-    public ResponseEntity<ApiResponse<List<ContinuousFeedbackDto>>> getMyFeedback(
-            @AuthenticationPrincipal UserPrincipal principal) {
+    public ResponseEntity<ApiResponse<ContinuousFeedbackListResponseDto>> getMyFeedback(
+            @AuthenticationPrincipal UserPrincipal principal,
+            @RequestParam(defaultValue = "0") int page,
+            @RequestParam(defaultValue = "10") int size,
+            @RequestParam(required = false) String search,
+            @RequestParam(required = false) String category,
+            @RequestParam(required = false) Boolean acknowledged) {
         User currentUser = userRepository.findById(principal.getId()).orElseThrow();
-        List<ContinuousFeedbackDto> result = service.getMyFeedback(currentUser);
+        ContinuousFeedbackListResponseDto result = service.getMyFeedback(
+                currentUser, page, size, search, category, acknowledged);
         return ResponseEntity.ok(ApiResponse.ok("My feedback retrieved successfully", result));
     }
 
