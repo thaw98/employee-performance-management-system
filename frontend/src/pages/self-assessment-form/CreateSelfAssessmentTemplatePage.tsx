@@ -1,4 +1,4 @@
-import React, { useEffect, useMemo, useState } from 'react';
+import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { useForm, useFieldArray, type UseFormRegister } from 'react-hook-form';
 import {
   DndContext,
@@ -53,7 +53,14 @@ import {
   type QuestionRequest,
   type SelfAssessmentRatingSystem,
 } from '../../features/selfAssessmentForm/api/selfAssessmentFormApi';
-import { getRatingOptions, ratingSystemLabels } from '../../features/selfAssessmentForm/ratingSystem';
+import {
+  getDefaultYesMinRating,
+  getRatingOptions,
+  getYesMinRatingOptions,
+  normalizeYesMinRating,
+  RATING_SYSTEM_OPTIONS,
+  ratingSystemLabels,
+} from '../../features/selfAssessmentForm/ratingSystem';
 import { useGetReviewCyclesQuery } from '../../features/reviewCycle/api/reviewCycleApi';
 import { useGetScoreExplanationsQuery } from '../../features/scoreExplanation/scoreExplanationApi';
 import { SelfAssessmentScoreBandTable } from '../../features/selfAssessmentForm/components/SelfAssessmentScoreBandTable';
@@ -683,18 +690,27 @@ export const CreateSelfAssessmentTemplatePage: React.FC = () => {
     isError: selfAssessmentSettingsError,
   } = useGetSelfAssessmentSettingsQuery();
 
+  const [templateRatingSystem, setTemplateRatingSystem] = useState<SelfAssessmentRatingSystem>(
+    () => selfAssessmentSettings?.ratingSystem ?? 'FIVE_POINT',
+  );
+  const [templateIncludeYesNo, setTemplateIncludeYesNo] = useState(
+    () => selfAssessmentSettings?.includeYesNo ?? true,
+  );
+  const [templateYesMinRating, setTemplateYesMinRating] = useState<number>(
+    () => {
+      const rs = selfAssessmentSettings;
+      if (rs?.yesMinRating != null) return normalizeYesMinRating(rs.ratingSystem, rs.yesMinRating);
+      if (rs?.ratingSystem) return getDefaultYesMinRating(rs.ratingSystem);
+      return 3;
+    },
+  );
+
   const {
     data: scoreExplanationsByModule,
     isLoading: scoreBandsLoading,
     isError: scoreBandsError,
   } = useGetScoreExplanationsQuery();
-  const previewRatingSystem = copiedRatingSystem ?? selfAssessmentSettings?.ratingSystem;
-  const previewTenPointYesMinRating =
-    copiedTenPointYesMinRating ?? selfAssessmentSettings?.tenPointYesMinRating;
-  const previewFivePointYesMinRating =
-    copiedFivePointYesMinRating ?? selfAssessmentSettings?.fivePointYesMinRating;
-  const previewIncludeYesNo =
-    selfAssessmentSettings?.includeYesNo ?? copiedIncludeYesNo;
+  const templateNormalizedYesMin = normalizeYesMinRating(templateRatingSystem, templateYesMinRating);
 
   const [createTemplate, { isLoading: isCreating }] = useCreateTemplateMutation();
   const [checkActiveTemplateConflicts] = useCheckActiveTemplateConflictsMutation();
@@ -782,6 +798,23 @@ export const CreateSelfAssessmentTemplatePage: React.FC = () => {
       setSelectedGlobalPositionIds([copiedPosId]);
     }
   }, [copiedTemplate, isPastingCopiedTemplate, reset]);
+
+  const settingsInitialized = useRef(false);
+
+  useEffect(() => {
+    if (selfAssessmentSettings?.ratingSystem && !settingsInitialized.current) {
+      settingsInitialized.current = true;
+      setTemplateRatingSystem(selfAssessmentSettings.ratingSystem);
+      setTemplateIncludeYesNo(selfAssessmentSettings.includeYesNo ?? true);
+      const defaultYes = selfAssessmentSettings.yesMinRating ?? getDefaultYesMinRating(selfAssessmentSettings.ratingSystem);
+      setTemplateYesMinRating(normalizeYesMinRating(selfAssessmentSettings.ratingSystem, defaultYes));
+    }
+  }, [selfAssessmentSettings]);
+
+  const handleRatingSystemChange = (newSystem: SelfAssessmentRatingSystem) => {
+    setTemplateRatingSystem(newSystem);
+    setTemplateYesMinRating(normalizeYesMinRating(newSystem, templateYesMinRating));
+  };
 
   const handleQuestionDragEnd = (event: DragEndEvent) => {
     const { active, over } = event;
@@ -1048,10 +1081,11 @@ export const CreateSelfAssessmentTemplatePage: React.FC = () => {
             timelineMode,
             manualStartDate: timelineMode === 'MANUAL' ? manualStartDate : null,
             manualEndDate: timelineMode === 'MANUAL' ? manualEndDate : null,
-            ratingSystem: copiedRatingSystem,
-            tenPointYesMinRating: copiedTenPointYesMinRating,
-            fivePointYesMinRating: copiedFivePointYesMinRating,
-            includeYesNo: copiedIncludeYesNo,
+            ratingSystem: templateRatingSystem,
+            tenPointYesMinRating: templateNormalizedYesMin,
+            fivePointYesMinRating: templateNormalizedYesMin,
+            yesMinRating: templateNormalizedYesMin,
+            includeYesNo: templateIncludeYesNo,
           }).unwrap();
           createdCount += 1;
         } catch (error: unknown) {
@@ -1218,7 +1252,7 @@ export const CreateSelfAssessmentTemplatePage: React.FC = () => {
                 )}
               </div>
 
-              {/* Rating Scale Info */}
+              {/* Rating Scale Preview */}
               <div className="rounded-xl border border-slate-100 bg-gradient-to-r from-slate-50/80 to-slate-50 p-4 dark:border-slate-600/50 dark:from-slate-900/60 dark:to-slate-800/60">
                 <div className="flex items-start gap-3">
                   <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-amber-100 text-amber-600 dark:bg-amber-900/40 dark:text-amber-400">
@@ -1227,90 +1261,121 @@ export const CreateSelfAssessmentTemplatePage: React.FC = () => {
                   <div className="min-w-0 flex-1">
                     <h3 className="text-sm font-bold text-slate-900 dark:text-white">Rating Scale Preview</h3>
                     <p className="mt-0.5 text-xs text-slate-500 dark:text-slate-400">
-                      {previewIncludeYesNo !== false ? (
-                        <>
-                          Employees answer Yes/No then pick a score. Matches{' '}
-                          <Link
-                            to="/hr/self-assessment/settings"
-                            className="font-semibold text-[#2463eb] hover:underline dark:text-[#60a5fa]"
-                          >
-                            Self Assessment Settings
-                          </Link>
-                          .
-                        </>
-                      ) : (
-                        <>
-                          Employees pick a score from the full scale only (no Yes/No). Matches{' '}
-                          <Link
-                            to="/hr/self-assessment/settings"
-                            className="font-semibold text-[#2463eb] hover:underline dark:text-[#60a5fa]"
-                          >
-                            Self Assessment Settings
-                          </Link>
-                          .
-                        </>
-                      )}
+                      Configure how employees rate each question in this template.
                     </p>
+
                     {selfAssessmentSettingsLoading ? (
-                      <p className="mt-2 text-xs text-slate-400">Loading...</p>
-                    ) : selfAssessmentSettingsError ? (
-                      <p className="mt-2 text-xs text-amber-600 dark:text-amber-400">
-                        Could not load settings. Server defaults will apply.
-                      </p>
-                    ) : previewRatingSystem ? (
-                      <div className="mt-3 space-y-2">
-                        <div className="text-xs font-semibold text-slate-600 dark:text-slate-300">
-                          Scale: <span className="text-slate-900 dark:text-white">{ratingSystemLabels[previewRatingSystem]}</span>
+                      <p className="mt-2 text-xs text-slate-400">Loading settings...</p>
+                    ) : (
+                      <div className="mt-4 space-y-4">
+                        <div>
+                          <label className="mb-1 block text-xs font-semibold text-slate-600 dark:text-slate-300">
+                            Rating Scale
+                          </label>
+                          <select
+                            value={templateRatingSystem}
+                            onChange={(event) => handleRatingSystemChange(event.target.value as SelfAssessmentRatingSystem)}
+                            className="w-full rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm text-slate-800 shadow-sm focus:border-[#2463eb] focus:outline-none focus:ring-2 focus:ring-[#2463eb]/20 dark:border-slate-600 dark:bg-slate-800 dark:text-slate-100"
+                          >
+                            {RATING_SYSTEM_OPTIONS.map((option) => (
+                              <option key={option.value} value={option.value}>
+                                {option.label}
+                              </option>
+                            ))}
+                          </select>
                         </div>
-                        {previewIncludeYesNo !== false ? (
-                          <div className="grid gap-2 sm:grid-cols-2">
-                            <div className="rounded-lg border border-emerald-200/60 bg-emerald-50/80 px-3 py-2 dark:border-emerald-800/40 dark:bg-emerald-950/20">
-                              <dt className="text-[11px] font-bold uppercase tracking-wider text-emerald-600 dark:text-emerald-400">
-                                Yes — scores
-                              </dt>
-                              <dd className="mt-0.5 text-sm font-semibold tabular-nums text-emerald-800 dark:text-emerald-200">
-                                {getRatingOptions(
-                                  previewRatingSystem,
-                                  'Yes',
-                                  previewTenPointYesMinRating,
-                                  previewFivePointYesMinRating,
-                                  true,
-                                ).join(', ')}
-                              </dd>
-                            </div>
-                            <div className="rounded-lg border border-rose-200/60 bg-rose-50/80 px-3 py-2 dark:border-rose-800/40 dark:bg-rose-950/20">
-                              <dt className="text-[11px] font-bold uppercase tracking-wider text-rose-600 dark:text-rose-400">
-                                No — scores
-                              </dt>
-                              <dd className="mt-0.5 text-sm font-semibold tabular-nums text-rose-800 dark:text-rose-200">
-                                {getRatingOptions(
-                                  previewRatingSystem,
-                                  'No',
-                                  previewTenPointYesMinRating,
-                                  previewFivePointYesMinRating,
-                                  true,
-                                ).join(', ')}
-                              </dd>
-                            </div>
-                          </div>
-                        ) : (
-                          <div className="rounded-lg border border-slate-200/60 bg-slate-50/80 px-3 py-2 dark:border-slate-700/40 dark:bg-slate-800/40">
-                            <dt className="text-[11px] font-bold uppercase tracking-wider text-slate-500 dark:text-slate-400">
-                              Available scores
-                            </dt>
-                            <dd className="mt-0.5 text-sm font-semibold tabular-nums text-slate-800 dark:text-slate-200">
-                              {getRatingOptions(
-                                previewRatingSystem,
-                                null,
-                                previewTenPointYesMinRating,
-                                previewFivePointYesMinRating,
-                                false,
-                              ).join(', ')}
-                            </dd>
+
+                        <div className="flex items-center gap-3">
+                          <label className="relative inline-flex cursor-pointer items-center">
+                            <input
+                              type="checkbox"
+                              checked={templateIncludeYesNo}
+                              onChange={(event) => setTemplateIncludeYesNo(event.target.checked)}
+                              className="peer sr-only"
+                            />
+                            <div className="h-6 w-10 rounded-full bg-slate-300 after:absolute after:left-0.5 after:top-0.5 after:h-5 after:w-5 after:rounded-full after:bg-white after:shadow after:transition-all after:content-[''] peer-checked:bg-[#2463eb] peer-checked:after:translate-x-full dark:bg-slate-600 dark:peer-checked:bg-[#60a5fa]" />
+                          </label>
+                          <span className="text-sm font-medium text-slate-700 dark:text-slate-300">
+                            Include Yes/No Responses
+                          </span>
+                        </div>
+
+                        {templateIncludeYesNo && (
+                          <div>
+                            <label className="mb-1 block text-xs font-semibold text-slate-600 dark:text-slate-300">
+                              Yes Threshold
+                            </label>
+                            <select
+                              value={templateNormalizedYesMin}
+                              onChange={(event) => setTemplateYesMinRating(Number(event.target.value))}
+                              className="w-full rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm text-slate-800 shadow-sm focus:border-[#2463eb] focus:outline-none focus:ring-2 focus:ring-[#2463eb]/20 dark:border-slate-600 dark:bg-slate-800 dark:text-slate-100"
+                            >
+                              {getYesMinRatingOptions(templateRatingSystem).map((rating) => (
+                                <option key={rating} value={rating}>
+                                  {rating} and above
+                                </option>
+                              ))}
+                            </select>
                           </div>
                         )}
                       </div>
-                    ) : null}
+                    )}
+
+                    <div className="mt-3 space-y-2">
+                      <div className="text-xs font-semibold text-slate-600 dark:text-slate-300">
+                        Scale: <span className="text-slate-900 dark:text-white">{ratingSystemLabels[templateRatingSystem]}</span>
+                      </div>
+                      {templateIncludeYesNo ? (
+                        <div className="grid gap-2 sm:grid-cols-2">
+                          <div className="rounded-lg border border-emerald-200/60 bg-emerald-50/80 px-3 py-2 dark:border-emerald-800/40 dark:bg-emerald-950/20">
+                            <dt className="text-[11px] font-bold uppercase tracking-wider text-emerald-600 dark:text-emerald-400">
+                              Yes — scores
+                            </dt>
+                            <dd className="mt-0.5 text-sm font-semibold tabular-nums text-emerald-800 dark:text-emerald-200">
+                              {getRatingOptions(
+                                templateRatingSystem,
+                                'Yes',
+                                undefined,
+                                undefined,
+                                true,
+                                templateNormalizedYesMin,
+                              ).join(', ')}
+                            </dd>
+                          </div>
+                          <div className="rounded-lg border border-rose-200/60 bg-rose-50/80 px-3 py-2 dark:border-rose-800/40 dark:bg-rose-950/20">
+                            <dt className="text-[11px] font-bold uppercase tracking-wider text-rose-600 dark:text-rose-400">
+                              No — scores
+                            </dt>
+                            <dd className="mt-0.5 text-sm font-semibold tabular-nums text-rose-800 dark:text-rose-200">
+                              {getRatingOptions(
+                                templateRatingSystem,
+                                'No',
+                                undefined,
+                                undefined,
+                                true,
+                                templateNormalizedYesMin,
+                              ).join(', ')}
+                            </dd>
+                          </div>
+                        </div>
+                      ) : (
+                        <div className="rounded-lg border border-slate-200/60 bg-slate-50/80 px-3 py-2 dark:border-slate-700/40 dark:bg-slate-800/40">
+                          <dt className="text-[11px] font-bold uppercase tracking-wider text-slate-500 dark:text-slate-400">
+                            Available scores
+                          </dt>
+                          <dd className="mt-0.5 text-sm font-semibold tabular-nums text-slate-800 dark:text-slate-200">
+                            {getRatingOptions(
+                              templateRatingSystem,
+                              null,
+                              undefined,
+                              undefined,
+                              false,
+                              templateNormalizedYesMin,
+                            ).join(', ')}
+                          </dd>
+                        </div>
+                      )}
+                    </div>
                   </div>
                 </div>
               </div>
@@ -1782,10 +1847,11 @@ export const CreateSelfAssessmentTemplatePage: React.FC = () => {
           audienceLabels={previewAudienceLabels}
           reviewCycleLabel={timelineMode === 'MANUAL' ? 'Manual Entry' : selectedReviewCycle?.name ?? null}
           reviewCycleDetail={previewReviewCycleDetail}
-          ratingSystem={previewRatingSystem}
-          tenPointYesMinRating={previewTenPointYesMinRating}
-          fivePointYesMinRating={previewFivePointYesMinRating}
-          includeYesNo={previewIncludeYesNo}
+          ratingSystem={templateRatingSystem}
+          tenPointYesMinRating={templateNormalizedYesMin}
+          fivePointYesMinRating={templateNormalizedYesMin}
+          includeYesNo={templateIncludeYesNo}
+          yesMinRating={templateNormalizedYesMin}
           questions={watchedQuestions ?? []}
         />
 

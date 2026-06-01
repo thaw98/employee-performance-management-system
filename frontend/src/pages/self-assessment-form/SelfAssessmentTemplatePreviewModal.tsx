@@ -20,6 +20,7 @@ interface SelfAssessmentTemplatePreviewModalProps {
   tenPointYesMinRating?: number | null;
   fivePointYesMinRating?: number | null;
   includeYesNo?: boolean | null;
+  yesMinRating?: number | null;
   questions: SelfAssessmentTemplatePreviewQuestion[];
 }
 
@@ -36,6 +37,7 @@ export const SelfAssessmentTemplatePreviewModal: React.FC<SelfAssessmentTemplate
   tenPointYesMinRating,
   fivePointYesMinRating,
   includeYesNo,
+  yesMinRating,
   questions,
 }) => {
   const showYesNo = includeYesNo !== false;
@@ -44,9 +46,9 @@ export const SelfAssessmentTemplatePreviewModal: React.FC<SelfAssessmentTemplate
     [questions],
   );
   const normalizedRatingSystem = ratingSystem === 'TEN_POINT' ? 'TEN_POINT' : 'FIVE_POINT';
-  const yesRatings = showYesNo ? getRatingOptions(normalizedRatingSystem, 'Yes', tenPointYesMinRating, fivePointYesMinRating) : [];
-  const noRatings = showYesNo ? getRatingOptions(normalizedRatingSystem, 'No', tenPointYesMinRating, fivePointYesMinRating) : [];
-  const allRatings = getRatingOptions(normalizedRatingSystem, null, tenPointYesMinRating, fivePointYesMinRating, false);
+  const yesRatings = showYesNo ? getRatingOptions(normalizedRatingSystem, 'Yes', tenPointYesMinRating, fivePointYesMinRating, true, yesMinRating) : [];
+  const noRatings = showYesNo ? getRatingOptions(normalizedRatingSystem, 'No', tenPointYesMinRating, fivePointYesMinRating, true, yesMinRating) : [];
+  const allRatings = getRatingOptions(normalizedRatingSystem, null, tenPointYesMinRating, fivePointYesMinRating, false, yesMinRating);
   const displayTitle = title.trim() || 'Untitled Template';
   const displayAudience = audienceLabels.filter((label) => label.trim());
 
