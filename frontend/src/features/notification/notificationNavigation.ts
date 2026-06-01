@@ -136,6 +136,19 @@ export function getTransferPath(pathname: string, employeeId?: number | null) {
   return `/${getRolePrefix(pathname)}/notifications`;
 }
 
+export function getDashboardPathFromPathname(pathname: string) {
+  if (pathname.startsWith('/manager')) {
+    return '/manager/dashboard';
+  }
+  if (pathname.startsWith('/hr')) {
+    return '/hr/dashboard';
+  }
+  if (pathname.startsWith('/audit')) {
+    return '/audit/dashboard';
+  }
+  return '/employee/dashboard';
+}
+
 export function getPromotionPath(pathname: string) {
   if (pathname.startsWith('/manager')) {
     return '/manager/promotions/approvals';
@@ -143,7 +156,7 @@ export function getPromotionPath(pathname: string) {
   if (pathname.startsWith('/hr')) {
     return '/hr/performance-reports';
   }
-  return `/${getRolePrefix(pathname)}/notifications`;
+  return getDashboardPathFromPathname(pathname);
 }
 
 type NotificationNavigationInput = Pick<NotificationItem, 'source' | 'title' | 'message' | 'targetId'>;

@@ -354,6 +354,9 @@ export const PerformanceReportDetailPage: React.FC<PerformanceReportDetailPagePr
         body: [
           ['PIP Status', report.hasActivePip ? `Active (${report.pipStatus || ''})` : 'No Active PIP'],
           ['Promotion Eligibility', report.promotionEligible ? 'Eligible' : 'Not Eligible'],
+          ...(report.latestApprovedPromotionReason
+            ? [['Promotion Reason', report.latestApprovedPromotionReason]]
+            : []),
         ],
         styles: { fontSize: 10, cellPadding: 3 },
         headStyles: { fillColor: [36, 99, 235], textColor: 255 },
@@ -553,6 +556,26 @@ export const PerformanceReportDetailPage: React.FC<PerformanceReportDetailPagePr
               </span>
             </div>
           </div>
+
+          {/* Promotion Reason — only when latestApprovedPromotionReason exists */}
+          {report.latestApprovedPromotionReason && (
+            <div className="mt-4 p-4 bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-800 rounded-lg">
+              <p className="text-xs font-bold text-blue-700 dark:text-blue-300 uppercase tracking-wide mb-1">
+                Latest Approved Promotion Reason
+              </p>
+              <p className="text-sm text-slate-800 dark:text-slate-200 font-medium">
+                {report.latestApprovedPromotionReason}
+              </p>
+              <div className="flex flex-wrap gap-x-4 gap-y-0.5 mt-1 text-xs text-slate-500 dark:text-slate-400">
+                {report.latestApprovedPromotionTargetPositionName && (
+                  <span>Target Position: <strong>{report.latestApprovedPromotionTargetPositionName}</strong></span>
+                )}
+                {report.latestApprovedPromotionEffectiveDate && (
+                  <span>Effective Date: <strong>{report.latestApprovedPromotionEffectiveDate}</strong></span>
+                )}
+              </div>
+            </div>
+          )}
 
           {/* Promote Button — only visible if eligible */}
           {report.promotionEligible && !readOnly && (
