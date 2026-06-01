@@ -101,7 +101,7 @@ public class PipController {
     }
 
     @PostMapping("/{id}/notes")
-    @PreAuthorize("hasAnyRole('EMPLOYEE', 'DEPARTMENT_HEAD', 'TEAM_HEAD', 'MANAGER') and @permissionGuard.has('PIP', 'review_notes')")
+    @PreAuthorize("hasAnyRole('EMPLOYEE', 'DEPARTMENT_HEAD', 'TEAM_HEAD', 'MANAGER')")
     public ResponseEntity<ApiResponse<PipCommunicationNoteDto>> addPipNote(
             @AuthenticationPrincipal UserPrincipal principal,
             @PathVariable Long id,
