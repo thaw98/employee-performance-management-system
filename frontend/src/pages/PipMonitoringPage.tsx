@@ -25,7 +25,7 @@ const STATUS_COLORS: Record<string, string> = {
 const getStatusDisplayLabel = (status: string, finalOutcome?: string) => {
   if (status === 'CLOSED' && finalOutcome === 'SUCCESSFUL') return 'Close - Successful'
   if (status === 'CLOSED' && finalOutcome === 'FAILED') return 'Close - Fail'
-  if (status === 'AUTO_CLOSED') return 'auto-close'
+  if (status === 'AUTO_CLOSED') return 'Auto Close'
   return status.replace(/_/g, ' ')
 }
 
