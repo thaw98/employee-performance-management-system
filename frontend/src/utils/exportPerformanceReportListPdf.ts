@@ -100,7 +100,7 @@ export async function exportPerformanceReportListPdf(data: PerformanceReportSumm
       halign: 'center',
     },
     columnStyles: {
-      0: { cellWidth: 8, halign: 'center' },
+      0: { cellWidth: 12, halign: 'center', overflow: 'visible' },
       1: { cellWidth: 36 },
       2: { cellWidth: 20, halign: 'center' },
       3: { cellWidth: 32 },

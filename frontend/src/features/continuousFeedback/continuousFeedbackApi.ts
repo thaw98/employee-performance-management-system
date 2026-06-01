@@ -11,6 +11,7 @@ import type {
   ContinuousFeedbackDashboard,
   ContinuousFeedbackEvidence,
   ContinuousFeedbackUpdatePrivateNoteRequest,
+  FollowUpMeetingResponse,
   PipWarning,
 } from './types';
 
@@ -68,7 +69,7 @@ export const continuousFeedbackApi = {
 
   createMeetingFromFeedback: (feedbackId: number, data?: { scheduledTime?: string; durationMinutes?: number; description?: string }) =>
     axiosInstance
-      .post<ApiResponse<unknown>>(`${BASE_URL}/${feedbackId}/create-meeting`, data || {})
+      .post<ApiResponse<FollowUpMeetingResponse>>(`${BASE_URL}/${feedbackId}/create-meeting`, data || {})
       .then((r) => r.data),
 
   getDashboard: () =>

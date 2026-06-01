@@ -24,6 +24,7 @@ import {
   CalendarRange,
   CheckCircle2,
   ClipboardList,
+  Crown,
   Eye,
   FileEdit,
   GripVertical,
@@ -48,12 +49,21 @@ import {
   useCreateQuestionBankItemMutation,
   useGetSelfAssessmentSettingsQuery,
   useGetTemplateByIdQuery,
-  useGetQuestionBankQuery,
   useUpdateTemplateMutation,
+  type SelfAssessmentRatingSystem,
 } from '../../features/selfAssessmentForm/api/selfAssessmentFormApi';
 import { useGetReviewCyclesQuery } from '../../features/reviewCycle/api/reviewCycleApi';
 import { formatCycleDate } from './SelfAssessmentReviewCycleInfo';
+import {
+  getDefaultYesMinRating,
+  getRatingOptions,
+  getYesMinRatingOptions,
+  normalizeYesMinRating,
+  RATING_SYSTEM_OPTIONS,
+  ratingSystemLabels,
+} from '../../features/selfAssessmentForm/ratingSystem';
 import { SelfAssessmentTemplatePreviewModal } from './SelfAssessmentTemplatePreviewModal';
+import { QuestionBankPickerModal } from './QuestionBankPickerModal';
 
 interface QuestionFormData {
   title: string;
@@ -265,8 +275,10 @@ export const EditSelfAssessmentTemplatePage: React.FC = () => {
   const [selectedPositionId, setSelectedPositionId] = React.useState<number | null>(null);
   const [isActive, setIsActive] = React.useState(true);
   const [isQuestionBankOpen, setIsQuestionBankOpen] = React.useState(false);
-  const [questionBankSearch, setQuestionBankSearch] = React.useState('');
   const [isPreviewOpen, setIsPreviewOpen] = React.useState(false);
+  const [templateRatingSystem, setTemplateRatingSystem] = React.useState<SelfAssessmentRatingSystem>('FIVE_POINT');
+  const [templateIncludeYesNo, setTemplateIncludeYesNo] = React.useState(true);
+  const [templateYesMinRating, setTemplateYesMinRating] = React.useState(3);
 
   const { data: departmentsResponse } = useGetDepartmentsQuery();
   const departments = departmentsResponse?.data || [];
@@ -304,15 +316,7 @@ export const EditSelfAssessmentTemplatePage: React.FC = () => {
   const [createQuestionBankItem, { isLoading: isSavingToQuestionBank }] =
     useCreateQuestionBankItemMutation();
 
-  const { data: questionBank = [], isLoading: isQuestionBankLoading } = useGetQuestionBankQuery(
-    { includeInactive: false },
-    { skip: !isQuestionBankOpen }
-  );
   const { data: reviewCycles = [] } = useGetReviewCyclesQuery();
-
-  const filteredQuestionBank = questionBank.filter((question) =>
-    question.questionText.toLowerCase().includes(questionBankSearch.trim().toLowerCase())
-  );
   const selectedReviewCycle = React.useMemo(() => {
     if (!loadedTemplate?.reviewCycleId) {
       return null;
@@ -389,6 +393,10 @@ export const EditSelfAssessmentTemplatePage: React.FC = () => {
     setSelectedDepartmentId(loadedTemplate.departmentId);
     setSelectedPositionId(loadedTemplate.positionId);
     setIsActive(loadedTemplate.isActive);
+    setTemplateRatingSystem(loadedTemplate.ratingSystem || 'FIVE_POINT');
+    setTemplateIncludeYesNo(loadedTemplate.includeYesNo ?? true);
+    const loadedYesDefault = loadedTemplate.yesMinRating ?? getDefaultYesMinRating(loadedTemplate.ratingSystem || 'FIVE_POINT');
+    setTemplateYesMinRating(normalizeYesMinRating(loadedTemplate.ratingSystem || 'FIVE_POINT', loadedYesDefault));
     reset({
       title: loadedTemplate.title || '',
       questions: qs,
@@ -434,6 +442,11 @@ export const EditSelfAssessmentTemplatePage: React.FC = () => {
           positionId: isManager && loadedTemplate ? loadedTemplate.positionId : selectedPositionId!,
           isActive: isManager && loadedTemplate ? loadedTemplate.isActive : isActive,
           questions,
+          ratingSystem: templateRatingSystem,
+          tenPointYesMinRating: templateNormalizedYesMin,
+          fivePointYesMinRating: templateNormalizedYesMin,
+          yesMinRating: templateNormalizedYesMin,
+          includeYesNo: templateIncludeYesNo,
         },
       }).unwrap();
       toast.success('Template updated successfully');
@@ -447,26 +460,57 @@ export const EditSelfAssessmentTemplatePage: React.FC = () => {
     }
   };
 
-  const handleUseBankQuestion = (questionText: string) => {
-    const trimmed = questionText.trim();
-    if (!trimmed) {
+  const handleInsertBankQuestions = (questionTexts: string[]) => {
+    const trimmedList = questionTexts.map((text) => text.trim()).filter(Boolean);
+    if (trimmedList.length === 0) {
+      toast.error('No questions selected');
       return;
     }
-    const existing = getValues('questions') ?? [];
-    const key = trimmed.toLowerCase();
-    if (existing.some((q) => q.questionText.trim().toLowerCase() === key)) {
-      toast.error('This question is already in the form');
+
+    const existingKeys = new Set(
+      (getValues('questions') ?? [])
+        .map((q) => q.questionText.trim().toLowerCase())
+        .filter(Boolean),
+    );
+
+    const toInsert: string[] = [];
+    let skipped = 0;
+    for (const text of trimmedList) {
+      const key = text.toLowerCase();
+      if (existingKeys.has(key)) {
+        skipped += 1;
+        continue;
+      }
+      existingKeys.add(key);
+      toInsert.push(text);
+    }
+
+    if (toInsert.length === 0) {
+      toast.error('Selected questions are already in the form');
       return;
     }
-    const firstEmptyIndex = existing.findIndex((q) => !q.questionText.trim());
-    if (firstEmptyIndex !== -1) {
-      setValue(`questions.${firstEmptyIndex}.questionText`, trimmed, { shouldDirty: true, shouldValidate: true });
-    } else {
-      append({ questionText: trimmed, canEdit: true, canDeactivate: true, isManagerAdded: isManager });
+
+    for (const text of toInsert) {
+      const current = getValues('questions') ?? [];
+      const firstEmptyIndex = current.findIndex((q) => !q.questionText.trim());
+      if (firstEmptyIndex !== -1) {
+        setValue(`questions.${firstEmptyIndex}.questionText`, text, {
+          shouldDirty: true,
+          shouldValidate: true,
+        });
+      } else {
+        append({ questionText: text, canEdit: true, canDeactivate: true, isManagerAdded: isManager });
+      }
     }
+
     setIsQuestionBankOpen(false);
-    setQuestionBankSearch('');
-    toast.success('Question added to form');
+    if (skipped > 0) {
+      toast.success(
+        `Added ${toInsert.length} question${toInsert.length === 1 ? '' : 's'}; ${skipped} skipped (already in form)`,
+      );
+    } else {
+      toast.success(`Added ${toInsert.length} question${toInsert.length === 1 ? '' : 's'} to form`);
+    }
   };
 
   const handleSaveQuestionToBank = async (index: number) => {
@@ -497,9 +541,12 @@ export const EditSelfAssessmentTemplatePage: React.FC = () => {
     positions.find((position) => position.id === selectedPositionId)?.name ||
     null;
   const { data: selfAssessmentSettings } = useGetSelfAssessmentSettingsQuery();
-  const editPreviewRatingSystem = loadedTemplate?.ratingSystem ?? 'FIVE_POINT';
-  const editPreviewIncludeYesNo =
-    selfAssessmentSettings?.includeYesNo ?? loadedTemplate?.includeYesNo;
+  const templateNormalizedYesMin = normalizeYesMinRating(templateRatingSystem, templateYesMinRating);
+
+  const handleRatingSystemChange = (newSystem: SelfAssessmentRatingSystem) => {
+    setTemplateRatingSystem(newSystem);
+    setTemplateYesMinRating(normalizeYesMinRating(newSystem, templateYesMinRating));
+  };
 
   if (!idValid) {
     return (
@@ -786,7 +833,144 @@ export const EditSelfAssessmentTemplatePage: React.FC = () => {
               </div>
             </div>
 
-            {/* ─── Step 2: Questions ─── */}
+            {/* ─── Rating Settings ─── */}
+            <div
+              className="mb-5 rounded-2xl border border-slate-200/80 bg-white p-6 shadow-sm dark:border-slate-700/60 dark:bg-slate-800/90 animate-fade-in-up"
+              style={{ animationDelay: '130ms' }}
+            >
+              <div className="mb-5 flex items-center gap-3">
+                <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-gradient-to-br from-amber-400 to-amber-500 text-white shadow-md shadow-amber-500/20">
+                  <Crown size={17} />
+                </div>
+                <div>
+                  <span className="text-[11px] font-bold uppercase tracking-widest text-amber-500 dark:text-amber-400">
+                    Rating
+                  </span>
+                  <h2 className="text-base font-bold text-slate-900 dark:text-white leading-tight">
+                    Rating Settings
+                  </h2>
+                </div>
+              </div>
+
+              {isTemplateDetailsReadOnly ? (
+                <div className="rounded-xl border border-slate-100 bg-slate-50/80 p-4 dark:border-slate-700/50 dark:bg-slate-900/30">
+                  <div className="flex items-center gap-2 text-sm text-slate-600 dark:text-slate-400">
+                    <Crown size={16} className="text-slate-400" />
+                    <span className="font-semibold">{ratingSystemLabels[templateRatingSystem]}</span>
+                    <span className="text-slate-300 dark:text-slate-500">·</span>
+                    <span>{templateIncludeYesNo ? 'Yes/No Enabled' : 'Rating Only'}</span>
+                    {templateIncludeYesNo && (
+                      <>
+                        <span className="text-slate-300 dark:text-slate-500">·</span>
+                        <span>Yes ≥ {templateNormalizedYesMin}</span>
+                      </>
+                    )}
+                  </div>
+                </div>
+              ) : (
+                <div className="space-y-4">
+                  <div>
+                    <label className="mb-1.5 block text-sm font-semibold text-slate-700 dark:text-slate-300">
+                      Rating Scale
+                    </label>
+                    <select
+                      value={templateRatingSystem}
+                      onChange={(event) => handleRatingSystemChange(event.target.value as SelfAssessmentRatingSystem)}
+                      className={inputBase}
+                    >
+                      {RATING_SYSTEM_OPTIONS.map((option) => (
+                        <option key={option.value} value={option.value}>
+                          {option.label}
+                        </option>
+                      ))}
+                    </select>
+                  </div>
+
+                  <div className="flex items-center gap-3">
+                    <label className="relative inline-flex cursor-pointer items-center">
+                      <input
+                        type="checkbox"
+                        checked={templateIncludeYesNo}
+                        onChange={(event) => setTemplateIncludeYesNo(event.target.checked)}
+                        className="peer sr-only"
+                      />
+                      <div
+                        className={`flex h-6 w-11 items-center rounded-full px-0.5 transition-all duration-200 ${
+                          templateIncludeYesNo
+                            ? 'bg-[#2463eb]'
+                            : 'bg-slate-300 dark:bg-slate-600'
+                        }`}
+                      >
+                        <div
+                          className={`h-5 w-5 rounded-full bg-white shadow-sm transition-transform duration-200 ${
+                            templateIncludeYesNo ? 'translate-x-5' : 'translate-x-0'
+                          }`}
+                        />
+                      </div>
+                    </label>
+                    <span className="text-sm font-medium text-slate-700 dark:text-slate-300">
+                      Include Yes/No Responses
+                    </span>
+                  </div>
+
+                  {templateIncludeYesNo && (
+                    <div>
+                      <label className="mb-1.5 block text-sm font-semibold text-slate-700 dark:text-slate-300">
+                        Yes Threshold
+                      </label>
+                      <select
+                        value={templateNormalizedYesMin}
+                        onChange={(event) => setTemplateYesMinRating(Number(event.target.value))}
+                        className={inputBase}
+                      >
+                        {getYesMinRatingOptions(templateRatingSystem).map((rating) => (
+                          <option key={rating} value={rating}>
+                            {rating} and above
+                          </option>
+                        ))}
+                      </select>
+                    </div>
+                  )}
+
+                  <div className="mt-2 space-y-2">
+                    <div className="text-xs font-semibold text-slate-500 dark:text-slate-400">
+                      Preview
+                    </div>
+                    {templateIncludeYesNo ? (
+                      <div className="grid gap-2 sm:grid-cols-2">
+                        <div className="rounded-lg border border-emerald-200/60 bg-emerald-50/80 px-3 py-2 dark:border-emerald-800/40 dark:bg-emerald-950/20">
+                          <dt className="text-[11px] font-bold uppercase tracking-wider text-emerald-600 dark:text-emerald-400">
+                            Yes — scores
+                          </dt>
+                          <dd className="mt-0.5 text-sm font-semibold tabular-nums text-emerald-800 dark:text-emerald-200">
+                            {getRatingOptions(templateRatingSystem, 'Yes', undefined, undefined, true, templateNormalizedYesMin).join(', ')}
+                          </dd>
+                        </div>
+                        <div className="rounded-lg border border-rose-200/60 bg-rose-50/80 px-3 py-2 dark:border-rose-800/40 dark:bg-rose-950/20">
+                          <dt className="text-[11px] font-bold uppercase tracking-wider text-rose-600 dark:text-rose-400">
+                            No — scores
+                          </dt>
+                          <dd className="mt-0.5 text-sm font-semibold tabular-nums text-rose-800 dark:text-rose-200">
+                            {getRatingOptions(templateRatingSystem, 'No', undefined, undefined, true, templateNormalizedYesMin).join(', ')}
+                          </dd>
+                        </div>
+                      </div>
+                    ) : (
+                      <div className="rounded-lg border border-slate-200/60 bg-slate-50/80 px-3 py-2 dark:border-slate-700/40 dark:bg-slate-800/40">
+                        <dt className="text-[11px] font-bold uppercase tracking-wider text-slate-500 dark:text-slate-400">
+                          Available scores
+                        </dt>
+                        <dd className="mt-0.5 text-sm font-semibold tabular-nums text-slate-800 dark:text-slate-200">
+                          {getRatingOptions(templateRatingSystem, null, undefined, undefined, false, templateNormalizedYesMin).join(', ')}
+                        </dd>
+                      </div>
+                    )}
+                  </div>
+                </div>
+              )}
+            </div>
+
+            {/* ─── Step 3: Questions ─── */}
             <div
               className="mb-5 rounded-2xl border border-slate-200/80 bg-white p-6 shadow-sm dark:border-slate-700/60 dark:bg-slate-800/90 animate-fade-in-up"
               style={{ animationDelay: '150ms' }}
@@ -1013,76 +1197,19 @@ export const EditSelfAssessmentTemplatePage: React.FC = () => {
           }
           reviewCycleLabel={loadedTemplate?.reviewCycleName ?? null}
           reviewCycleDetail={previewReviewCycleDetail}
-          ratingSystem={editPreviewRatingSystem}
-          tenPointYesMinRating={loadedTemplate?.tenPointYesMinRating}
-          fivePointYesMinRating={loadedTemplate?.fivePointYesMinRating}
-          includeYesNo={editPreviewIncludeYesNo}
+          ratingSystem={templateRatingSystem}
+          tenPointYesMinRating={templateNormalizedYesMin}
+          fivePointYesMinRating={templateNormalizedYesMin}
+          includeYesNo={templateIncludeYesNo}
+          yesMinRating={templateNormalizedYesMin}
           questions={watchedQuestions ?? []}
         />
 
-        {/* ─── Question Bank Modal ─── */}
-        {isQuestionBankOpen && (
-          <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 backdrop-blur-sm p-4">
-            <div className="animate-scale-in w-full max-w-xl rounded-2xl border border-slate-200 bg-white shadow-2xl dark:border-slate-700 dark:bg-slate-800">
-              <div className="flex items-center justify-between border-b border-slate-100 px-6 py-4 dark:border-slate-700">
-                <div className="flex items-center gap-3">
-                  <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-emerald-100 text-emerald-600 dark:bg-emerald-900/40 dark:text-emerald-400">
-                    <BookOpen size={16} />
-                  </div>
-                  <h2 className="text-lg font-bold text-slate-900 dark:text-white">Question Bank</h2>
-                </div>
-                <button
-                  type="button"
-                  onClick={() => setIsQuestionBankOpen(false)}
-                  className="rounded-lg p-2 text-slate-400 transition-all hover:bg-slate-100 hover:text-slate-600 dark:text-slate-500 dark:hover:bg-slate-700 dark:hover:text-slate-300"
-                  aria-label="Close question bank"
-                >
-                  <X size={18} />
-                </button>
-              </div>
-
-              <div className="p-6">
-                <div className="relative mb-4">
-                  <Search className="pointer-events-none absolute left-3.5 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400" />
-                  <input
-                    value={questionBankSearch}
-                    onChange={(event) => setQuestionBankSearch(event.target.value)}
-                    type="text"
-                    placeholder="Search questions..."
-                    className={`${inputBase} pl-10`}
-                  />
-                </div>
-
-                <div className="max-h-[50vh] overflow-y-auto rounded-xl border border-slate-200 dark:border-slate-600">
-                  {isQuestionBankLoading ? (
-                    <div className="flex items-center justify-center gap-2 px-4 py-12 text-sm text-slate-400">
-                      <div className="h-4 w-4 animate-spin rounded-full border-2 border-slate-300 border-t-[#2463eb]" />
-                      Loading questions...
-                    </div>
-                  ) : filteredQuestionBank.length > 0 ? (
-                    <div className="divide-y divide-slate-100 dark:divide-slate-700">
-                      {filteredQuestionBank.map((question) => (
-                        <button
-                          key={question.id}
-                          type="button"
-                          onClick={() => handleUseBankQuestion(question.questionText)}
-                          className="flex w-full items-center gap-3 px-4 py-3 text-left text-sm transition-all hover:bg-[#2463eb]/[0.04] dark:hover:bg-[#2463eb]/10"
-                        >
-                          <Plus size={14} className="shrink-0 text-[#2463eb] dark:text-[#60a5fa]" />
-                          <span className="text-slate-800 dark:text-slate-100">{question.questionText}</span>
-                        </button>
-                      ))}
-                    </div>
-                  ) : (
-                    <div className="px-4 py-12 text-center text-sm text-slate-400 dark:text-slate-500">
-                      No active questions found
-                    </div>
-                  )}
-                </div>
-              </div>
-            </div>
-          </div>
-        )}
+        <QuestionBankPickerModal
+          isOpen={isQuestionBankOpen}
+          onClose={() => setIsQuestionBankOpen(false)}
+          onInsert={handleInsertBankQuestions}
+        />
       </div>
     </div>
   );

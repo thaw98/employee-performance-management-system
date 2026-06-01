@@ -13,6 +13,9 @@ export function usePermissionState() {
 
   const { data, isSuccess, isLoading, isFetching } = useGetMyPermissionsQuery(undefined, {
     skip: !user || isAudit,
+    pollingInterval: isAudit ? 0 : 60000,
+    refetchOnFocus: !isAudit,
+    refetchOnReconnect: !isAudit,
   });
 
   useEffect(() => {

@@ -71,4 +71,21 @@ describe('notification navigation', () => {
       targetId: 4,
     }, '/manager/dashboard')).toBe('/manager/appraisals/4/evaluate');
   });
+
+  it('routes employee promotion notifications to the dashboard', () => {
+    expect(getNotificationDestinationPath({
+      title: 'Promotion Notification',
+      message: 'Congratulations! You have been promoted to Software Engineer effective 2026-05-31.',
+      source: 'PROMOTION',
+      targetId: 12,
+    }, '/employee/dashboard')).toBe('/employee/dashboard');
+  });
+
+  it('routes legacy promotion notifications when source is GENERAL', () => {
+    expect(getNotificationDestinationPath({
+      title: 'Promotion Notification',
+      message: 'Congratulations! You have been promoted.',
+      source: 'GENERAL',
+    }, '/employee/notifications')).toBe('/employee/dashboard');
+  });
 });

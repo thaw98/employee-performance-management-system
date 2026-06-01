@@ -321,6 +321,56 @@ export default function SelfAssessmentReportPage({ mode }: Props) {
         </div>
       )}
 
+      <section className="space-y-3">
+        <h2 className="text-lg font-black text-slate-900 dark:text-slate-100">Competency Radar</h2>
+        <div className="h-[420px] rounded-lg border border-slate-200 bg-white p-4 dark:border-slate-800 dark:bg-slate-900">
+          {isFetching ? (
+            <div className="flex h-full items-center justify-center text-sm font-semibold text-slate-400">Loading report...</div>
+          ) : (
+            <ResponsiveContainer width="100%" height="100%">
+              <RadarChart data={radarData}>
+                <PolarGrid />
+                <PolarAngleAxis dataKey="band" tick={{ fontSize: 12 }} />
+                <PolarRadiusAxis allowDecimals={false} />
+                <Tooltip />
+                <Legend />
+                {radarGroups.map((group, index) => (
+                  <Radar
+                    key={group}
+                    name={group}
+                    dataKey={group}
+                    stroke={COLORS[index % COLORS.length]}
+                    fill={COLORS[index % COLORS.length]}
+                    fillOpacity={0.14}
+                  />
+                ))}
+              </RadarChart>
+            </ResponsiveContainer>
+          )}
+        </div>
+      </section>
+
+      <section className="space-y-3">
+        <h2 className="text-lg font-black text-slate-900 dark:text-slate-100">Per-Group Performer Highlights</h2>
+        <div className="grid gap-4 lg:grid-cols-2">
+          {(report?.performerHighlights ?? []).map((item) => (
+            <div key={item.groupName} className="rounded-lg border border-slate-200 bg-white p-4 dark:border-slate-800 dark:bg-slate-900">
+              <h3 className="font-black text-slate-900 dark:text-slate-100">{item.groupName}</h3>
+              <div className="mt-3 grid gap-3 sm:grid-cols-2">
+                <div>
+                  <p className="text-xs font-black uppercase text-emerald-600">Highest</p>
+                  <p className="mt-1 text-sm text-slate-600 dark:text-slate-300">{item.highestPerformers.map((p) => `${p.employeeName} (${formatScore(p.score)})`).join(', ') || '-'}</p>
+                </div>
+                <div>
+                  <p className="text-xs font-black uppercase text-red-600">Lowest</p>
+                  <p className="mt-1 text-sm text-slate-600 dark:text-slate-300">{item.lowestPerformers.map((p) => `${p.employeeName} (${formatScore(p.score)})`).join(', ') || '-'}</p>
+                </div>
+              </div>
+            </div>
+          ))}
+        </div>
+      </section>
+
       <section className="space-y-4">
         <div className="flex flex-wrap gap-2 border-b border-slate-200 dark:border-slate-800">
           {[
@@ -383,56 +433,6 @@ export default function SelfAssessmentReportPage({ mode }: Props) {
           />
         )}
         {activeTab === 'directory' && <EmployeeDirectoryTable rows={directoryRows} />}
-      </section>
-
-      <section className="space-y-3">
-        <h2 className="text-lg font-black text-slate-900 dark:text-slate-100">Competency Radar</h2>
-        <div className="h-[420px] rounded-lg border border-slate-200 bg-white p-4 dark:border-slate-800 dark:bg-slate-900">
-          {isFetching ? (
-            <div className="flex h-full items-center justify-center text-sm font-semibold text-slate-400">Loading report...</div>
-          ) : (
-            <ResponsiveContainer width="100%" height="100%">
-              <RadarChart data={radarData}>
-                <PolarGrid />
-                <PolarAngleAxis dataKey="band" tick={{ fontSize: 12 }} />
-                <PolarRadiusAxis allowDecimals={false} />
-                <Tooltip />
-                <Legend />
-                {radarGroups.map((group, index) => (
-                  <Radar
-                    key={group}
-                    name={group}
-                    dataKey={group}
-                    stroke={COLORS[index % COLORS.length]}
-                    fill={COLORS[index % COLORS.length]}
-                    fillOpacity={0.14}
-                  />
-                ))}
-              </RadarChart>
-            </ResponsiveContainer>
-          )}
-        </div>
-      </section>
-
-      <section className="space-y-3">
-        <h2 className="text-lg font-black text-slate-900 dark:text-slate-100">Per-Group Performer Highlights</h2>
-        <div className="grid gap-4 lg:grid-cols-2">
-          {(report?.performerHighlights ?? []).map((item) => (
-            <div key={item.groupName} className="rounded-lg border border-slate-200 bg-white p-4 dark:border-slate-800 dark:bg-slate-900">
-              <h3 className="font-black text-slate-900 dark:text-slate-100">{item.groupName}</h3>
-              <div className="mt-3 grid gap-3 sm:grid-cols-2">
-                <div>
-                  <p className="text-xs font-black uppercase text-emerald-600">Highest</p>
-                  <p className="mt-1 text-sm text-slate-600 dark:text-slate-300">{item.highestPerformers.map((p) => `${p.employeeName} (${formatScore(p.score)})`).join(', ') || '-'}</p>
-                </div>
-                <div>
-                  <p className="text-xs font-black uppercase text-red-600">Lowest</p>
-                  <p className="mt-1 text-sm text-slate-600 dark:text-slate-300">{item.lowestPerformers.map((p) => `${p.employeeName} (${formatScore(p.score)})`).join(', ') || '-'}</p>
-                </div>
-              </div>
-            </div>
-          ))}
-        </div>
       </section>
 
     </div>

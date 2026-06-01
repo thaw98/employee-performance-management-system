@@ -1,5 +1,7 @@
 package com.epms.backend.dto;
 
+import java.util.List;
+
 import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Data;
@@ -46,4 +48,15 @@ public class PerformanceReportSummaryDto {
     private String performanceLevel;
     private String promotionEligibility;
     private boolean promotionEligible;
+
+    // Latest Approved Promotion
+    private Long latestApprovedPromotionId;
+    private String latestApprovedPromotionReason;
+    private String latestApprovedPromotionEffectiveDate;
+    private String latestApprovedPromotionTargetPositionName;
+    private String latestApprovedPromotionApprovedAt;
+    private String latestApprovedPromotionPreviousPositionName;
+
+    // Transfer Logs
+    private List<PerformanceReportTransferLogDto> transferLogs;
 }

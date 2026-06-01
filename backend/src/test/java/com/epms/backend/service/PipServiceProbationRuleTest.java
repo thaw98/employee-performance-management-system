@@ -316,6 +316,40 @@ class PipServiceProbationRuleTest {
     }
 
     @Test
+    void createPip_setsKpiScoreOnSavedPip() {
+        Employee managerEmployee = new Employee();
+        managerEmployee.setId(10L);
+
+        User managerUser = new User();
+        managerUser.setEmployee(managerEmployee);
+
+        Employee employee = new Employee();
+        employee.setId(1L);
+        employee.setDepartment(newDepartment(99L, 10L));
+        employee.setStaffType(newStaffType(StaffTypes.PERMANENT));
+
+        PipCreateRequest request = new PipCreateRequest();
+        request.setEmployeeId(1L);
+        request.setStartDate(LocalDate.now());
+        request.setEndDate(LocalDate.now().plusDays(30));
+        request.setObjectives(List.of("Improve quality"));
+        request.setExpectedImprovements("Improve quality within the PIP period");
+        request.setTotalHours(10);
+
+        when(employeeRepository.findById(eq(1L))).thenReturn(Optional.of(employee));
+        when(kpiRepository.findLatestPeriodByEmployee_Id(1L)).thenReturn(Optional.of("May 2026"));
+        when(kpiRepository.findByEmployee_IdAndPeriod(1L, "May 2026"))
+                .thenReturn(List.of(newKpiTotalScore(new BigDecimal("45.50"))));
+        when(pipRepository.save(any(Pip.class))).thenAnswer(invocation -> invocation.getArgument(0));
+        when(userRepository.findByRole_NameIgnoreCase("HR")).thenReturn(List.of());
+
+        Pip savedPip = pipService.createPip(request, managerUser);
+
+        assertNotNull(savedPip.getKpiScore());
+        assertEquals(new BigDecimal("45.50"), savedPip.getKpiScore());
+    }
+
+    @Test
     void getPipById_employeeRoleCannotAccessPipOnlyBecauseTheyAreAssignedManager() {
         Employee actorEmployee = new Employee();
         actorEmployee.setId(10L);

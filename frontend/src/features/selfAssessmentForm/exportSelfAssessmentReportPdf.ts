@@ -13,6 +13,13 @@ const slugify = (value: string) =>
     .replace(/[^a-z0-9]+/g, '-')
     .replace(/^-+|-+$/g, '') || 'cycle'
 
+const formatDateDDMMYYYY = (date: Date = new Date()): string => {
+  const day = String(date.getDate()).padStart(2, '0')
+  const month = String(date.getMonth() + 1).padStart(2, '0')
+  const year = date.getFullYear()
+  return `${day}/${month}/${year}`
+}
+
 const score = (value: number | null | undefined) => `${Number(value ?? 0).toFixed(1)}%`
 
 const statusLabel = (value: string) =>
@@ -109,7 +116,7 @@ export async function exportSelfAssessmentReportPdf(
   doc.setFontSize(9)
   doc.text(`Cycle: ${report.selectedCycle.name}`, headerTextX, y)
   y += 5
-  doc.text(`Generated: ${new Date().toLocaleDateString()}`, headerTextX, y)
+  doc.text(`Generated: ${formatDateDDMMYYYY()}`, headerTextX, y)
   y += 8
 
   y = addTable(doc, y, [['Records', 'Average', 'Highest', 'Lowest', 'Missed']], [[

@@ -880,7 +880,7 @@ export default function PipDetailPage() {
             </div>
           </section>
 
-          <div className="rounded-[2rem] border border-white bg-white p-8 shadow-sm">
+          <section className="rounded-[2rem] border border-white bg-white p-8 shadow-sm">
             <PipCommunicationNotes
               pipId={pipId}
               pipStatus={pip.status}
@@ -889,7 +889,7 @@ export default function PipDetailPage() {
               isHr={isAdmin}
               onError={setActionError}
             />
-          </div>
+          </section>
 
           <div className="rounded-[2rem] border border-white bg-white p-8 shadow-sm">
             <PipUnifiedLog pipId={pip.id} />

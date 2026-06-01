@@ -61,4 +61,10 @@ public interface EmployeeDepartmentHistoryRepository extends JpaRepository<Emplo
     boolean existsByDepartmentAndPositionOnEitherSide(
         @Param("departmentId") Long departmentId,
         @Param("positionId") Long positionId);
+
+    List<EmployeeDepartmentHistory> findByEmployee_IdAndTransferTypeInOrderByEffectiveStartDateDesc(
+        Long employeeId, List<TransferType> transferTypes);
+
+    Optional<EmployeeDepartmentHistory> findFirstByEmployee_IdAndTransferTypeOrderByEffectiveStartDateDesc(
+        Long employeeId, TransferType transferType);
 }
