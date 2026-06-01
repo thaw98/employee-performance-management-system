@@ -30,12 +30,10 @@ import org.springframework.web.multipart.MultipartFile;
 import com.epms.backend.dto.KpiTemplateDto;
 import com.epms.backend.dto.KpiTemplateImportCreateRequestDto;
 import com.epms.backend.dto.KpiTemplateImportValidationResponseDto;
-import com.epms.backend.entity.KpiCategory;
 import com.epms.backend.entity.KpiName;
 import com.epms.backend.entity.KpiTemplate;
 import com.epms.backend.entity.KpiTemplateItem;
 import com.epms.backend.entity.KpiUnit;
-import com.epms.backend.repository.KpiCategoryRepository;
 import com.epms.backend.repository.KpiNameRepository;
 import com.epms.backend.repository.KpiTemplateRepository;
 import com.epms.backend.repository.KpiUnitRepository;
@@ -48,7 +46,6 @@ public class KpiTemplateImportService {
 
     private final KpiTemplateRepository templateRepository;
     private final KpiNameRepository kpiNameRepository;
-    private final KpiCategoryRepository kpiCategoryRepository;
     private final KpiUnitRepository kpiUnitRepository;
 
     private static final String DATA_SHEET_NAME = "KPI Template";
@@ -64,7 +61,6 @@ public class KpiTemplateImportService {
     @Transactional(readOnly = true)
     public byte[] generateTemplate() {
         try (Workbook wb = new XSSFWorkbook()) {
-            List<KpiCategory> categories = kpiCategoryRepository.findByStatusIgnoreCase("Active");
             List<KpiUnit> units = kpiUnitRepository.findByStatusIgnoreCase("Active");
 
             CellStyle headerStyle = createHeaderStyle(wb);
@@ -81,7 +77,7 @@ public class KpiTemplateImportService {
 
             // ─── 1. Instructions sheet ────────────────────────────────────────────
             Sheet instrSheet = wb.createSheet("Instructions");
-            addInstructions(wb, instrSheet, categories, units);
+            addInstructions(wb, instrSheet, units);
 
             // ─── 2. Sample Data sheet (reference only) ────────────────────────────
             Sheet sampleSheet = wb.createSheet("Sample Data");
@@ -101,27 +97,14 @@ public class KpiTemplateImportService {
             // ─── 4. Lookups sheet (hidden) ────────────────────────────────────────
             Sheet lookupSheet = wb.createSheet("Lookups");
             int r = 0;
-            for (KpiCategory category : categories) {
-                Row row = lookupSheet.createRow(r++);
-                row.createCell(0).setCellValue(category.getName());
-            }
-            r = 0;
             for (KpiUnit unit : units) {
-                Row row = lookupSheet.getRow(r);
-                if (row == null) {
-                    row = lookupSheet.createRow(r);
-                }
-                row.createCell(1).setCellValue(unit.getName());
-                r++;
+                Row row = lookupSheet.createRow(r++);
+                row.createCell(0).setCellValue(unit.getName());
             }
             wb.setSheetHidden(wb.getSheetIndex("Lookups"), true);
 
-            if (!categories.isEmpty()) {
-                createNamedRange(wb, "CategoryList", "Lookups", 0, 0, categories.size() - 1, 0);
-                addDropdown(dataSheet, "CategoryList", 1, 1000, 1, 1);
-            }
             if (!units.isEmpty()) {
-                createNamedRange(wb, "UnitList", "Lookups", 0, 1, units.size() - 1, 1);
+                createNamedRange(wb, "UnitList", "Lookups", 0, 0, units.size() - 1, 0);
                 addDropdown(dataSheet, "UnitList", 1, 1000, 3, 3);
             }
 
@@ -334,13 +317,6 @@ public class KpiTemplateImportService {
                 kpiNameRepository.save(newName);
             }
 
-            String categoryName = item.getCategory().trim();
-            if (!kpiCategoryRepository.existsByNameIgnoreCase(categoryName)) {
-                KpiCategory newCategory = new KpiCategory();
-                newCategory.setName(categoryName);
-                kpiCategoryRepository.save(newCategory);
-            }
-
             if (item.getUnit() != null && !item.getUnit().isBlank()) {
                 String unitName = item.getUnit().trim();
                 if (!kpiUnitRepository.existsByNameIgnoreCase(unitName)) {
@@ -409,7 +385,7 @@ public class KpiTemplateImportService {
         sampleSheet.setColumnWidth(0, 20000);
     }
 
-    private void addInstructions(Workbook wb, Sheet sheet, List<KpiCategory> categories, List<KpiUnit> units) {
+    private void addInstructions(Workbook wb, Sheet sheet, List<KpiUnit> units) {
         Font titleFont = wb.createFont();
         titleFont.setBold(true);
         titleFont.setFontHeightInPoints((short) 14);
@@ -434,7 +410,7 @@ public class KpiTemplateImportService {
                 {"", "normal"},
                 {"STEP 2 — COLUMN GUIDE", "bold"},
                 {"  Col A  KPI Name    Required. Name of the KPI (e.g. Revenue Growth).", "normal"},
-                {"  Col B  Category    Required. Select from dropdown or enter a new category name.", "normal"},
+                {"  Col B  Category    Required. Enter any category name as free text.", "normal"},
                 {"  Col C  Target      Required. Measurable target description for this KPI.", "normal"},
                 {"  Col D  Unit        Optional. Select from dropdown or enter a unit (e.g. %, count, rating).", "normal"},
                 {"  Col E  Weight      Required. Numeric weight for this KPI. All rows must sum to exactly 100.", "normal"},
@@ -444,9 +420,9 @@ public class KpiTemplateImportService {
                 {"  The total weight across all rows must equal 100%.", "normal"},
                 {"  See the 'Sample Data' sheet for a complete example (4 KPIs at 25% each).", "normal"},
                 {"", "normal"},
-                {"STEP 4 — DROPDOWN COLUMNS", "bold"},
-                {"  Use the dropdown arrows in columns B (Category) and D (Unit) when available.", "normal"},
-                {"  You may also type a new category or unit name; it will be created on import.", "normal"},
+                {"STEP 4 — CATEGORY & UNIT", "bold"},
+                {"  Category: Type any category name directly. It is required and will be stored as free text.", "normal"},
+                {"  Unit: Use the dropdown or type a new unit name; it will be created on import.", "normal"},
                 {"", "normal"},
                 {"STEP 5 — VALIDATION & IMPORT FLOW", "bold"},
                 {"  1. Upload the file using the 'Import Template' button on KPI Management.", "normal"},
@@ -457,7 +433,7 @@ public class KpiTemplateImportService {
                 {"", "normal"},
                 {"NOTES", "bold"},
                 {"  • KPI Name, Category, Target, and Weight are required on every data row.", "normal"},
-                {"  • New KPI names, categories, and units are automatically added to master data.", "normal"},
+                {"  • New KPI names and units are automatically added to master data. Category is stored as free text.", "normal"},
                 {"  • After import, assign the template to employees, departments, or positions.", "normal"},
         };
 
@@ -482,12 +458,9 @@ public class KpiTemplateImportService {
         CellStyle colHStyle = wb.createCellStyle();
         colHStyle.setFont(colHFont);
         Cell headerCell = validHeader.createCell(0);
-        headerCell.setCellValue("VALID DROPDOWN VALUES (from database):");
+        headerCell.setCellValue("VALID UNIT DROPDOWN VALUES (from database):");
         headerCell.setCellStyle(colHStyle);
 
-        appendListSection(sheet, wb, startRow, "Category",
-                categories.stream().map(KpiCategory::getName).toList());
-        startRow += categories.size() + 2;
         appendListSection(sheet, wb, startRow, "Unit",
                 units.stream().map(KpiUnit::getName).toList());
     }
