@@ -73,10 +73,12 @@ export function usePermissionState() {
     [canViewModule]
   );
 
+  const awaitingInitialPermissions = Boolean(user && !isAudit && !loaded);
+
   return {
     permissions,
     loaded,
-    isLoading: isLoading || isFetching || Boolean(user && !isAudit && !loaded),
+    isLoading: awaitingInitialPermissions && (isLoading || isFetching),
     isReady: isAudit || loaded,
     isAudit,
     hasPermission,

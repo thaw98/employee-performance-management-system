@@ -3,6 +3,8 @@ import { toast } from 'react-hot-toast'
 import { Building2, CalendarRange, CheckCircle2, ClipboardList, Copy, Download, Eye, FileText, Filter, LayoutGrid, Pencil, Plus, Search, Table2, Trash2, Upload, Users, X } from 'lucide-react'
 import * as XLSX from 'xlsx'
 import axios from '../../app/axiosInstance'
+import { baseApi } from '../../app/baseApi'
+import { useAppDispatch } from '../../app/hooks'
 import { CriteriaPage } from './CriteriaPage'
 import { formatDateTime } from '../../utils/dateUtils'
 import {
@@ -57,6 +59,7 @@ function CurrentInUseBadge() {
 }
 
 export default function FeedbackManagementPage() {
+  const dispatch = useAppDispatch()
   const [activeTab, setActiveTab] = useState<TabKey>('criteria')
   const fileInputRef = useRef<HTMLInputElement>(null)
   const [isImporting, setIsImporting] = useState(false)
@@ -154,7 +157,7 @@ export default function FeedbackManagementPage() {
       }
 
       toast.success(`Imported ${importedCriteria} criteria, ${importedTemplates} templates, and ${importedLimits} limits`)
-      window.location.reload()
+      dispatch(baseApi.util.invalidateTags(['Criteria', 'FeedbackManagement']))
     } catch (error: any) {
       toast.error(error?.response?.data?.message ?? 'Failed to import feedback management file')
     } finally {

@@ -9,6 +9,7 @@ import {
   getSavedLanguagePreference,
   hasGoogleTranslateCookie,
   isGoogleTranslateActive,
+  isLanguageApplied,
   isMyanmarLanguage,
   retryGoogleTranslateSelection,
   saveLanguagePreference,
@@ -32,36 +33,31 @@ export function ThemeBootstrap() {
   }, [])
 
   useEffect(() => {
-    const applyLanguage = () => {
-      const isMyanmar = isMyanmarLanguage(language)
-      const normalizedLanguage = isMyanmar ? 'Myanmar' : 'English'
-      applyLanguageFont(normalizedLanguage)
-      if (language) {
-        saveLanguagePreference(normalizedLanguage)
-      }
-
-      if (isMyanmar) {
-        ensureGoogleTranslateWidget()
-        
-        if (!hasGoogleTranslateCookie('Myanmar')) {
-            applyGoogleTranslateCookie('Myanmar')
-            window.location.reload()
-            return
-        }
-        retryGoogleTranslateSelection('Myanmar')
-      } else if (language) {
-        ensureGoogleTranslateWidget()
-
-        if (isGoogleTranslateActive()) {
-          applyGoogleTranslateCookie('English')
-          window.location.reload()
-          return
-        }
-
-        retryGoogleTranslateSelection('English')
-      }
+    const isMyanmar = isMyanmarLanguage(language)
+    const normalizedLanguage = isMyanmar ? 'Myanmar' : 'English'
+    applyLanguageFont(normalizedLanguage)
+    if (language) {
+      saveLanguagePreference(normalizedLanguage)
     }
-    applyLanguage()
+
+    if (!language || isLanguageApplied(normalizedLanguage)) {
+      return
+    }
+
+    ensureGoogleTranslateWidget(false)
+
+    if (isMyanmar) {
+      if (!hasGoogleTranslateCookie('Myanmar')) {
+        applyGoogleTranslateCookie('Myanmar')
+      }
+      retryGoogleTranslateSelection('Myanmar', 12)
+      return
+    }
+
+    if (isGoogleTranslateActive()) {
+      applyGoogleTranslateCookie('English')
+    }
+    retryGoogleTranslateSelection('English', 12)
   }, [language])
 
   useEffect(() => {
