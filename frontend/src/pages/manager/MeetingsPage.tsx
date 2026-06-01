@@ -42,6 +42,17 @@ const toDisplayDateTimeFromLocal = (value: string) => {
     return `${day}/${month}/${year} ${hour}:${minute}`;
 };
 
+type MeetingCardRow = {
+    id: number | string;
+    meetingGroupKey?: string | null;
+};
+
+const getMeetingCardKey = (meeting: MeetingCardRow) => meeting.meetingGroupKey || meeting.id;
+
+const getUniqueMeetingCards = <T extends MeetingCardRow>(rows: T[]) => Array.from(
+    new Map(rows.map((meeting) => [getMeetingCardKey(meeting), meeting])).values(),
+);
+
 export function MeetingsPage() {
     const [meetings, setMeetings] = useState<any[]>([]);
     const [eligibleEmployees, setEligibleEmployees] = useState<any[]>([]);
@@ -227,9 +238,7 @@ export function MeetingsPage() {
                     ...meeting,
                     perspective: 'employee',
                 }));
-                const mergedMeetings = Array.from(
-                    new Map([...managerMeetings, ...employeeMeetings].map((meeting) => [meeting.id, meeting])).values(),
-                ).sort((a, b) => {
+                const mergedMeetings = getUniqueMeetingCards([...managerMeetings, ...employeeMeetings]).sort((a, b) => {
                     const aTime = new Date(a.scheduledTime || a.meetingTime || '').getTime();
                     const bTime = new Date(b.scheduledTime || b.meetingTime || '').getTime();
                     return sortBy === 'oldest' ? aTime - bTime : bTime - aTime;
@@ -241,10 +250,7 @@ export function MeetingsPage() {
 
             const resp = await axios.get(url);
             const rows = (resp.data.data.content || []).map((meeting: any) => ({ ...meeting, perspective: 'manager' }));
-            setMeetings(Array.from(new Map(rows.map((meeting: any) => [
-                meeting.meetingScope === 'DEPARTMENT' && meeting.meetingGroupKey ? meeting.meetingGroupKey : meeting.id,
-                meeting,
-            ])).values()));
+            setMeetings(getUniqueMeetingCards(rows));
             setTotalPages(resp.data.data.totalPages || 0);
         } catch (err: any) {
             const errorMsg = err.response?.data?.message || 'Failed to load meetings';
