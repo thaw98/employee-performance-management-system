@@ -53,7 +53,7 @@ public class PermissionGuard {
                 }
                 return true;
             }
-            if (roleId == HR_ROLE_ID) {
+            if (roleId == HR_ROLE_ID && user.getEmployee() == null) {
                 return hrRoleAllows(moduleKey, actionKey);
             }
         }
@@ -62,20 +62,23 @@ public class PermissionGuard {
             return false;
         }
 
-        // Check employee-level override first
+        boolean positionAllowed = false;
+        if (user.getEmployee().getPosition() != null) {
+            Long positionId = user.getEmployee().getPosition().getId();
+            positionAllowed = permissionService.hasPermission(positionId, moduleKey, actionKey);
+        }
+
         Long employeeId = user.getEmployee().getId();
         Optional<EmployeePermission> override = employeePermissionRepository
                 .findByEmployeeIdAndModuleKeyAndActionKey(employeeId, moduleKey, actionKey);
-        if (override.isPresent()) {
-            return override.get().isAllowed();
+        Boolean employeeOverride = override.map(EmployeePermission::isAllowed).orElse(null);
+        boolean effective = PermissionService.resolveEffectivePermission(positionAllowed, employeeOverride);
+
+        if (user.getRole() != null && user.getRole().getId() == HR_ROLE_ID) {
+            return effective || hrRoleAllows(moduleKey, actionKey);
         }
 
-        // Fall back to position permission
-        if (user.getEmployee().getPosition() == null) {
-            return false;
-        }
-        Long positionId = user.getEmployee().getPosition().getId();
-        return permissionService.hasPermission(positionId, moduleKey, actionKey);
+        return effective;
     }
 
     private boolean hrRoleAllows(String moduleKey, String actionKey) {

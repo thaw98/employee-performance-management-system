@@ -27,6 +27,7 @@ import {
   Settings,
   TableProperties,
   MessageSquare,
+  Plus,
 } from 'lucide-react';
 import { Outlet } from 'react-router-dom';
 import { useSelector } from 'react-redux';
@@ -153,6 +154,7 @@ const HrLayout: React.FC = () => {
             isActive: (pathname) => pathname.startsWith('/hr/continuous-feedback'),
             subItems: [
               { label: 'Feedback Review', path: '/hr/continuous-feedback', icon: <MessageSquare size={16} />, permission: { moduleKey: 'CONTINUOUS_FEEDBACK', actionKey: 'view' } },
+              { label: 'New Feedback', path: '/hr/continuous-feedback/create', icon: <Plus size={16} />, permission: { moduleKey: 'CONTINUOUS_FEEDBACK', actionKey: 'create' } },
               { label: 'Dashboard', path: '/hr/continuous-feedback/dashboard', icon: <BarChart size={16} />, permission: { moduleKey: 'CONTINUOUS_FEEDBACK', actionKey: 'report' } },
             ],
           },

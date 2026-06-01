@@ -914,7 +914,11 @@ public class ContinuousFeedbackService {
     }
 
     private void validateManager(User user) {
-        if (user.getRole() == null || (!MANAGER_ROLE_ID.equals(user.getRole().getId()) && !TEAM_HEAD_ROLE_ID.equals(user.getRole().getId()))) {
+        if (user.getRole() == null) {
+            throw new RuntimeException("Only managers can create continuous feedback");
+        }
+        Long roleId = user.getRole().getId();
+        if (!MANAGER_ROLE_ID.equals(roleId) && !TEAM_HEAD_ROLE_ID.equals(roleId) && !HR_ROLE_ID.equals(roleId)) {
             throw new RuntimeException("Only managers can create continuous feedback");
         }
     }

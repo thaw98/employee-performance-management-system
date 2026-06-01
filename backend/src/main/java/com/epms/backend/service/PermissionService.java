@@ -328,11 +328,15 @@ public class PermissionService {
                 }
             }
 
-            // Apply employee-level overrides on top of position permissions
+            // Merge employee overrides with position permissions (both must allow when override exists)
             List<EmployeePermission> overrides = employeePermissionRepository.findByEmployeeId(employee.getId());
             for (EmployeePermission ep : overrides) {
+                boolean positionAllowed = permissions
+                        .getOrDefault(ep.getModuleKey(), Map.of())
+                        .getOrDefault(ep.getActionKey(), false);
+                boolean effective = resolveEffectivePermission(positionAllowed, ep.isAllowed());
                 permissions.computeIfAbsent(ep.getModuleKey(), k -> new LinkedHashMap<>())
-                        .put(ep.getActionKey(), ep.isAllowed());
+                        .put(ep.getActionKey(), effective);
             }
         }
 
@@ -352,6 +356,18 @@ public class PermissionService {
         return pp.map(PositionPermission::isAllowed).orElse(false);
     }
 
+    /**
+     * Effective permission requires the position (group) grant and, when present,
+     * an employee override that is also allowed. Employee-only allow cannot bypass
+     * a denied position permission.
+     */
+    public static boolean resolveEffectivePermission(boolean positionAllowed, Boolean employeeOverride) {
+        if (employeeOverride == null) {
+            return positionAllowed;
+        }
+        return positionAllowed && employeeOverride;
+    }
+
     @Transactional(readOnly = true)
     public boolean hasPermissionForUserId(Long userId, String moduleKey, String actionKey) {
         User user = userRepository.findById(userId).orElse(null);
@@ -365,20 +381,17 @@ public class PermissionService {
             return false;
         }
 
-        // Check employee override first
+        boolean positionAllowed = false;
+        if (user.getEmployee().getPosition() != null) {
+            Long positionId = user.getEmployee().getPosition().getId();
+            positionAllowed = hasPermission(positionId, moduleKey, actionKey);
+        }
+
         Long employeeId = user.getEmployee().getId();
         Optional<EmployeePermission> override = employeePermissionRepository
                 .findByEmployeeIdAndModuleKeyAndActionKey(employeeId, moduleKey, actionKey);
-        if (override.isPresent()) {
-            return override.get().isAllowed();
-        }
-
-        // Fall back to position permission
-        if (user.getEmployee().getPosition() == null) {
-            return false;
-        }
-        Long positionId = user.getEmployee().getPosition().getId();
-        return hasPermission(positionId, moduleKey, actionKey);
+        Boolean employeeOverride = override.map(EmployeePermission::isAllowed).orElse(null);
+        return resolveEffectivePermission(positionAllowed, employeeOverride);
     }
 
     public List<PositionPermissionDto> getPositionPermissions(Long positionId) {
@@ -500,7 +513,7 @@ public class PermissionService {
                                 String key = action.getModuleKey() + ":" + action.getActionKey();
                                 Boolean posAllowed = posPerms.getOrDefault(key, false);
                                 Boolean override = empOverrides.containsKey(key) ? empOverrides.get(key) : null;
-                                Boolean effective = override != null ? override : posAllowed;
+                                Boolean effective = resolveEffectivePermission(posAllowed, override);
                                 return EmployeePermissionDto.EmployeePermissionToggle.builder()
                                         .moduleKey(action.getModuleKey())
                                         .actionKey(action.getActionKey())
@@ -571,7 +584,7 @@ public class PermissionService {
                     String key = a.getModuleKey() + ":" + a.getActionKey();
                     Boolean posPerm = positionPerms.getOrDefault(key, false);
                     Boolean override = overrideMap.containsKey(key) ? overrideMap.get(key) : null;
-                    Boolean effective = override != null ? override : posPerm;
+                    Boolean effective = resolveEffectivePermission(posPerm, override);
                     return EmployeeEffectivePermissionDto.PermissionDetail.builder()
                             .moduleKey(a.getModuleKey())
                             .actionKey(a.getActionKey())

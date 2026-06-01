@@ -1,12 +1,10 @@
 import { useEffect, useMemo, useState, useCallback } from 'react';
 import { Link, useLocation, useNavigate } from 'react-router-dom';
-import { useSelector } from 'react-redux';
 import { toast } from 'react-hot-toast';
-import type { RootState } from '../../app/store';
-import { getRoleGroup } from '../../utils/dashboardRedirect';
+import { usePermissionState } from '../../features/permission/usePermission';
 import {
   Eye, Plus, Send, MessageSquare, Clock, XCircle,
-  Calendar, Search, ChevronLeft, ChevronRight,
+  Calendar, Search, ChevronLeft, ChevronRight, ChevronDown,
   CheckCircle, Lock, AlertTriangle, BarChart3
 } from 'lucide-react';
 import { continuousFeedbackApi } from '../../features/continuousFeedback/continuousFeedbackApi';
@@ -37,9 +35,8 @@ const statusBadgeConfig: Record<string, { bg: string; text: string; border: stri
 export default function ContinuousFeedbackPage() {
   const navigate = useNavigate();
   const { pathname } = useLocation();
-  const { user } = useSelector((state: RootState) => state.auth);
-  const roleGroup = user ? getRoleGroup(user) : null;
-  const canCreateFeedback = roleGroup === 'MANAGER';
+  const { hasPermission } = usePermissionState();
+  const canCreateFeedback = hasPermission('CONTINUOUS_FEEDBACK', 'create');
   const feedbackBasePath = useMemo(() => {
     const match = pathname.match(/^\/(hr|manager|audit)\/continuous-feedback/);
     return match ? `/${match[1]}/continuous-feedback` : '/manager/continuous-feedback';
@@ -207,26 +204,32 @@ export default function ContinuousFeedbackPage() {
             />
           </div>
           <div className="flex gap-2">
-            <select
-              value={categoryFilter}
-              onChange={(e) => setCategoryFilter(e.target.value)}
-              className="px-3 py-2.5 rounded-xl text-[11px] font-bold border border-slate-200 bg-slate-50 focus:bg-white focus:border-[#2463eb] focus:ring-1 focus:ring-[#dbeafe] outline-none transition-all appearance-none cursor-pointer"
-            >
-              <option value="ALL">All Categories</option>
-              {Object.entries(FEEDBACK_CATEGORY_LABELS).map(([key, label]) => (
-                <option key={key} value={key}>{label}</option>
-              ))}
-            </select>
-            <select
-              value={statusFilter}
-              onChange={(e) => setStatusFilter(e.target.value)}
-              className="px-3 py-2.5 rounded-xl text-[11px] font-bold border border-slate-200 bg-slate-50 focus:bg-white focus:border-[#2463eb] focus:ring-1 focus:ring-[#dbeafe] outline-none transition-all appearance-none cursor-pointer"
-            >
-              <option value="ALL">All Statuses</option>
-              {['SHARED', 'SCHEDULED', 'PRIVATE_NOTE', 'CANCELLED'].map((s) => (
-                <option key={s} value={s}>{s === 'PRIVATE_NOTE' ? 'Private Note' : s.charAt(0) + s.slice(1).toLowerCase()}</option>
-              ))}
-            </select>
+            <div className="relative">
+              <select
+                value={categoryFilter}
+                onChange={(e) => setCategoryFilter(e.target.value)}
+                className="pl-3 pr-9 py-2.5 rounded-xl text-[11px] font-bold border border-slate-200 bg-slate-50 focus:bg-white focus:border-[#2463eb] focus:ring-1 focus:ring-[#dbeafe] outline-none transition-all appearance-none cursor-pointer"
+              >
+                <option value="ALL">All Categories</option>
+                {Object.entries(FEEDBACK_CATEGORY_LABELS).map(([key, label]) => (
+                  <option key={key} value={key}>{label}</option>
+                ))}
+              </select>
+              <ChevronDown className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 pointer-events-none" size={14} aria-hidden />
+            </div>
+            <div className="relative">
+              <select
+                value={statusFilter}
+                onChange={(e) => setStatusFilter(e.target.value)}
+                className="pl-3 pr-9 py-2.5 rounded-xl text-[11px] font-bold border border-slate-200 bg-slate-50 focus:bg-white focus:border-[#2463eb] focus:ring-1 focus:ring-[#dbeafe] outline-none transition-all appearance-none cursor-pointer"
+              >
+                <option value="ALL">All Statuses</option>
+                {['SHARED', 'SCHEDULED', 'PRIVATE_NOTE', 'CANCELLED'].map((s) => (
+                  <option key={s} value={s}>{s === 'PRIVATE_NOTE' ? 'Private Note' : s.charAt(0) + s.slice(1).toLowerCase()}</option>
+                ))}
+              </select>
+              <ChevronDown className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 pointer-events-none" size={14} aria-hidden />
+            </div>
           </div>
         </div>
         <div className="flex flex-wrap items-center gap-2 mt-3 pt-3 border-t border-slate-100">

@@ -49,7 +49,7 @@ public class ContinuousFeedbackController {
     private final UserRepository userRepository;
 
     @PostMapping
-    @PreAuthorize("hasAnyRole('DEPARTMENT_HEAD', 'TEAM_HEAD', 'MANAGER') and @permissionGuard.has('CONTINUOUS_FEEDBACK', 'create')")
+    @PreAuthorize("hasAnyRole('HR', 'DEPARTMENT_HEAD', 'TEAM_HEAD', 'MANAGER') and @permissionGuard.has('CONTINUOUS_FEEDBACK', 'create')")
     public ResponseEntity<ApiResponse<ContinuousFeedbackDto>> createFeedback(
             @AuthenticationPrincipal UserPrincipal principal,
             @RequestBody ContinuousFeedbackCreateRequest request) {

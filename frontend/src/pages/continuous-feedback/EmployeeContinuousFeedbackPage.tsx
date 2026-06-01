@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useState, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { toast } from 'react-hot-toast';
-import { Eye, Check, MessageSquare, Search, ChevronLeft, ChevronRight, BarChart3, Clock } from 'lucide-react';
+import { Eye, Check, MessageSquare, Search, ChevronLeft, ChevronRight, ChevronDown, BarChart3, Clock } from 'lucide-react';
 import { continuousFeedbackApi } from '../../features/continuousFeedback/continuousFeedbackApi';
 import type { ContinuousFeedback } from '../../features/continuousFeedback/types';
 import { FEEDBACK_CATEGORY_LABELS } from '../../features/continuousFeedback/types';
@@ -135,16 +135,19 @@ export default function EmployeeContinuousFeedbackPage() {
               className="w-full pl-10 pr-4 py-2.5 rounded-xl text-sm font-semibold border border-slate-200 bg-slate-50 focus:bg-white focus:border-[#2463eb] focus:ring-1 focus:ring-[#dbeafe] outline-none transition-all placeholder:text-slate-400"
             />
           </div>
-          <select
-            value={categoryFilter}
-            onChange={(e) => setCategoryFilter(e.target.value)}
-            className="px-3 py-2.5 rounded-xl text-[11px] font-bold border border-slate-200 bg-slate-50 focus:bg-white focus:border-[#2463eb] focus:ring-1 focus:ring-[#dbeafe] outline-none transition-all appearance-none cursor-pointer"
-          >
-            <option value="ALL">All Categories</option>
-            {Object.entries(FEEDBACK_CATEGORY_LABELS).map(([key, label]) => (
-              <option key={key} value={key}>{label}</option>
-            ))}
-          </select>
+          <div className="relative">
+            <select
+              value={categoryFilter}
+              onChange={(e) => setCategoryFilter(e.target.value)}
+              className="pl-3 pr-9 py-2.5 rounded-xl text-[11px] font-bold border border-slate-200 bg-slate-50 focus:bg-white focus:border-[#2463eb] focus:ring-1 focus:ring-[#dbeafe] outline-none transition-all appearance-none cursor-pointer"
+            >
+              <option value="ALL">All Categories</option>
+              {Object.entries(FEEDBACK_CATEGORY_LABELS).map(([key, label]) => (
+                <option key={key} value={key}>{label}</option>
+              ))}
+            </select>
+            <ChevronDown className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 pointer-events-none" size={14} aria-hidden />
+          </div>
         </div>
       </div>
 
