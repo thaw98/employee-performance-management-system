@@ -1,7 +1,8 @@
 import { useEffect, useState } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { toast } from 'react-hot-toast';
-import { ArrowLeft, Check, ClipboardList, Calendar, AlertTriangle, Send, MessageSquare, User, Lock, Clock, CheckCircle } from 'lucide-react';
+import { ArrowLeft, Check, ClipboardList, Calendar, AlertTriangle, Send, MessageSquare, User, Lock, Clock, CheckCircle, CalendarCheck } from 'lucide-react';
+import ConfirmActionModal from '../../features/hrEmployeeList/components/ConfirmActionModal';
 import { continuousFeedbackApi } from '../../features/continuousFeedback/continuousFeedbackApi';
 import type {
   ContinuousFeedback,
@@ -32,6 +33,8 @@ export default function ContinuousFeedbackDetailPage() {
   const [showPipWarning, setShowPipWarning] = useState(false);
   const [pipCount, setPipCount] = useState(0);
   const [meetingDesc, setMeetingDesc] = useState('');
+  const [showConfirmModal, setShowConfirmModal] = useState(false);
+  const [isCreatingMeeting, setIsCreatingMeeting] = useState(false);
 
   useEffect(() => {
     if (feedbackId) loadFeedback();
@@ -110,15 +113,24 @@ export default function ContinuousFeedbackDetailPage() {
     }
   };
 
-  const handleCreateMeeting = async () => {
+  const handleCreateMeeting = () => {
+    setShowConfirmModal(true);
+  };
+
+  const handleConfirmCreateMeeting = async () => {
+    setIsCreatingMeeting(true);
     try {
-      await continuousFeedbackApi.createMeetingFromFeedback(Number(feedbackId), {
+      const resp = await continuousFeedbackApi.createMeetingFromFeedback(Number(feedbackId), {
         description: meetingDesc || undefined,
       });
       toast.success('Follow-up meeting created');
+      setShowConfirmModal(false);
       setMeetingDesc('');
+      navigate(`/${rolePath}/meetings/${resp.data.id}`);
     } catch {
       toast.error('Failed to create meeting');
+    } finally {
+      setIsCreatingMeeting(false);
     }
   };
 
@@ -544,6 +556,20 @@ export default function ContinuousFeedbackDetailPage() {
           </div>
         </div>
       )}
+
+      <ConfirmActionModal
+        isOpen={showConfirmModal}
+        onClose={() => { if (!isCreatingMeeting) setShowConfirmModal(false); }}
+        onConfirm={handleConfirmCreateMeeting}
+        title="Create Follow-up Meeting"
+        message={`This will create a follow-up one-on-one meeting for ${feedback.employeeName} based on this feedback.`}
+        description="A new one-on-one meeting will be scheduled. You can configure the details after creation."
+        confirmText="Create Meeting"
+        cancelText="Cancel"
+        isLoading={isCreatingMeeting}
+        variant="success"
+        icon={<CalendarCheck size={22} />}
+      />
     </div>
   );
 }

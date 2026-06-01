@@ -28,6 +28,19 @@ type StatusFilter = 'all' | 'unassigned' | 'no-template';
 const filterControlClass =
   'w-full rounded-xl border border-slate-200/80 bg-white px-3.5 py-2.5 text-sm text-slate-900 shadow-sm transition-all focus:border-[#2463eb] focus:outline-none focus:ring-2 focus:ring-[#2463eb]/20 dark:border-slate-600 dark:bg-slate-800 dark:text-white dark:focus:border-[#2463eb]';
 
+function formatAssignedDate(value?: string | null) {
+  if (!value) return '-';
+
+  const dateOnlyMatch = value.match(/^(\d{4})-(\d{2})-(\d{2})/);
+  if (dateOnlyMatch) {
+    const [, year, month, day] = dateOnlyMatch;
+    return `${day}/${month}/${year}`;
+  }
+
+  const parsed = new Date(value);
+  return Number.isNaN(parsed.getTime()) ? '-' : parsed.toLocaleDateString('en-GB');
+}
+
 function filterCoverageRows(
   rows: CoverageEmployeeRow[],
   opts: {
@@ -533,7 +546,7 @@ export const SelfAssessmentAssignmentCoveragePage: React.FC = () => {
                             {row.templateTitle ?? '-'}
                           </td>
                           <td className="hidden px-5 py-3 text-xs font-medium text-slate-600 dark:text-slate-300 lg:table-cell">
-                            {row.assignedDate ? new Date(row.assignedDate).toLocaleDateString() : '-'}
+                            {formatAssignedDate(row.assignedDate)}
                           </td>
                           <td className="px-5 py-3 text-right">
                             {row.assignmentStatus === 'ASSIGNED' ? (
