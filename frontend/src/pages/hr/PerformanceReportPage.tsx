@@ -16,6 +16,7 @@ import {
   FileSpreadsheet,
 } from 'lucide-react';
 import * as XLSX from 'xlsx-js-style';
+import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, PieChart, Pie, Cell } from 'recharts';
 import {
   useGetPerformanceSummariesQuery,
 } from '../../features/performanceReport/performanceReportApi';
@@ -212,6 +213,53 @@ export const PerformanceReportPage: React.FC<PerformanceReportPageProps> = ({
       : 0;
   const activePipCount = summaries.filter((s) => s.hasActivePip).length;
 
+  const deptPerformanceData = useMemo(() => {
+    const deptTotals: Record<string, { totalRating: number; count: number }> = {};
+    summaries.forEach((s) => {
+      if (s.overallRating == null) return;
+      const name = s.departmentName || 'Unknown';
+      if (!deptTotals[name]) {
+        deptTotals[name] = { totalRating: 0, count: 0 };
+      }
+      deptTotals[name].totalRating += s.overallRating;
+      deptTotals[name].count += 1;
+    });
+    return Object.entries(deptTotals)
+      .map(([name, data]) => ({
+        name,
+        'Avg Rating': Number((data.totalRating / data.count).toFixed(1)),
+      }))
+      .sort((a, b) => b['Avg Rating'] - a['Avg Rating'])
+      .slice(0, 8);
+  }, [summaries]);
+
+  const eligibilityChartData = useMemo(() => {
+    const counts: Record<string, number> = {
+      'Strongly Recommended': 0,
+      'Eligible': 0,
+      'Possible': 0,
+      'Not Eligible': 0,
+    };
+    summaries.forEach((s) => {
+      const eligibility = s.promotionEligibility || 'Not Eligible';
+      const norm = eligibility.trim();
+      if (norm === 'Strongly Recommended') counts['Strongly Recommended'] += 1;
+      else if (norm === 'Eligible') counts['Eligible'] += 1;
+      else if (norm === 'Possible') counts['Possible'] += 1;
+      else counts['Not Eligible'] += 1;
+    });
+    return Object.entries(counts)
+      .map(([name, value]) => ({ name, value }))
+      .filter((item) => item.value > 0);
+  }, [summaries]);
+
+  const ELIGIBILITY_COLORS: Record<string, string> = {
+    'Strongly Recommended': '#10b981',
+    'Eligible': '#3b82f6',
+    'Possible': '#f59e0b',
+    'Not Eligible': '#ef4444',
+  };
+
   if (isLoading) {
     return (
       <div className="flex items-center justify-center h-64">
@@ -305,6 +353,73 @@ export const PerformanceReportPage: React.FC<PerformanceReportPageProps> = ({
               <p className="text-xs font-semibold text-slate-400 dark:text-slate-500 uppercase">Active PIP</p>
               <p className="text-2xl font-bold text-red-600 dark:text-red-400">{activePipCount}</p>
             </div>
+          </div>
+        </div>
+      </div>
+
+      {/* Recharts Grid */}
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+        {/* Department Comparison */}
+        <div className="bg-white dark:bg-slate-900 p-6 rounded-xl border border-slate-200 dark:border-slate-800 shadow-sm">
+          <h3 className="text-sm font-bold text-slate-800 dark:text-slate-200 uppercase tracking-wider mb-6 flex items-center gap-2">
+            <Users size={16} className="text-emerald-600" />
+            Average Rating by Department
+          </h3>
+          <div className="h-[260px]">
+            {deptPerformanceData.length > 0 ? (
+              <ResponsiveContainer width="100%" height="100%">
+                <BarChart data={deptPerformanceData}>
+                  <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#f1f5f9" />
+                  <XAxis dataKey="name" tick={{ fontSize: 10, fontWeight: 'bold', fill: '#64748b' }} axisLine={false} tickLine={false} />
+                  <YAxis domain={[0, 5]} tick={{ fontSize: 10, fontWeight: 'bold', fill: '#64748b' }} axisLine={false} tickLine={false} />
+                  <Tooltip contentStyle={{ borderRadius: '12px', border: 'none', boxShadow: '0 4px 6px -1px rgb(0 0 0 / 0.1)' }} />
+                  <Bar dataKey="Avg Rating" fill="#10b981" radius={[4, 4, 0, 0]} maxBarSize={40}>
+                    {deptPerformanceData.map((_, index) => (
+                      <Cell key={`dept-bar-${index}`} fill={['#10b981', '#3b82f6', '#f59e0b', '#8b5cf6', '#ec4899', '#f97316'][index % 6]} />
+                    ))}
+                  </Bar>
+                </BarChart>
+              </ResponsiveContainer>
+            ) : (
+              <div className="flex items-center justify-center h-full text-slate-400 text-sm">No rating data available</div>
+            )}
+          </div>
+        </div>
+
+        {/* Promotion Eligibility Distribution */}
+        <div className="bg-white dark:bg-slate-900 p-6 rounded-xl border border-slate-200 dark:border-slate-800 shadow-sm">
+          <h3 className="text-sm font-bold text-slate-800 dark:text-slate-200 uppercase tracking-wider mb-6 flex items-center gap-2">
+            <TrendingUp size={16} className="text-emerald-600" />
+            Promotion Eligibility Distribution
+          </h3>
+          <div className="h-[260px]">
+            {eligibilityChartData.length > 0 ? (
+              <ResponsiveContainer width="100%" height="100%">
+                <PieChart>
+                  <Pie
+                    data={eligibilityChartData}
+                    cx="50%"
+                    cy="50%"
+                    innerRadius={60}
+                    outerRadius={90}
+                    paddingAngle={3}
+                    dataKey="value"
+                    label={({ name, percent }) => `${name} (${((percent || 0) * 100).toFixed(0)}%)`}
+                    labelLine={{ stroke: '#475569', strokeWidth: 1 }}
+                  >
+                    {eligibilityChartData.map((entry, index) => (
+                      <Cell
+                        key={`cell-${index}`}
+                        fill={ELIGIBILITY_COLORS[entry.name] || '#64748b'}
+                      />
+                    ))}
+                  </Pie>
+                  <Tooltip contentStyle={{ borderRadius: '12px', border: 'none', boxShadow: '0 4px 6px -1px rgb(0 0 0 / 0.1)' }} />
+                </PieChart>
+              </ResponsiveContainer>
+            ) : (
+              <div className="flex items-center justify-center h-full text-slate-400 text-sm">No eligibility data available</div>
+            )}
           </div>
         </div>
       </div>
