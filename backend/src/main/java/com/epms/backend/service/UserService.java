@@ -200,6 +200,7 @@ public class UserService {
                 employee != null ? employee.getEmployeeId() : null,
                 employeeName,
                 resolveDepartmentName(employee),
+                resolveDepartmentId(employee),
                 resolvePositionName(employee),
                 employee != null && employee.getEmploymentStatus() != null ? employee.getEmploymentStatus().name() : null,
                 employee != null && employee.getGender() != null ? employee.getGender().name() : null,
@@ -216,6 +217,19 @@ public class UserService {
         }
         if (employee.getDepartment() != null) {
             return employee.getDepartment().getName();
+        }
+        return null;
+    }
+
+    private Long resolveDepartmentId(Employee employee) {
+        if (employee == null) {
+            return null;
+        }
+        if (employee.getDepartmentPosition() != null && employee.getDepartmentPosition().getDepartment() != null) {
+            return employee.getDepartmentPosition().getDepartment().getId();
+        }
+        if (employee.getDepartment() != null) {
+            return employee.getDepartment().getId();
         }
         return null;
     }

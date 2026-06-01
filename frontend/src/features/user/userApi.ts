@@ -18,6 +18,7 @@ export interface UserProfileDto {
   staffNo?: string | null
   fullName?: string | null
   departmentName?: string | null
+  departmentId?: number | null
   positionName?: string | null
   employmentStatus?: string | null
   gender?: string | null
