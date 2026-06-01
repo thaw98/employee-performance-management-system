@@ -104,6 +104,7 @@ export function AppSidebar() {
           subItems: [
             { name: 'Template Management', path: '/hr/self-assessment/templates', icon: 'bi-sliders' },
             { name: 'Assignments', path: '/hr/self-assessment/assignments', icon: 'bi-clipboard-check' },
+            { name: 'Assignment Coverage', path: '/hr/self-assessment/assignment-coverage', icon: 'bi-bar-chart' },
             { name: 'Assigned Forms', path: '/hr/self-assessment/forms', icon: 'bi-inbox' },
 
             { name: 'Review Submissions', path: '/hr/self-assessment/review-queue', icon: 'bi-list-check' },

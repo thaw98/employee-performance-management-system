@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import { 
   useGetEmployeeKpiHistoryQuery, 
   useGetPositionKpiHistoryQuery, 
@@ -25,19 +25,28 @@ export const KpiHistoryPage: React.FC = () => {
   const [selectedDeptId, setSelectedDeptId] = useState<number | null>(null);
   const [selectedPosId, setSelectedPosId] = useState<number | null>(null);
   const [periodFilter, setPeriodFilter] = useState('');
+
+  // All History tab filters
+  const [allSearchTerm, setAllSearchTerm] = useState('');
+  const [allDeptFilter, setAllDeptFilter] = useState<number | null>(null);
+  const [allPosFilter, setAllPosFilter] = useState<number | null>(null);
+  const [allPeriodFilter, setAllPeriodFilter] = useState('');
   
   const [currentPage, setCurrentPage] = useState(1);
   const itemsPerPage = 10;
 
   useEffect(() => {
     setCurrentPage(1);
-  }, [activeTab, selectedEmployeeId, selectedDeptId, selectedPosId, periodFilter]);
+  }, [activeTab, selectedEmployeeId, selectedDeptId, selectedPosId, periodFilter, allSearchTerm, allDeptFilter, allPosFilter, allPeriodFilter]);
 
   // Fetch reference data
   const { data: employeesData } = useGetEmployeesQuery({ size: 1000 });
   const { data: departmentsData } = useGetDepartmentsQuery();
   const { data: positionsData } = useGetPositionsByDepartmentQuery(selectedDeptId!, {
     skip: activeTab !== 'position' || !selectedDeptId,
+  });
+  const { data: allTabPositionsData } = useGetPositionsByDepartmentQuery(allDeptFilter!, {
+    skip: activeTab !== 'all' || !allDeptFilter,
   });
 
   // Fetch Global Summary Data
@@ -64,6 +73,37 @@ export const KpiHistoryPage: React.FC = () => {
   );
   const departments = departmentsData?.data || [];
   const positions = positionsData?.data || [];
+  const allTabPositions = allTabPositionsData?.data || [];
+
+  const filteredGlobalSummary = useMemo(() => {
+    if (!globalSummary) return [];
+
+    const search = allSearchTerm.trim().toLowerCase();
+    const selectedDeptName = allDeptFilter
+      ? departments.find(d => d.departmentId === allDeptFilter)?.departmentName
+      : null;
+    const selectedPosName = allPosFilter
+      ? allTabPositions.find(p => p.positionId === allPosFilter)?.positionName
+      : null;
+    const period = allPeriodFilter.trim().toLowerCase();
+
+    return globalSummary.filter(item => {
+      const matchesSearch = !search || [
+        item.employeeName,
+        item.staffNo,
+        item.departmentName,
+        item.positionName,
+        item.managerName,
+        item.period,
+      ].some(value => value?.toLowerCase().includes(search));
+
+      const matchesDept = !selectedDeptName || item.departmentName === selectedDeptName;
+      const matchesPos = !selectedPosName || item.positionName === selectedPosName;
+      const matchesPeriod = !period || item.period?.toLowerCase().includes(period);
+
+      return matchesSearch && matchesDept && matchesPos && matchesPeriod;
+    });
+  }, [globalSummary, allSearchTerm, allDeptFilter, allPosFilter, allPeriodFilter, departments, allTabPositions]);
 
   const handleViewDetail = (employeeId: number, period: string) => {
     setSelectedEmployeeId(employeeId);
@@ -356,14 +396,64 @@ export const KpiHistoryPage: React.FC = () => {
       </div>
 
       {/* Filters Card */}
-      {activeTab !== 'all' && (
-        <div className="bg-white p-6 rounded-3xl shadow-sm border border-slate-100">
-          <div className="flex items-center gap-2 mb-4">
-             <Search size={18} className="text-[#2463eb]" />
-             <h3 className="font-black text-slate-800 uppercase tracking-wider text-xs">Search Filters</h3>
-          </div>
-          <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
-            {activeTab === 'employee' && (
+      <div className="bg-white p-6 rounded-3xl shadow-sm border border-slate-100">
+        <div className="flex items-center gap-2 mb-4">
+           <Search size={18} className="text-[#2463eb]" />
+           <h3 className="font-black text-slate-800 uppercase tracking-wider text-xs">Search Filters</h3>
+        </div>
+        <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+          {activeTab === 'all' && (
+            <>
+              <div className="space-y-2 md:col-span-2">
+                <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">Search</label>
+                <div className="relative">
+                  <Search size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" />
+                  <input
+                    placeholder="Search by employee, staff no., department, position…"
+                    value={allSearchTerm}
+                    onChange={(e) => setAllSearchTerm(e.target.value)}
+                    className="w-full pl-9 pr-4 py-2 bg-slate-50 border border-slate-200 rounded-xl text-sm focus:border-[#2463eb] focus:ring-1 focus:ring-[#dbeafe] outline-none font-bold text-slate-800"
+                  />
+                </div>
+              </div>
+              <div className="space-y-2">
+                <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">Department</label>
+                <DepartmentAutocomplete
+                  departments={departments}
+                  value={allDeptFilter}
+                  onChange={(id) => {
+                    setAllDeptFilter(id);
+                    setAllPosFilter(null);
+                  }}
+                  placeholder="All departments"
+                />
+              </div>
+              <div className="space-y-2">
+                <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">Position</label>
+                <PositionAutocomplete
+                  positions={allTabPositions}
+                  value={allPosFilter}
+                  onChange={setAllPosFilter}
+                  disabled={!allDeptFilter}
+                  placeholder={allDeptFilter ? 'All positions' : 'Select department first'}
+                />
+              </div>
+              <div className="space-y-2">
+                <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">Period (Optional)</label>
+                <div className="relative">
+                  <Calendar size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" />
+                  <input
+                    placeholder="e.g. May 2026"
+                    value={allPeriodFilter}
+                    onChange={(e) => setAllPeriodFilter(e.target.value)}
+                    className="w-full pl-9 pr-4 py-2 bg-slate-50 border border-slate-200 rounded-xl text-sm focus:border-[#2463eb] focus:ring-1 focus:ring-[#dbeafe] outline-none font-bold text-slate-800"
+                  />
+                </div>
+              </div>
+            </>
+          )}
+
+          {activeTab === 'employee' && (
               <div className="space-y-2 md:col-span-2">
                 <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">Select Employee</label>
                 <EmployeeAutocomplete
@@ -403,21 +493,22 @@ export const KpiHistoryPage: React.FC = () => {
               </div>
             )}
 
+          {activeTab !== 'all' && (
             <div className="space-y-2">
               <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">Period (Optional)</label>
               <div className="relative">
                 <Calendar size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" />
-                <input 
-                  placeholder="e.g. May 2026" 
+                <input
+                  placeholder="e.g. May 2026"
                   value={periodFilter}
                   onChange={(e) => setPeriodFilter(e.target.value)}
                   className="w-full pl-9 pr-4 py-2 bg-slate-50 border border-slate-200 rounded-xl text-sm focus:border-[#2463eb] focus:ring-1 focus:ring-[#dbeafe] outline-none font-bold text-slate-800"
                 />
               </div>
             </div>
-          </div>
+          )}
         </div>
-      )}
+      </div>
 
       {/* Main Content Card */}
       <div className="bg-white rounded-3xl shadow-xl border border-slate-200 overflow-hidden min-h-[400px]">
@@ -433,7 +524,7 @@ export const KpiHistoryPage: React.FC = () => {
         </div>
 
         <div>
-          {activeTab === 'all' ? renderSummaryTable(globalSummary || [], loadingGlobal) :
+          {activeTab === 'all' ? renderSummaryTable(filteredGlobalSummary, loadingGlobal) :
            activeTab === 'employee' ? (
             selectedEmployeeId ? renderHistoryTable(employeeHistory || [], loadingEmployee) : (
               <div className="p-20 text-center">

@@ -19,6 +19,7 @@ import {
   Layers,
   FileText,
   ClipboardList,
+  BarChart3,
   HelpCircle,
   Zap,
   RefreshCcw,
@@ -162,6 +163,7 @@ const HrLayout: React.FC = () => {
           subItems: [
             { label: 'Template Management', path: '/hr/self-assessment/templates', icon: <SlidersHorizontal size={16} />, permission: { moduleKey: 'SELF_ASSESSMENT', actionKey: 'manage_templates' } },
             { label: 'Assignments', path: '/hr/self-assessment/assignments', icon: <ClipboardList size={16} />, permission: { moduleKey: 'SELF_ASSESSMENT', actionKey: 'assign' } },
+            { label: 'Assignment Coverage', path: '/hr/self-assessment/assignment-coverage', icon: <BarChart3 size={16} />, permission: { moduleKey: 'SELF_ASSESSMENT', actionKey: 'assign' } },
             { label: 'Assigned Forms', path: '/hr/self-assessment/forms', icon: <Inbox size={16} />, permission: { moduleKey: 'SELF_ASSESSMENT', actionKey: 'view' } },
             { label: 'Review Submissions', path: '/hr/self-assessment/review-queue', icon: <ListChecks size={16} />, permission: { moduleKey: 'SELF_ASSESSMENT', actionKey: 'review' } },
             { label: 'Unlock Requests', path: '/hr/self-assessment/unlock-requests', icon: <RefreshCcw size={16} />, permission: { moduleKey: 'SELF_ASSESSMENT', actionKey: 'unlock' } },
@@ -236,7 +238,6 @@ const HrLayout: React.FC = () => {
       brandSubtitle="Performance System"
       menuSections={menuSections}
       user={user}
-      searchPlaceholder="Organizational search..."
     >
       <Outlet />
     </DashLayoutShell>

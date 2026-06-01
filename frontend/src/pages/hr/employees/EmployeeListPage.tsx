@@ -8,6 +8,10 @@ import toast from 'react-hot-toast'
 
 import EmployeeTable from '../../../features/hrEmployeeList/components/EmployeeTable'
 import EmployeeFilters from '../../../features/hrEmployeeList/components/EmployeeFilters'
+import EmployeeStatsCards, {
+  type EmployeeStatsCardKey,
+  type EmployeeStatsCounts,
+} from '../../../features/hrEmployeeList/components/EmployeeStatsCards'
 import ConfirmActionModal from '../../../features/hrEmployeeList/components/ConfirmActionModal'
 import EmployeeViewModal from '../../../features/hrEmployeeList/components/EmployeeViewModal'
 import EditEmployeeModal from '../../../features/hrEmployeeList/components/EditEmployeeModal'
@@ -110,6 +114,70 @@ export default function EmployeeListPage() {
 
   const { data: empData, isLoading, isFetching, error: employeeListError, refetch } = useGetEmployeesQuery(employeeQueryParams)
 
+  const statsQueryBase = useMemo(() => ({
+    page: 0,
+    size: 1,
+    departmentId: canFilterAllDepartments ? departmentId : undefined,
+    positionId: canFilterAllDepartments ? positionId : undefined,
+    sortBy: 'staffNo',
+    sortDir: 'asc' as const,
+  }), [canFilterAllDepartments, departmentId, positionId])
+
+  const { data: totalStatsData, isFetching: isTotalStatsFetching } = useGetEmployeesQuery(statsQueryBase)
+
+  const { data: activeStatsData, isFetching: isActiveStatsFetching } = useGetEmployeesQuery({
+    ...statsQueryBase,
+    employmentStatus: 'Active',
+  })
+  const { data: inactiveStatsData, isFetching: isInactiveStatsFetching } = useGetEmployeesQuery({
+    ...statsQueryBase,
+    employmentStatus: 'Inactive',
+  })
+  const { data: probationStatsData, isFetching: isProbationStatsFetching } = useGetEmployeesQuery({
+    ...statsQueryBase,
+    employmentStatus: 'Probation',
+  })
+  const { data: permanentStatsData, isFetching: isPermanentStatsFetching } = useGetEmployeesQuery({
+    ...statsQueryBase,
+    employmentStatus: 'Permanent',
+  })
+
+  const employeeStatsCounts = useMemo<EmployeeStatsCounts>(() => ({
+    total: totalStatsData?.data?.totalElements ?? 0,
+    active: activeStatsData?.data?.totalElements ?? 0,
+    inactive: inactiveStatsData?.data?.totalElements ?? 0,
+    probation: probationStatsData?.data?.totalElements ?? 0,
+    permanent: permanentStatsData?.data?.totalElements ?? 0,
+  }), [
+    totalStatsData?.data?.totalElements,
+    activeStatsData?.data?.totalElements,
+    inactiveStatsData?.data?.totalElements,
+    probationStatsData?.data?.totalElements,
+    permanentStatsData?.data?.totalElements,
+  ])
+
+  const isStatsLoading =
+    isTotalStatsFetching ||
+    isActiveStatsFetching ||
+    isInactiveStatsFetching ||
+    isProbationStatsFetching ||
+    isPermanentStatsFetching
+
+  const selectedStatsCard = useMemo((): EmployeeStatsCardKey | undefined => {
+    if (
+      employmentStatus === 'Active' ||
+      employmentStatus === 'Inactive' ||
+      employmentStatus === 'Probation' ||
+      employmentStatus === 'Permanent'
+    ) {
+      return employmentStatus
+    }
+    if (!employmentStatus) {
+      return 'Total'
+    }
+    return undefined
+  }, [employmentStatus])
+
   // Memoize filter options to prevent unnecessary recreations
   const departments = useMemo(() => deptData?.data || [], [deptData?.data])
   const positions = useMemo(() => posData?.data || [], [posData?.data])
@@ -170,6 +238,11 @@ export default function EmployeeListPage() {
 
   const handleStatusChange = useCallback((val?: string) => {
     setEmploymentStatus(val)
+    setPage(0)
+  }, [])
+
+  const handleStatsCardSelect = useCallback((status?: EmployeeStatsCardKey) => {
+    setEmploymentStatus(!status || status === 'Total' ? undefined : status)
     setPage(0)
   }, [])
 
@@ -420,6 +493,13 @@ export default function EmployeeListPage() {
           </div>
         )}
       </div>
+
+      <EmployeeStatsCards
+        counts={employeeStatsCounts}
+        isLoading={isStatsLoading}
+        selectedStatus={selectedStatsCard}
+        onSelectStatus={handleStatsCardSelect}
+      />
 
       <EmployeeFilters
         search={search}

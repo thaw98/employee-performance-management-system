@@ -17,6 +17,7 @@ import com.epms.backend.entity.EmployeeKpi;
 import com.epms.backend.entity.EmployeeStatus;
 import com.epms.backend.entity.Feedback;
 import com.epms.backend.entity.Pip;
+import com.epms.backend.entity.PromotionProposal;
 import com.epms.backend.entity.SelfAssessmentForm;
 import com.epms.backend.entity.SelfAssessmentFormStatus;
 import com.epms.backend.repository.AppraisalAssignmentRepository;
@@ -24,7 +25,9 @@ import com.epms.backend.repository.EmployeeRepository;
 import com.epms.backend.repository.FeedbackRepository;
 import com.epms.backend.repository.KpiRepository;
 import com.epms.backend.repository.PipRepository;
+import com.epms.backend.repository.PromotionProposalRepository;
 import com.epms.backend.repository.SelfAssessmentFormRepository;
+import com.epms.backend.entity.PromotionProposalStatus;
 
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -40,6 +43,7 @@ public class PerformanceReportService {
     private final SelfAssessmentFormRepository selfAssessmentRepository;
     private final FeedbackRepository feedbackRepository;
     private final PipRepository pipRepository;
+    private final PromotionProposalRepository promotionProposalRepository;
     private final ProfilePictureStorageService profilePictureStorageService;
 
     private static final List<String> ACTIVE_PIP_STATUSES = List.of("ACTIVE", "REOPEN_REQUESTED");
@@ -85,6 +89,12 @@ public class PerformanceReportService {
         boolean hasActivePip = pipRepository.existsByEmployeeAndStatusIn(emp, ACTIVE_PIP_STATUSES);
         String pipStatus = getLatestPipStatus(emp);
 
+        // 5.1 Check existing proposals
+        boolean hasPendingProposal = promotionProposalRepository.existsByEmployeeIdAndStatusIn(
+                emp.getId(), List.of(PromotionProposalStatus.PENDING));
+        boolean hasApprovedProposal = promotionProposalRepository.existsByEmployeeIdAndStatusIn(
+                emp.getId(), List.of(PromotionProposalStatus.APPROVED));
+
         // 6. Overall rating (average of available scores, normalized to 5-point scale)
         Double overallRating = calculateOverallRating(
                 kpiResult.score, appraisalResult.score, saResult.score, feedbackResult.score);
@@ -96,7 +106,15 @@ public class PerformanceReportService {
                 && feedbackResult.score != null;
         String performanceLevel = determinePerformanceLevel(overallRating);
         String promotionEligibility = determinePromotionEligibility(overallRating, hasActivePip, allScoresCompleted);
-        boolean eligible = allScoresCompleted && !hasActivePip && overallRating != null && overallRating >= 3.5;
+        
+        if (hasApprovedProposal) {
+            promotionEligibility = "PROMOTED";
+        } else if (hasPendingProposal) {
+            promotionEligibility = "PENDING PROMOTION";
+        }
+
+        boolean eligible = allScoresCompleted && !hasActivePip && overallRating != null && overallRating >= 3.5
+                && !hasPendingProposal && !hasApprovedProposal;
 
         java.time.LocalDate joinedLocalDate = null;
         if (emp.getUserAccount() != null && emp.getUserAccount().getCreatedDate() != null) {
@@ -109,6 +127,31 @@ public class PerformanceReportService {
         String joinedDateStr = null;
         if (joinedLocalDate != null) {
             joinedDateStr = joinedLocalDate.toString();
+        }
+
+        // 8. Latest approved promotion proposal
+        Long latestApprovedPromotionId = null;
+        String latestApprovedPromotionReason = null;
+        String latestApprovedPromotionEffectiveDate = null;
+        String latestApprovedPromotionTargetPositionName = null;
+
+        List<PromotionProposal> approvedProposals = promotionProposalRepository.findLatestApprovedByEmployee(emp.getId());
+        if (!approvedProposals.isEmpty()) {
+            PromotionProposal latest = approvedProposals.get(0);
+            latestApprovedPromotionId = latest.getId();
+            String remarks = latest.getRemarks();
+            if (remarks != null) {
+                String trimmed = remarks.trim();
+                if (!trimmed.isEmpty()) {
+                    latestApprovedPromotionReason = trimmed;
+                }
+            }
+            if (latest.getEffectiveDate() != null) {
+                latestApprovedPromotionEffectiveDate = latest.getEffectiveDate().toString();
+            }
+            if (latest.getTargetPosition() != null) {
+                latestApprovedPromotionTargetPositionName = latest.getTargetPosition().getName();
+            }
         }
 
         String profilePictureUrl = profilePictureStorageService.toPublicUrl(emp.getProfilePictureUrl());
@@ -139,6 +182,10 @@ public class PerformanceReportService {
                 .performanceLevel(performanceLevel)
                 .promotionEligibility(promotionEligibility)
                 .promotionEligible(eligible)
+                .latestApprovedPromotionId(latestApprovedPromotionId)
+                .latestApprovedPromotionReason(latestApprovedPromotionReason)
+                .latestApprovedPromotionEffectiveDate(latestApprovedPromotionEffectiveDate)
+                .latestApprovedPromotionTargetPositionName(latestApprovedPromotionTargetPositionName)
                 .build();
     }
 

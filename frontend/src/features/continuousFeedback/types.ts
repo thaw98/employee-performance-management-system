@@ -116,6 +116,17 @@ export interface ContinuousFeedbackEvidence {
   actionItems: ContinuousFeedbackActionItem[];
 }
 
+export interface FollowUpMeetingResponse {
+  id: number;
+  managerId: number;
+  employeeId: number;
+  title: string;
+  description: string | null;
+  scheduledTime: string;
+  durationMinutes: number;
+  status: string;
+}
+
 export interface PipWarning {
   warningActive: boolean;
   negativeFeedbackCount: number;

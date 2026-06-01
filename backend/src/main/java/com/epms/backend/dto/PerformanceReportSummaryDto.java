@@ -46,4 +46,10 @@ public class PerformanceReportSummaryDto {
     private String performanceLevel;
     private String promotionEligibility;
     private boolean promotionEligible;
+
+    // Latest Approved Promotion
+    private Long latestApprovedPromotionId;
+    private String latestApprovedPromotionReason;
+    private String latestApprovedPromotionEffectiveDate;
+    private String latestApprovedPromotionTargetPositionName;
 }

@@ -168,7 +168,7 @@ describe('SelfAssessmentReportPage', () => {
     expect(screen.queryByText('Cara')).toBeNull()
   })
 
-  it('disables PDF export until a cycle report is loaded and exports the current report', async () => {
+  it('disables PDF export until a cycle report is loaded and exports the active tab data', async () => {
     reviewCyclesHookMock.mockReturnValue({ data: [] })
     reportHookMock.mockReturnValue({ data: undefined, isFetching: false, isError: false })
     const { rerender } = render(<SelfAssessmentReportPage mode="hr" />)
@@ -182,7 +182,49 @@ describe('SelfAssessmentReportPage', () => {
     await userEvent.click(screen.getByRole('button', { name: /export pdf/i }))
     await userEvent.click(screen.getByRole('button', { name: /export excel/i }))
 
-    expect(exportPdfMock).toHaveBeenCalledWith(baseReport)
-    expect(exportExcelMock).toHaveBeenCalledWith(baseReport)
+    expect(exportPdfMock).toHaveBeenCalledWith(baseReport, {
+      tab: 'department',
+      departmentRows: baseReport.departmentSummaries,
+      positionRows: baseReport.positionSummaries,
+      directoryRows: baseReport.employeeDirectory,
+    })
+    expect(exportExcelMock).toHaveBeenCalledWith(baseReport, {
+      tab: 'department',
+      departmentRows: baseReport.departmentSummaries,
+      positionRows: baseReport.positionSummaries,
+      directoryRows: baseReport.employeeDirectory,
+    })
+  })
+
+  it('exports filtered position rows when the positions tab is active', async () => {
+    reviewCyclesHookMock.mockReturnValue({ data: cycles })
+    reportHookMock.mockReturnValue({ data: baseReport, isFetching: false, isError: false })
+    render(<SelfAssessmentReportPage mode="hr" />)
+
+    await userEvent.click(screen.getByRole('cell', { name: 'Engineering' }))
+    await userEvent.click(screen.getByRole('button', { name: /export pdf/i }))
+
+    expect(exportPdfMock).toHaveBeenCalledWith(baseReport, {
+      tab: 'positions',
+      departmentRows: baseReport.departmentSummaries,
+      positionRows: [baseReport.positionSummaries[0]],
+      directoryRows: baseReport.employeeDirectory.filter((row) => row.departmentId === 10),
+    })
+  })
+
+  it('exports employee directory rows when that tab is active', async () => {
+    reviewCyclesHookMock.mockReturnValue({ data: cycles })
+    reportHookMock.mockReturnValue({ data: baseReport, isFetching: false, isError: false })
+    render(<SelfAssessmentReportPage mode="hr" />)
+
+    await userEvent.click(screen.getByRole('button', { name: 'Employee Directory' }))
+    await userEvent.click(screen.getByRole('button', { name: /export excel/i }))
+
+    expect(exportExcelMock).toHaveBeenCalledWith(baseReport, {
+      tab: 'directory',
+      departmentRows: baseReport.departmentSummaries,
+      positionRows: baseReport.positionSummaries,
+      directoryRows: baseReport.employeeDirectory,
+    })
   })
 })

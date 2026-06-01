@@ -583,6 +583,85 @@ export const PerformanceReportPage: React.FC<PerformanceReportPageProps> = ({
           </div>
         )}
       </div>
+
+      {/* Rating Scale Reference & Calculation Details */}
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mt-6">
+        {/* Left Column: Rating Scale */}
+        <div className="bg-white dark:bg-slate-900 rounded-xl border border-slate-200 dark:border-slate-800 p-5">
+          <h3 className="text-sm font-bold text-slate-700 dark:text-slate-300 mb-3">Rating Scale Reference</h3>
+          <div className="grid grid-cols-5 gap-2 text-center text-xs mb-4">
+            {[
+              { rating: 5, level: 'Excellent', eligibility: 'Strongly Recommended', color: 'bg-emerald-100 text-emerald-800 dark:bg-emerald-900/30 dark:text-emerald-300' },
+              { rating: 4, level: 'Good', eligibility: 'Eligible', color: 'bg-blue-100 text-blue-800 dark:bg-blue-900/30 dark:text-blue-300' },
+              { rating: 3, level: 'Meet Requirement', eligibility: 'Possible', color: 'bg-amber-100 text-amber-800 dark:bg-amber-900/30 dark:text-amber-300' },
+              { rating: 2, level: 'Needs Improvement', eligibility: 'Not Eligible', color: 'bg-orange-100 text-orange-800 dark:bg-orange-900/30 dark:text-orange-300' },
+              { rating: 1, level: 'Unsatisfactory', eligibility: 'Not Eligible', color: 'bg-red-100 text-red-800 dark:bg-red-900/30 dark:text-red-300' },
+            ].map((item) => (
+              <div key={item.rating} className={`rounded-lg p-3 ${item.color} flex flex-col justify-between`}>
+                <div>
+                  <p className="text-lg font-black">{item.rating}</p>
+                  <p className="font-bold text-[10px] sm:text-xs leading-tight">{item.level}</p>
+                </div>
+                <p className="text-[9px] mt-2 opacity-75 font-semibold leading-tight">{item.eligibility}</p>
+              </div>
+            ))}
+          </div>
+
+          <div className="border-t border-slate-100 dark:border-slate-800 pt-4">
+            <h4 className="text-xs font-bold text-slate-700 dark:text-slate-300 mb-2">Promotion Rules</h4>
+            <ul className="text-xs text-slate-500 dark:text-slate-400 space-y-1.5 list-disc pl-4">
+              <li><strong>Strongly Recommended:</strong> Rating &ge; 4.5</li>
+              <li><strong>Eligible:</strong> Rating &ge; 3.5 (Minimum requirement for actual promotion)</li>
+              <li><strong>Possible:</strong> Rating &ge; 2.5</li>
+              <li><strong>Not Eligible:</strong> Rating &lt; 2.5, or active PIP, or missing evaluation components.</li>
+            </ul>
+          </div>
+        </div>
+
+        {/* Right Column: Calculation Formula */}
+        <div className="bg-white dark:bg-slate-900 rounded-xl border border-slate-200 dark:border-slate-800 p-5">
+          <h3 className="text-sm font-bold text-slate-700 dark:text-slate-300 mb-3">Score Calculation Formula & Recommendations</h3>
+          
+          <div className="space-y-3 text-xs">
+            <div className="flex justify-between items-start gap-4 p-2.5 rounded-lg bg-slate-50 dark:bg-slate-800/40">
+              <div>
+                <span className="font-bold text-slate-700 dark:text-slate-300">Overall Rating</span>
+                <p className="text-slate-500 dark:text-slate-400 mt-0.5">Average of all completed assessment components (rounded to 1 decimal).</p>
+                <p className="text-[11px] text-emerald-600 dark:text-emerald-400 mt-0.5">Overall Rating = (KPI + Appraisal + Self-Assessment + Feedback) ÷ 4</p>
+              </div>
+              <span className="text-[10px] font-bold bg-slate-200 dark:bg-slate-700 text-slate-700 dark:text-slate-300 px-2 py-0.5 rounded">Average</span>
+            </div>
+
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+              <div className="p-2.5 rounded-lg bg-slate-50 dark:bg-slate-800/40">
+                <span className="font-semibold text-slate-700 dark:text-slate-300">🎯 KPI Score</span>
+                <p className="text-slate-500 dark:text-slate-400 mt-0.5 text-[11px]">Normalized to 5-point scale:<br /><strong>(Total Score ÷ 100) &times; 5</strong></p>
+              </div>
+              <div className="p-2.5 rounded-lg bg-slate-50 dark:bg-slate-800/40">
+                <span className="font-semibold text-slate-700 dark:text-slate-300">🏆 Appraisal Score</span>
+                <p className="text-slate-500 dark:text-slate-400 mt-0.5 text-[11px]">Latest manager appraisal normalized to 5.0 (out of 100 or directly out of 5).</p>
+              </div>
+              <div className="p-2.5 rounded-lg bg-slate-50 dark:bg-slate-800/40">
+                <span className="font-semibold text-slate-700 dark:text-slate-300">📝 Self-Assessment</span>
+                <p className="text-slate-500 dark:text-slate-400 mt-0.5 text-[11px]">Latest employee self-assessment normalized to 5.0.</p>
+              </div>
+              <div className="p-2.5 rounded-lg bg-slate-50 dark:bg-slate-800/40">
+                <span className="font-semibold text-slate-700 dark:text-slate-300">💬 Feedback Score</span>
+                <p className="text-slate-500 dark:text-slate-400 mt-0.5 text-[11px]">Average of all received feedback scores (normalized to 5.0 if necessary).</p>
+              </div>
+            </div>
+
+            <div className="bg-amber-50 dark:bg-amber-900/10 border border-amber-200/50 dark:border-amber-800/30 rounded-lg p-2.5 text-[11px] text-amber-800 dark:text-amber-300">
+              <p className="font-bold">⚠️ Critical Conditions for Promotion:</p>
+              <ul className="list-decimal pl-4 mt-1 space-y-1">
+                <li>Must complete <strong>all 4 scores</strong> to be eligible.</li>
+                <li>Must not have an <strong>active PIP</strong>.</li>
+                <li>Overall rating must be <strong>&ge; 3.5</strong> to launch a promotion.</li>
+              </ul>
+            </div>
+          </div>
+        </div>
+      </div>
     </div>
   );
 };

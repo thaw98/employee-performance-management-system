@@ -1,7 +1,6 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
-import type { ReactNode } from 'react'
 import { toast } from 'react-hot-toast'
-import { ClipboardList, Download, Eye, FileText, Filter, LayoutGrid, Pencil, Plus, Search, Table2, Trash2, Upload, Users, X } from 'lucide-react'
+import { Building2, CalendarRange, CheckCircle2, ClipboardList, Copy, Download, Eye, FileText, Filter, LayoutGrid, Pencil, Plus, Search, Table2, Trash2, Upload, Users, X } from 'lucide-react'
 import * as XLSX from 'xlsx'
 import axios from '../../app/axiosInstance'
 import { CriteriaPage } from './CriteriaPage'
@@ -18,7 +17,8 @@ import {
 import { useGetReviewCyclesQuery, type ReviewCycleDto } from '../../features/reviewCycle/api/reviewCycleApi'
 
 type TabKey = 'criteria' | 'template' | 'progress'
-type Option = { id: number; name: string }
+type Option = { id: number; name: string; active?: boolean }
+type FeedbackTemplateRow = FeedbackTemplateConfig & { currentInUseFallback?: boolean }
 const LOCK_MESSAGE = 'This configuration is already active for the current review cycle and cannot be changed. Any updates will apply only to future review cycles.'
 
 const emptyTemplate: FeedbackTemplateConfig = {
@@ -45,6 +45,16 @@ const targetLabel = (type: string) => {
 const displayType = (value: string) => value.toLowerCase().replace(/\b\w/g, (char) => char.toUpperCase())
 const isLockedCycle = (cycle?: ReviewCycleDto | null) => Boolean(cycle && (cycle.isActive || cycle.status?.toUpperCase() === 'ACTIVE'))
 const cycleDate = (value?: string) => value ? new Date(`${value}T00:00:00`).toLocaleDateString('en-GB') : '-'
+const cycleDateRange = (cycle?: ReviewCycleDto | null) => `${cycleDate(cycle?.startDate)} - ${cycleDate(cycle?.endDate)}`
+const isCurrentCycle = (cycle?: ReviewCycleDto | null) => Boolean(cycle && (cycle.isActive || cycle.status?.toUpperCase() === 'ACTIVE'))
+
+function CurrentInUseBadge() {
+  return (
+    <span className="inline-flex items-center rounded-full bg-emerald-100 px-2.5 py-1 text-[10px] font-black uppercase tracking-wide text-emerald-700">
+      Current in use
+    </span>
+  )
+}
 
 export default function FeedbackManagementPage() {
   const [activeTab, setActiveTab] = useState<TabKey>('criteria')
@@ -225,8 +235,8 @@ function ReviewCycleSelector({
   const selected = reviewCycles.find((cycle) => cycle.id === selectedReviewCycleId)
   return (
     <div className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
-      <div className="flex flex-col gap-4 lg:flex-row lg:items-end lg:justify-between">
-        <div>
+      <div className="flex flex-col gap-4 xl:flex-row xl:items-end xl:justify-between">
+        <div className="min-w-0">
           <h3 className="text-sm font-black uppercase tracking-wider text-slate-700">Review Cycle</h3>
           <p className="mt-1 text-xs font-medium text-slate-500">
             Select the cycle this configuration belongs to. Active cycles are view-only.
@@ -235,19 +245,29 @@ function ReviewCycleSelector({
         <select
           value={selectedReviewCycleId ?? ''}
           onChange={(event) => onChange(event.target.value ? Number(event.target.value) : null)}
-          className="h-11 w-full rounded-xl border border-slate-200 bg-slate-50 px-4 text-sm font-bold text-slate-700 outline-none transition focus:border-blue-400 focus:bg-white focus:ring-4 focus:ring-blue-50 lg:w-96"
+          title={selected ? `${selected.name} (${cycleDateRange(selected)}) - ${isCurrentCycle(selected) ? 'Active - Current in use' : selected.status}` : 'Select review cycle'}
+          className="h-11 w-full rounded-xl border border-slate-200 bg-slate-50 px-4 text-sm font-bold text-slate-700 outline-none transition focus:border-blue-400 focus:bg-white focus:ring-4 focus:ring-blue-50 xl:min-w-[46rem]"
         >
           <option value="">Select review cycle...</option>
           {reviewCycles.map((cycle) => (
             <option key={cycle.id} value={cycle.id}>
-              {cycle.name} ({cycleDate(cycle.startDate)} - {cycleDate(cycle.endDate)}) - {cycle.status}
+              {cycle.name} ({cycleDate(cycle.startDate)} - {cycleDate(cycle.endDate)}) - {isCurrentCycle(cycle) ? 'Active - Current in use' : cycle.status}
             </option>
           ))}
         </select>
       </div>
       {selected && (
         <div className={`mt-4 rounded-xl border px-4 py-3 text-sm font-semibold ${locked ? 'border-amber-200 bg-amber-50 text-amber-800' : 'border-emerald-200 bg-emerald-50 text-emerald-700'}`}>
-          {locked ? LOCK_MESSAGE : `Changes will be saved for ${selected.name} only.`}
+          <div className="mb-2 flex flex-wrap items-center gap-2 text-slate-700">
+            <span className="font-black">{selected.name}</span>
+            <span className="text-xs font-bold text-slate-500">{cycleDateRange(selected)}</span>
+          </div>
+          {locked ? (
+            <div className="flex flex-wrap items-center gap-2">
+              <CurrentInUseBadge />
+              <span>{LOCK_MESSAGE}</span>
+            </div>
+          ) : `Changes will be saved for ${selected.name} only.`}
         </div>
       )}
     </div>
@@ -268,11 +288,11 @@ function TemplateTab() {
   const [levelCodes, setLevelCodes] = useState<Option[]>([])
   const [employees, setEmployees] = useState<Option[]>([])
   const [showModal, setShowModal] = useState(false)
-  const [viewing, setViewing] = useState<FeedbackTemplateConfig | null>(null)
+  const [viewing, setViewing] = useState<FeedbackTemplateRow | null>(null)
   const [form, setForm] = useState<FeedbackTemplateConfig>(emptyTemplate)
   const [searchQuery, setSearchQuery] = useState('')
   const [targetFilter, setTargetFilter] = useState<'ALL' | FeedbackTemplateConfig['targetType']>('ALL')
-  const [viewMode, setViewMode] = useState<'grid' | 'table'>('grid')
+  const [viewMode, setViewMode] = useState<'grid' | 'table'>('table')
 
   useEffect(() => {
     void loadOptions()
@@ -292,7 +312,7 @@ function TemplateTab() {
         axios.get('/lookups/level-codes/active'),
         axios.get('/hr/employees', { params: { size: 1000 } }),
       ])
-      setCriteria((criteriaRes.data?.data ?? []).map((c: any) => ({ id: Number(c.id), name: c.name })))
+      setCriteria((criteriaRes.data?.data ?? []).map((c: any) => ({ id: Number(c.id), name: c.name, active: c.active !== false })))
       setDepartments((deptRes.data?.data ?? []).map((d: any) => ({ id: Number(d.departmentId ?? d.id), name: d.departmentName ?? d.name })))
       setLevelCodes((levelCodeRes.data?.data ?? []).map((levelCode: any) => ({ id: Number(levelCode.id), name: levelCode.code ?? levelCode.name })))
       const employeeRows = empRes.data?.data?.content ?? empRes.data?.data ?? []
@@ -304,21 +324,56 @@ function TemplateTab() {
   }
 
   const targetOptions = form.targetType === 'DEPARTMENT' ? departments : form.targetType === 'LEVEL_CODE' ? levelCodes : employees
-  const questionNameById = useMemo(() => new Map(criteria.map((item) => [item.id, item.name])), [criteria])
+  const activeCriteria = useMemo(() => criteria.filter((item) => item.active !== false), [criteria])
+  const criteriaNameById = useMemo(() => new Map(criteria.map((item) => [item.id, item.name])), [criteria])
   const activeLimitTypes = new Set(limits.map((limit) => limit.relationshipType))
+  const selectedCycleIsCurrent = isCurrentCycle(selectedReviewCycle)
+  const hasActiveConfiguredTemplate = templates.some((template) => template.status === 'ACTIVE')
+  const currentInUseFallbackTemplate = useMemo<FeedbackTemplateRow | null>(() => {
+    if (!selectedCycleIsCurrent || hasActiveConfiguredTemplate || activeCriteria.length === 0) return null
+    return {
+      templateName: 'Current Feedback Template',
+      targetType: 'PERSON',
+      targetId: 0,
+      targetName: 'All active feedback recipients',
+      reviewCycleId: selectedReviewCycleId ?? undefined,
+      reviewCycleName: selectedReviewCycle?.name,
+      questionIds: activeCriteria.map((item) => item.id),
+      status: 'ACTIVE',
+      currentInUseFallback: true,
+    }
+  }, [activeCriteria, hasActiveConfiguredTemplate, selectedCycleIsCurrent, selectedReviewCycle?.name, selectedReviewCycleId])
+  const templateRows = useMemo<FeedbackTemplateRow[]>(
+    () => currentInUseFallbackTemplate ? [currentInUseFallbackTemplate, ...templates] : templates,
+    [currentInUseFallbackTemplate, templates]
+  )
+  const selectedCycleRange = cycleDateRange(selectedReviewCycle)
   const filteredTemplates = useMemo(() => {
     const query = searchQuery.trim().toLowerCase()
-    return templates.filter((template) => {
+    return templateRows.filter((template) => {
       const matchesTarget = targetFilter === 'ALL' || template.targetType === targetFilter
+      const assignedCriteria = (template.questionIds ?? [])
+        .map((id) => criteriaNameById.get(id) ?? `criteria ${id}`)
+        .join(' ')
+      const searchableText = [
+        template.templateName,
+        template.targetName,
+        template.reviewCycleName,
+        selectedReviewCycle?.name,
+        selectedCycleRange,
+        template.status,
+        targetLabel(template.targetType),
+        assignedCriteria,
+        template.currentInUseFallback ? 'current in use live feedback active system default' : '',
+      ].filter(Boolean).join(' ').toLowerCase()
       const matchesSearch = !query
-        || template.templateName.toLowerCase().includes(query)
-        || (template.targetName ?? '').toLowerCase().includes(query)
-        || targetLabel(template.targetType).toLowerCase().includes(query)
+        || searchableText.includes(query)
       return matchesTarget && matchesSearch
     })
-  }, [searchQuery, targetFilter, templates])
-  const activeTemplates = templates.filter((template) => template.status === 'ACTIVE').length
-  const assignedQuestions = new Set(templates.flatMap((template) => template.questionIds ?? [])).size
+  }, [criteriaNameById, searchQuery, selectedCycleRange, selectedReviewCycle?.name, targetFilter, templateRows])
+  const activeTemplates = templateRows.filter((template) => template.status === 'ACTIVE').length
+  const assignedQuestions = new Set(templateRows.flatMap((template) => template.questionIds ?? [])).size
+  const isTemplateCurrentInUse = (template: FeedbackTemplateRow) => selectedCycleIsCurrent && template.status === 'ACTIVE'
 
   const openCreate = () => {
     if (!selectedReviewCycleId) return toast.error('Please select a review cycle')
@@ -330,6 +385,21 @@ function TemplateTab() {
   const openEdit = (template: FeedbackTemplateConfig) => {
     if (isLocked) return toast.error(LOCK_MESSAGE)
     setForm({ ...template, questionIds: template.questionIds ?? [] })
+    setShowModal(true)
+  }
+
+  const openDuplicate = (template: FeedbackTemplateRow) => {
+    if (isLocked) return toast.error(LOCK_MESSAGE)
+    if (template.currentInUseFallback) return toast.error('Current in-use templates are read-only. Duplicate from a future-cycle template.')
+    if (!selectedReviewCycleId) return toast.error('Please select a review cycle')
+    setForm({
+      ...template,
+      id: undefined,
+      templateName: `Copy of ${template.templateName}`,
+      reviewCycleId: selectedReviewCycleId,
+      reviewCycleName: selectedReviewCycle?.name,
+      questionIds: template.questionIds ?? [],
+    })
     setShowModal(true)
   }
 
@@ -369,7 +439,7 @@ function TemplateTab() {
         <div className="flex items-start gap-4">
           <div className="relative flex h-12 w-12 items-center justify-center rounded-2xl bg-gradient-to-br from-[#2463eb] to-[#1d4ed8] text-white shadow-lg shadow-[#2463eb]/20">
             <ClipboardList size={22} />
-            <span className="absolute -right-1 -top-1 flex h-5 min-w-5 items-center justify-center rounded-full bg-amber-500 px-1 text-[10px] font-black text-white">{templates.length}</span>
+            <span className="absolute -right-1 -top-1 flex h-5 min-w-5 items-center justify-center rounded-full bg-amber-500 px-1 text-[10px] font-black text-white">{templateRows.length}</span>
           </div>
           <div>
             <h2 className="text-2xl font-black tracking-tight text-slate-900">Feedback Templates</h2>
@@ -383,20 +453,20 @@ function TemplateTab() {
 
       <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
         {[
-          ['Total Templates', templates.length, FileText],
-          ['Active Templates', activeTemplates, ClipboardList],
-          ['Assigned Questions', assignedQuestions, LayoutGrid],
-          ['Available Questions', criteria.length, Filter],
-        ].map(([label, value, Icon]) => {
+          ['Total Templates', templateRows.length, FileText, 'bg-blue-50 text-blue-600'],
+          ['Active Templates', activeTemplates, CheckCircle2, 'bg-emerald-50 text-emerald-600'],
+          ['Assigned Criteria', assignedQuestions, ClipboardList, 'bg-violet-50 text-violet-600'],
+          ['Available Criteria', criteria.length, Filter, 'bg-amber-50 text-amber-600'],
+        ].map(([label, value, Icon, tone]) => {
           const StatIcon = Icon as typeof FileText
           return (
-            <div key={label as string} className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
+            <div key={label as string} className="rounded-2xl border border-slate-200/80 bg-white p-5 shadow-sm transition hover:-translate-y-0.5 hover:shadow-md">
               <div className="flex items-start justify-between">
                 <div>
                   <p className="text-[11px] font-black uppercase tracking-widest text-slate-400">{label as string}</p>
                   <p className="mt-2 text-3xl font-black text-slate-900">{value as number}</p>
                 </div>
-                <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-blue-50 text-blue-600">
+                <div className={`flex h-10 w-10 items-center justify-center rounded-xl ${tone as string}`}>
                   <StatIcon size={18} />
                 </div>
               </div>
@@ -406,10 +476,10 @@ function TemplateTab() {
       </div>
 
       <div className="overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm">
-        <div className="flex flex-col gap-4 border-b border-slate-100 p-5 lg:flex-row lg:items-center lg:justify-between">
+        <div className="flex flex-col gap-4 border-b border-slate-100 bg-gradient-to-r from-slate-50/80 to-white p-5 lg:flex-row lg:items-center lg:justify-between">
           <div>
             <h3 className="text-lg font-black text-slate-900">Templates</h3>
-            <p className="text-xs text-slate-500">{filteredTemplates.length} of {templates.length} template{templates.length === 1 ? '' : 's'}</p>
+            <p className="text-xs text-slate-500">{filteredTemplates.length} of {templateRows.length} template{templateRows.length === 1 ? '' : 's'}</p>
           </div>
           <div className="flex flex-col gap-3 sm:flex-row">
             <div className="relative">
@@ -435,21 +505,21 @@ function TemplateTab() {
             <div className="flex rounded-xl border border-slate-200 bg-slate-50 p-1">
               <button
                 type="button"
-                onClick={() => setViewMode('grid')}
-                className={`inline-flex items-center gap-1.5 rounded-lg px-3 py-1.5 text-xs font-black transition ${viewMode === 'grid' ? 'bg-white text-blue-700 shadow-sm' : 'text-slate-500 hover:text-slate-800'}`}
-                title="Grid view"
-              >
-                <LayoutGrid size={15} />
-                Grid
-              </button>
-              <button
-                type="button"
                 onClick={() => setViewMode('table')}
                 className={`inline-flex items-center gap-1.5 rounded-lg px-3 py-1.5 text-xs font-black transition ${viewMode === 'table' ? 'bg-white text-blue-700 shadow-sm' : 'text-slate-500 hover:text-slate-800'}`}
                 title="Table view"
               >
                 <Table2 size={15} />
                 Table
+              </button>
+              <button
+                type="button"
+                onClick={() => setViewMode('grid')}
+                className={`inline-flex items-center gap-1.5 rounded-lg px-3 py-1.5 text-xs font-black transition ${viewMode === 'grid' ? 'bg-white text-blue-700 shadow-sm' : 'text-slate-500 hover:text-slate-800'}`}
+                title="Grid view"
+              >
+                <LayoutGrid size={15} />
+                Grid
               </button>
             </div>
           </div>
@@ -468,41 +538,86 @@ function TemplateTab() {
             </div>
           ) : viewMode === 'table' ? (
             <div className="overflow-hidden rounded-2xl border border-slate-200">
-              <div className="overflow-x-auto">
-                <table className="w-full min-w-[860px] text-left">
+              <div className="w-full overflow-hidden">
+                <table className="w-full table-fixed text-left">
+                  <colgroup>
+                    <col className="w-[38%]" />
+                    <col className="hidden w-[13%] xl:table-column" />
+                    <col className="hidden w-[14%] 2xl:table-column" />
+                    <col className="hidden w-[17%] lg:table-column" />
+                    <col className="w-[68px]" />
+                    <col className="w-[84px]" />
+                    <col className="hidden w-[110px] xl:table-column" />
+                    <col className="w-[86px]" />
+                  </colgroup>
                   <thead className="bg-slate-50 text-[10px] font-black uppercase tracking-wider text-slate-400">
                     <tr>
-                      <th className="px-5 py-4">Template Name</th>
-                      <th className="px-5 py-4">Target Type</th>
-                      <th className="px-5 py-4">Assigned To</th>
-                      <th className="px-5 py-4 text-center">Questions</th>
-                      <th className="px-5 py-4">Status</th>
-                      <th className="px-5 py-4">Updated</th>
-                      <th className="px-5 py-4 text-center">Actions</th>
+                      <th className="px-3 py-4 sm:px-4">Template</th>
+                      <th className="hidden px-3 py-4 xl:table-cell">Target Type</th>
+                      <th className="hidden px-3 py-4 2xl:table-cell">Assigned To</th>
+                      <th className="hidden px-3 py-4 lg:table-cell">Cycle</th>
+                      <th className="px-2 py-4 text-center">Criteria</th>
+                      <th className="px-2 py-4">Status</th>
+                      <th className="hidden px-3 py-4 xl:table-cell">Updated</th>
+                      <th className="px-2 py-4 text-center">Actions</th>
                     </tr>
                   </thead>
                   <tbody className="divide-y divide-slate-100 bg-white">
                     {filteredTemplates.map((template) => (
-                      <tr key={template.id} className="transition hover:bg-slate-50">
-                        <td className="px-5 py-4">
-                          <p className="font-black text-slate-900">{template.templateName}</p>
+                      <tr key={template.id ?? 'current-in-use-template'} className={`transition hover:bg-slate-50 ${template.currentInUseFallback ? 'bg-emerald-50/40' : ''}`}>
+                        <td className="min-w-0 px-3 py-4 sm:px-4">
+                          <div className="flex items-start gap-3">
+                            <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-blue-50 text-blue-600">
+                              <FileText size={16} />
+                            </div>
+                            <div className="min-w-0">
+                              <div className="flex flex-wrap items-center gap-2">
+                                <p className="max-w-[260px] truncate font-black text-slate-900">{template.templateName}</p>
+                                {isTemplateCurrentInUse(template) && <CurrentInUseBadge />}
+                              </div>
+                              <p className="mt-1 truncate text-[11px] font-semibold text-slate-400">{template.reviewCycleName ?? selectedReviewCycle?.name ?? 'Review cycle'}</p>
+                              <p className="mt-1 truncate text-[11px] font-semibold text-slate-400 lg:hidden">{selectedCycleRange}</p>
+                            </div>
+                          </div>
+                          {template.currentInUseFallback && (
+                            <p className="mt-1 line-clamp-2 max-w-sm text-xs font-medium text-emerald-700">
+                              Built from the active feedback criteria used by the live feedback form.
+                            </p>
+                          )}
                         </td>
-                        <td className="px-5 py-4 text-sm font-semibold text-slate-600">{targetLabel(template.targetType)}</td>
-                        <td className="px-5 py-4 text-sm text-slate-500">{template.targetName || 'No target name'}</td>
-                        <td className="px-5 py-4 text-center">
+                        <td className="hidden px-3 py-4 text-sm font-semibold text-slate-600 xl:table-cell">
+                          <span className="inline-flex items-center gap-1.5">
+                            {template.targetType === 'DEPARTMENT' && <Building2 size={12} className="text-slate-400" />}
+                            {template.currentInUseFallback ? 'Live feedback criteria set' : targetLabel(template.targetType)}
+                          </span>
+                        </td>
+                        <td className="hidden truncate px-3 py-4 text-sm text-slate-500 2xl:table-cell">{template.targetName || 'No target name'}</td>
+                        <td className="hidden px-3 py-4 text-sm font-semibold text-slate-600 lg:table-cell">
+                          <span className="inline-flex items-center gap-1.5">
+                            <CalendarRange size={12} className="text-slate-400" />
+                            {selectedCycleRange}
+                          </span>
+                        </td>
+                        <td className="px-2 py-4 text-center">
                           <span className="inline-flex min-w-10 justify-center rounded-full bg-blue-50 px-3 py-1 text-xs font-black text-blue-700">
                             {template.questionIds.length}
                           </span>
                         </td>
-                        <td className="px-5 py-4">
-                          <span className={`rounded-full px-2.5 py-1 text-[10px] font-black ${template.status === 'ACTIVE' ? 'bg-emerald-50 text-emerald-700' : 'bg-slate-100 text-slate-500'}`}>{template.status}</span>
+                        <td className="px-2 py-4">
+                          <span className={`inline-flex items-center gap-1 rounded-full px-2.5 py-1 text-[10px] font-black ${template.status === 'ACTIVE' ? 'bg-emerald-50 text-emerald-700' : 'bg-slate-100 text-slate-500'}`}>
+                            {template.status === 'ACTIVE' && <span className="h-1.5 w-1.5 rounded-full bg-emerald-500" />}
+                            {template.status}
+                          </span>
                         </td>
-                        <td className="px-5 py-4 text-sm font-semibold text-slate-600">{formatDateTime(template.updatedDate ?? template.createdDate)}</td>
-                        <td className="px-5 py-4">
-                          <div className="flex justify-center gap-1">
-                            <button onClick={() => setViewing(template)} className="rounded-lg p-2 text-slate-400 hover:bg-slate-100 hover:text-slate-700" title="View"><Eye size={16} /></button>
-                            {!isLocked && <button onClick={() => openEdit(template)} className="rounded-lg p-2 text-slate-400 hover:bg-blue-50 hover:text-blue-600" title="Edit"><Pencil size={16} /></button>}
-                            {!isLocked && <button onClick={() => void handleDelete(template.id)} className="rounded-lg p-2 text-slate-400 hover:bg-red-50 hover:text-red-600" title="Delete"><Trash2 size={16} /></button>}
+                        <td className="hidden px-3 py-4 text-sm font-semibold text-slate-600 xl:table-cell">
+                          {template.currentInUseFallback ? 'System default' : formatDateTime(template.updatedDate ?? template.createdDate)}
+                        </td>
+                        <td className="px-2 py-4">
+                          <div className="mx-auto flex max-w-[62px] flex-wrap justify-center gap-1">
+                            {!isLocked && !template.currentInUseFallback && <button onClick={() => openDuplicate(template)} className="rounded-lg p-1.5 text-slate-400 hover:bg-violet-50 hover:text-violet-600" title="Duplicate"><Copy size={15} /></button>}
+                            <button onClick={() => setViewing(template)} className="rounded-lg p-1.5 text-slate-400 hover:bg-slate-100 hover:text-slate-700" title="View"><Eye size={15} /></button>
+                            {!isLocked && !template.currentInUseFallback && <button onClick={() => openEdit(template)} className="rounded-lg p-1.5 text-slate-400 hover:bg-blue-50 hover:text-blue-600" title="Edit"><Pencil size={15} /></button>}
+                            {!isLocked && !template.currentInUseFallback && <button onClick={() => void handleDelete(template.id)} className="rounded-lg p-1.5 text-slate-400 hover:bg-red-50 hover:text-red-600" title="Delete"><Trash2 size={15} /></button>}
                           </div>
                         </td>
                       </tr>
@@ -512,32 +627,90 @@ function TemplateTab() {
               </div>
             </div>
           ) : (
-            <div className="grid gap-4 xl:grid-cols-2">
-              {filteredTemplates.map((template) => (
-                <div key={template.id} className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm transition hover:-translate-y-0.5 hover:shadow-md">
-                  <div className="flex items-start justify-between gap-4">
-                    <div className="min-w-0">
-                      <div className="flex flex-wrap items-center gap-2">
-                        <h4 className="truncate text-base font-black text-slate-900">{template.templateName}</h4>
-                        <span className={`rounded-full px-2.5 py-1 text-[10px] font-black ${template.status === 'ACTIVE' ? 'bg-emerald-50 text-emerald-700' : 'bg-slate-100 text-slate-500'}`}>{template.status}</span>
+            <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-3">
+              {filteredTemplates.map((template, index) => (
+                <div
+                  key={template.id ?? 'current-in-use-template'}
+                  className={`group relative overflow-hidden rounded-2xl border p-5 shadow-sm transition duration-300 hover:-translate-y-0.5 hover:shadow-md ${template.currentInUseFallback ? 'border-emerald-200 bg-gradient-to-br from-emerald-50 to-white ring-1 ring-emerald-100' : 'border-slate-200/70 bg-white'}`}
+                  style={{ animationDelay: `${index * 40}ms` }}
+                >
+                  <div className="absolute -right-6 -top-6 h-20 w-20 rounded-full bg-blue-500/[0.03] blur-2xl transition duration-500 group-hover:scale-150 group-hover:bg-blue-500/[0.06]" />
+                  <div className="relative">
+                    <div className="mb-4 flex items-start justify-between gap-4">
+                      <div className="flex min-w-0 items-center gap-3">
+                        <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-blue-50 text-blue-600">
+                          <FileText size={18} />
+                        </div>
+                        <div className="min-w-0">
+                          <h4 className="truncate text-sm font-black text-slate-900">{template.templateName}</h4>
+                          <div className="mt-1 flex flex-wrap items-center gap-1.5">
+                            <span className={`inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-[10px] font-black uppercase tracking-wide ${template.status === 'ACTIVE' ? 'bg-emerald-100 text-emerald-700' : 'bg-slate-100 text-slate-500'}`}>
+                              {template.status === 'ACTIVE' && <span className="h-1.5 w-1.5 rounded-full bg-emerald-500" />}
+                              {template.status}
+                            </span>
+                            {isTemplateCurrentInUse(template) && <CurrentInUseBadge />}
+                          </div>
+                        </div>
                       </div>
-                      <p className="mt-1 text-sm font-semibold text-slate-600">{targetLabel(template.targetType)}</p>
-                      <p className="text-xs text-slate-400">{template.targetName || 'No target name'}</p>
+                      <button onClick={() => setViewing(template)} className="shrink-0 rounded-lg p-2 text-slate-400 hover:bg-slate-100 hover:text-slate-700"><Eye size={16} /></button>
                     </div>
-                    <div className="flex shrink-0 gap-1">
-                      <button onClick={() => setViewing(template)} className="rounded-lg p-2 text-slate-400 hover:bg-slate-100 hover:text-slate-700"><Eye size={16} /></button>
-                      {!isLocked && <button onClick={() => openEdit(template)} className="rounded-lg p-2 text-slate-400 hover:bg-blue-50 hover:text-blue-600"><Pencil size={16} /></button>}
-                      {!isLocked && <button onClick={() => void handleDelete(template.id)} className="rounded-lg p-2 text-slate-400 hover:bg-red-50 hover:text-red-600"><Trash2 size={16} /></button>}
+
+                    <div className="space-y-2.5 text-xs">
+                      <div className="flex items-center gap-2 text-slate-600">
+                        <Users size={12} className="shrink-0 text-slate-400" />
+                        <span className="truncate font-medium">
+                          {template.currentInUseFallback ? 'Live feedback criteria set' : targetLabel(template.targetType)}
+                        </span>
+                      </div>
+                      <div className="flex items-center gap-2 text-slate-500">
+                        <Building2 size={12} className="shrink-0 text-slate-400" />
+                        <span className="truncate">{template.targetName || 'No target name'}</span>
+                      </div>
+                      <div className="flex items-center gap-2 text-slate-500">
+                        <CalendarRange size={12} className="shrink-0 text-slate-400" />
+                        <span className="truncate">{selectedReviewCycle?.name ?? template.reviewCycleName ?? 'Review cycle'} - {selectedCycleRange}</span>
+                      </div>
                     </div>
-                  </div>
-                  <div className="mt-4 grid grid-cols-2 gap-3 rounded-xl bg-slate-50 p-3 text-sm">
-                    <div>
-                      <p className="text-[10px] font-black uppercase tracking-wider text-slate-400">Questions</p>
-                      <p className="mt-1 font-black text-slate-900">{template.questionIds.length}</p>
+
+                    {template.currentInUseFallback && (
+                      <p className="mt-3 rounded-xl border border-emerald-100 bg-white/70 px-3 py-2 text-xs font-medium leading-relaxed text-emerald-700">
+                        This is the current template employees and reviewers use when no saved active-cycle template has been configured.
+                      </p>
+                    )}
+
+                    <div className="mt-4 flex flex-wrap items-center gap-2">
+                      <span className="inline-flex items-center gap-1 rounded-lg bg-slate-100/80 px-2 py-1 text-[10px] font-bold text-slate-600">
+                        <ClipboardList size={9} />
+                        {template.questionIds.length} criteria
+                      </span>
+                      <span className="inline-flex items-center gap-1 rounded-lg bg-blue-50 px-2 py-1 text-[10px] font-bold text-blue-700">
+                        {template.currentInUseFallback ? 'Live feedback criteria set' : targetLabel(template.targetType)}
+                      </span>
                     </div>
-                    <div>
-                      <p className="text-[10px] font-black uppercase tracking-wider text-slate-400">Updated</p>
-                      <p className="mt-1 truncate font-semibold text-slate-700">{formatDateTime(template.updatedDate ?? template.createdDate)}</p>
+
+                    <div className="mt-4 space-y-2 border-t border-slate-100 pt-4">
+                      {!isLocked && !template.currentInUseFallback && (
+                        <button onClick={() => openDuplicate(template)} className="flex w-full items-center justify-center gap-2 rounded-xl border border-slate-200 px-4 py-2.5 text-xs font-bold text-slate-600 transition hover:bg-slate-50">
+                          <Copy size={14} />
+                          Duplicate Template
+                        </button>
+                      )}
+                      <button onClick={() => setViewing(template)} className="flex w-full items-center justify-center gap-2 rounded-xl border border-slate-200 px-4 py-2.5 text-xs font-bold text-slate-600 transition hover:bg-slate-50">
+                        <Eye size={14} />
+                        View Template
+                      </button>
+                      {!isLocked && !template.currentInUseFallback && (
+                        <button onClick={() => openEdit(template)} className="flex w-full items-center justify-center gap-2 rounded-xl bg-blue-50 px-4 py-2.5 text-xs font-bold text-blue-700 transition hover:bg-blue-100">
+                          <Pencil size={14} />
+                          Edit Template
+                        </button>
+                      )}
+                      {!isLocked && !template.currentInUseFallback && (
+                        <button onClick={() => void handleDelete(template.id)} className="flex w-full items-center justify-center gap-2 rounded-xl border border-red-100 px-4 py-2.5 text-xs font-bold text-red-600 transition hover:bg-red-50">
+                          <Trash2 size={14} />
+                          Delete Template
+                        </button>
+                      )}
                     </div>
                   </div>
                 </div>
@@ -558,36 +731,64 @@ function TemplateTab() {
           targetOptions={targetOptions}
           criteria={criteria}
           isSaving={isSaving}
+          reviewCycleName={selectedReviewCycle?.name ?? null}
+          reviewCycleDetail={selectedCycleRange}
           onClose={() => setShowModal(false)}
           onSave={handleSave}
         />
       )}
       {viewing && (
-        <DetailsModal title={viewing.templateName} onClose={() => setViewing(null)}>
-          <div className="space-y-3 text-sm">
-            <p><strong>Target:</strong> {targetLabel(viewing.targetType)} - {viewing.targetName}</p>
-            <p><strong>Status:</strong> {viewing.status}</p>
-            <div>
-              <strong>Assigned Questions</strong>
-              <ul className="mt-2 list-disc space-y-1 pl-5 text-slate-600">
-                {viewing.questionIds.map((id) => <li key={id}>{questionNameById.get(id) ?? `Question #${id}`}</li>)}
-              </ul>
-            </div>
-          </div>
-        </DetailsModal>
+        <TemplateModal
+          form={viewing}
+          setForm={(next) => setViewing({ ...next, currentInUseFallback: viewing.currentInUseFallback })}
+          targetOptions={targetOptions}
+          criteria={criteria}
+          isSaving={false}
+          reviewCycleName={selectedReviewCycle?.name ?? viewing.reviewCycleName ?? null}
+          reviewCycleDetail={selectedCycleRange}
+          onClose={() => setViewing(null)}
+          onSave={() => undefined}
+          readOnly
+          modalTitle="View Feedback Template"
+          readOnlyMessage={
+            viewing.currentInUseFallback
+              ? 'This is the current feedback template generated from active criteria and cannot be edited.'
+              : selectedCycleIsCurrent
+                ? 'Current-cycle feedback templates are view-only. Edit feedback templates only from future review cycles.'
+                : 'This is a read-only preview. Use Edit Template to change future-cycle feedback templates.'
+          }
+        />
       )}
     </section>
   )
 }
 
-function TemplateModal({ form, setForm, targetOptions, criteria, isSaving, onClose, onSave }: {
+function TemplateModal({
+  form,
+  setForm,
+  targetOptions,
+  criteria,
+  isSaving,
+  reviewCycleName,
+  reviewCycleDetail,
+  onClose,
+  onSave,
+  readOnly = false,
+  modalTitle,
+  readOnlyMessage,
+}: {
   form: FeedbackTemplateConfig
   setForm: (form: FeedbackTemplateConfig) => void
   targetOptions: Option[]
   criteria: Option[]
   isSaving: boolean
+  reviewCycleName: string | null
+  reviewCycleDetail: string
   onClose: () => void
   onSave: () => void
+  readOnly?: boolean
+  modalTitle?: string
+  readOnlyMessage?: string
 }) {
   const selectedTarget = targetOptions.find((item) => item.id === Number(form.targetId))
   const selectedQuestions = criteria.filter((item) => form.questionIds.includes(item.id))
@@ -602,8 +803,17 @@ function TemplateModal({ form, setForm, targetOptions, criteria, isSaving, onClo
                 <ClipboardList size={20} />
               </div>
               <div>
-                <h3 className="text-xl font-black">{form.id ? 'Edit Feedback Template' : 'Create Feedback Template'}</h3>
-                <p className="mt-0.5 text-sm text-blue-100">Configure the audience and assign feedback questions.</p>
+                <div className="flex flex-wrap items-center gap-2">
+                  <h3 className="text-xl font-black">{modalTitle ?? (form.id ? 'Edit Feedback Template' : 'Create Feedback Template')}</h3>
+                  {readOnly && (
+                    <span className="rounded-full bg-white/15 px-2.5 py-0.5 text-[11px] font-bold uppercase tracking-wide text-white ring-1 ring-white/20">
+                      Read-only
+                    </span>
+                  )}
+                </div>
+                <p className="mt-0.5 text-sm text-blue-100">
+                  {readOnly ? 'Review the template exactly as it is available for this cycle.' : 'Configure the audience and assign feedback criteria.'}
+                </p>
               </div>
             </div>
             <button onClick={onClose} className="rounded-lg p-2 text-white/80 hover:bg-white/10 hover:text-white"><X size={18} /></button>
@@ -614,8 +824,33 @@ function TemplateModal({ form, setForm, targetOptions, criteria, isSaving, onClo
           <div className="space-y-5 p-6">
             <section className="rounded-2xl border border-slate-200 p-5">
               <div className="mb-4 flex items-center gap-3">
-                <span className="flex h-8 w-8 items-center justify-center rounded-lg bg-blue-50 text-blue-600 text-sm font-black">1</span>
+                <span className="flex h-9 w-9 items-center justify-center rounded-xl bg-gradient-to-br from-[#2463eb] to-[#1d4ed8] text-white shadow-md shadow-[#2463eb]/20">
+                  <CalendarRange size={17} />
+                </span>
                 <div>
+                  <span className="text-[11px] font-bold uppercase tracking-widest text-[#2463eb]">Step 1</span>
+                  <h4 className="font-black text-slate-900">Review Cycle</h4>
+                  <p className="text-xs text-slate-500">Feedback templates are saved against the selected future or upcoming review cycle.</p>
+                </div>
+              </div>
+              <div className="rounded-xl border border-blue-100 bg-blue-50/60 px-4 py-3">
+                <p className="text-sm font-black text-slate-900">{reviewCycleName ?? 'Selected review cycle'}</p>
+                <p className="mt-1 text-xs font-semibold text-slate-500">{reviewCycleDetail}</p>
+              </div>
+              {readOnlyMessage && (
+                <div className="mt-3 rounded-xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm font-semibold text-amber-800">
+                  {readOnlyMessage}
+                </div>
+              )}
+            </section>
+
+            <section className="rounded-2xl border border-slate-200 p-5">
+              <div className="mb-4 flex items-center gap-3">
+                <span className="flex h-9 w-9 items-center justify-center rounded-xl bg-gradient-to-br from-[#2463eb] to-[#1d4ed8] text-white shadow-md shadow-[#2463eb]/20">
+                  <FileText size={17} />
+                </span>
+                <div>
+                  <span className="text-[11px] font-bold uppercase tracking-widest text-[#2463eb]">Step 2</span>
                   <h4 className="font-black text-slate-900">Template Details</h4>
                   <p className="text-xs text-slate-500">Name the template and choose its status.</p>
                 </div>
@@ -624,7 +859,8 @@ function TemplateModal({ form, setForm, targetOptions, criteria, isSaving, onClo
                 <div>
                   <label className="mb-1.5 block text-xs font-black uppercase tracking-wider text-slate-400">Template Name</label>
                   <input
-                    className="w-full rounded-xl border border-slate-300 px-4 py-2.5 text-sm font-semibold focus:border-[#2463eb] focus:outline-none"
+                    readOnly={readOnly}
+                    className="w-full rounded-xl border border-slate-300 px-4 py-2.5 text-sm font-semibold focus:border-[#2463eb] focus:outline-none read-only:bg-slate-50 read-only:text-slate-500"
                     placeholder="e.g. Engineering Peer Feedback"
                     value={form.templateName}
                     onChange={(e) => setForm({ ...form, templateName: e.target.value })}
@@ -632,7 +868,7 @@ function TemplateModal({ form, setForm, targetOptions, criteria, isSaving, onClo
                 </div>
                 <div>
                   <label className="mb-1.5 block text-xs font-black uppercase tracking-wider text-slate-400">Status</label>
-                  <select className="w-full rounded-xl border border-slate-300 px-4 py-2.5 text-sm font-semibold focus:border-[#2463eb] focus:outline-none" value={form.status} onChange={(e) => setForm({ ...form, status: e.target.value as FeedbackTemplateConfig['status'] })}>
+                  <select disabled={readOnly} className="w-full rounded-xl border border-slate-300 px-4 py-2.5 text-sm font-semibold focus:border-[#2463eb] focus:outline-none disabled:bg-slate-50 disabled:text-slate-500" value={form.status} onChange={(e) => setForm({ ...form, status: e.target.value as FeedbackTemplateConfig['status'] })}>
                     <option value="ACTIVE">Active</option>
                     <option value="INACTIVE">Inactive</option>
                   </select>
@@ -642,8 +878,11 @@ function TemplateModal({ form, setForm, targetOptions, criteria, isSaving, onClo
 
             <section className="rounded-2xl border border-slate-200 p-5">
               <div className="mb-4 flex items-center gap-3">
-                <span className="flex h-8 w-8 items-center justify-center rounded-lg bg-blue-50 text-blue-600 text-sm font-black">2</span>
+                <span className="flex h-9 w-9 items-center justify-center rounded-xl bg-gradient-to-br from-[#2463eb] to-[#1d4ed8] text-white shadow-md shadow-[#2463eb]/20">
+                  <Users size={17} />
+                </span>
                 <div>
+                  <span className="text-[11px] font-bold uppercase tracking-widest text-[#2463eb]">Step 3</span>
                   <h4 className="font-black text-slate-900">Audience</h4>
                   <p className="text-xs text-slate-500">Match the self-assessment audience style by selecting one target type.</p>
                 </div>
@@ -657,8 +896,9 @@ function TemplateModal({ form, setForm, targetOptions, criteria, isSaving, onClo
                   <button
                     key={value}
                     type="button"
+                    disabled={readOnly}
                     onClick={() => setForm({ ...form, targetType: value as FeedbackTemplateConfig['targetType'], targetId: 0 })}
-                    className={`rounded-xl border p-4 text-left transition ${form.targetType === value ? 'border-[#2463eb] bg-blue-50 ring-2 ring-blue-100' : 'border-slate-200 hover:border-slate-300 hover:bg-slate-50'}`}
+                    className={`rounded-xl border p-4 text-left transition disabled:cursor-not-allowed ${form.targetType === value ? 'border-[#2463eb] bg-blue-50 ring-2 ring-blue-100' : 'border-slate-200 hover:border-slate-300 hover:bg-slate-50'} ${readOnly && form.targetType !== value ? 'opacity-50' : ''}`}
                   >
                     <p className="font-black text-slate-900">{label}</p>
                     <p className="mt-1 text-xs text-slate-500">{description}</p>
@@ -667,7 +907,7 @@ function TemplateModal({ form, setForm, targetOptions, criteria, isSaving, onClo
               </div>
               <div className="mt-4">
                 <label className="mb-1.5 block text-xs font-black uppercase tracking-wider text-slate-400">Target</label>
-                <select className="w-full rounded-xl border border-slate-300 px-4 py-2.5 text-sm font-semibold focus:border-[#2463eb] focus:outline-none" value={form.targetId || ''} onChange={(e) => setForm({ ...form, targetId: Number(e.target.value) })}>
+                <select disabled={readOnly} className="w-full rounded-xl border border-slate-300 px-4 py-2.5 text-sm font-semibold focus:border-[#2463eb] focus:outline-none disabled:bg-slate-50 disabled:text-slate-500" value={form.targetId || ''} onChange={(e) => setForm({ ...form, targetId: Number(e.target.value) })}>
                   <option value="">Select {displayType(form.targetType).replace('_', ' ').toLowerCase()}...</option>
                   {targetOptions.map((item) => <option key={item.id} value={item.id}>{item.name}</option>)}
                 </select>
@@ -677,10 +917,13 @@ function TemplateModal({ form, setForm, targetOptions, criteria, isSaving, onClo
             <section className="rounded-2xl border border-slate-200 p-5">
               <div className="mb-4 flex items-center justify-between gap-3">
                 <div className="flex items-center gap-3">
-                  <span className="flex h-8 w-8 items-center justify-center rounded-lg bg-blue-50 text-blue-600 text-sm font-black">3</span>
+                  <span className="flex h-9 w-9 items-center justify-center rounded-xl bg-gradient-to-br from-[#2463eb] to-[#1d4ed8] text-white shadow-md shadow-[#2463eb]/20">
+                    <ClipboardList size={17} />
+                  </span>
                   <div>
-                    <h4 className="font-black text-slate-900">Question Assignment</h4>
-                    <p className="text-xs text-slate-500">Select the criteria/questions included in this template.</p>
+                    <span className="text-[11px] font-bold uppercase tracking-widest text-[#2463eb]">Step 4</span>
+                    <h4 className="font-black text-slate-900">Criteria Assignment</h4>
+                    <p className="text-xs text-slate-500">Select the feedback criteria included in this template.</p>
                   </div>
                 </div>
                 <span className="rounded-full bg-slate-100 px-3 py-1 text-xs font-black text-slate-600">{form.questionIds.length} selected</span>
@@ -690,6 +933,7 @@ function TemplateModal({ form, setForm, targetOptions, criteria, isSaving, onClo
                   <label key={item.id} className="flex items-start gap-3 rounded-xl bg-white px-3 py-2.5 text-sm shadow-sm ring-1 ring-slate-100">
                     <input
                       type="checkbox"
+                      disabled={readOnly}
                       className="mt-1"
                       checked={form.questionIds.includes(item.id)}
                       onChange={(e) => {
@@ -710,6 +954,11 @@ function TemplateModal({ form, setForm, targetOptions, criteria, isSaving, onClo
             <h4 className="font-black text-slate-900">Template Preview</h4>
             <div className="mt-4 space-y-4 rounded-2xl border border-slate-200 bg-white p-4">
               <div>
+                <p className="text-xs font-black uppercase tracking-wider text-slate-400">Review Cycle</p>
+                <p className="mt-1 font-semibold text-slate-700">{reviewCycleName ?? 'Selected review cycle'}</p>
+                <p className="text-xs text-slate-500">{reviewCycleDetail}</p>
+              </div>
+              <div>
                 <p className="text-xs font-black uppercase tracking-wider text-slate-400">Name</p>
                 <p className="mt-1 font-bold text-slate-900">{form.templateName || 'Untitled template'}</p>
               </div>
@@ -719,9 +968,9 @@ function TemplateModal({ form, setForm, targetOptions, criteria, isSaving, onClo
                 <p className="text-xs text-slate-500">{selectedTarget?.name || 'No target selected'}</p>
               </div>
               <div>
-                <p className="text-xs font-black uppercase tracking-wider text-slate-400">Questions</p>
+                <p className="text-xs font-black uppercase tracking-wider text-slate-400">Criteria</p>
                 {selectedQuestions.length === 0 ? (
-                  <p className="mt-1 text-sm text-slate-500">No questions selected</p>
+                  <p className="mt-1 text-sm text-slate-500">No criteria selected</p>
                 ) : (
                   <ul className="mt-2 space-y-1 text-sm text-slate-600">
                     {selectedQuestions.slice(0, 5).map((question) => <li key={question.id}>- {question.name}</li>)}
@@ -734,8 +983,10 @@ function TemplateModal({ form, setForm, targetOptions, criteria, isSaving, onClo
         </div>
 
         <div className="flex justify-end gap-3 border-t border-slate-100 bg-white p-5">
-          <button onClick={onClose} className="rounded-xl px-4 py-2 text-sm font-bold text-slate-500 hover:bg-slate-50">Cancel</button>
-          <button onClick={onSave} disabled={isSaving} className="rounded-xl bg-blue-600 px-5 py-2 text-sm font-bold text-white hover:bg-blue-700 disabled:opacity-60">{isSaving ? 'Saving...' : 'Save Template'}</button>
+          <button onClick={onClose} className="rounded-xl px-4 py-2 text-sm font-bold text-slate-500 hover:bg-slate-50">{readOnly ? 'Close' : 'Cancel'}</button>
+          {!readOnly && (
+            <button onClick={onSave} disabled={isSaving} className="rounded-xl bg-blue-600 px-5 py-2 text-sm font-bold text-white hover:bg-blue-700 disabled:opacity-60">{isSaving ? 'Saving...' : 'Save Template'}</button>
+          )}
         </div>
       </div>
     </div>
@@ -942,19 +1193,5 @@ function PeerProgressTab() {
         </div>
       )}
     </section>
-  )
-}
-
-function DetailsModal({ title, children, onClose }: { title: string; children: ReactNode; onClose: () => void }) {
-  return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/50 p-4">
-      <div className="w-full max-w-lg rounded-2xl bg-white shadow-xl">
-        <div className="flex items-center justify-between border-b border-slate-100 p-5">
-          <h3 className="text-lg font-black text-slate-900">{title}</h3>
-          <button onClick={onClose} className="rounded-lg p-2 text-slate-400 hover:bg-slate-100"><X size={18} /></button>
-        </div>
-        <div className="p-5">{children}</div>
-      </div>
-    </div>
   )
 }

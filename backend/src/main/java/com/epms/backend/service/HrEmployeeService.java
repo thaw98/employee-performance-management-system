@@ -136,7 +136,18 @@ public class HrEmployeeService {
                     predicates.add(cb.equal(root.get("employmentStatus"), EmployeeStatus.RESIGNED));
                 } else if (employmentStatus.equalsIgnoreCase("Terminated")) {
                     predicates.add(cb.equal(root.get("employmentStatus"), EmployeeStatus.TERMINATED));
-                } else {
+                } else if (employmentStatus.equalsIgnoreCase("Inactive")) {
+                    predicates.add(cb.or(
+                        cb.equal(root.get("employmentStatus"), EmployeeStatus.RESIGNED),
+                        cb.equal(root.get("employmentStatus"), EmployeeStatus.TERMINATED)
+                    ));
+                } else if (employmentStatus.equalsIgnoreCase("Active")) {
+                    predicates.add(cb.or(
+                        cb.isNull(root.get("employmentStatus")),
+                        cb.equal(root.get("employmentStatus"), EmployeeStatus.ACTIVE)
+                    ));
+                } else if (employmentStatus.equalsIgnoreCase("Probation")
+                        || employmentStatus.equalsIgnoreCase("Permanent")) {
                     // For Probation/Permanent, only show ACTIVE employees
                     predicates.add(cb.or(
                         cb.isNull(root.get("employmentStatus")),
@@ -144,10 +155,10 @@ public class HrEmployeeService {
                     ));
 
                     Join<Employee, EmployeeProbation> probationJoin = root.join("probation", JoinType.LEFT);
-                    
+
                     if (employmentStatus.equalsIgnoreCase("Probation")) {
                         predicates.add(cb.isNotNull(probationJoin.get("id")));
-                    } else if (employmentStatus.equalsIgnoreCase("Permanent")) {
+                    } else {
                         predicates.add(cb.isNull(probationJoin.get("id")));
                     }
                 }

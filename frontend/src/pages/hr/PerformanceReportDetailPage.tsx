@@ -118,10 +118,18 @@ const ScoreCard: React.FC<{
   period?: string | null;
   icon: React.ReactNode;
   extra?: string | null;
-}> = ({ title, score, period, icon, extra }) => {
+  onClick?: () => void;
+}> = ({ title, score, period, icon, extra, onClick }) => {
   const info = getScoreInfo(score);
   return (
-    <div className={`rounded-xl border ${info.border} ${info.bg} p-5 transition-all hover:shadow-md`}>
+    <div
+      onClick={onClick}
+      className={`rounded-xl border ${info.border} ${info.bg} p-5 transition-all ${
+        onClick
+          ? 'cursor-pointer hover:scale-[1.02] hover:shadow-lg hover:border-slate-300 dark:hover:border-slate-600'
+          : 'hover:shadow-md'
+      }`}
+    >
       <div className="flex items-start justify-between mb-3">
         <div className="flex items-center gap-2">
           <div className={`${info.color}`}>{icon}</div>
@@ -172,6 +180,7 @@ export const PerformanceReportDetailPage: React.FC<PerformanceReportDetailPagePr
 }) => {
   const { employeeId } = useParams();
   const navigate = useNavigate();
+  const prefix = basePath.startsWith('/audit') ? '/audit' : '/hr';
   const empId = Number(employeeId);
   const { data: report, isLoading, error } = useGetEmployeePerformanceSummaryQuery(empId, {
     skip: !empId,
@@ -368,6 +377,9 @@ export const PerformanceReportDetailPage: React.FC<PerformanceReportDetailPagePr
         body: [
           ['PIP Status', report.hasActivePip ? `Active (${report.pipStatus || ''})` : 'No Active PIP'],
           ['Promotion Eligibility', report.promotionEligible ? 'Eligible' : 'Not Eligible'],
+          ...(report.latestApprovedPromotionReason
+            ? [['Promotion Reason', report.latestApprovedPromotionReason]]
+            : []),
         ],
         styles: { fontSize: 10, cellPadding: 3 },
         headStyles: { fillColor: [36, 99, 235], textColor: 255 },
@@ -382,7 +394,7 @@ export const PerformanceReportDetailPage: React.FC<PerformanceReportDetailPagePr
   };
 
   return (
-    <div className="space-y-6 max-w-5xl">
+    <div className="space-y-6 w-full">
       {/* Back & Export */}
       <div className="flex items-center justify-between">
         <button
@@ -459,6 +471,7 @@ export const PerformanceReportDetailPage: React.FC<PerformanceReportDetailPagePr
           score={report.kpiScore}
           period={report.kpiPeriod}
           icon={<TrendingUp size={18} />}
+          onClick={() => navigate(`${prefix}/kpi-detail?employeeId=${report.employeeId}`)}
         />
         <ScoreCard
           title="Appraisal Score"
@@ -466,12 +479,14 @@ export const PerformanceReportDetailPage: React.FC<PerformanceReportDetailPagePr
           period={report.appraisalPeriod}
           icon={<Award size={18} />}
           extra={report.appraisalRatingCategory ? `Category: ${report.appraisalRatingCategory}` : undefined}
+          onClick={() => navigate(`${prefix}/reports/appraisal?search=${encodeURIComponent(report.employeeName)}`)}
         />
         <ScoreCard
           title="Self Assessment Score"
           score={report.selfAssessmentScore}
           period={report.selfAssessmentCycle}
           icon={<FileText size={18} />}
+          onClick={() => navigate(`${prefix}/self-assessment/history?search=${encodeURIComponent(report.employeeName)}`)}
         />
         <ScoreCard
           title="Feedback Score"
@@ -479,11 +494,13 @@ export const PerformanceReportDetailPage: React.FC<PerformanceReportDetailPagePr
           period={null}
           icon={<MessageSquare size={18} />}
           extra={`Total feedbacks received: ${report.feedbackCount}`}
+          onClick={() => navigate(`${prefix}/360-feedback/history?search=${encodeURIComponent(report.employeeName)}`)}
         />
 
         {/* PIP Status Card */}
         <div
-          className={`rounded-xl border p-5 transition-all hover:shadow-md ${
+          onClick={() => navigate(`${prefix}/pip-monitoring?search=${encodeURIComponent(report.employeeName)}`)}
+          className={`rounded-xl border p-5 transition-all cursor-pointer hover:scale-[1.02] hover:shadow-lg hover:border-slate-300 dark:hover:border-slate-600 ${
             report.hasActivePip
               ? 'border-red-200 dark:border-red-800 bg-red-50 dark:bg-red-900/20'
               : 'border-emerald-200 dark:border-emerald-800 bg-emerald-50 dark:bg-emerald-900/20'
@@ -562,6 +579,26 @@ export const PerformanceReportDetailPage: React.FC<PerformanceReportDetailPagePr
               </span>
             </div>
           </div>
+
+          {/* Promotion Reason — only when latestApprovedPromotionReason exists */}
+          {report.latestApprovedPromotionReason && (
+            <div className="mt-4 p-4 bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-800 rounded-lg">
+              <p className="text-xs font-bold text-blue-700 dark:text-blue-300 uppercase tracking-wide mb-1">
+                Latest Approved Promotion Reason
+              </p>
+              <p className="text-sm text-slate-800 dark:text-slate-200 font-medium">
+                {report.latestApprovedPromotionReason}
+              </p>
+              <div className="flex flex-wrap gap-x-4 gap-y-0.5 mt-1 text-xs text-slate-500 dark:text-slate-400">
+                {report.latestApprovedPromotionTargetPositionName && (
+                  <span>Target Position: <strong>{report.latestApprovedPromotionTargetPositionName}</strong></span>
+                )}
+                {report.latestApprovedPromotionEffectiveDate && (
+                  <span>Effective Date: <strong>{report.latestApprovedPromotionEffectiveDate}</strong></span>
+                )}
+              </div>
+            </div>
+          )}
 
           {/* Promote Button — only visible if eligible */}
           {report.promotionEligible && !readOnly && (

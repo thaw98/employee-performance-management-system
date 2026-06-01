@@ -65,6 +65,11 @@ export function usePermissionState() {
     [hasPermission]
   );
 
+  const canViewMeetings = useCallback(
+    (): boolean => canViewModule('MEETINGS'),
+    [canViewModule]
+  );
+
   return {
     permissions,
     loaded,
@@ -75,5 +80,6 @@ export function usePermissionState() {
     hasAnyPermission,
     hasAllPermissions,
     canViewModule,
+    canViewMeetings,
   };
 }

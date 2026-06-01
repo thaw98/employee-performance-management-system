@@ -173,7 +173,6 @@ const AuditLayout: React.FC = () => {
             brandSubtitle="Audit Console"
             menuSections={menuSections}
             user={user}
-            searchPlaceholder="Search audit logs..."
         >
             <Outlet />
         </DashLayoutShell>

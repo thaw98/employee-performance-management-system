@@ -6,10 +6,9 @@ import { getDashPageTitle } from './dashPageTitle'
 
 interface DashTopBarProps {
   onToggleSidebar: () => void
-  searchPlaceholder?: string
 }
 
-export function DashTopBar({ onToggleSidebar, searchPlaceholder = 'Organizational search...' }: DashTopBarProps) {
+export function DashTopBar({ onToggleSidebar }: DashTopBarProps) {
   const location = useLocation()
   const [formattedDate, setFormattedDate] = useState('')
 
@@ -49,11 +48,6 @@ export function DashTopBar({ onToggleSidebar, searchPlaceholder = 'Organizationa
       </div>
 
       <div className="top-bar-right">
-        <div className="top-bar-search hidden md:block">
-          <i className="bi bi-search" />
-          <input type="text" placeholder={searchPlaceholder} aria-label={searchPlaceholder} />
-        </div>
-
         <NotificationBell variant="dash" />
 
         <span className="top-bar-divider hidden sm:block" aria-hidden="true" />
