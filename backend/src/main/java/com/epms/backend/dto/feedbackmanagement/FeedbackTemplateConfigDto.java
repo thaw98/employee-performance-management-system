@@ -16,7 +16,16 @@ public class FeedbackTemplateConfigDto {
     private Long reviewCycleId;
     private String reviewCycleName;
     private List<Long> questionIds = new ArrayList<>();
+    private List<AudienceRuleDto> audienceRules;
     private String status;
     private Instant createdDate;
     private Instant updatedDate;
+
+    @Data
+    public static class AudienceRuleDto {
+        private Long departmentId;
+        private String departmentName;
+        private Long positionId;
+        private String positionName;
+    }
 }

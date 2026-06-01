@@ -2,12 +2,16 @@ package com.epms.backend.service;
 
 import com.epms.backend.dto.feedbackmanagement.FeedbackLimitConfigDto;
 import com.epms.backend.dto.feedbackmanagement.FeedbackTemplateConfigDto;
+import com.epms.backend.dto.feedbackmanagement.FeedbackTemplateConfigDto.AudienceRuleDto;
 import com.epms.backend.entity.FeedbackLimitConfig;
 import com.epms.backend.entity.FeedbackTemplateConfig;
 import com.epms.backend.entity.ReviewCycle;
 import com.epms.backend.repository.FeedbackLimitConfigRepository;
 import com.epms.backend.repository.FeedbackTemplateConfigRepository;
 import com.epms.backend.repository.ReviewCycleRepository;
+import com.fasterxml.jackson.core.JsonProcessingException;
+import com.fasterxml.jackson.core.type.TypeReference;
+import com.fasterxml.jackson.databind.ObjectMapper;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -15,13 +19,17 @@ import org.springframework.transaction.annotation.Transactional;
 import java.time.Instant;
 import java.time.LocalDate;
 import java.util.Arrays;
+import java.util.Collections;
 import java.util.List;
 import java.util.Locale;
+import java.util.Objects;
 import java.util.stream.Collectors;
 
 @Service
 @RequiredArgsConstructor
 public class FeedbackManagementService {
+    private static final ObjectMapper OBJECT_MAPPER = new ObjectMapper();
+
     private final FeedbackTemplateConfigRepository templateRepository;
     private final FeedbackLimitConfigRepository limitRepository;
     private final ReviewCycleRepository reviewCycleRepository;
@@ -47,14 +55,16 @@ public class FeedbackManagementService {
         if (entity.getCreatedDate() == null) {
             entity.setCreatedDate(Instant.now());
         }
+        String targetType = normalizeTargetType(request.getTargetType());
         entity.setTemplateName(request.getTemplateName().trim());
-        entity.setTargetType(normalizeTargetType(request.getTargetType()));
-        entity.setTargetId(request.getTargetId());
+        entity.setTargetType(targetType);
+        entity.setTargetId("HYBRID".equals(targetType) ? 0L : request.getTargetId());
         entity.setTargetName(request.getTargetName() == null ? "" : request.getTargetName().trim());
         entity.setReviewCycleId(cycle.getId());
         entity.setReviewCycleName(cycle.getName());
         entity.setQuestionIds(toQuestionIdString(request.getQuestionIds()));
         entity.setStatus(normalizeStatus(request.getStatus()));
+        entity.setAudienceRulesJson(serializeAudienceRules(request.getAudienceRules()));
         entity.setUpdatedDate(Instant.now());
         return toTemplateDto(templateRepository.save(entity));
     }
@@ -112,9 +122,20 @@ public class FeedbackManagementService {
         if (request == null || request.getTemplateName() == null || request.getTemplateName().trim().isEmpty()) {
             throw new RuntimeException("Template name is required");
         }
-        normalizeTargetType(request.getTargetType());
-        if (request.getTargetId() == null) {
-            throw new RuntimeException("Template target is required");
+        String targetType = normalizeTargetType(request.getTargetType());
+        if ("HYBRID".equals(targetType)) {
+            if (request.getAudienceRules() == null || request.getAudienceRules().isEmpty()) {
+                throw new RuntimeException("At least one audience rule is required for Hybrid target");
+            }
+            boolean allValid = request.getAudienceRules().stream()
+                    .allMatch(rule -> rule.getDepartmentId() != null && rule.getDepartmentId() > 0);
+            if (!allValid) {
+                throw new RuntimeException("Each Hybrid audience rule must have a department selected");
+            }
+        } else {
+            if (request.getTargetId() == null) {
+                throw new RuntimeException("Template target is required");
+            }
         }
         if (request.getQuestionIds() == null || request.getQuestionIds().isEmpty()) {
             throw new RuntimeException("At least one question is required");
@@ -180,8 +201,8 @@ public class FeedbackManagementService {
 
     private String normalizeTargetType(String value) {
         String normalized = value == null ? "" : value.trim().toUpperCase(Locale.ROOT);
-        if (!List.of("DEPARTMENT", "LEVEL_CODE", "PERSON").contains(normalized)) {
-            throw new RuntimeException("Target type must be DEPARTMENT, LEVEL_CODE, or PERSON");
+        if (!List.of("DEPARTMENT", "LEVEL_CODE", "PERSON", "POSITION", "HYBRID").contains(normalized)) {
+            throw new RuntimeException("Target type must be DEPARTMENT, LEVEL_CODE, PERSON, POSITION, or HYBRID");
         }
         return normalized;
     }
@@ -228,10 +249,37 @@ public class FeedbackManagementService {
         dto.setReviewCycleId(entity.getReviewCycleId());
         dto.setReviewCycleName(entity.getReviewCycleName());
         dto.setQuestionIds(parseQuestionIds(entity.getQuestionIds()));
+        dto.setAudienceRules(deserializeAudienceRules(entity.getAudienceRulesJson()));
         dto.setStatus(entity.getStatus());
         dto.setCreatedDate(entity.getCreatedDate());
         dto.setUpdatedDate(entity.getUpdatedDate());
         return dto;
+    }
+
+    private String serializeAudienceRules(List<AudienceRuleDto> rules) {
+        if (rules == null || rules.isEmpty()) {
+            return null;
+        }
+        List<AudienceRuleDto> deduplicated = rules.stream()
+                .filter(Objects::nonNull)
+                .distinct()
+                .toList();
+        try {
+            return OBJECT_MAPPER.writeValueAsString(deduplicated);
+        } catch (JsonProcessingException e) {
+            throw new RuntimeException("Failed to serialize audience rules", e);
+        }
+    }
+
+    private List<AudienceRuleDto> deserializeAudienceRules(String json) {
+        if (json == null || json.isBlank()) {
+            return null;
+        }
+        try {
+            return OBJECT_MAPPER.readValue(json, new TypeReference<List<AudienceRuleDto>>() {});
+        } catch (JsonProcessingException e) {
+            return Collections.emptyList();
+        }
     }
 
     private FeedbackLimitConfigDto toLimitDto(FeedbackLimitConfig entity) {

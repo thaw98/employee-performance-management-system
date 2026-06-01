@@ -1,14 +1,22 @@
 import { baseApi } from '../../../app/baseApi'
 
+export interface AudienceRule {
+  departmentId: number
+  departmentName?: string
+  positionId?: number | null
+  positionName?: string | null
+}
+
 export interface FeedbackTemplateConfig {
   id?: number
   templateName: string
-  targetType: 'DEPARTMENT' | 'LEVEL_CODE' | 'PERSON'
+  targetType: 'DEPARTMENT' | 'LEVEL_CODE' | 'PERSON' | 'POSITION' | 'HYBRID'
   targetId: number
   targetName?: string
   reviewCycleId?: number
   reviewCycleName?: string
   questionIds: number[]
+  audienceRules?: AudienceRule[]
   status: 'ACTIVE' | 'INACTIVE'
   createdDate?: string
   updatedDate?: string

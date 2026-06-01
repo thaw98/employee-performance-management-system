@@ -40,6 +40,9 @@ public class FeedbackTemplateConfig {
     @Column(columnDefinition = "text")
     private String questionIds;
 
+    @Column(columnDefinition = "text")
+    private String audienceRulesJson;
+
     @Column(length = 20)
     private String status = "ACTIVE";
 

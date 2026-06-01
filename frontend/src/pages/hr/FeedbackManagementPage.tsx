@@ -38,7 +38,10 @@ const emptyLimit: FeedbackLimitConfig = {
 const targetLabel = (type: string) => {
   if (type === 'DEPARTMENT') return 'Department-based template'
   if (type === 'LEVEL_CODE') return 'Level code-based template'
-  return 'Person-based template'
+  if (type === 'PERSON') return 'Person-based template'
+  if (type === 'POSITION') return 'Position-based template'
+  if (type === 'HYBRID') return 'Hybrid (Department + Position) template'
+  return 'Template'
 }
 
 const displayType = (value: string) => value.toLowerCase().replace(/\b\w/g, (char) => char.toUpperCase())
@@ -162,6 +165,7 @@ function TemplateTab() {
   const [departments, setDepartments] = useState<Option[]>([])
   const [levelCodes, setLevelCodes] = useState<Option[]>([])
   const [employees, setEmployees] = useState<Option[]>([])
+  const [positions, setPositions] = useState<Option[]>([])
   const [showModal, setShowModal] = useState(false)
   const [viewing, setViewing] = useState<FeedbackTemplateRow | null>(null)
   const [form, setForm] = useState<FeedbackTemplateConfig>(emptyTemplate)
@@ -181,24 +185,26 @@ function TemplateTab() {
 
   const loadOptions = async () => {
     try {
-      const [criteriaRes, deptRes, levelCodeRes, empRes] = await Promise.all([
+      const [criteriaRes, deptRes, levelCodeRes, empRes, positionRes] = await Promise.all([
         axios.get('/criteria'),
         axios.get('/departments'),
         axios.get('/lookups/level-codes/active'),
         axios.get('/hr/employees', { params: { size: 1000 } }),
+        axios.get('/positions/by-department'),
       ])
       setCriteria((criteriaRes.data?.data ?? []).map((c: any) => ({ id: Number(c.id), name: c.name, active: c.active !== false })))
       setDepartments((deptRes.data?.data ?? []).map((d: any) => ({ id: Number(d.departmentId ?? d.id), name: d.departmentName ?? d.name })))
       setLevelCodes((levelCodeRes.data?.data ?? []).map((levelCode: any) => ({ id: Number(levelCode.id), name: levelCode.code ?? levelCode.name })))
       const employeeRows = empRes.data?.data?.content ?? empRes.data?.data ?? []
       setEmployees(employeeRows.map((e: any) => ({ id: Number(e.employeeId ?? e.id), name: e.employeeName ?? e.name ?? e.email })))
+      setPositions((positionRes.data?.data ?? []).map((p: any) => ({ id: Number(p.positionId ?? p.id), name: p.positionName ?? p.name })))
     } catch (error) {
       console.error(error)
       toast.error('Failed to load template options')
     }
   }
 
-  const targetOptions = form.targetType === 'DEPARTMENT' ? departments : form.targetType === 'LEVEL_CODE' ? levelCodes : employees
+  const targetOptions = form.targetType === 'DEPARTMENT' ? departments : form.targetType === 'LEVEL_CODE' ? levelCodes : form.targetType === 'POSITION' ? positions : employees
   const activeCriteria = useMemo(() => criteria.filter((item) => item.active !== false), [criteria])
   const criteriaNameById = useMemo(() => new Map(criteria.map((item) => [item.id, item.name])), [criteria])
   const activeLimitTypes = new Set(limits.map((limit) => limit.relationshipType))
@@ -282,11 +288,32 @@ function TemplateTab() {
     if (!selectedReviewCycleId) return toast.error('Review cycle is required')
     if (isLocked) return toast.error(LOCK_MESSAGE)
     if (!form.templateName.trim()) return toast.error('Template name is required')
-    if (!form.targetId) return toast.error('Template target is required')
+    if (form.targetType === 'HYBRID') {
+      if (!form.audienceRules || form.audienceRules.length === 0) return toast.error('At least one audience rule is required')
+      const invalidRule = form.audienceRules.find((rule) => !rule.departmentId)
+      if (invalidRule) return toast.error('Each rule must have a department selected')
+    } else {
+      if (!form.targetId) return toast.error('Template target is required')
+    }
     if (!form.questionIds.length) return toast.error('At least one question is required')
-    const targetName = targetOptions.find((item) => item.id === Number(form.targetId))?.name ?? form.targetName ?? ''
+    let targetName = form.targetName ?? ''
+    let targetId = Number(form.targetId)
+    if (form.targetType === 'POSITION') {
+      targetName = targetOptions.find((item) => item.id === targetId)?.name ?? targetName
+    } else if (form.targetType === 'HYBRID') {
+      targetId = 0
+      const deptMap = new Map(departments.map((d) => [d.id, d.name]))
+      const posMap = new Map(positions.map((p) => [p.id, p.name]))
+      targetName = (form.audienceRules ?? []).map((rule) => {
+        const deptName = deptMap.get(rule.departmentId) ?? rule.departmentName ?? `Dept ${rule.departmentId}`
+        const posName = rule.positionId ? (posMap.get(rule.positionId) ?? rule.positionName ?? `Pos ${rule.positionId}`) : 'All Positions'
+        return `${deptName} / ${posName}`
+      }).join('; ')
+    } else {
+      targetName = targetOptions.find((item) => item.id === targetId)?.name ?? targetName
+    }
     try {
-      await saveTemplate({ ...form, reviewCycleId: selectedReviewCycleId, reviewCycleName: selectedReviewCycle?.name, targetId: Number(form.targetId), targetName }).unwrap()
+      await saveTemplate({ ...form, reviewCycleId: selectedReviewCycleId, reviewCycleName: selectedReviewCycle?.name, targetId, targetName }).unwrap()
       toast.success(form.id ? 'Template updated' : 'Template created')
       setShowModal(false)
     } catch (error: any) {
@@ -376,6 +403,8 @@ function TemplateTab() {
               <option value="DEPARTMENT">Department</option>
               <option value="LEVEL_CODE">Level Code</option>
               <option value="PERSON">Person</option>
+              <option value="POSITION">Position</option>
+              <option value="HYBRID">Hybrid</option>
             </select>
             <div className="flex rounded-xl border border-slate-200 bg-slate-50 p-1">
               <button
@@ -610,6 +639,8 @@ function TemplateTab() {
           reviewCycleDetail={selectedCycleRange}
           onClose={() => setShowModal(false)}
           onSave={handleSave}
+          departments={departments}
+          positions={positions}
         />
       )}
       {viewing && (
@@ -625,6 +656,8 @@ function TemplateTab() {
           onSave={() => undefined}
           readOnly
           modalTitle="View Feedback Template"
+          departments={departments}
+          positions={positions}
           readOnlyMessage={
             viewing.currentInUseFallback
               ? 'This is the current feedback template generated from active criteria and cannot be edited.'
@@ -651,6 +684,8 @@ function TemplateModal({
   readOnly = false,
   modalTitle,
   readOnlyMessage,
+  departments,
+  positions,
 }: {
   form: FeedbackTemplateConfig
   setForm: (form: FeedbackTemplateConfig) => void
@@ -664,9 +699,30 @@ function TemplateModal({
   readOnly?: boolean
   modalTitle?: string
   readOnlyMessage?: string
+  departments: Option[]
+  positions: Option[]
 }) {
   const selectedTarget = targetOptions.find((item) => item.id === Number(form.targetId))
   const selectedQuestions = criteria.filter((item) => form.questionIds.includes(item.id))
+  const deptMap = useMemo(() => new Map(departments.map((d) => [d.id, d.name])), [departments])
+  const posMap = useMemo(() => new Map(positions.map((p) => [p.id, p.name])), [positions])
+
+  const addHybridRule = () => {
+    const rules = form.audienceRules ?? []
+    setForm({ ...form, audienceRules: [...rules, { departmentId: 0, positionId: null }] })
+  }
+
+  const updateHybridRule = (index: number, updates: Partial<FeedbackTemplateConfig['audienceRules'][number]>) => {
+    const rules = [...(form.audienceRules ?? [])]
+    rules[index] = { ...rules[index], ...updates }
+    setForm({ ...form, audienceRules: rules })
+  }
+
+  const removeHybridRule = (index: number) => {
+    const rules = [...(form.audienceRules ?? [])]
+    rules.splice(index, 1)
+    setForm({ ...form, audienceRules: rules.length > 0 ? rules : undefined })
+  }
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/50 p-4">
@@ -762,31 +818,78 @@ function TemplateModal({
                   <p className="text-xs text-slate-500">Match the self-assessment audience style by selecting one target type.</p>
                 </div>
               </div>
-              <div className="grid gap-3 sm:grid-cols-3">
+              <div className="grid gap-3 sm:grid-cols-3 md:grid-cols-5">
                 {[
                   ['DEPARTMENT', 'Department', 'Assign to all employees in a department.'],
                   ['LEVEL_CODE', 'Level Code', 'Assign by organization level code.'],
                   ['PERSON', 'Person', 'Assign to one employee.'],
+                  ['POSITION', 'Position', 'Assign by job position.'],
+                  ['HYBRID', 'Hybrid', 'Department + optional position per rule.'],
                 ].map(([value, label, description]) => (
                   <button
                     key={value}
                     type="button"
                     disabled={readOnly}
-                    onClick={() => setForm({ ...form, targetType: value as FeedbackTemplateConfig['targetType'], targetId: 0 })}
-                    className={`rounded-xl border p-4 text-left transition disabled:cursor-not-allowed ${form.targetType === value ? 'border-[#2463eb] bg-blue-50 ring-2 ring-blue-100' : 'border-slate-200 hover:border-slate-300 hover:bg-slate-50'} ${readOnly && form.targetType !== value ? 'opacity-50' : ''}`}
+                    onClick={() => setForm({ ...form, targetType: value as FeedbackTemplateConfig['targetType'], targetId: 0, audienceRules: value === 'HYBRID' ? (form.audienceRules ?? []) : undefined })}
+                    className={`rounded-xl border p-3 text-left transition disabled:cursor-not-allowed ${form.targetType === value ? 'border-[#2463eb] bg-blue-50 ring-2 ring-blue-100' : 'border-slate-200 hover:border-slate-300 hover:bg-slate-50'} ${readOnly && form.targetType !== value ? 'opacity-50' : ''}`}
                   >
-                    <p className="font-black text-slate-900">{label}</p>
-                    <p className="mt-1 text-xs text-slate-500">{description}</p>
+                    <p className="text-sm font-black text-slate-900">{label}</p>
+                    <p className="mt-1 text-[11px] text-slate-500">{description}</p>
                   </button>
                 ))}
               </div>
-              <div className="mt-4">
-                <label className="mb-1.5 block text-xs font-black uppercase tracking-wider text-slate-400">Target</label>
-                <select disabled={readOnly} className="w-full rounded-xl border border-slate-300 px-4 py-2.5 text-sm font-semibold focus:border-[#2463eb] focus:outline-none disabled:bg-slate-50 disabled:text-slate-500" value={form.targetId || ''} onChange={(e) => setForm({ ...form, targetId: Number(e.target.value) })}>
-                  <option value="">Select {displayType(form.targetType).replace('_', ' ').toLowerCase()}...</option>
-                  {targetOptions.map((item) => <option key={item.id} value={item.id}>{item.name}</option>)}
-                </select>
-              </div>
+
+              {form.targetType === 'HYBRID' ? (
+                <div className="mt-4 space-y-3">
+                  <label className="mb-1.5 block text-xs font-black uppercase tracking-wider text-slate-400">Audience Rules</label>
+                  {(form.audienceRules ?? []).map((rule, index) => (
+                    <div key={index} className="flex flex-wrap items-end gap-3 rounded-xl border border-slate-200 bg-slate-50 p-3">
+                      <div className="min-w-0 flex-1">
+                        <label className="mb-1 block text-[10px] font-bold uppercase tracking-wider text-slate-400">Department</label>
+                        <select
+                          disabled={readOnly}
+                          value={rule.departmentId || ''}
+                          onChange={(e) => updateHybridRule(index, { departmentId: Number(e.target.value) })}
+                          className="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm font-semibold focus:border-[#2463eb] focus:outline-none disabled:bg-slate-100"
+                        >
+                          <option value="">Select department...</option>
+                          {departments.map((dept) => <option key={dept.id} value={dept.id}>{dept.name}</option>)}
+                        </select>
+                      </div>
+                      <div className="min-w-0 flex-1">
+                        <label className="mb-1 block text-[10px] font-bold uppercase tracking-wider text-slate-400">Position (optional)</label>
+                        <select
+                          disabled={readOnly}
+                          value={rule.positionId ?? ''}
+                          onChange={(e) => updateHybridRule(index, { positionId: e.target.value ? Number(e.target.value) : null })}
+                          className="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm font-semibold focus:border-[#2463eb] focus:outline-none disabled:bg-slate-100"
+                        >
+                          <option value="">All Positions</option>
+                          {positions.map((pos) => <option key={pos.id} value={pos.id}>{pos.name}</option>)}
+                        </select>
+                      </div>
+                      {!readOnly && (form.audienceRules ?? []).length > 1 && (
+                        <button type="button" onClick={() => removeHybridRule(index)} className="rounded-lg p-2 text-red-400 hover:bg-red-50 hover:text-red-600">
+                          <X size={16} />
+                        </button>
+                      )}
+                    </div>
+                  ))}
+                  {!readOnly && (
+                    <button type="button" onClick={addHybridRule} className="inline-flex items-center gap-1.5 rounded-lg border border-dashed border-slate-300 px-4 py-2 text-sm font-semibold text-slate-500 hover:border-blue-300 hover:text-blue-600">
+                      <Plus size={14} /> Add Rule
+                    </button>
+                  )}
+                </div>
+              ) : (
+                <div className="mt-4">
+                  <label className="mb-1.5 block text-xs font-black uppercase tracking-wider text-slate-400">Target</label>
+                  <select disabled={readOnly} className="w-full rounded-xl border border-slate-300 px-4 py-2.5 text-sm font-semibold focus:border-[#2463eb] focus:outline-none disabled:bg-slate-50 disabled:text-slate-500" value={form.targetId || ''} onChange={(e) => setForm({ ...form, targetId: Number(e.target.value) })}>
+                    <option value="">Select {displayType(form.targetType).replace('_', ' ').toLowerCase()}...</option>
+                    {targetOptions.map((item) => <option key={item.id} value={item.id}>{item.name}</option>)}
+                  </select>
+                </div>
+              )}
             </section>
 
             <section className="rounded-2xl border border-slate-200 p-5">
@@ -840,7 +943,21 @@ function TemplateModal({
               <div>
                 <p className="text-xs font-black uppercase tracking-wider text-slate-400">Audience</p>
                 <p className="mt-1 font-semibold text-slate-700">{targetLabel(form.targetType)}</p>
-                <p className="text-xs text-slate-500">{selectedTarget?.name || 'No target selected'}</p>
+                {form.targetType === 'HYBRID' ? (
+                  <div className="mt-2 space-y-1">
+                    {(form.audienceRules ?? []).length === 0 ? (
+                      <p className="text-xs text-slate-500">No rules configured</p>
+                    ) : (
+                      (form.audienceRules ?? []).map((rule, i) => {
+                        const deptName = deptMap.get(rule.departmentId) ?? rule.departmentName ?? `Dept ${rule.departmentId}`
+                        const posName = rule.positionId ? (posMap.get(rule.positionId) ?? rule.positionName ?? `Pos ${rule.positionId}`) : 'All Positions'
+                        return <p key={i} className="text-xs text-slate-500">{deptName} / {posName}</p>
+                      })
+                    )}
+                  </div>
+                ) : (
+                  <p className="text-xs text-slate-500">{selectedTarget?.name || form.targetName || 'No target selected'}</p>
+                )}
               </div>
               <div>
                 <p className="text-xs font-black uppercase tracking-wider text-slate-400">Criteria</p>
