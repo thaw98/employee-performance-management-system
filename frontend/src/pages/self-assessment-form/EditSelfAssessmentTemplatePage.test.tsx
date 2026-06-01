@@ -17,9 +17,11 @@ let templateData = {
   reviewCycleId: 1,
   reviewCycleName: 'Q1',
   isActive: true,
-  ratingSystem: 'FIVE_POINT',
+  ratingSystem: 'FIVE_POINT' as const,
   tenPointYesMinRating: 5,
   fivePointYesMinRating: 3,
+  yesMinRating: null,
+  includeYesNo: true,
   isLocked: false,
   createdOn: '',
   createdBy: 1,
@@ -40,7 +42,6 @@ let templateData = {
     },
   ],
   deletedQuestions: [],
-  includeYesNo: true,
 }
 
 vi.mock('react-redux', () => ({
@@ -72,10 +73,13 @@ vi.mock('../../features/position/api/positionApi', () => ({
 }))
 
 let selfAssessmentSettings = {
-  ratingSystem: 'FIVE_POINT',
+  ratingSystem: 'FIVE_POINT' as const,
   tenPointYesMinRating: 5,
   fivePointYesMinRating: 3,
+  yesMinRating: null,
   includeYesNo: true,
+  ratingSystemEditable: true,
+  ratingSystemLockReason: null,
 }
 
 vi.mock('../../features/selfAssessmentForm/api/selfAssessmentFormApi', () => ({
@@ -112,6 +116,14 @@ const managerQuestion = {
   deletedBy: null,
 }
 
+const defaultRatingPayload = {
+  ratingSystem: 'FIVE_POINT',
+  tenPointYesMinRating: 3,
+  fivePointYesMinRating: 3,
+  yesMinRating: 3,
+  includeYesNo: true,
+}
+
 describe('EditSelfAssessmentTemplatePage manager question permissions', () => {
   afterEach(() => {
     cleanup()
@@ -122,12 +134,18 @@ describe('EditSelfAssessmentTemplatePage manager question permissions', () => {
       ratingSystem: 'FIVE_POINT',
       tenPointYesMinRating: 5,
       fivePointYesMinRating: 3,
+      yesMinRating: null,
       includeYesNo: true,
+      ratingSystemEditable: true,
+      ratingSystemLockReason: null,
     }
     roleId = 2
     templateData = {
       ...templateData,
       isLocked: false,
+      ratingSystem: 'FIVE_POINT',
+      includeYesNo: true,
+      yesMinRating: null,
       questions: [
         {
           ...templateData.questions[0],
@@ -168,6 +186,7 @@ describe('EditSelfAssessmentTemplatePage manager question permissions', () => {
             { id: 101, questionText: 'HR-created question', sortOrder: 0 },
             { questionText: 'Manager follow-up question', sortOrder: 1 },
           ],
+          ...defaultRatingPayload,
         },
       })
     })
@@ -232,15 +251,11 @@ describe('EditSelfAssessmentTemplatePage manager question permissions', () => {
     expect(updateTemplateMock).not.toHaveBeenCalled()
   })
 
-  it('hides Yes/No in preview when self-assessment settings disable it', async () => {
+  it('hides Yes/No in preview when template-level includeYesNo is disabled', async () => {
     const user = userEvent.setup()
-    selfAssessmentSettings = {
-      ...selfAssessmentSettings,
-      includeYesNo: false,
-    }
     templateData = {
       ...templateData,
-      includeYesNo: true,
+      includeYesNo: false,
     }
 
     render(<EditSelfAssessmentTemplatePage />)
@@ -269,5 +284,101 @@ describe('EditSelfAssessmentTemplatePage manager question permissions', () => {
     const dialog = screen.getByRole('dialog', { name: 'Engineering Self Assessment' })
     expect(dialog).toHaveTextContent('HR-created question')
     expect(updateTemplateMock).not.toHaveBeenCalled()
+  })
+})
+
+describe('EditSelfAssessmentTemplatePage rating settings', () => {
+  afterEach(() => {
+    cleanup()
+  })
+
+  beforeEach(() => {
+    selfAssessmentSettings = {
+      ratingSystem: 'FIVE_POINT',
+      tenPointYesMinRating: 5,
+      fivePointYesMinRating: 3,
+      yesMinRating: null,
+      includeYesNo: true,
+      ratingSystemEditable: true,
+      ratingSystemLockReason: null,
+    }
+    roleId = 1
+    templateData = {
+      ...templateData,
+      id: 10,
+      isLocked: false,
+      ratingSystem: 'FIVE_POINT',
+      includeYesNo: true,
+      yesMinRating: null,
+      questions: [{ ...templateData.questions[0], canEdit: true, canDeactivate: true }],
+      deletedQuestions: [],
+    }
+    updateTemplateMock.mockReset()
+    updateTemplateMock.mockReturnValue({ unwrap: () => Promise.resolve({}) })
+  })
+
+  it('initializes from loaded template rating settings', async () => {
+    templateData = {
+      ...templateData,
+      ratingSystem: 'TEN_POINT',
+      includeYesNo: false,
+    }
+
+    render(<EditSelfAssessmentTemplatePage />)
+
+    await screen.findByText('Rating Settings')
+    expect(screen.getByText('1-10 Scale')).toBeInTheDocument()
+  })
+
+  it('save payload includes changed rating settings', async () => {
+    const user = userEvent.setup()
+    templateData = {
+      ...templateData,
+      ratingSystem: 'TEN_POINT',
+      includeYesNo: true,
+      yesMinRating: 6,
+    }
+
+    render(<EditSelfAssessmentTemplatePage />)
+
+    await user.click(await screen.findByRole('button', { name: 'Save Changes' }))
+
+    await waitFor(() => {
+      expect(updateTemplateMock).toHaveBeenCalledWith({
+        id: 10,
+        request: expect.objectContaining({
+          ratingSystem: 'TEN_POINT',
+          includeYesNo: true,
+          yesMinRating: 6,
+          tenPointYesMinRating: 6,
+          fivePointYesMinRating: 6,
+        }),
+      })
+    })
+  })
+
+  it('locked template does not allow changing rating settings', async () => {
+    templateData = {
+      ...templateData,
+      isLocked: true,
+    }
+
+    render(<EditSelfAssessmentTemplatePage />)
+
+    await screen.findByText('Yes/No Enabled')
+    expect(screen.getByText('1-5 Scale')).toBeInTheDocument()
+  })
+
+  it('manager cannot change rating settings', async () => {
+    roleId = 2
+    templateData = {
+      ...templateData,
+      isLocked: false,
+    }
+
+    render(<EditSelfAssessmentTemplatePage />)
+
+    await screen.findByText('Yes/No Enabled')
+    expect(screen.getByText('Rating Settings')).toBeInTheDocument()
   })
 })
