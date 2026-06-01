@@ -8,8 +8,6 @@ import {
     ChevronLeft,
     ChevronRight,
     Eye,
-    X,
-    FileText,
     Calendar,
     TrendingUp,
     AlertCircle,
@@ -17,8 +15,6 @@ import {
     Clock,
     UserCheck,
     PieChart,
-    Copy,
-    Printer,
     ArrowRight,
 } from 'lucide-react';
 import { format, subDays, startOfDay, endOfDay } from 'date-fns';
@@ -40,7 +36,8 @@ import {
     AreaChart,
 } from 'recharts';
 import { formatDateTimeWithSeconds } from '../../utils/dateUtils';
-import { useGetAuditLogsQuery, useGetAuditSummaryQuery, type AuditFilter } from '../../features/audit/auditApi';
+import { useGetAuditLogsQuery, useGetAuditSummaryQuery, type AuditFilter, type AuditLog } from '../../features/audit/auditApi';
+import { AuditLogDetailsModal } from './AuditLogDetailsModal';
 
 // Professional color palette
 const COLORS = {
@@ -61,7 +58,7 @@ const CHART_COLORS = [COLORS.primary, COLORS.secondary, COLORS.warning, COLORS.p
 export const AuditDashboard: React.FC = () => {
     const navigate = useNavigate();
     const [filters, setFilters] = useState<AuditFilter>({ page: 0, size: 15 });
-    const [selectedLog, setSelectedLog] = useState<any>(null);
+    const [selectedLog, setSelectedLog] = useState<AuditLog | null>(null);
 
     const { data: logsData, isLoading: logsLoading } = useGetAuditLogsQuery(filters);
     const { data: summary, isLoading: summaryLoading } = useGetAuditSummaryQuery();
@@ -442,76 +439,7 @@ export const AuditDashboard: React.FC = () => {
                 )}
             </div>
 
-            {/* View Details Modal */}
-            {selectedLog && (
-                <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4 backdrop-blur-sm" onClick={() => setSelectedLog(null)}>
-                    <div className="relative max-h-[90vh] w-full max-w-4xl overflow-auto rounded-xl bg-white shadow-2xl dark:bg-slate-800" onClick={(e) => e.stopPropagation()}>
-                        <div className="sticky top-0 flex items-center justify-between border-b border-slate-200 bg-white px-6 py-4 dark:border-slate-700 dark:bg-slate-800">
-                            <div className="flex items-center gap-2">
-                                <div className="rounded-lg bg-indigo-100 p-2 dark:bg-indigo-900/30">
-                                    <FileText size={18} className="text-indigo-600 dark:text-indigo-400" />
-                                </div>
-                                <h2 className="text-lg font-semibold text-slate-900 dark:text-white">Audit Log Details</h2>
-                            </div>
-                            <div className="flex items-center gap-2">
-                                <button className="rounded-lg p-1.5 text-slate-400 hover:bg-slate-100 hover:text-slate-600 dark:hover:bg-slate-700">
-                                    <Copy size={16} />
-                                </button>
-                                <button className="rounded-lg p-1.5 text-slate-400 hover:bg-slate-100 hover:text-slate-600 dark:hover:bg-slate-700">
-                                    <Printer size={16} />
-                                </button>
-                                <button
-                                    onClick={() => setSelectedLog(null)}
-                                    className="rounded-lg p-1.5 text-slate-400 hover:bg-slate-100 hover:text-slate-600 dark:hover:bg-slate-700"
-                                >
-                                    <X size={18} />
-                                </button>
-                            </div>
-                        </div>
-                        <div className="space-y-5 p-6">
-                            <div className="grid gap-5 sm:grid-cols-2">
-                                <div className="rounded-lg bg-slate-50 p-3 dark:bg-slate-700/50">
-                                    <label className="text-xs font-medium uppercase text-slate-500">Audit ID</label>
-                                    <p className="mt-1 font-mono text-sm text-slate-900 dark:text-white">#{selectedLog.auditId}</p>
-                                </div>
-                                <div className="rounded-lg bg-slate-50 p-3 dark:bg-slate-700/50">
-                                    <label className="text-xs font-medium uppercase text-slate-500">Timestamp</label>
-                                    <p className="mt-1 text-sm text-slate-900 dark:text-white">{formatDateTimeWithSeconds(selectedLog.createdAt)}</p>
-                                </div>
-                                <div className="rounded-lg bg-slate-50 p-3 dark:bg-slate-700/50">
-                                    <label className="text-xs font-medium uppercase text-slate-500">Action Type</label>
-                                    <div className="mt-1">
-                                        <span className={`inline-flex items-center gap-1.5 rounded-full border px-2.5 py-1 text-xs font-medium ${getActionBadgeClass(selectedLog.actionType)}`}>
-                                            {getActionIcon(selectedLog.actionType)}
-                                            {selectedLog.actionType?.replace(/_/g, ' ')}
-                                        </span>
-                                    </div>
-                                </div>
-                                <div className="rounded-lg bg-slate-50 p-3 dark:bg-slate-700/50">
-                                    <label className="text-xs font-medium uppercase text-slate-500">Target</label>
-                                    <p className="mt-1 text-sm text-slate-900 dark:text-white">
-                                        {selectedLog.targetType?.replace(/_/g, ' ')} #{selectedLog.targetId}
-                                    </p>
-                                </div>
-
-                            </div>
-                            <div className="rounded-lg bg-slate-50 p-4 dark:bg-slate-700/50">
-                                <label className="text-xs font-medium uppercase text-slate-500">Description</label>
-                                <p className="mt-2 text-sm leading-relaxed text-slate-700 dark:text-slate-300">
-                                    {selectedLog.description}
-                                </p>
-                            </div>
-                            {selectedLog.metadataJson && (
-                                <div className="rounded-lg bg-slate-50 p-4 dark:bg-slate-700/50">
-                                    <label className="text-xs font-medium uppercase text-slate-500">Metadata</label>
-                                    <pre className="mt-2 max-h-60 overflow-auto rounded-lg bg-white p-3 text-xs font-mono text-slate-700 dark:bg-slate-900 dark:text-slate-300">
-                                        {JSON.stringify(selectedLog.metadataJson, null, 2)}
-                                    </pre>
-                                </div>)}
-                        </div>
-                    </div>
-                </div>
-            )}
+            <AuditLogDetailsModal log={selectedLog} onClose={() => setSelectedLog(null)} />
         </div>
     );
 };

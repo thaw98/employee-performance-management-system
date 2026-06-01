@@ -1,5 +1,5 @@
 // src/pages/audit/AuditActivityListPage.tsx
-import React, { useState, useMemo, useCallback } from 'react';
+import React, { useState, useMemo, useCallback, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import {
     Eye,
@@ -9,9 +9,14 @@ import {
     UserCheck,
     Database,
     List,
+    Search,
+    SlidersHorizontal,
+    X,
 } from 'lucide-react';
 import { formatDateTimeWithSeconds } from '../../utils/dateUtils';
 import { useGetAuditLogsQuery, type AuditLog } from '../../features/audit/auditApi';
+import { AuditLogDetailsModal } from './AuditLogDetailsModal';
+import { PaginationBar } from '../../components/common/PaginationBar';
 
 type ActivityCategory =
     | 'ALL'
@@ -96,28 +101,87 @@ function getSeverityInfo(actionType?: string): { label: string; class: string } 
     return { label: 'Info', class: 'bg-slate-100 text-slate-600' };
 }
 
+const FETCH_ALL_SIZE = 100_000;
+
+function matchesSearch(log: AuditLog, query: string): boolean {
+    const term = query.trim().toLowerCase();
+    if (!term) return true;
+    return [
+        log.description,
+        log.actionType,
+        log.targetType,
+        log.performedByUserName,
+        log.performedByUserId,
+        log.targetId,
+    ].some((value) => String(value ?? '').toLowerCase().includes(term));
+}
+
 const AuditActivityListPage: React.FC = () => {
     const navigate = useNavigate();
     const [activeCategory, setActiveCategory] = useState<ActivityCategory>('ALL');
     const [dropdownCategory, setDropdownCategory] = useState<ActivityCategory | ''>('');
+    const [selectedLog, setSelectedLog] = useState<AuditLog | null>(null);
+    const [page, setPage] = useState(0);
+    const [pageSize, setPageSize] = useState(20);
+    const [searchQuery, setSearchQuery] = useState('');
+    const [showFilters, setShowFilters] = useState(false);
+    const [actionTypeFilter, setActionTypeFilter] = useState('');
+    const [targetTypeFilter, setTargetTypeFilter] = useState('');
+    const [userFilter, setUserFilter] = useState('');
+    const [startDateFilter, setStartDateFilter] = useState('');
+    const [endDateFilter, setEndDateFilter] = useState('');
 
-    const { data, isLoading } = useGetAuditLogsQuery({ page: 0, size: 1000 });
+    const { data, isLoading } = useGetAuditLogsQuery({
+        page: 0,
+        size: FETCH_ALL_SIZE,
+        startDate: startDateFilter || undefined,
+        endDate: endDateFilter || undefined,
+    });
 
-    const categoryCounts = useMemo(() => {
-        if (!data?.content) return new Map<ActivityCategory, number>();
-        const counts = new Map<ActivityCategory, number>();
-        for (const log of data.content) {
-            const cat = deriveCategory(log);
-            counts.set(cat, (counts.get(cat) || 0) + 1);
+    const apiFilteredLogs = useMemo(() => {
+        let logs = data?.content ?? [];
+        if (actionTypeFilter.trim()) {
+            const term = actionTypeFilter.trim().toLowerCase();
+            logs = logs.filter((log) => log.actionType?.toLowerCase().includes(term));
         }
-        return counts;
-    }, [data]);
+        if (targetTypeFilter.trim()) {
+            const term = targetTypeFilter.trim().toLowerCase();
+            logs = logs.filter((log) => log.targetType?.toLowerCase().includes(term));
+        }
+        if (userFilter.trim()) {
+            const term = userFilter.trim().toLowerCase();
+            logs = logs.filter((log) => {
+                const matchName = log.performedByUserName?.toLowerCase().includes(term);
+                const matchId = log.performedByUserId?.toString() === userFilter.trim();
+                return matchName || matchId;
+            });
+        }
+        return logs;
+    }, [data, actionTypeFilter, targetTypeFilter, userFilter]);
 
     const filteredLogs = useMemo(() => {
-        if (!data?.content) return [];
-        if (activeCategory === 'ALL') return data.content;
-        return data.content.filter((log) => deriveCategory(log) === activeCategory);
-    }, [data, activeCategory]);
+        return apiFilteredLogs.filter((log) => {
+            if (activeCategory !== 'ALL' && deriveCategory(log) !== activeCategory) return false;
+            return matchesSearch(log, searchQuery);
+        });
+    }, [apiFilteredLogs, activeCategory, searchQuery]);
+
+    const totalItems = filteredLogs.length;
+    const totalPages = Math.max(1, Math.ceil(totalItems / pageSize));
+    const paginatedLogs = useMemo(() => {
+        const start = page * pageSize;
+        return filteredLogs.slice(start, start + pageSize);
+    }, [filteredLogs, page, pageSize]);
+
+    useEffect(() => {
+        setPage(0);
+    }, [searchQuery, activeCategory, actionTypeFilter, targetTypeFilter, userFilter, startDateFilter, endDateFilter]);
+
+    useEffect(() => {
+        if (page > 0 && page >= totalPages) {
+            setPage(Math.max(0, totalPages - 1));
+        }
+    }, [page, totalPages]);
 
     const handleTabClick = useCallback((cat: ActivityCategory) => {
         setActiveCategory(cat);
@@ -132,6 +196,19 @@ const AuditActivityListPage: React.FC = () => {
         }
     }, []);
 
+    const resetFilters = useCallback(() => {
+        setSearchQuery('');
+        setActionTypeFilter('');
+        setTargetTypeFilter('');
+        setUserFilter('');
+        setStartDateFilter('');
+        setEndDateFilter('');
+        setPage(0);
+    }, []);
+
+    const hasActiveFilters =
+        Boolean(searchQuery || actionTypeFilter || targetTypeFilter || userFilter || startDateFilter || endDateFilter);
+
     const activeLabel = CATEGORIES.find((c) => c.key === activeCategory)?.label || 'All Activities';
 
     return (
@@ -144,19 +221,151 @@ const AuditActivityListPage: React.FC = () => {
                         Complete audit activity history with category filtering
                     </p>
                 </div>
-                <button
-                    onClick={() => navigate('/audit/dashboard')}
-                    className="rounded-lg border border-slate-200 px-4 py-2 text-sm font-medium text-slate-600 transition hover:bg-slate-50 dark:border-slate-700 dark:text-slate-400 dark:hover:bg-slate-800"
-                >
-                    Back to Dashboard
-                </button>
+                <div className="flex items-center gap-2">
+                    {hasActiveFilters && (
+                        <button
+                            type="button"
+                            onClick={resetFilters}
+                            className="rounded-lg border border-slate-200 px-3 py-2 text-sm font-medium text-slate-600 transition hover:bg-slate-50 dark:border-slate-700 dark:text-slate-400 dark:hover:bg-slate-800"
+                        >
+                            Clear filters
+                        </button>
+                    )}
+                    <button
+                        onClick={() => navigate('/audit/dashboard')}
+                        className="rounded-lg border border-slate-200 px-4 py-2 text-sm font-medium text-slate-600 transition hover:bg-slate-50 dark:border-slate-700 dark:text-slate-400 dark:hover:bg-slate-800"
+                    >
+                        Back to Dashboard
+                    </button>
+                </div>
+            </div>
+
+            {/* Search & filter controls */}
+            <div className="rounded-xl border border-slate-200 bg-white p-4 shadow-sm dark:border-slate-700 dark:bg-slate-800">
+                <div className="flex flex-col gap-3 sm:flex-row sm:items-center">
+                    <div className="relative min-w-0 flex-1">
+                        <Search
+                            size={16}
+                            className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-slate-400"
+                        />
+                        <input
+                            type="text"
+                            placeholder="Search description, action, target, or user..."
+                            value={searchQuery}
+                            onChange={(e) => setSearchQuery(e.target.value)}
+                            className="w-full rounded-lg border border-slate-200 bg-white py-2 pl-9 pr-3 text-sm text-slate-900 outline-none transition focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500 dark:border-slate-600 dark:bg-slate-900 dark:text-white"
+                        />
+                    </div>
+                    <button
+                        type="button"
+                        onClick={() => setShowFilters((prev) => !prev)}
+                        className={`inline-flex shrink-0 items-center gap-2 rounded-lg border px-3 py-2 text-sm font-medium transition ${
+                            showFilters
+                                ? 'border-indigo-200 bg-indigo-50 text-indigo-700 dark:border-indigo-800 dark:bg-indigo-900/30 dark:text-indigo-300'
+                                : 'border-slate-200 bg-white text-slate-700 hover:bg-slate-50 dark:border-slate-600 dark:bg-slate-900 dark:text-slate-300 dark:hover:bg-slate-700'
+                        }`}
+                    >
+                        <SlidersHorizontal size={16} />
+                        Filters
+                        {hasActiveFilters && !showFilters && (
+                            <span className="rounded-full bg-indigo-600 px-1.5 py-0.5 text-[10px] font-bold text-white">
+                                On
+                            </span>
+                        )}
+                    </button>
+                </div>
+
+                {showFilters && (
+                    <div className="mt-4 space-y-4 border-t border-slate-200 pt-4 dark:border-slate-700">
+                        <div className="flex items-center justify-between">
+                            <div className="flex items-center gap-2 text-sm font-semibold text-slate-900 dark:text-white">
+                                <Filter size={16} className="text-indigo-600" />
+                                Advanced filters
+                            </div>
+                            <button
+                                type="button"
+                                onClick={() => setShowFilters(false)}
+                                className="text-slate-400 hover:text-slate-600 dark:hover:text-slate-300"
+                                aria-label="Close filters"
+                            >
+                                <X size={18} />
+                            </button>
+                        </div>
+                        <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+                            <div>
+                                <label className="mb-1.5 block text-xs font-semibold text-slate-600 dark:text-slate-400">
+                                    Action type
+                                </label>
+                                <input
+                                    type="text"
+                                    placeholder="e.g. KPI_CREATE"
+                                    value={actionTypeFilter}
+                                    onChange={(e) => setActionTypeFilter(e.target.value)}
+                                    className="w-full rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm text-slate-900 outline-none focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500 dark:border-slate-600 dark:bg-slate-900 dark:text-white"
+                                />
+                            </div>
+                            <div>
+                                <label className="mb-1.5 block text-xs font-semibold text-slate-600 dark:text-slate-400">
+                                    Target type
+                                </label>
+                                <input
+                                    type="text"
+                                    placeholder="e.g. EMPLOYEE_KPI"
+                                    value={targetTypeFilter}
+                                    onChange={(e) => setTargetTypeFilter(e.target.value)}
+                                    className="w-full rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm text-slate-900 outline-none focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500 dark:border-slate-600 dark:bg-slate-900 dark:text-white"
+                                />
+                            </div>
+                            <div>
+                                <label className="mb-1.5 block text-xs font-semibold text-slate-600 dark:text-slate-400">
+                                    User
+                                </label>
+                                <input
+                                    type="text"
+                                    placeholder="Name or user ID"
+                                    value={userFilter}
+                                    onChange={(e) => setUserFilter(e.target.value)}
+                                    className="w-full rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm text-slate-900 outline-none focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500 dark:border-slate-600 dark:bg-slate-900 dark:text-white"
+                                />
+                            </div>
+                            <div>
+                                <label className="mb-1.5 block text-xs font-semibold text-slate-600 dark:text-slate-400">
+                                    Start date
+                                </label>
+                                <input
+                                    type="date"
+                                    value={startDateFilter}
+                                    onChange={(e) => setStartDateFilter(e.target.value)}
+                                    className="w-full rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm text-slate-900 outline-none focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500 dark:border-slate-600 dark:bg-slate-900 dark:text-white"
+                                />
+                            </div>
+                            <div>
+                                <label className="mb-1.5 block text-xs font-semibold text-slate-600 dark:text-slate-400">
+                                    End date
+                                </label>
+                                <input
+                                    type="date"
+                                    value={endDateFilter}
+                                    onChange={(e) => setEndDateFilter(e.target.value)}
+                                    className="w-full rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm text-slate-900 outline-none focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500 dark:border-slate-600 dark:bg-slate-900 dark:text-white"
+                                />
+                            </div>
+                        </div>
+                    </div>
+                )}
             </div>
 
             {/* Tabs + Dropdown Filter */}
             <div className="flex flex-wrap items-center gap-2">
                 <div className="flex flex-wrap gap-1 rounded-xl border border-slate-200 bg-white p-1 shadow-sm dark:border-slate-700 dark:bg-slate-800">
                     {TAB_CATEGORIES.map((tab) => {
-                        const count = tab.key === 'ALL' ? data?.content?.length : categoryCounts.get(tab.key) || 0;
+                        const count =
+                            tab.key === 'ALL'
+                                ? apiFilteredLogs.filter((log) => matchesSearch(log, searchQuery)).length
+                                : apiFilteredLogs.filter(
+                                      (log) =>
+                                          deriveCategory(log) === tab.key && matchesSearch(log, searchQuery)
+                                  ).length;
                         const isActive = activeCategory === tab.key;
                         return (
                             <button
@@ -193,7 +402,9 @@ const AuditActivityListPage: React.FC = () => {
                     >
                         <option value="">More categories...</option>
                         {DROPDOWN_CATEGORIES.map((cat) => {
-                            const count = categoryCounts.get(cat.key) || 0;
+                            const count = apiFilteredLogs.filter(
+                                (log) => deriveCategory(log) === cat.key && matchesSearch(log, searchQuery)
+                            ).length;
                             return (
                                 <option key={cat.key} value={cat.key}>
                                     {cat.label} ({count})
@@ -234,7 +445,7 @@ const AuditActivityListPage: React.FC = () => {
                         <List size={16} className="text-indigo-600" />
                         <h3 className="font-semibold text-slate-900 dark:text-white">{activeLabel}</h3>
                         <span className="rounded-full bg-indigo-50 px-2 py-0.5 text-xs font-medium text-indigo-700 dark:bg-indigo-900/30 dark:text-indigo-400">
-                            {filteredLogs.length} events
+                            {totalItems} events
                         </span>
                     </div>
                 </div>
@@ -245,36 +456,41 @@ const AuditActivityListPage: React.FC = () => {
                             <div key={i} className="h-16 animate-pulse rounded-lg bg-slate-100 dark:bg-slate-700" />
                         ))}
                     </div>
-                ) : filteredLogs.length === 0 ? (
+                ) : totalItems === 0 ? (
                     <div className="flex flex-col items-center gap-3 px-5 py-16">
                         <Database size={48} className="text-slate-300 dark:text-slate-600" />
                         <p className="text-sm font-medium text-slate-500 dark:text-slate-400">
                             No activity found
                         </p>
                         <p className="text-xs text-slate-400 dark:text-slate-500">
-                            {activeCategory === 'ALL'
-                                ? 'There is no audit activity recorded yet.'
-                                : `No activity recorded for "${activeLabel}".`}
+                            {hasActiveFilters
+                                ? 'Try adjusting your search or filters.'
+                                : activeCategory === 'ALL'
+                                  ? 'There is no audit activity recorded yet.'
+                                  : `No activity recorded for "${activeLabel}".`}
                         </p>
-                        {activeCategory !== 'ALL' && (
+                        {(activeCategory !== 'ALL' || hasActiveFilters) && (
                             <button
-                                onClick={() => handleTabClick('ALL')}
+                                onClick={() => {
+                                    handleTabClick('ALL');
+                                    resetFilters();
+                                }}
                                 className="rounded-lg bg-indigo-50 px-3 py-1.5 text-xs font-medium text-indigo-700 hover:bg-indigo-100 dark:bg-indigo-900/30 dark:text-indigo-400"
                             >
-                                View All Activity
+                                {hasActiveFilters ? 'Clear all filters' : 'View All Activity'}
                             </button>
                         )}
                     </div>
                 ) : (
                     <div className="divide-y divide-slate-100 dark:divide-slate-700">
-                        {filteredLogs.map((log) => {
+                        {paginatedLogs.map((log) => {
                             const severity = getSeverityInfo(log.actionType);
                             const category = deriveCategory(log);
                             const categoryLabel = CATEGORIES.find((c) => c.key === category)?.label || 'Other';
                             return (
                                 <div
                                     key={log.auditId ?? log.id}
-                                    className="group flex flex-col gap-2 px-5 py-4 transition hover:bg-slate-50 dark:hover:bg-slate-700/50 sm:flex-row sm:items-center sm:justify-between"
+                                    className="flex flex-col gap-2 px-5 py-4 transition hover:bg-slate-50 dark:hover:bg-slate-700/50 sm:flex-row sm:items-center sm:justify-between"
                                 >
                                     <div className="flex min-w-0 flex-1 flex-col gap-1.5">
                                         <div className="flex items-center gap-2">
@@ -306,7 +522,9 @@ const AuditActivityListPage: React.FC = () => {
                                         </div>
                                     </div>
                                     <button
-                                        className="shrink-0 rounded-lg p-1.5 text-slate-400 opacity-0 transition hover:bg-slate-100 hover:text-indigo-600 group-hover:opacity-100 dark:hover:bg-slate-700 dark:hover:text-indigo-400"
+                                        type="button"
+                                        onClick={() => setSelectedLog(log)}
+                                        className="shrink-0 rounded-lg p-1.5 text-indigo-600 transition hover:bg-indigo-50 dark:text-indigo-400 dark:hover:bg-slate-700"
                                         title="View details"
                                     >
                                         <Eye size={16} />
@@ -316,14 +534,26 @@ const AuditActivityListPage: React.FC = () => {
                         })}
                     </div>
                 )}
+
+                {!isLoading && totalItems > 0 && (
+                    <PaginationBar
+                        pageIndex={page}
+                        pageSize={pageSize}
+                        pageCount={totalPages}
+                        totalItems={totalItems}
+                        itemLabel="events"
+                        rowsPerPageOptions={[10, 20, 50, 100]}
+                        onPageIndexChange={setPage}
+                        onPageSizeChange={(nextSize) => {
+                            setPageSize(nextSize);
+                            setPage(0);
+                        }}
+                        className="mt-0 rounded-none border-x-0 border-b-0 border-t border-slate-200 dark:border-slate-700 shadow-none"
+                    />
+                )}
             </div>
 
-            {/* Summary */}
-            {!isLoading && data?.content && (
-                <p className="text-center text-xs text-slate-400">
-                    Showing {filteredLogs.length} of {data.content.length} total events
-                </p>
-            )}
+            <AuditLogDetailsModal log={selectedLog} onClose={() => setSelectedLog(null)} />
         </div>
     );
 };
