@@ -331,22 +331,23 @@ public class PipReportService {
             CellStyle summaryStyle = createSummaryStyle(workbook);
 
             Sheet sheet = workbook.createSheet("PIP Summary");
-            int rowIndex = writeTitle(sheet, 0, "PIP Summary Report", 15, titleStyle) + 1;
+            int rowIndex = writeTitle(sheet, 0, "PIP Summary Report", 16, titleStyle) + 1;
             rowIndex = writeHeader(sheet, rowIndex, headerStyle,
                     "PIP ID", "Employee ID", "Employee Name", "Department", "Position", "Manager", "KPI Score", "Status",
                     "Start Date", "End Date", "Progress %", "Completed Hours", "Total Hours",
-                    "Objectives Count", "Meetings Count", "Final Outcome");
+                    "Objectives Count", "Meetings Count", "Final Outcome", "Follow-up Meeting Details");
             for (PipSummaryReportDto row : rows) {
                 writeRow(sheet, rowIndex++, textStyle,
                         row.getPipId(), row.getEmployeeStaffNo(), row.getEmployeeName(), row.getDepartmentName(),
                         row.getPositionName(), row.getManagerName(), row.getKpiScore(), row.getStatus(),
                         formatExcelDate(row.getStartDate()),
                         formatExcelDate(row.getEndDate()), row.getOverallProgress(), row.getCompletedHours(),
-                        row.getTotalHours(), row.getObjectivesCount(), row.getMeetingsCount(), row.getFinalOutcome());
+                        row.getTotalHours(), row.getObjectivesCount(), row.getMeetingsCount(), row.getFinalOutcome(),
+                        row.getFollowUpMeetingsSummary());
             }
-            writeSummaryCountRow(sheet, rowIndex, summaryStyle, 16, "Total PIPs", rows.size());
+            writeSummaryCountRow(sheet, rowIndex, summaryStyle, 17, "Total PIPs", rows.size());
 
-            autosize(sheet, 16);
+            autosize(sheet, 17);
             workbook.write(outputStream);
             return outputStream.toByteArray();
         } catch (IOException e) {
@@ -373,7 +374,6 @@ public class PipReportService {
             writeRow(sheet, rowIndex++, textStyle, "Completed PIPs", report.getCompletedPips());
             writeRow(sheet, rowIndex++, textStyle, "Closed PIPs", report.getClosedPips());
             writeRow(sheet, rowIndex++, textStyle, "Auto Closed PIPs", report.getAutoClosedPips());
-            writeRow(sheet, rowIndex++, textStyle, "Reopen Requested PIPs", report.getReopenRequestedPips());
             writeRow(sheet, rowIndex++, textStyle, "Average Progress %", report.getAverageProgress());
             writeRow(sheet, rowIndex++, textStyle, "Total Hours", report.getTotalPlannedHours());
             writeRow(sheet, rowIndex++, textStyle, "Total Completed Hours", report.getTotalCompletedHours());
@@ -644,7 +644,7 @@ public class PipReportService {
                 manager == null ? "" : manager.getEmployeeName(),
                 departmentName(manager),
                 pipService.getLatestKpiTotalScore(employee),
-                pip.getStatus(),
+                formatReportStatus(pip.getStatus()),
                 pip.getStartDate(),
                 pip.getEndDate(),
                 pip.getOriginalEndDate(),
@@ -671,6 +671,11 @@ public class PipReportService {
     private PipSummaryReportDto toSummaryDto(Pip pip) {
         Employee employee = pip.getEmployee();
         Employee manager = pip.getManager();
+        List<PipIndividualReportDto.MeetingRow> meetings = safeList(pip.getFollowUpMeetings()).stream()
+                .sorted(Comparator.comparing(FollowUpMeeting::getScheduledDate,
+                        Comparator.nullsLast(Comparator.naturalOrder())))
+                .map(this::toMeetingRow)
+                .toList();
         return new PipSummaryReportDto(
                 pip.getId(),
                 employee == null ? "" : employee.getEmployeeId(),
@@ -679,15 +684,16 @@ public class PipReportService {
                 positionName(employee),
                 manager == null ? "" : manager.getEmployeeName(),
                 pipService.getLatestKpiTotalScore(employee),
-                pip.getStatus(),
+                formatReportStatus(pip.getStatus()),
                 pip.getStartDate(),
                 pip.getEndDate(),
                 pip.getOverallProgressPercentage(),
                 pip.getTotalHours(),
                 pip.getCompletedHours(),
                 safeList(pip.getObjectives()).size(),
-                safeList(pip.getFollowUpMeetings()).size(),
-                defaultText(pip.getFinalOutcome()));
+                meetings.size(),
+                defaultText(pip.getFinalOutcome()),
+                toMeetingSummary(meetings));
     }
 
     private PipProgressReportDto toProgressDto(List<Pip> pips, Long departmentId, LocalDate startDate,
@@ -850,7 +856,7 @@ public class PipReportService {
 
     private String buildFilterDescription(String status, Long departmentId, Long positionId, String employeeName,
             Long employeeId, Long pipId, LocalDate startDate, LocalDate endDate, User actor) {
-        return "Status: " + (status == null || status.isBlank() ? "All" : status)
+        return "Status: " + (status == null || status.isBlank() ? "All" : formatReportStatus(status))
                 + " | Department: " + resolveDepartmentDisplay(departmentId, actor)
                 + " | Position: " + resolvePositionDisplay(positionId)
                 + " | Employee Name: " + (employeeName == null || employeeName.isBlank() ? "All" : employeeName.trim())
@@ -868,6 +874,20 @@ public class PipReportService {
         return pips.stream()
                 .filter(pip -> status.equalsIgnoreCase(pip.getStatus()))
                 .count();
+    }
+
+    private String formatReportStatus(String status) {
+        if (status == null || status.isBlank()) {
+            return "";
+        }
+        String normalized = status.trim().toUpperCase(Locale.ENGLISH).replaceAll("\\s+", "_");
+        if ("REOPEN_REQUESTED".equals(normalized) || "PENDING_REOPEN".equals(normalized)) {
+            return "ACTIVE";
+        }
+        if ("DENIED".equals(normalized)) {
+            return "CLOSED";
+        }
+        return normalized;
     }
 
     private long countDistinctEmployees(List<PipSummaryReportDto> rows) {

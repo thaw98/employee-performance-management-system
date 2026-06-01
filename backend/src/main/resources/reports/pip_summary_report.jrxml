@@ -35,6 +35,7 @@
     <field name="objectivesCount" class="java.lang.Integer"/>
     <field name="meetingsCount" class="java.lang.Integer"/>
     <field name="finalOutcome" class="java.lang.String"/>
+    <field name="followUpMeetingsSummary" class="java.lang.String"/>
 
     <title>
         <band height="118">
@@ -103,15 +104,15 @@
     </columnHeader>
 
     <detail>
-        <band height="24">
+        <band height="46">
             <rectangle>
-                <reportElement x="0" y="0" width="782" height="22" backcolor="#F8FAFC" uuid="6c32ef44-735a-4b18-8a54-a353df4cc106">
+                <reportElement x="0" y="0" width="782" height="44" backcolor="#F8FAFC" uuid="6c32ef44-735a-4b18-8a54-a353df4cc106">
                     <printWhenExpression><![CDATA[Boolean.valueOf($V{REPORT_COUNT}.intValue() % 2 == 0)]]></printWhenExpression>
                 </reportElement>
                 <graphicElement><pen lineWidth="0.0"/></graphicElement>
             </rectangle>
             <line>
-                <reportElement x="0" y="22" width="782" height="1" forecolor="#E2E8F0" uuid="6c32ef44-735a-4b18-8a54-a353df4cc107"/>
+                <reportElement x="0" y="44" width="782" height="1" forecolor="#E2E8F0" uuid="6c32ef44-735a-4b18-8a54-a353df4cc107"/>
             </line>
             <textField textAdjust="StretchHeight"><reportElement stretchType="RelativeToTallestObject" x="4" y="4" width="36" height="14" uuid="6c32ef44-735a-4b18-8a54-a353df4cc015"/><textElement><font fontName="DejaVu Sans" size="8"/></textElement><textFieldExpression><![CDATA[String.valueOf($F{pipId})]]></textFieldExpression></textField>
             <textField textAdjust="StretchHeight"><reportElement stretchType="RelativeToTallestObject" x="44" y="4" width="90" height="14" uuid="6c32ef44-735a-4b18-8a54-a353df4cc016"/><textElement><font fontName="DejaVu Sans" size="8"/></textElement><textFieldExpression><![CDATA[$F{employeeName}]]></textFieldExpression></textField>
@@ -125,6 +126,11 @@
             <textField textAdjust="StretchHeight"><reportElement stretchType="RelativeToTallestObject" x="610" y="4" width="54" height="14" uuid="6c32ef44-735a-4b18-8a54-a353df4cc022"/><textElement><font fontName="DejaVu Sans" size="8"/></textElement><textFieldExpression><![CDATA[String.valueOf($F{overallProgress}) + "%"]]></textFieldExpression></textField>
             <textField textAdjust="StretchHeight"><reportElement stretchType="RelativeToTallestObject" x="668" y="4" width="44" height="14" uuid="6c32ef44-735a-4b18-8a54-a353df4cc023"/><textElement><font fontName="DejaVu Sans" size="8"/></textElement><textFieldExpression><![CDATA[String.valueOf($F{completedHours}) + "/" + String.valueOf($F{totalHours})]]></textFieldExpression></textField>
             <textField textAdjust="StretchHeight"><reportElement stretchType="RelativeToTallestObject" x="716" y="4" width="62" height="14" uuid="6c32ef44-735a-4b18-8a54-a353df4cc027"/><textElement><font fontName="DejaVu Sans" size="8"/></textElement><textFieldExpression><![CDATA[$F{finalOutcome}]]></textFieldExpression></textField>
+            <textField textAdjust="StretchHeight">
+                <reportElement stretchType="RelativeToTallestObject" x="44" y="24" width="734" height="16" uuid="6c32ef44-735a-4b18-8a54-a353df4cc033"/>
+                <textElement><font fontName="DejaVu Sans" size="7"/></textElement>
+                <textFieldExpression><![CDATA["Follow-up Meetings: " + ($F{followUpMeetingsSummary} == null || $F{followUpMeetingsSummary}.isEmpty() ? "No follow-up meetings recorded." : $F{followUpMeetingsSummary})]]></textFieldExpression>
+            </textField>
         </band>
     </detail>
 

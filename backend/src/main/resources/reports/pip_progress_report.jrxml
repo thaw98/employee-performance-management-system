@@ -108,8 +108,6 @@
             <textField><reportElement x="265" y="166" width="250" height="18" uuid="fda77ebb-239c-48b0-bd37-88b6c3c5c017"/><textElement><font fontName="DejaVu Sans" size="10"/></textElement><textFieldExpression><![CDATA["Completed: " + String.valueOf($F{completedPips})]]></textFieldExpression></textField>
             <textField><reportElement x="0" y="194" width="250" height="18" uuid="fda77ebb-239c-48b0-bd37-88b6c3c5c018"/><textElement><font fontName="DejaVu Sans" size="10"/></textElement><textFieldExpression><![CDATA["Closed: " + String.valueOf($F{closedPips})]]></textFieldExpression></textField>
             <textField><reportElement x="265" y="194" width="250" height="18" uuid="fda77ebb-239c-48b0-bd37-88b6c3c5c019"/><textElement><font fontName="DejaVu Sans" size="10"/></textElement><textFieldExpression><![CDATA["Auto-closed: " + String.valueOf($F{autoClosedPips})]]></textFieldExpression></textField>
-            <textField><reportElement x="0" y="222" width="250" height="18" uuid="fda77ebb-239c-48b0-bd37-88b6c3c5c020"/><textElement><font fontName="DejaVu Sans" size="10"/></textElement><textFieldExpression><![CDATA["Reopen requested: " + String.valueOf($F{reopenRequestedPips})]]></textFieldExpression></textField>
-
             <staticText><reportElement x="0" y="260" width="515" height="18" uuid="fda77ebb-239c-48b0-bd37-88b6c3c5c022"/><textElement><font fontName="DejaVu Sans" size="12" isBold="true"/></textElement><text><![CDATA[Hours Completion]]></text></staticText>
             <textField><reportElement x="0" y="290" width="250" height="18" uuid="fda77ebb-239c-48b0-bd37-88b6c3c5c023"/><textElement><font fontName="DejaVu Sans" size="10"/></textElement><textFieldExpression><![CDATA["Completed Hours: " + String.valueOf($F{totalCompletedHours})]]></textFieldExpression></textField>
             <textField><reportElement x="265" y="290" width="250" height="18" uuid="fda77ebb-239c-48b0-bd37-88b6c3c5c024"/><textElement><font fontName="DejaVu Sans" size="10"/></textElement><textFieldExpression><![CDATA["Remaining Hours: " + String.valueOf($F{totalPlannedHours} - $F{totalCompletedHours})]]></textFieldExpression></textField>
@@ -139,10 +137,6 @@
                     <pieSeries>
                         <keyExpression><![CDATA["Auto Closed"]]></keyExpression>
                         <valueExpression><![CDATA[$F{autoClosedPips}]]></valueExpression>
-                    </pieSeries>
-                    <pieSeries>
-                        <keyExpression><![CDATA["Reopen Req."]]></keyExpression>
-                        <valueExpression><![CDATA[$F{reopenRequestedPips}]]></valueExpression>
                     </pieSeries>
                 </pieDataset>
                 <piePlot>

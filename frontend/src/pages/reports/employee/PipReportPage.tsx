@@ -12,7 +12,6 @@ const STATUS_OPTIONS = [
   { value: 'COMPLETED', label: 'Completed' },
   { value: 'CLOSED', label: 'Closed' },
   { value: 'AUTO_CLOSED', label: 'Auto Closed' },
-  { value: 'REOPEN_REQUESTED', label: 'Reopen Requested' },
 ]
 
 const formatDateValue = (value?: string) => {
@@ -25,6 +24,8 @@ const formatDateValue = (value?: string) => {
 const getPipStaffId = (pip: { employee?: { employeeId?: string } }) => pip.employee?.employeeId || '-'
 
 const getStatusDisplayLabel = (status: string, finalOutcome?: string) => {
+  if (status === 'REOPEN_REQUESTED') return 'Active'
+  if (status === 'DENIED') return 'Closed'
   if (status === 'CLOSED' && finalOutcome === 'SUCCESSFUL') return 'Close - Successful'
   if (status === 'CLOSED' && finalOutcome === 'FAILED') return 'Close - Fail'
   if (status === 'AUTO_CLOSED') return 'Auto Close'
