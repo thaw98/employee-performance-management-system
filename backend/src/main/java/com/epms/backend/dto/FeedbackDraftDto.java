@@ -19,6 +19,7 @@ public class FeedbackDraftDto {
     private String additionalComments;
     private Long reviewCycleId;
     private String reviewCycleName;
+    private Integer maxRating;
     private Instant updatedAt;
     private List<FeedbackSubmissionRequest.FeedbackDetailRequest> details;
 }

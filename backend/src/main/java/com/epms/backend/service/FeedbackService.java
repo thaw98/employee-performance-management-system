@@ -15,6 +15,7 @@ import com.epms.backend.dto.FeedbackDetailPageDto;
 import com.epms.backend.dto.FeedbackChatMessageDto;
 import com.epms.backend.dto.FeedbackChatMessageRequest;
 import com.epms.backend.dto.FeedbackSubmissionRequest;
+import com.epms.backend.dto.feedbackmanagement.FormConfigResponse;
 import com.epms.backend.entity.*;
 import com.epms.backend.repository.*;
 import com.fasterxml.jackson.core.JsonProcessingException;
@@ -62,6 +63,7 @@ public class FeedbackService {
     private final FeedbackChatMessageRepository feedbackChatMessageRepository;
     private final ScoreExplanationResolver scoreExplanationResolver;
     private final ScoreFormulaService scoreFormulaService;
+    private final FeedbackManagementService feedbackManagementService;
 
     @Autowired
     public FeedbackService(
@@ -78,7 +80,8 @@ public class FeedbackService {
             AuditService auditService,
             FeedbackChatMessageRepository feedbackChatMessageRepository,
             ScoreExplanationResolver scoreExplanationResolver,
-            ScoreFormulaService scoreFormulaService) {
+            ScoreFormulaService scoreFormulaService,
+            FeedbackManagementService feedbackManagementService) {
         this.feedbackRepository = feedbackRepository;
         this.feedbackDraftRepository = feedbackDraftRepository;
         this.employeeRepository = employeeRepository;
@@ -93,6 +96,7 @@ public class FeedbackService {
         this.feedbackChatMessageRepository = feedbackChatMessageRepository;
         this.scoreExplanationResolver = scoreExplanationResolver;
         this.scoreFormulaService = scoreFormulaService;
+        this.feedbackManagementService = feedbackManagementService;
     }
 
     public FeedbackService(
@@ -109,7 +113,7 @@ public class FeedbackService {
             AuditService auditService) {
         this(feedbackRepository, feedbackDraftRepository, employeeRepository, reportingManagerResolver,
                 criteriaRepository, userRepository, notificationService, timeSettingService, reviewCycleService,
-                reviewCycleRepository, auditService, null, null, null);
+                reviewCycleRepository, auditService, null, null, null, null);
     }
 
     /* Reporting helpers */
@@ -567,6 +571,9 @@ public class FeedbackService {
             throw new RuntimeException("Feedback already given for this employee in the current cycle");
         }
 
+        ReviewCycle activeCycle = reviewCycleService.getActiveSubmissionCycle();
+        int resolvedMaxRating = resolveMaxRating(evaluatee.getId(), request.getRole());
+
         Feedback feedback = new Feedback();
         feedback.setEvaluator(evaluator);
         feedback.setEvaluatee(evaluatee);
@@ -574,8 +581,8 @@ public class FeedbackService {
         feedback.setAnonymous(Boolean.TRUE.equals(request.getAnonymous()));
         feedback.setAdditionalComments(additionalComments);
         feedback.setCreatedDate(Instant.now());
-        ReviewCycle activeCycle = reviewCycleService.getActiveSubmissionCycle();
         feedback.setReviewCycle(activeCycle);
+        feedback.setMaxRating(resolvedMaxRating);
 
         List<FeedbackDetail> details = new ArrayList<>();
         int totalPoints = 0;
@@ -584,6 +591,10 @@ public class FeedbackService {
         for (FeedbackSubmissionRequest.FeedbackDetailRequest reqDetail : request.getDetails()) {
             Criteria criteria = criteriaRepository.findById(reqDetail.getCriteriaId())
                     .orElseThrow(() -> new RuntimeException("Criteria not found"));
+
+            if (reqDetail.getRating() == null || reqDetail.getRating() < 1 || reqDetail.getRating() > resolvedMaxRating) {
+                throw new RuntimeException("Rating must be between 1 and " + resolvedMaxRating);
+            }
 
             FeedbackDetail detail = new FeedbackDetail();
             detail.setFeedback(feedback);
@@ -596,6 +607,7 @@ public class FeedbackService {
         }
 
         double score;
+        double maxRatingVal = (double) resolvedMaxRating;
         if (scoreFormulaService != null) {
             try {
                 score = scoreFormulaService.evaluateFormula(
@@ -603,12 +615,12 @@ public class FeedbackService {
                         java.util.Map.of(
                                 "SUM_RATINGS", (double) totalPoints,
                                 "NUM_QUESTIONS", (double) questionCount,
-                                "MAX_RATING", 5.0));
+                                "MAX_RATING", maxRatingVal));
             } catch (Exception e) {
-                score = (totalPoints * 100.0) / (questionCount * 5.0);
+                score = (totalPoints * 100.0) / (questionCount * maxRatingVal);
             }
         } else {
-            score = (totalPoints * 100.0) / (questionCount * 5.0);
+            score = (totalPoints * 100.0) / (questionCount * maxRatingVal);
         }
         feedback.setScore(score);
         feedback.setRemark(calculateRemark(score));
@@ -731,6 +743,8 @@ public class FeedbackService {
             throw new RuntimeException("No active review cycle found for feedback drafts");
         }
 
+        int resolvedMaxRating = resolveMaxRating(evaluatee.getId(), request.getRole());
+
         FeedbackDraft draft = feedbackDraftRepository
                 .findByEvaluatorIdAndEvaluateeIdAndRoleAndReviewCycleId(evaluatorId, evaluatee.getId(), request.getRole(), cycle.getId())
                 .orElseGet(FeedbackDraft::new);
@@ -740,12 +754,18 @@ public class FeedbackService {
         draft.setRole(request.getRole());
         draft.setAnonymous(Boolean.TRUE.equals(request.getAnonymous()));
         draft.setAdditionalComments(additionalComments);
+        draft.setMaxRating(resolvedMaxRating);
         draft.getDetails().clear();
 
         if (request.getDetails() != null) {
             for (FeedbackSubmissionRequest.FeedbackDetailRequest reqDetail : request.getDetails()) {
                 Criteria criteria = criteriaRepository.findById(reqDetail.getCriteriaId())
                         .orElseThrow(() -> new RuntimeException("Criteria not found"));
+
+                if (reqDetail.getRating() != null && (reqDetail.getRating() < 1 || reqDetail.getRating() > resolvedMaxRating)) {
+                    throw new RuntimeException("Rating must be between 1 and " + resolvedMaxRating);
+                }
+
                 FeedbackDraftDetail detail = new FeedbackDraftDetail();
                 detail.setDraft(draft);
                 detail.setCriteria(criteria);
@@ -831,6 +851,7 @@ public class FeedbackService {
         dto.setAnonymous(Boolean.TRUE.equals(entity.getAnonymous()));
         dto.setAdditionalComments(entity.getAdditionalComments());
         dto.setStatus("SUBMITTED");
+        dto.setMaxRating(entity.getMaxRating() != null ? entity.getMaxRating() : 5);
         ReviewCycle cycle = entity.getReviewCycle();
         if (cycle != null) {
             dto.setReviewCycleId(cycle.getId());
@@ -1069,11 +1090,13 @@ public class FeedbackService {
     }
 
     private List<com.epms.backend.dto.FeedbackDetailDto> mapFeedbackDetails(Feedback feedback) {
+        Integer maxRating = feedback.getMaxRating() != null ? feedback.getMaxRating() : 5;
         return feedback.getDetails().stream().map(d -> {
             com.epms.backend.dto.FeedbackDetailDto dto = new com.epms.backend.dto.FeedbackDetailDto();
             dto.setCriteriaName(d.getCriteria().getName());
             dto.setRating(d.getRating());
             dto.setComment(d.getComment());
+            dto.setMaxRating(maxRating);
             return dto;
         }).collect(Collectors.toList());
     }
@@ -1135,6 +1158,15 @@ public class FeedbackService {
                 && employee.getStaffType().getId() == StaffTypes.PROBATION;
     }
 
+    private int resolveMaxRating(Long evaluateeId, String role) {
+        try {
+            FormConfigResponse config = feedbackManagementService.getFormConfig(evaluateeId, role);
+            return config.getMaxRating() != null ? config.getMaxRating() : 5;
+        } catch (Exception e) {
+            return 5;
+        }
+    }
+
     private FeedbackDraftDto mapToDraftDto(FeedbackDraft draft) {
         FeedbackDraftDto dto = new FeedbackDraftDto();
         dto.setId(draft.getId());
@@ -1149,6 +1181,7 @@ public class FeedbackService {
         dto.setRole(draft.getRole());
         dto.setAnonymous(Boolean.TRUE.equals(draft.getAnonymous()));
         dto.setAdditionalComments(draft.getAdditionalComments());
+        dto.setMaxRating(draft.getMaxRating() != null ? draft.getMaxRating() : 5);
         dto.setReviewCycleId(draft.getReviewCycle().getId());
         dto.setReviewCycleName(draft.getReviewCycle().getName());
         dto.setUpdatedAt(draft.getUpdatedAt());

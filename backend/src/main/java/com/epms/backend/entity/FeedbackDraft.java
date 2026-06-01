@@ -48,6 +48,9 @@ public class FeedbackDraft {
     @Column(name = "additional_comments", length = 1000)
     private String additionalComments;
 
+    @Column(name = "max_rating")
+    private Integer maxRating = 5;
+
     @Column(name = "created_at", nullable = false, updatable = false)
     private Instant createdAt;
 

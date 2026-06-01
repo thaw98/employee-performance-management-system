@@ -18,8 +18,22 @@ export interface FeedbackTemplateConfig {
   questionIds: number[]
   audienceRules?: AudienceRule[]
   status: 'ACTIVE' | 'INACTIVE'
+  maxRating?: number
   createdDate?: string
   updatedDate?: string
+}
+
+export interface FormConfigCriteria {
+  id: number
+  name: string
+  description: string
+}
+
+export interface FormConfigResponse {
+  templateId?: number
+  templateName?: string
+  maxRating: number
+  criteria: FormConfigCriteria[]
 }
 
 export interface FeedbackLimitConfig {

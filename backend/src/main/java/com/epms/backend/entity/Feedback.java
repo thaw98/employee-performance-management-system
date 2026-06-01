@@ -49,6 +49,9 @@ public class Feedback {
     @Column(name = "feedback_date")
     private Instant createdDate;
 
+    @Column(name = "max_rating")
+    private Integer maxRating = 5;
+
     @OneToMany(mappedBy = "feedback", cascade = CascadeType.ALL, orphanRemoval = true)
     private List<FeedbackDetail> details;
 }

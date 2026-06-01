@@ -46,6 +46,9 @@ public class FeedbackTemplateConfig {
     @Column(length = 20)
     private String status = "ACTIVE";
 
+    @Column(name = "max_rating", nullable = false)
+    private Integer maxRating = 5;
+
     private Instant createdDate;
     private Instant updatedDate;
 }

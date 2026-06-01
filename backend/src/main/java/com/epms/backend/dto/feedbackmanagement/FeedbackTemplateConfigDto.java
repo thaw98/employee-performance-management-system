@@ -18,6 +18,7 @@ public class FeedbackTemplateConfigDto {
     private List<Long> questionIds = new ArrayList<>();
     private List<AudienceRuleDto> audienceRules;
     private String status;
+    private Integer maxRating = 5;
     private Instant createdDate;
     private Instant updatedDate;
 

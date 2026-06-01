@@ -3,6 +3,7 @@ package com.epms.backend.controller;
 import com.epms.backend.common.ApiResponse;
 import com.epms.backend.dto.feedbackmanagement.FeedbackLimitConfigDto;
 import com.epms.backend.dto.feedbackmanagement.FeedbackTemplateConfigDto;
+import com.epms.backend.dto.feedbackmanagement.FormConfigResponse;
 import com.epms.backend.service.FeedbackManagementService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.ResponseEntity;
@@ -45,6 +46,15 @@ public class FeedbackManagementController {
     public ResponseEntity<ApiResponse<Void>> deleteTemplate(@PathVariable Long id) {
         service.deleteTemplate(id);
         return ResponseEntity.ok(ApiResponse.ok("Feedback template deleted successfully", null));
+    }
+
+    @GetMapping("/form-config")
+    @PreAuthorize("@permissionGuard.has('360_FEEDBACK', 'give')")
+    public ResponseEntity<ApiResponse<FormConfigResponse>> getFormConfig(
+            @RequestParam Long evaluateeId,
+            @RequestParam String role) {
+        return ResponseEntity.ok(ApiResponse.ok("Form config retrieved successfully",
+                service.getFormConfig(evaluateeId, role)));
     }
 
     @GetMapping("/limits")

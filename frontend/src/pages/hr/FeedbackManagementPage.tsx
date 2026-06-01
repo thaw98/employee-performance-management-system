@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from 'react'
 import { toast } from 'react-hot-toast'
-import { Building2, CalendarRange, CheckCircle2, ClipboardList, Copy, Eye, FileText, Filter, LayoutGrid, Pencil, Plus, Search, Table2, Trash2, Users, X } from 'lucide-react'
+import { Building2, CalendarRange, CheckCircle2, ClipboardList, Copy, Eye, FileText, Filter, LayoutGrid, Pencil, Plus, Search, Star, Table2, Trash2, Users, X } from 'lucide-react'
 import axios from '../../app/axiosInstance'
 import { CriteriaPage } from './CriteriaPage'
 import { formatDateTime } from '../../utils/dateUtils'
@@ -27,6 +27,7 @@ const emptyTemplate: FeedbackTemplateConfig = {
   targetName: '',
   questionIds: [],
   status: 'ACTIVE',
+  maxRating: 5,
 }
 
 const emptyLimit: FeedbackLimitConfig = {
@@ -810,10 +811,51 @@ function TemplateModal({
             <section className="rounded-2xl border border-slate-200 p-5">
               <div className="mb-4 flex items-center gap-3">
                 <span className="flex h-9 w-9 items-center justify-center rounded-xl bg-gradient-to-br from-[#2463eb] to-[#1d4ed8] text-white shadow-md shadow-[#2463eb]/20">
-                  <Users size={17} />
+                  <Star size={17} />
                 </span>
                 <div>
                   <span className="text-[11px] font-bold uppercase tracking-widest text-[#2463eb]">Step 3</span>
+                  <h4 className="font-black text-slate-900">Rating Scale</h4>
+                  <p className="text-xs text-slate-500">Set the maximum rating value for this template (2-10).</p>
+                </div>
+              </div>
+              <div className="space-y-3">
+                <div className="flex items-center gap-4">
+                  <label className="text-sm font-bold text-slate-700 whitespace-nowrap">
+                    Max Rating: <span className="text-blue-600 text-lg">{form.maxRating ?? 5}</span>
+                  </label>
+                  <div className="flex items-center gap-1">
+                    {[2, 3, 4, 5, 6, 7, 8, 9, 10].map(n => (
+                      <button
+                        key={n}
+                        disabled={readOnly}
+                        onClick={() => setForm({ ...form, maxRating: n })}
+                        className={`w-9 h-9 rounded-lg text-sm font-bold transition-all ${
+                          (form.maxRating ?? 5) === n
+                            ? 'bg-blue-600 text-white shadow-md'
+                            : 'bg-slate-100 text-slate-500 hover:bg-slate-200'
+                        } ${readOnly ? 'cursor-not-allowed opacity-60' : ''}`}
+                      >
+                        {n}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+                <div className="rounded-xl bg-slate-50 px-4 py-3 border border-slate-100">
+                  <p className="text-xs font-bold text-slate-500">
+                    Preview: <span className="text-slate-800">1 - {form.maxRating ?? 5}</span>
+                  </p>
+                </div>
+              </div>
+            </section>
+
+            <section className="rounded-2xl border border-slate-200 p-5">
+              <div className="mb-4 flex items-center gap-3">
+                <span className="flex h-9 w-9 items-center justify-center rounded-xl bg-gradient-to-br from-[#2463eb] to-[#1d4ed8] text-white shadow-md shadow-[#2463eb]/20">
+                  <Users size={17} />
+                </span>
+                <div>
+                  <span className="text-[11px] font-bold uppercase tracking-widest text-[#2463eb]">Step 4</span>
                   <h4 className="font-black text-slate-900">Audience</h4>
                   <p className="text-xs text-slate-500">Match the self-assessment audience style by selecting one target type.</p>
                 </div>
@@ -899,7 +941,7 @@ function TemplateModal({
                     <ClipboardList size={17} />
                   </span>
                   <div>
-                    <span className="text-[11px] font-bold uppercase tracking-widest text-[#2463eb]">Step 4</span>
+                    <span className="text-[11px] font-bold uppercase tracking-widest text-[#2463eb]">Step 5</span>
                     <h4 className="font-black text-slate-900">Criteria Assignment</h4>
                     <p className="text-xs text-slate-500">Select the feedback criteria included in this template.</p>
                   </div>
@@ -939,6 +981,10 @@ function TemplateModal({
               <div>
                 <p className="text-xs font-black uppercase tracking-wider text-slate-400">Name</p>
                 <p className="mt-1 font-bold text-slate-900">{form.templateName || 'Untitled template'}</p>
+              </div>
+              <div>
+                <p className="text-xs font-black uppercase tracking-wider text-slate-400">Rating Scale</p>
+                <p className="mt-1 font-bold text-slate-900">1 - {form.maxRating ?? 5}</p>
               </div>
               <div>
                 <p className="text-xs font-black uppercase tracking-wider text-slate-400">Audience</p>
