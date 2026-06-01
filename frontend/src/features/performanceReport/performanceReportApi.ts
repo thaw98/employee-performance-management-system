@@ -23,6 +23,10 @@ export interface PerformanceReportSummary {
   performanceLevel: string;
   promotionEligibility: string;
   promotionEligible: boolean;
+  latestApprovedPromotionId?: number | null;
+  latestApprovedPromotionReason?: string | null;
+  latestApprovedPromotionEffectiveDate?: string | null;
+  latestApprovedPromotionTargetPositionName?: string | null;
 }
 
 export interface PromotionProposalResponse {
