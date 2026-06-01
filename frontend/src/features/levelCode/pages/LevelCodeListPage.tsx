@@ -1,4 +1,5 @@
-import { useMemo, useState } from 'react'
+import { useMemo, useState, useCallback } from 'react'
+import { useSearchParams } from 'react-router-dom'
 import type { SortingState } from '@tanstack/react-table'
 import toast from 'react-hot-toast'
 import {
@@ -25,9 +26,10 @@ import PositionRoleEditModal from '../components/PositionRoleEditModal'
 import { useGetActiveRolesQuery } from '../../position/api/positionApi'
 
 function LevelCodeListPage() {
+  const [searchParams, setSearchParams] = useSearchParams()
   const [page, setPage] = useState(0)
   const [size, setSize] = useState(10)
-  const [search, setSearch] = useState('')
+  const search = searchParams.get('search') ?? ''
   const [sorting, setSorting] = useState<SortingState>([{ id: 'code', desc: false }])
   const [isLevelCodeModalOpen, setIsLevelCodeModalOpen] = useState(false)
   const [editingLevelCode, setEditingLevelCode] = useState<LevelCodeDto | null>(null)
@@ -38,8 +40,8 @@ function LevelCodeListPage() {
   const [createLevelCode, { isLoading: isCreating }] = useCreateLevelCodeMutation()
   const [updateLevelCode, { isLoading: isUpdating }] = useUpdateLevelCodeMutation()
 
-  const levelCodes = data?.data?.data ?? []
-  const roles = rolesData?.data ?? []
+  const levelCodes = useMemo(() => data?.data?.data ?? [], [data?.data?.data])
+  const roles = useMemo(() => rolesData?.data ?? [], [rolesData?.data])
   const totalPositions = levelCodes.reduce((sum, levelCode) => sum + levelCode.positionCount, 0)
 
   const filteredLevelCodes = useMemo(() => {
@@ -64,6 +66,21 @@ function LevelCodeListPage() {
   const totalElements = filteredLevelCodes.length
   const totalPages = Math.ceil(totalElements / size)
   const pagedLevelCodes = filteredLevelCodes.slice(page * size, page * size + size)
+
+  const handleSearchChange = useCallback((value: string) => {
+    setPage(0)
+    setSearchParams((prevParams) => {
+      const nextParams = new URLSearchParams(prevParams)
+      const trimmed = value.trim()
+      if (trimmed) {
+        nextParams.set('search', trimmed)
+      } else {
+        nextParams.delete('search')
+      }
+      nextParams.delete('page')
+      return nextParams
+    }, { replace: true })
+  }, [setSearchParams])
 
   const handleSubmitLevelCode = async (values: LevelCodeFormValues) => {
     try {
@@ -180,7 +197,7 @@ function LevelCodeListPage() {
                   <h2 className="text-lg font-semibold text-slate-900">Filters</h2>
                 </div>
                 {search && (
-                  <button type="button" onClick={() => { setSearch(''); setPage(0) }} className="text-xs font-medium text-[#2463eb] hover:text-[#1d4ed8]">
+                  <button type="button" onClick={() => handleSearchChange('')} className="text-xs font-medium text-[#2463eb] hover:text-[#1d4ed8]">
                     Clear all
                   </button>
                 )}
@@ -189,7 +206,7 @@ function LevelCodeListPage() {
                 <Search className="absolute left-3.5 top-1/2 -translate-y-1/2 w-5 h-5 text-slate-400" />
                 <input
                   value={search}
-                  onChange={(event) => { setSearch(event.target.value); setPage(0) }}
+                  onChange={(event) => handleSearchChange(event.target.value)}
                   className="w-full pl-11 pr-4 py-3 border border-slate-200 rounded-xl focus:ring-2 focus:ring-[#dbeafe] focus:border-[#2463eb] focus:outline-none"
                   placeholder="Search by level code or description"
                 />

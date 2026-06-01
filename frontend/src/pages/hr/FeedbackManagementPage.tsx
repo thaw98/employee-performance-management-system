@@ -325,6 +325,7 @@ function TemplateTab() {
 
   const targetOptions = form.targetType === 'DEPARTMENT' ? departments : form.targetType === 'LEVEL_CODE' ? levelCodes : employees
   const activeCriteria = useMemo(() => criteria.filter((item) => item.active !== false), [criteria])
+  const criteriaNameById = useMemo(() => new Map(criteria.map((item) => [item.id, item.name])), [criteria])
   const activeLimitTypes = new Set(limits.map((limit) => limit.relationshipType))
   const selectedCycleIsCurrent = isCurrentCycle(selectedReviewCycle)
   const hasActiveConfiguredTemplate = templates.some((template) => template.status === 'ACTIVE')
@@ -346,21 +347,33 @@ function TemplateTab() {
     () => currentInUseFallbackTemplate ? [currentInUseFallbackTemplate, ...templates] : templates,
     [currentInUseFallbackTemplate, templates]
   )
+  const selectedCycleRange = cycleDateRange(selectedReviewCycle)
   const filteredTemplates = useMemo(() => {
     const query = searchQuery.trim().toLowerCase()
     return templateRows.filter((template) => {
       const matchesTarget = targetFilter === 'ALL' || template.targetType === targetFilter
+      const assignedCriteria = (template.questionIds ?? [])
+        .map((id) => criteriaNameById.get(id) ?? `criteria ${id}`)
+        .join(' ')
+      const searchableText = [
+        template.templateName,
+        template.targetName,
+        template.reviewCycleName,
+        selectedReviewCycle?.name,
+        selectedCycleRange,
+        template.status,
+        targetLabel(template.targetType),
+        assignedCriteria,
+        template.currentInUseFallback ? 'current in use live feedback active system default' : '',
+      ].filter(Boolean).join(' ').toLowerCase()
       const matchesSearch = !query
-        || template.templateName.toLowerCase().includes(query)
-        || (template.targetName ?? '').toLowerCase().includes(query)
-        || targetLabel(template.targetType).toLowerCase().includes(query)
+        || searchableText.includes(query)
       return matchesTarget && matchesSearch
     })
-  }, [searchQuery, targetFilter, templateRows])
+  }, [criteriaNameById, searchQuery, selectedCycleRange, selectedReviewCycle?.name, targetFilter, templateRows])
   const activeTemplates = templateRows.filter((template) => template.status === 'ACTIVE').length
   const assignedQuestions = new Set(templateRows.flatMap((template) => template.questionIds ?? [])).size
   const isTemplateCurrentInUse = (template: FeedbackTemplateRow) => selectedCycleIsCurrent && template.status === 'ACTIVE'
-  const selectedCycleRange = cycleDateRange(selectedReviewCycle)
 
   const openCreate = () => {
     if (!selectedReviewCycleId) return toast.error('Please select a review cycle')
