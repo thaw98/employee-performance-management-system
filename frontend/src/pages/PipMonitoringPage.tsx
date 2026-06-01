@@ -1,10 +1,10 @@
-﻿import * as XLSX from 'xlsx'
+import * as XLSX from 'xlsx'
 import jsPDF from 'jspdf'
 import autoTable from 'jspdf-autotable'
 import { useGetPipsQuery, useLazyGetTrainingHistoryQuery } from '../features/pip/pipApi'
 import type { Pip, TrainingRecord } from '../features/pip/pipApi'
 import { skipToken } from '@reduxjs/toolkit/query'
-import { Link, useLocation } from 'react-router-dom'
+import { Link, useLocation, useSearchParams } from 'react-router-dom'
 import { useSelector } from 'react-redux'
 import { useEffect, useState, useMemo } from 'react'
 import type { RootState } from '../app/store'
@@ -347,10 +347,11 @@ export default function PipMonitoringPage() {
   const isManager = userRole === 'DEPARTMENT_HEAD' || userRole === 'TEAM_HEAD' || userRole === 'MANAGER'
   const isEmployee = !isHr && !isManager
 
+  const [searchParams] = useSearchParams()
   const [filterDept, setFilterDept] = useState<number | undefined>(undefined)
   const [filterPos, setFilterPos] = useState<number | undefined>(undefined)
   const [filterStatus, setFilterStatus] = useState<string>('')
-  const [searchName, setSearchName] = useState('')
+  const [searchName, setSearchName] = useState(searchParams.get('search') || '')
   const [selectedEmployeeId, setSelectedEmployeeId] = useState<number | undefined>(undefined)
   const [startDate, setStartDate] = useState('')
   const [endDate, setEndDate] = useState('')

@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { useLocation, useNavigate } from 'react-router-dom';
+import { useLocation, useNavigate, useSearchParams } from 'react-router-dom';
 import { Download, Eye, FileText, Search } from 'lucide-react';
 import { toast } from 'react-hot-toast';
 import jsPDF from 'jspdf';
@@ -102,6 +102,7 @@ const evaluatorDisplay = (item: CombinedHistoryItem) => {
 export function CombinedFeedbackHistoryPage() {
   const navigate = useNavigate();
   const location = useLocation();
+  const [searchParams] = useSearchParams();
   const restoredState = (location.state || {}) as CombinedHistoryListState;
   const [history, setHistory] = useState<CombinedHistoryItem[]>([]);
   const [loading, setLoading] = useState(true);
@@ -116,7 +117,7 @@ export function CombinedFeedbackHistoryPage() {
     feedbackType: restoredState.filters?.feedbackType ?? '',
     fromDate: restoredState.filters?.fromDate ?? '',
     toDate: restoredState.filters?.toDate ?? '',
-    peopleSearch: restoredState.filters?.peopleSearch ?? '',
+    peopleSearch: searchParams.get('search') || restoredState.filters?.peopleSearch || '',
   });
   const { data: profileResponse } = useGetProfileQuery();
   const timeFormat = profileResponse?.data?.timeFormat || '12h';
