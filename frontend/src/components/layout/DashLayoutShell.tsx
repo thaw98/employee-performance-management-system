@@ -18,7 +18,6 @@ interface DashLayoutShellProps {
   brandSubtitle?: string
   menuSections: DashMenuSection[]
   user?: DashLayoutShellUser | null
-  searchPlaceholder?: string
   children: ReactNode
 }
 
@@ -27,7 +26,6 @@ export function DashLayoutShell({
   brandSubtitle = 'Performance System',
   menuSections,
   user,
-  searchPlaceholder,
   children,
 }: DashLayoutShellProps) {
   const { isSidebarCollapsed, toggleSidebarCollapsed } = usePersistentSidebarCollapse(user)
@@ -90,7 +88,7 @@ export function DashLayoutShell({
       />
 
       <div id="dash-main-content">
-        <DashTopBar onToggleSidebar={toggleSidebar} searchPlaceholder={searchPlaceholder} />
+        <DashTopBar onToggleSidebar={toggleSidebar} />
         <div className="flex-1 overflow-y-auto p-4 sm:p-6 md:p-8">{children}</div>
       </div>
     </div>

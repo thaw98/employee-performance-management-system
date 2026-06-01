@@ -238,7 +238,6 @@ const HrLayout: React.FC = () => {
       brandSubtitle="Performance System"
       menuSections={menuSections}
       user={user}
-      searchPlaceholder="Organizational search..."
     >
       <Outlet />
     </DashLayoutShell>

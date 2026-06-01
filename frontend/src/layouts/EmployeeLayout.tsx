@@ -103,7 +103,6 @@ const EmployeeLayout: React.FC = () => {
       brandSubtitle="Performance System"
       menuSections={menuSections}
       user={user}
-      searchPlaceholder="Search..."
     >
       <Outlet />
     </DashLayoutShell>
