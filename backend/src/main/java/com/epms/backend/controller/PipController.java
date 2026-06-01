@@ -51,10 +51,10 @@ public class PipController {
             @RequestParam(required = false) String employeeName,
             @RequestParam(required = false) String status,
             @RequestParam(required = false) LocalDate startDate,
-            @RequestParam(required = false) LocalDate endDate
-    ) {
+            @RequestParam(required = false) LocalDate endDate) {
         User user = userRepository.findById(principal.getId()).orElseThrow();
-        List<Pip> pips = pipService.searchPips(departmentId, positionId, employeeName, status, startDate, endDate, user);
+        List<Pip> pips = pipService.searchPips(departmentId, positionId, employeeName, status, startDate, endDate,
+                user);
         return ResponseEntity.ok(ApiResponse.ok("PIPs retrieved successfully", pips));
     }
 
@@ -96,6 +96,16 @@ public class PipController {
         User user = userRepository.findById(principal.getId()).orElseThrow();
         Pip pip = pipService.closePip(id, request, user);
         return ResponseEntity.ok(ApiResponse.ok("PIP closed successfully", pip));
+    }
+
+    @PatchMapping("/{id}/completed")
+    @PreAuthorize("hasAnyRole('DEPARTMENT_HEAD', 'TEAM_HEAD', 'MANAGER')")
+    public ResponseEntity<ApiResponse<Pip>> markPipCompleted(
+            @AuthenticationPrincipal UserPrincipal principal,
+            @PathVariable Long id) {
+        User user = userRepository.findById(principal.getId()).orElseThrow();
+        Pip pip = pipService.markPipCompleted(id, user);
+        return ResponseEntity.ok(ApiResponse.ok("PIP marked completed successfully", pip));
     }
 
     @PutMapping("/{id}/reopen")

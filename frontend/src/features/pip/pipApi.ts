@@ -271,6 +271,14 @@ export const pipApi = baseApi.injectEndpoints({
       invalidatesTags: () => ['PIP'],
       transformResponse: (response: unknown) => normalizePip(getResponseData(response)),
     }),
+    markPipCompleted: builder.mutation<Pip, number>({
+      query: (pipId) => ({
+        url: `/pips/${pipId}/completed`,
+        method: 'PATCH',
+      }),
+      invalidatesTags: (_result, _error, pipId) => ['PIP', { type: 'PIP', id: pipId }],
+      transformResponse: (response: unknown) => normalizePip(getResponseData(response)),
+    }),
     reopenPip: builder.mutation<Pip, { pipId: number; reason: string }>({
       query: ({ pipId, ...body }) => ({
         url: `/pips/${pipId}/reopen`,
@@ -311,6 +319,7 @@ export const {
   useUpdateProgressMutation,
   useScheduleMeetingMutation,
   useClosePipMutation,
+  useMarkPipCompletedMutation,
   useReopenPipMutation,
   useReviewPipMutation,
   useGetTrainingHistoryQuery,
