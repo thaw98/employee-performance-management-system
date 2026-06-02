@@ -221,6 +221,7 @@ public class PipService {
         return pipRepository.findAll();
     }
 
+    @Transactional(readOnly = true)
     public List<Pip> searchPips(Long departmentId, Long positionId, Long pipId, String employeeName, String status,
             LocalDate startDate, LocalDate endDate, User actor) {
         autoCloseExpiredPips();

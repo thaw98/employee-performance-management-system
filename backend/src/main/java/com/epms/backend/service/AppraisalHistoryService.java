@@ -108,7 +108,7 @@ public class AppraisalHistoryService {
     }
 
     private boolean isRoleScoped(AppraisalAssignment assignment, Long employeeId, Long roleId) {
-        if (roleId != null && roleId == 1L) {
+        if (roleId != null && (roleId == 1L || roleId == 5L)) {
             return true;
         }
         Employee employee = assignment.getEmployee();
