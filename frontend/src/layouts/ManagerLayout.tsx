@@ -10,7 +10,6 @@ import {
   Zap,
   RefreshCcw,
   Send,
-  Inbox,
   History,
   FileText,
   ListChecks,
@@ -22,6 +21,7 @@ import {
   Briefcase,
   MessageSquare,
   Plus,
+  Bell,
 } from 'lucide-react';
 import { Outlet } from 'react-router-dom';
 import { useSelector } from 'react-redux';
@@ -102,7 +102,6 @@ const ManagerLayout: React.FC = () => {
           icon: <RefreshCcw size={18} />,
           subItems: [
             { label: 'Give Feedback', path: '/manager/360-feedback/give', icon: <Send size={16} />, permission: { moduleKey: '360_FEEDBACK', actionKey: 'give' } },
-            { label: 'Receive Feedback', path: '/manager/360-feedback/received', icon: <Inbox size={16} />, permission: { moduleKey: '360_FEEDBACK', actionKey: 'view' } },
             { label: 'Feedback History', path: '/manager/360-feedback/history', icon: <History size={16} />, permission: { moduleKey: '360_FEEDBACK', actionKey: 'review_history' } },
           ],
         },
@@ -132,17 +131,6 @@ const ManagerLayout: React.FC = () => {
           icon: <FileText size={18} />,
           subItems: selfAssessmentSubItems,
         },
-        ...(authUser?.roleId !== 2
-          ? [{
-              label: 'Settings',
-              path: '/manager/settings/signature',
-              icon: <Settings size={18} />,
-              subItems: [
-                { label: 'Signature', path: '/manager/settings/signature', icon: <PenLine size={16} /> },
-                { label: 'System', path: '/manager/settings/system', icon: <Settings size={16} /> },
-              ],
-            }]
-          : []),
       ],
     },
     {
@@ -164,6 +152,22 @@ const ManagerLayout: React.FC = () => {
             { label: 'Feedback Report', path: '/manager/reports/feedback', icon: <RefreshCcw size={16} />, permission: { moduleKey: 'REPORTS', actionKey: 'feedback_report' } },
             { label: 'Appraisal Report', path: '/manager/reports/appraisal', icon: <Award size={16} />, permission: { moduleKey: 'REPORTS', actionKey: 'appraisal_report' } },
             { label: 'Self-Assessment Report', path: '/manager/reports/self-assessment', icon: <FileText size={16} />, permission: { moduleKey: 'REPORTS', actionKey: 'self_assessment_report' } },
+          ],
+        },
+      ],
+    },
+    {
+      label: 'Settings',
+      items: [
+        {
+          label: 'Settings',
+          path: '/manager/settings/system',
+          icon: <Settings size={18} />,
+          isActive: (pathname) => pathname.startsWith('/manager/settings'),
+          subItems: [
+            { label: 'System Settings', path: '/manager/settings/system', icon: <Settings size={16} /> },
+            { label: 'Notification Settings', path: '/manager/settings/system/notifications', icon: <Bell size={16} /> },
+            { label: 'Signature Settings', path: '/manager/settings/signature', icon: <PenLine size={16} /> },
           ],
         },
       ],

@@ -28,6 +28,7 @@ import {
 } from '../../features/appraisals/appraisalTheme';
 import AppraisalImportModal from '../../features/appraisals/AppraisalImportModal';
 import { useAppSelector } from '../../app/hooks';
+import { ViewModeToggle, type ViewMode } from '../../components/common/ViewModeToggle';
 
 const PRIMARY = APPRAISAL_PRIMARY;
 
@@ -554,6 +555,7 @@ export function AppraisalsPage() {
     const [allTemplates, setAllTemplates] = useState<AppraisalTemplateDto[]>([]);
     const [historyPage, setHistoryPage] = useState(1);
     const historyItemsPerPage = 6;
+    const [templateViewMode, setTemplateViewMode] = useState<ViewMode>('grid');
     const [selectedTemplateId, setSelectedTemplateId] = useState<number | null>(null);
     const [showCatModal, setShowCatModal] = useState(false);
     const [editingCategory, setEditingCategory] = useState<Category | null>(null);
@@ -768,6 +770,10 @@ export function AppraisalsPage() {
     }, []);
 
     useEffect(() => {
+        setHistoryPage(1);
+    }, [historySearchTerm, historyYearFilter, templateViewMode]);
+
+    useEffect(() => {
         if (selectedCategoryId) {
             fetchQuestions(Number(selectedCategoryId));
         } else {
@@ -946,6 +952,12 @@ export function AppraisalsPage() {
         if (!query) return true;
         return question.questionText.toLowerCase().includes(query) || question.answerType.toLowerCase().includes(query);
     });
+    const filteredTemplates = allTemplates.filter(t => {
+        const matchesSearch = t.name.toLowerCase().includes(historySearchTerm.toLowerCase());
+        const matchesYear = historyYearFilter === 'All' || (t.assessmentDate && typeof t.assessmentDate === 'string' && t.assessmentDate.startsWith(historyYearFilter));
+        return matchesSearch && matchesYear;
+    });
+    const pagedTemplates = filteredTemplates.slice((historyPage - 1) * historyItemsPerPage, historyPage * historyItemsPerPage);
     const activeCategoryCount = categories.filter((cat) => cat.status).length;
     const selectedCategory = categories.find((cat) => cat.id === selectedCategoryId);
 
@@ -1067,21 +1079,103 @@ export function AppraisalsPage() {
                                         <option key={year} value={year}>{year}</option>
                                     ))}
                                 </select>
+                                <ViewModeToggle value={templateViewMode} onChange={setTemplateViewMode} label="Confirmed appraisal templates view mode" />
                             </div>
                         )}
                     </div>
 
                     {!selectedTemplateId ? (
                         <>
+                            {templateViewMode === 'table' ? (
+                                <div className="overflow-hidden rounded-[32px] border border-slate-100 bg-white shadow-sm">
+                                    <div className="overflow-x-auto">
+                                        <table className="w-full min-w-[900px] text-left">
+                                            <thead className="bg-slate-50 text-[10px] font-black uppercase tracking-widest text-slate-400">
+                                                <tr>
+                                                    <th className="px-6 py-4">Template</th>
+                                                    <th className="px-6 py-4">Assessment Date</th>
+                                                    <th className="px-6 py-4">Categories</th>
+                                                    <th className="px-6 py-4">Rating Scale</th>
+                                                    <th className="px-6 py-4">Status</th>
+                                                    <th className="px-6 py-4 text-right">Actions</th>
+                                                </tr>
+                                            </thead>
+                                            <tbody className="divide-y divide-slate-50">
+                                                {pagedTemplates.length === 0 ? (
+                                                    <tr>
+                                                        <td colSpan={6} className="p-20 text-center">
+                                                            <HelpCircle size={48} className="mx-auto text-slate-200 mb-4" />
+                                                            <p className="text-slate-400 font-black uppercase tracking-widest">No history records found</p>
+                                                        </td>
+                                                    </tr>
+                                                ) : pagedTemplates.map(t => (
+                                                    <tr key={t.id} className="transition hover:bg-[#eff6ff]/40">
+                                                        <td className="px-6 py-4">
+                                                            <div className="font-black text-slate-800 uppercase">{t.name}</div>
+                                                            <div className="mt-1 flex items-center gap-1.5 text-[9px] font-bold uppercase tracking-wider text-slate-400">
+                                                                <Clock size={10} />
+                                                                Created {getRelativeTime(t.createdAt)}
+                                                            </div>
+                                                        </td>
+                                                        <td className="px-6 py-4">
+                                                            <span className="rounded-lg bg-[#eff6ff] px-3 py-1.5 text-[10px] font-black uppercase text-[#2463eb]">
+                                                                {t.assessmentDate ? formatCycleDate(t.assessmentDate) : 'N/A'}
+                                                            </span>
+                                                        </td>
+                                                        <td className="px-6 py-4 text-sm font-black text-slate-700">{t.categoryIds.length}</td>
+                                                        <td className="px-6 py-4 text-sm font-black text-slate-700">1-{t.maxRating || 5}</td>
+                                                        <td className="px-6 py-4">
+                                                            {t.isActive ? (
+                                                                <span className="rounded-full bg-emerald-50 px-3 py-1.5 text-[10px] font-black uppercase text-emerald-600">Active</span>
+                                                            ) : (
+                                                                <span className="rounded-full bg-slate-50 px-3 py-1.5 text-[10px] font-black uppercase text-slate-400">Archived</span>
+                                                            )}
+                                                        </td>
+                                                        <td className="px-6 py-4">
+                                                            <div className="flex items-center justify-end gap-2">
+                                                                <button
+                                                                    onClick={() => {
+                                                                        setSelectedTemplateId(t.id);
+                                                                        setFinalizedCategories(t.categoryIds);
+                                                                        setHistoryAssessmentDate(t.assessmentDate);
+                                                                        setHistoryEffectiveDate(t.effectiveDate);
+                                                                        setHistoryDeadlineDate(t.deadlineDate || '');
+                                                                        setHistoryReviewCycleId(t.reviewCycleId || null);
+                                                                        setHistoryPositionIds(t.positionIds || []);
+                                                                        setHistoryMaxRating(t.maxRating || 10);
+                                                                    }}
+                                                                    className="rounded-xl bg-slate-800 px-4 py-2.5 text-[10px] font-black uppercase tracking-widest text-white transition hover:bg-[#2463eb]"
+                                                                >
+                                                                    View Details
+                                                                </button>
+                                                                <button
+                                                                    onClick={() => {
+                                                                        setConfirmedCategories([...t.categoryIds]);
+                                                                        setAssessmentDate(t.assessmentDate);
+                                                                        setEffectiveDate(t.effectiveDate);
+                                                                        setDeadlineDate(t.deadlineDate || new Date(new Date().setMonth(new Date().getMonth() + 1)).toISOString().split('T')[0]);
+                                                                        setSelectedCycleId(t.reviewCycleId || null);
+                                                                        setMaxRating(t.maxRating || 10);
+                                                                        setSelectedPositionIds(t.positionIds || []);
+                                                                        setActiveTab('confirmed');
+                                                                        toast.success('Template cloned as draft!');
+                                                                    }}
+                                                                    className="flex h-10 w-10 items-center justify-center rounded-xl border border-slate-100 bg-white text-slate-400 transition hover:border-blue-200 hover:text-blue-500"
+                                                                    title="Use as Draft"
+                                                                >
+                                                                    <RefreshCcw size={17} />
+                                                                </button>
+                                                            </div>
+                                                        </td>
+                                                    </tr>
+                                                ))}
+                                            </tbody>
+                                        </table>
+                                    </div>
+                                </div>
+                            ) : (
                             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-                                {allTemplates
-                                    .filter(t => {
-                                        const matchesSearch = t.name.toLowerCase().includes(historySearchTerm.toLowerCase());
-                                        const matchesYear = historyYearFilter === 'All' || (t.assessmentDate && typeof t.assessmentDate === 'string' && t.assessmentDate.startsWith(historyYearFilter));
-                                        return matchesSearch && matchesYear;
-                                    })
-                                    .slice((historyPage - 1) * historyItemsPerPage, historyPage * historyItemsPerPage)
-                                    .map(t => (
+                                {pagedTemplates.map(t => (
                                     <div 
                                         key={t.id}
                                         className="group bg-white rounded-[32px] border border-slate-100 shadow-sm hover:shadow-xl hover:shadow-blue-900/5 hover:translate-y-[-4px] transition-all overflow-hidden relative"
@@ -1155,35 +1249,20 @@ export function AppraisalsPage() {
                                     </div>
                                 ))
                             }
-                            {allTemplates.filter(t => {
-                                const matchesSearch = t.name.toLowerCase().includes(historySearchTerm.toLowerCase());
-                                const matchesYear = historyYearFilter === 'All' || (t.assessmentDate && typeof t.assessmentDate === 'string' && t.assessmentDate.startsWith(historyYearFilter));
-                                return matchesSearch && matchesYear;
-                            }).length === 0 && (
+                            {filteredTemplates.length === 0 && (
                                 <div className="lg:col-span-3 p-20 text-center bg-slate-50/50 border-2 border-dashed border-slate-100 rounded-[48px]">
                                     <HelpCircle size={48} className="mx-auto text-slate-200 mb-4" />
                                     <p className="text-slate-400 font-black uppercase tracking-widest">No history records found</p>
                                 </div>
                             )}
                         </div>
+                            )}
 
                             {/* Pagination Controls */}
-                            {allTemplates.length > 0 && (
+                            {filteredTemplates.length > 0 && (
                                 <div className="flex items-center justify-between bg-white p-6 rounded-[32px] border border-slate-100 shadow-sm mt-8">
                                     <div className="text-[10px] font-black text-slate-400 uppercase tracking-widest">
-                                        Showing {Math.min((historyPage - 1) * historyItemsPerPage + 1, allTemplates.filter(t => {
-                                            const matchesSearch = t.name.toLowerCase().includes(historySearchTerm.toLowerCase());
-                                            const matchesYear = historyYearFilter === 'All' || (t.assessmentDate && typeof t.assessmentDate === 'string' && t.assessmentDate.startsWith(historyYearFilter));
-                                            return matchesSearch && matchesYear;
-                                        }).length)} to {Math.min(historyPage * historyItemsPerPage, allTemplates.filter(t => {
-                                            const matchesSearch = t.name.toLowerCase().includes(historySearchTerm.toLowerCase());
-                                            const matchesYear = historyYearFilter === 'All' || (t.assessmentDate && typeof t.assessmentDate === 'string' && t.assessmentDate.startsWith(historyYearFilter));
-                                            return matchesSearch && matchesYear;
-                                        }).length)} of {allTemplates.filter(t => {
-                                            const matchesSearch = t.name.toLowerCase().includes(historySearchTerm.toLowerCase());
-                                            const matchesYear = historyYearFilter === 'All' || (t.assessmentDate && typeof t.assessmentDate === 'string' && t.assessmentDate.startsWith(historyYearFilter));
-                                            return matchesSearch && matchesYear;
-                                        }).length} records
+                                        Showing {Math.min((historyPage - 1) * historyItemsPerPage + 1, filteredTemplates.length)} to {Math.min(historyPage * historyItemsPerPage, filteredTemplates.length)} of {filteredTemplates.length} records
                                     </div>
                                     <div className="flex items-center gap-2">
                                         <button
@@ -1197,11 +1276,7 @@ export function AppraisalsPage() {
                                             <ChevronRight size={18} className="rotate-180" />
                                         </button>
                                         
-                                        {Array.from({ length: Math.ceil(allTemplates.filter(t => {
-                                            const matchesSearch = t.name.toLowerCase().includes(historySearchTerm.toLowerCase());
-                                            const matchesYear = historyYearFilter === 'All' || (t.assessmentDate && typeof t.assessmentDate === 'string' && t.assessmentDate.startsWith(historyYearFilter));
-                                            return matchesSearch && matchesYear;
-                                        }).length / historyItemsPerPage) }, (_, i) => i + 1).map(page => (
+                                        {Array.from({ length: Math.ceil(filteredTemplates.length / historyItemsPerPage) }, (_, i) => i + 1).map(page => (
                                             <button
                                                 key={page}
                                                 onClick={() => {
@@ -1215,11 +1290,7 @@ export function AppraisalsPage() {
                                         ))}
 
                                         <button
-                                            disabled={historyPage === Math.ceil(allTemplates.filter(t => {
-                                                const matchesSearch = t.name.toLowerCase().includes(historySearchTerm.toLowerCase());
-                                                const matchesYear = historyYearFilter === 'All' || (t.assessmentDate && typeof t.assessmentDate === 'string' && t.assessmentDate.startsWith(historyYearFilter));
-                                                return matchesSearch && matchesYear;
-                                            }).length / historyItemsPerPage)}
+                                            disabled={historyPage === Math.ceil(filteredTemplates.length / historyItemsPerPage)}
                                             onClick={() => {
                                                 setHistoryPage(prev => prev + 1);
                                                 window.scrollTo({ top: 0, behavior: 'smooth' });

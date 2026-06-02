@@ -6,7 +6,7 @@ import { useGetProfileQuery } from '../../features/user/userApi'
 import axios from '../../app/axiosInstance'
 import { resolveProfilePictureSrc } from '../../utils/mediaUrl'
 import { getRoleGroup } from '../../utils/dashboardRedirect'
-import { ChevronDown, User, Settings, LogOut, PenLine, Calendar, HelpCircle } from 'lucide-react'
+import { Bell, ChevronDown, User, Settings, LogOut, PenLine, Calendar, HelpCircle } from 'lucide-react'
 
 interface ProfileDropdownProps {
   variant?: 'default' | 'dash'
@@ -60,6 +60,7 @@ export function ProfileDropdown({ variant = 'default' }: ProfileDropdownProps) {
   const profilePath = `${rolePrefix}/profile`
   const signatureSettingsPath = `${rolePrefix}/settings/signature`
   const systemSettingsPath = `${rolePrefix}/settings/system`
+  const notificationSettingsPath = `${rolePrefix}/settings/system/notifications`
   const timeSettingsPath = `${rolePrefix}/settings/system/time`
   const faqPath = `${rolePrefix}/faq`
   const isHR = roleGroup === 'HR' || profileResponse?.data?.role === 'HR'
@@ -136,6 +137,19 @@ export function ProfileDropdown({ variant = 'default' }: ProfileDropdownProps) {
                 </span>
                 <div className="profile-dropdown-item-text">
                   <span>System Settings</span>
+                </div>
+              </Link>
+              <Link
+                to={notificationSettingsPath}
+                className="profile-dropdown-item"
+                role="menuitem"
+                onClick={() => setIsOpen(false)}
+              >
+                <span className="profile-dropdown-icon profile-dropdown-icon--blue">
+                  <i className="bi bi-bell" />
+                </span>
+                <div className="profile-dropdown-item-text">
+                  <span>Notification Settings</span>
                 </div>
               </Link>
               <Link
@@ -261,6 +275,17 @@ export function ProfileDropdown({ variant = 'default' }: ProfileDropdownProps) {
                 <Settings size={18} />
               </div>
               System Settings
+            </Link>
+
+            <Link
+              to={notificationSettingsPath}
+              className="flex items-center gap-3 px-4 py-2.5 text-sm font-bold text-slate-600 dark:text-slate-400 rounded-xl hover:bg-slate-50 dark:hover:bg-slate-800 hover:text-blue-600 dark:hover:text-blue-400 transition-all group"
+              onClick={() => setIsOpen(false)}
+            >
+              <div className="w-8 h-8 rounded-lg bg-blue-50 dark:bg-blue-900/30 text-blue-600 dark:text-blue-400 flex items-center justify-center group-hover:bg-blue-600 group-hover:text-white transition-colors">
+                <Bell size={18} />
+              </div>
+              Notification Settings
             </Link>
 
             <Link

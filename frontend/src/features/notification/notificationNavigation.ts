@@ -9,7 +9,7 @@ function getRolePrefix(pathname: string) {
 }
 
 export function getFeedbackPath(pathname: string) {
-  return `/${getRolePrefix(pathname)}/360-feedback/received`;
+  return `/${getRolePrefix(pathname)}/360-feedback/history?direction=RECEIVED`;
 }
 
 /**
@@ -27,13 +27,10 @@ export function getFeedbackPath(pathname: string) {
  *
  * Legacy / explicit text cues are also checked for backward compatibility.
  */
-export function getFeedbackRoutePath(
-  pathname: string,
-  notification: NotificationNavigationInput,
-) {
+export function getFeedbackRoutePath(pathname: string) {
   const prefix = getRolePrefix(pathname);
-  // Default: received feedback page
-  return `/${prefix}/360-feedback/received`;
+  // Default: feedback history with the Received tab selected.
+  return `/${prefix}/360-feedback/history?direction=RECEIVED`;
 }
 
 export function getGiveFeedbackPath(pathname: string) {

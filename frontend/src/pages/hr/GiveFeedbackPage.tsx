@@ -13,8 +13,6 @@ import {
     AlertCircle
 } from 'lucide-react';
 
-const PRIMARY = '#115e59'; // Emerald-900 to match HR Theme
-
 interface Employee {
     id: number;
     name: string;
@@ -193,19 +191,19 @@ export function GiveFeedbackPage() {
                     </div>
 
                     <div className="space-y-6">
-                        <div className="bg-[#115e59] p-8 rounded-[32px] text-white shadow-xl shadow-emerald-200/50 space-y-6">
-                            <Info size={32} className="text-emerald-300" />
+                        <div className="bg-emerald-50 p-8 rounded-[32px] text-slate-800 border border-emerald-100 shadow-xl shadow-emerald-100/50 space-y-6">
+                            <Info size={32} className="text-emerald-600" />
                             <h3 className="text-xl font-black leading-tight">Why Feedback Matters?</h3>
-                            <p className="text-emerald-50/70 text-sm leading-relaxed font-medium">
+                            <p className="text-slate-600 text-sm leading-relaxed font-medium">
                                 Peer feedback is essential for personal and professional growth. Your honest input helps colleagues identify their strengths and areas for improvement.
                             </p>
-                            <div className="pt-4 border-t border-white/10 space-y-3">
-                                <div className="flex items-center gap-3 text-xs font-bold">
-                                    <div className="w-2 h-2 bg-emerald-300 rounded-full" /> 
+                            <div className="pt-4 border-t border-emerald-100 space-y-3">
+                                <div className="flex items-center gap-3 text-xs font-bold text-emerald-800">
+                                    <div className="w-2 h-2 bg-emerald-500 rounded-full" /> 
                                     Anonymous responses
                                 </div>
-                                <div className="flex items-center gap-3 text-xs font-bold">
-                                    <div className="w-2 h-2 bg-emerald-300 rounded-full" /> 
+                                <div className="flex items-center gap-3 text-xs font-bold text-emerald-800">
+                                    <div className="w-2 h-2 bg-emerald-500 rounded-full" /> 
                                     Constructive criticism
                                 </div>
                             </div>
@@ -225,17 +223,17 @@ export function GiveFeedbackPage() {
             {step === 2 && (
                 <div className="space-y-8 animate-in slide-in-from-right-10 duration-500">
                     {/* Selected Colleague Summary Bar */}
-                    <div className="bg-emerald-900 p-6 rounded-3xl text-white flex items-center justify-between shadow-lg">
+                    <div className="bg-emerald-50 p-6 rounded-3xl text-slate-800 border border-emerald-100 flex items-center justify-between shadow-lg shadow-emerald-100/50">
                         <div className="flex items-center gap-4">
-                            <div className="w-12 h-12 bg-white/10 rounded-xl flex items-center justify-center font-bold">
+                            <div className="w-12 h-12 bg-white rounded-xl flex items-center justify-center font-bold text-emerald-700 shadow-sm">
                                 {selectedEmployee?.name.charAt(0)}
                             </div>
                             <div>
-                                <p className="text-xs font-black text-emerald-300 uppercase tracking-widest">Evaluating</p>
+                                <p className="text-xs font-black text-emerald-600 uppercase tracking-widest">Evaluating</p>
                                 <h4 className="font-bold text-lg leading-none mt-1">{selectedEmployee?.name}</h4>
                             </div>
                         </div>
-                        <button onClick={() => setStep(1)} className="text-xs font-black bg-white/10 px-4 py-2 rounded-lg hover:bg-white/20 transition-all uppercase tracking-widest">Change Colleague</button>
+                        <button onClick={() => setStep(1)} className="text-xs font-black bg-white px-4 py-2 rounded-lg text-emerald-700 hover:bg-emerald-100 transition-all uppercase tracking-widest shadow-sm">Change Colleague</button>
                     </div>
 
                     <div className="grid grid-cols-1 lg:grid-cols-4 gap-8">

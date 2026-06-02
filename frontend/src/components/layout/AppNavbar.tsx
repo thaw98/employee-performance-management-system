@@ -41,6 +41,7 @@ export function AppNavbar() {
     const path = location.pathname
     if (path.includes('profile')) return 'User Profile'
     if (path.includes('settings/system/time')) return 'Time Settings'
+    if (path.includes('settings/system/notifications')) return 'Notification Settings'
     if (path.includes('settings/system/score-explanations')) return 'Score Band Settings'
     if (path.includes('settings')) return 'System Settings'
     if (path.includes('feedback')) return '360° Feedback'
@@ -144,6 +145,14 @@ export function AppNavbar() {
                 >
                   <i className="bi bi-gear h-8 w-8 flex items-center justify-center bg-slate-50 rounded-lg group-hover:bg-white border border-transparent group-hover:border-blue-100"></i>
                   SYSTEM SETTINGS
+                </Link>
+                <Link
+                  to={`${rolePrefix}/settings/system/notifications`}
+                  className="flex items-center gap-3 px-3 py-2.5 text-xs font-black text-slate-600 rounded-xl hover:bg-blue-50 hover:text-blue-700 transition-all group"
+                  onClick={() => setIsDropdownOpen(false)}
+                >
+                  <i className="bi bi-bell h-8 w-8 flex items-center justify-center bg-slate-50 rounded-lg group-hover:bg-white border border-transparent group-hover:border-blue-100"></i>
+                  NOTIFICATION SETTINGS
                 </Link>
                 <button
                   type="button"

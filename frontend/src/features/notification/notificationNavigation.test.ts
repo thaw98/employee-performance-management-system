@@ -88,4 +88,13 @@ describe('notification navigation', () => {
       source: 'GENERAL',
     }, '/employee/notifications')).toBe('/employee/dashboard');
   });
+
+  it('routes received feedback notifications to feedback history received tab', () => {
+    expect(getNotificationDestinationPath({
+      title: 'New Feedback Received',
+      message: 'You have received new feedback.',
+      source: '360_FEEDBACK',
+      targetId: 7,
+    }, '/employee/notifications')).toBe('/employee/360-feedback/history?direction=RECEIVED');
+  });
 });
