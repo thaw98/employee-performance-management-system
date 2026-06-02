@@ -78,12 +78,12 @@ function EmployeeTable({
           const badgeStyles: Record<string, string> = {
             Probation: 'bg-amber-100 text-amber-800 hover:bg-amber-200 cursor-pointer',
             Permanent: 'bg-green-100 text-green-800 hover:bg-green-200 cursor-pointer',
-            Resigned: 'bg-gray-100 text-gray-600',
-            Terminated: 'bg-red-100 text-red-800',
+            Resigned: 'bg-gray-100 text-gray-600 hover:bg-gray-200 cursor-pointer',
+            Terminated: 'bg-red-100 text-red-800 hover:bg-red-200 cursor-pointer',
           }
 
           const bgColor = badgeStyles[status] || 'bg-gray-100 text-gray-600'
-          const isClickable = isHR && (status === 'Probation' || status === 'Permanent')
+          const isClickable = isHR
 
           if (isClickable) {
             return (

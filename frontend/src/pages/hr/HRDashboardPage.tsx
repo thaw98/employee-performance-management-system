@@ -280,12 +280,6 @@ export function HRDashboardPage() {
             Welcome back. Here is a clear snapshot of your people, meetings, activity, and performance workspace.
           </p>
         </div>
-        <Link
-          to="/hr/employees/create-account"
-          className="inline-flex h-12 items-center justify-center gap-2 rounded-2xl bg-blue-600 px-5 text-sm font-black text-white shadow-lg shadow-blue-200 transition hover:bg-blue-700 dark:shadow-none"
-        >
-          <Plus size={18} /> Add New Employee
-        </Link>
       </section>
 
       {summaryError ? (

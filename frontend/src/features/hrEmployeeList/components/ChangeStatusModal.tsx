@@ -61,6 +61,11 @@ function ChangeStatusModal({
         { value: 'TERMINATED', label: 'Terminated', icon: 'bi-x-circle', color: 'text-red-600' },
       ]
     }
+    if (currentStatus === 'Resigned' || currentStatus === 'Terminated') {
+      return [
+        { value: 'REHIRE', label: 'Rehire', icon: 'bi-person-plus', color: 'text-green-700' },
+      ]
+    }
     return []
   }, [currentStatus])
 
@@ -105,6 +110,9 @@ function ChangeStatusModal({
       if (currentStatus === 'Probation') {
         request.effectiveDate = effectiveDate
       }
+    } else if (selectedTarget === 'REHIRE') {
+      request.effectiveDate = effectiveDate
+      request.reason = trimmedReason
     }
 
     onConfirm(request)
@@ -133,13 +141,21 @@ function ChangeStatusModal({
       return true
     }
 
+    if (selectedTarget === 'REHIRE') {
+      if (!effectiveDate) return false
+      if (!reason.trim()) return false
+      return true
+    }
+
     return true
-  }, [selectedTarget, transitionMode, effectiveDate, dateError, currentStatus])
+  }, [selectedTarget, transitionMode, effectiveDate, dateError, currentStatus, reason])
 
   const isDangerAction = useMemo(
     () => selectedTarget === 'RESIGNED' || selectedTarget === 'TERMINATED',
     [selectedTarget]
   )
+
+  const isRehireAction = selectedTarget === 'REHIRE'
 
   const confirmLabel = useMemo(() => {
     if (!selectedTarget) return 'Select a status'
@@ -147,6 +163,7 @@ function ChangeStatusModal({
       PERMANENT: 'Set as Permanent',
       RESIGNED: 'Set as Resigned',
       TERMINATED: 'Set as Terminated',
+      REHIRE: 'Rehire Employee',
     }
     return labels[selectedTarget] || 'Confirm'
   }, [selectedTarget])
@@ -154,6 +171,8 @@ function ChangeStatusModal({
   // Should show date picker for Resigned/Terminated only if current status is Probation
   const showEffectiveDateForResignedTerminated =
     (selectedTarget === 'RESIGNED' || selectedTarget === 'TERMINATED') && currentStatus === 'Probation'
+
+  const showEffectiveDateForRehire = selectedTarget === 'REHIRE'
 
   return (
     <Transition show={isOpen} as={Fragment}>
@@ -184,8 +203,16 @@ function ChangeStatusModal({
               <Dialog.Panel className="relative transform overflow-hidden rounded-lg bg-white text-left shadow-xl transition-all sm:my-8 sm:w-full sm:max-w-lg">
                 <div className="bg-white px-4 pt-5 pb-4 sm:p-6 sm:pb-4">
                   <div className="sm:flex sm:items-start">
-                    <div className={`mx-auto flex h-12 w-12 shrink-0 items-center justify-center rounded-full sm:mx-0 sm:h-10 sm:w-10 ${isDangerAction ? 'bg-red-100 text-red-600' : 'bg-[#dbeafe] text-[#2463eb]'}`}>
-                      <i className={`bi ${isDangerAction ? 'bi-exclamation-triangle' : 'bi-arrow-left-right'} text-xl`}></i>
+                    <div className={`mx-auto flex h-12 w-12 shrink-0 items-center justify-center rounded-full sm:mx-0 sm:h-10 sm:w-10 ${
+                      isDangerAction ? 'bg-red-100 text-red-600' :
+                      isRehireAction ? 'bg-green-100 text-green-600' :
+                      'bg-[#dbeafe] text-[#2463eb]'
+                    }`}>
+                      <i className={`bi ${
+                        isDangerAction ? 'bi-exclamation-triangle' :
+                        isRehireAction ? 'bi-person-plus' :
+                        'bi-arrow-left-right'
+                      } text-xl`}></i>
                     </div>
                     <div className="mt-3 text-center sm:mt-0 sm:ml-4 sm:text-left w-full">
                       <Dialog.Title as="h3" className="text-lg font-semibold leading-6 text-gray-900">
@@ -242,7 +269,9 @@ function ChangeStatusModal({
                                   selectedTarget === option.value
                                     ? option.value === 'RESIGNED' || option.value === 'TERMINATED'
                                       ? 'border-red-300 bg-red-50'
-                                      : 'border-[#93c5fd] bg-[#eff6ff]'
+                                      : option.value === 'REHIRE'
+                                        ? 'border-green-300 bg-green-50'
+                                        : 'border-[#93c5fd] bg-[#eff6ff]'
                                     : 'border-gray-200 hover:bg-gray-50'
                                 }`}
                               >
@@ -364,10 +393,25 @@ function ChangeStatusModal({
                           </div>
                         )}
 
+                        {/* Rehire effective date */}
+                        {showEffectiveDateForRehire && (
+                          <div className="mt-4">
+                            <label className="block text-sm font-medium text-gray-700 mb-1">
+                              Effective Date <span className="text-red-500">*</span>
+                            </label>
+                            <input
+                              type="date"
+                              value={effectiveDate}
+                              onChange={(e) => setEffectiveDate(e.target.value)}
+                              className="block w-full rounded-md border border-gray-300 px-3 py-2 text-sm focus:border-[#2463eb] focus:ring-[#dbeafe] focus:outline-none"
+                            />
+                          </div>
+                        )}
+
                         {selectedTarget && (
                           <div className="mt-4">
                             <label className="block text-sm font-medium text-gray-700 mb-1">
-                              Reason
+                              Reason {selectedTarget === 'REHIRE' && <span className="text-red-500">*</span>}
                             </label>
                             <textarea
                               value={reason}
@@ -375,7 +419,7 @@ function ChangeStatusModal({
                               rows={3}
                               maxLength={255}
                               className="block w-full resize-none rounded-md border border-gray-300 px-3 py-2 text-sm focus:border-[#2463eb] focus:ring-[#dbeafe] focus:outline-none"
-                              placeholder="Optional"
+                              placeholder={selectedTarget === 'REHIRE' ? 'Required' : 'Optional'}
                             />
                             <p className="mt-1 text-xs text-gray-500 text-right">{reason.length}/255</p>
                           </div>
@@ -402,6 +446,17 @@ function ChangeStatusModal({
                             </p>
                           </div>
                         )}
+
+                        {/* Rehire info */}
+                        {selectedTarget === 'REHIRE' && (
+                          <div className="mt-3 p-3 bg-green-50 border border-green-200 rounded-lg">
+                            <p className="text-sm text-green-700">
+                              <i className="bi bi-info-circle mr-1"></i>
+                              This will rehire the employee as <span className="font-semibold">Permanent</span>.
+                              Their user account will be reactivated and a new temporary password will be sent.
+                            </p>
+                          </div>
+                        )}
                       </div>
                     </div>
                   </div>
@@ -413,7 +468,9 @@ function ChangeStatusModal({
                     className={`inline-flex w-full justify-center rounded-md px-3 py-2 text-sm font-semibold text-white shadow-sm sm:ml-3 sm:w-auto ${
                       isDangerAction
                         ? 'bg-red-600 hover:bg-red-500 disabled:bg-red-300'
-                        : 'bg-gradient-to-r from-[#2463eb] to-[#1d4ed8] hover:from-[#1d4ed8] hover:to-[#1e40af] disabled:opacity-50'
+                        : isRehireAction
+                          ? 'bg-gradient-to-r from-green-600 to-green-700 hover:from-green-700 hover:to-green-800 disabled:opacity-50'
+                          : 'bg-gradient-to-r from-[#2463eb] to-[#1d4ed8] hover:from-[#1d4ed8] hover:to-[#1e40af] disabled:opacity-50'
                     }`}
                     onClick={handleConfirm}
                   >
