@@ -331,27 +331,27 @@ export function PipCreateForm({ embedded = false, onCreated, onCancel }: PipCrea
   }
 
   const summaryPanel = (
-    <aside className="h-fit rounded-2xl bg-gradient-to-br from-[#2463eb] to-[#1d4ed8] p-5 text-white shadow-lg shadow-blue-200/50 lg:sticky lg:top-4">
-      <p className="text-[11px] font-black uppercase tracking-[0.2em] text-blue-100">PIP Summary</p>
+    <aside className="h-fit rounded-2xl border border-slate-200 bg-gradient-to-br from-slate-50 to-blue-50/40 p-5 shadow-sm lg:sticky lg:top-4">
+      <p className="text-[11px] font-black uppercase tracking-[0.2em] text-[#2463eb]">PIP Summary</p>
       <div className="mt-5 space-y-4">
         <div>
-          <p className="text-xs font-bold text-blue-200">Employee</p>
-          <p className="mt-1 text-base font-black">{selectedEmployee?.employeeName || 'Not selected'}</p>
-          <p className="text-xs text-blue-100/90">{selectedEmployee?.departmentName || 'Choose a low performer'}</p>
+          <p className="text-xs font-bold text-slate-500">Employee</p>
+          <p className="mt-1 text-base font-black text-slate-900">{selectedEmployee?.employeeName || 'Not selected'}</p>
+          <p className="text-xs text-slate-500">{selectedEmployee?.departmentName || 'Choose a low performer'}</p>
         </div>
         <div className="grid grid-cols-2 gap-3">
-          <div className="rounded-xl bg-white/15 p-3 backdrop-blur-sm">
-            <p className="text-[10px] font-black uppercase tracking-wider text-blue-100">Days</p>
-            <p className="mt-1 text-2xl font-black tabular-nums">{selectedPipDays ?? '–'}</p>
+          <div className="rounded-xl border border-slate-200 bg-white p-3">
+            <p className="text-[10px] font-black uppercase tracking-wider text-slate-500">Days</p>
+            <p className="mt-1 text-2xl font-black tabular-nums text-slate-900">{selectedPipDays ?? '–'}</p>
           </div>
-          <div className="rounded-xl bg-white/15 p-3 backdrop-blur-sm">
-            <p className="text-[10px] font-black uppercase tracking-wider text-blue-100">Max Hours</p>
-            <p className="mt-1 text-2xl font-black tabular-nums">{selectedMaxHours ?? '–'}</p>
+          <div className="rounded-xl border border-slate-200 bg-white p-3">
+            <p className="text-[10px] font-black uppercase tracking-wider text-slate-500">Max Hours</p>
+            <p className="mt-1 text-2xl font-black tabular-nums text-slate-900">{selectedMaxHours ?? '–'}</p>
           </div>
         </div>
-        <div className="rounded-xl border border-white/20 bg-white/10 p-4 backdrop-blur-sm">
-          <p className="text-xs font-bold text-white">Hour rule</p>
-          <p className="mt-1 text-sm font-medium leading-relaxed text-blue-50">
+        <div className="rounded-xl border border-blue-100 bg-blue-50 p-4">
+          <p className="text-xs font-bold text-[#1d4ed8]">Hour rule</p>
+          <p className="mt-1 text-sm font-medium leading-relaxed text-slate-700">
             {HOURS_PER_DAY} hours per PIP day. Total hours must stay within the selected date range.
           </p>
         </div>
