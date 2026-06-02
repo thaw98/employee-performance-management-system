@@ -1545,10 +1545,13 @@ function TemplateModal({
   )
 }
 
+type CoverageStatus = 'COVERED' | 'UNCOVERED'
+
 function CoverageTab() {
   const { data: reviewCycles = [] } = useGetReviewCyclesQuery({ requiresEmployeeSubmission: true })
   const [selectedReviewCycleId, setSelectedReviewCycleId] = useState<number | null>(null)
   const { data: coverage, isLoading } = useGetFeedbackCoverageQuery(selectedReviewCycleId ?? undefined, { skip: !selectedReviewCycleId })
+  const [statusFilter, setStatusFilter] = useState<CoverageStatus>('UNCOVERED')
   const [searchQuery, setSearchQuery] = useState('')
   const [deptFilter, setDeptFilter] = useState('ALL')
   const [posFilter, setPosFilter] = useState('ALL')
@@ -1562,51 +1565,61 @@ function CoverageTab() {
     if (defaultCycle) setSelectedReviewCycleId(defaultCycle.id)
   }, [reviewCycles, selectedReviewCycleId])
 
+  const allRows = useMemo(() => {
+    if (!coverage) return []
+    return [...coverage.coveredEmployees, ...coverage.uncoveredEmployees]
+  }, [coverage])
+
   const departments = useMemo(() => {
     if (!coverage) return new Map<string, string>()
     const map = new Map<string, string>()
-    for (const row of coverage.uncoveredEmployees) {
+    for (const row of allRows) {
       if (row.departmentId != null && row.departmentName) {
         map.set(String(row.departmentId), row.departmentName)
       }
     }
     return map
-  }, [coverage])
+  }, [allRows])
 
   const positions = useMemo(() => {
     if (!coverage) return new Map<string, string>()
     const map = new Map<string, string>()
-    for (const row of coverage.uncoveredEmployees) {
+    for (const row of allRows) {
       if (row.positionId != null && row.positionName) {
         map.set(String(row.positionId), row.positionName)
       }
     }
     return map
-  }, [coverage])
+  }, [allRows])
 
   const levelCodes = useMemo(() => {
     if (!coverage) return new Map<string, string>()
     const map = new Map<string, string>()
-    for (const row of coverage.uncoveredEmployees) {
+    for (const row of allRows) {
       if (row.levelCodeId != null && row.levelCode) {
         map.set(String(row.levelCodeId), row.levelCode)
       }
     }
     return map
-  }, [coverage])
+  }, [allRows])
+
+  const sourceRows = useMemo(() => {
+    if (!coverage) return []
+    return statusFilter === 'COVERED' ? coverage.coveredEmployees : coverage.uncoveredEmployees
+  }, [coverage, statusFilter])
 
   const filteredRows = useMemo(() => {
     if (!coverage) return []
     const query = searchQuery.trim().toLowerCase()
-    return coverage.uncoveredEmployees.filter((row) => {
+    return sourceRows.filter((row) => {
       if (deptFilter !== 'ALL' && String(row.departmentId) !== deptFilter) return false
       if (posFilter !== 'ALL' && String(row.positionId) !== posFilter) return false
       if (levelCodeFilter !== 'ALL' && String(row.levelCodeId) !== levelCodeFilter) return false
       if (!query) return true
-      const text = [row.employeeName, row.employeeCode, row.departmentName, row.positionName, row.levelCode, row.missingReason].filter(Boolean).join(' ').toLowerCase()
+      const text = [row.employeeName, row.employeeCode, row.departmentName, row.positionName, row.levelCode].filter(Boolean).join(' ').toLowerCase()
       return text.includes(query)
     })
-  }, [coverage, searchQuery, deptFilter, posFilter, levelCodeFilter])
+  }, [sourceRows, searchQuery, deptFilter, posFilter, levelCodeFilter])
 
   const pageCount = useMemo(
     () => Math.max(1, Math.ceil(filteredRows.length / pageSize)),
@@ -1620,7 +1633,7 @@ function CoverageTab() {
 
   useEffect(() => {
     setPageIndex(0)
-  }, [selectedReviewCycleId, searchQuery, deptFilter, posFilter, levelCodeFilter])
+  }, [selectedReviewCycleId, searchQuery, deptFilter, posFilter, levelCodeFilter, statusFilter])
 
   return (
     <section className="space-y-6">
@@ -1637,7 +1650,7 @@ function CoverageTab() {
           </div>
           <div>
             <h2 className="text-2xl font-black tracking-tight text-slate-900">360 Feedback Coverage</h2>
-            <p className="mt-1 max-w-xl text-sm text-slate-500">Identify active employees with active accounts who do not have a matching 360 Feedback template for the selected review cycle.</p>
+            <p className="mt-1 max-w-xl text-sm text-slate-500">Identify active employees with active accounts and whether they have a matching 360 Feedback template for the selected review cycle.</p>
           </div>
         </div>
       </div>
@@ -1647,7 +1660,6 @@ function CoverageTab() {
           ['Eligible Employees', coverage?.eligibleCount ?? 0, Users, 'bg-blue-50 text-blue-600'],
           ['Covered', coverage?.coveredCount ?? 0, CheckCircle2, 'bg-emerald-50 text-emerald-600'],
           ['Uncovered', coverage?.uncoveredCount ?? 0, AlertCircle, 'bg-red-50 text-red-600'],
-          ['No Template', coverage?.noTemplateCount ?? 0, X, 'bg-amber-50 text-amber-600'],
           ['Coverage %', coverage?.coveragePercent ?? 0, FileText, 'bg-violet-50 text-violet-600'],
         ].map(([label, value, Icon, tone]) => {
           const StatIcon = Icon as typeof Users
@@ -1672,18 +1684,41 @@ function CoverageTab() {
         <div className="rounded-2xl border border-slate-200 bg-white p-10 text-center text-sm text-slate-500">Loading coverage...</div>
       ) : !selectedReviewCycleId ? (
         <div className="rounded-2xl border border-dashed border-slate-200 bg-white p-10 text-center text-sm text-slate-500">Select a review cycle to view coverage.</div>
-      ) : coverage && coverage.uncoveredCount === 0 ? (
-        <div className="rounded-2xl border border-dashed border-slate-200 bg-white p-10 text-center">
-          <CheckCircle2 size={40} className="mx-auto text-emerald-400" />
-          <p className="mt-4 text-lg font-black text-slate-700">All Eligible Employees Are Covered</p>
-          <p className="mt-1 text-sm text-slate-500">Every active employee with an active account has a matching 360 Feedback template for this cycle.</p>
-        </div>
       ) : (
         <div className="overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm">
           <div className="flex flex-col gap-4 border-b border-slate-100 bg-gradient-to-r from-slate-50/80 to-white p-5 lg:flex-row lg:items-center lg:justify-between">
-            <div>
-              <h3 className="text-lg font-black text-slate-900">Uncovered Employees</h3>
-              <p className="text-xs text-slate-500">{filteredRows.length} of {coverage?.uncoveredCount ?? 0} uncovered employee{coverage?.uncoveredCount !== 1 ? 's' : ''}</p>
+            <div className="flex items-center gap-4">
+              <div className="flex rounded-xl border border-slate-200 bg-slate-100 p-0.5">
+                <button
+                  onClick={() => setStatusFilter('COVERED')}
+                  className={`rounded-lg px-4 py-1.5 text-xs font-black uppercase tracking-wider transition ${
+                    statusFilter === 'COVERED'
+                      ? 'bg-emerald-500 text-white shadow-sm'
+                      : 'text-slate-500 hover:text-slate-700'
+                  }`}
+                >
+                  Covered ({coverage?.coveredCount ?? 0})
+                </button>
+                <button
+                  onClick={() => setStatusFilter('UNCOVERED')}
+                  className={`rounded-lg px-4 py-1.5 text-xs font-black uppercase tracking-wider transition ${
+                    statusFilter === 'UNCOVERED'
+                      ? 'bg-red-500 text-white shadow-sm'
+                      : 'text-slate-500 hover:text-slate-700'
+                  }`}
+                >
+                  Uncovered ({coverage?.uncoveredCount ?? 0})
+                </button>
+              </div>
+              <div>
+                <h3 className="text-lg font-black text-slate-900">
+                  {statusFilter === 'COVERED' ? 'Covered Employees' : 'Uncovered Employees'}
+                </h3>
+                <p className="text-xs text-slate-500">
+                  {filteredRows.length} of {sourceRows.length}{' '}
+                  {statusFilter === 'COVERED' ? 'covered' : 'uncovered'} employee{sourceRows.length !== 1 ? 's' : ''}
+                </p>
+              </div>
             </div>
             <div className="flex flex-col gap-3 sm:flex-row">
               <div className="relative">
@@ -1735,10 +1770,9 @@ function CoverageTab() {
                   <colgroup>
                     <col className="w-[22%]" />
                     <col className="w-[8%]" />
-                    <col className="w-[18%]" />
-                    <col className="w-[16%]" />
-                    <col className="w-[12%]" />
-                    <col className="w-[24%]" />
+                    <col className="w-[25%]" />
+                    <col className="w-[22%]" />
+                    <col className="w-[23%]" />
                   </colgroup>
                   <thead className="bg-slate-50 text-[10px] font-black uppercase tracking-wider text-slate-400">
                     <tr>
@@ -1747,13 +1781,14 @@ function CoverageTab() {
                       <th className="px-4 py-4">Department</th>
                       <th className="px-4 py-4">Position</th>
                       <th className="px-4 py-4">Level Code</th>
-                      <th className="px-4 py-4">Missing Reason</th>
                     </tr>
                   </thead>
                   <tbody className="divide-y divide-slate-100 bg-white">
                     {filteredRows.length === 0 ? (
                       <tr>
-                        <td colSpan={6} className="px-4 py-10 text-center text-sm text-slate-500">No uncovered employees match the current filters.</td>
+                        <td colSpan={5} className="px-4 py-10 text-center text-sm text-slate-500">
+                          No {statusFilter === 'COVERED' ? 'covered' : 'uncovered'} employees match the current filters.
+                        </td>
                       </tr>
                     ) : (
                       paginatedRows.map((row) => (
@@ -1765,12 +1800,6 @@ function CoverageTab() {
                           <td className="px-4 py-3 text-sm text-slate-600">{row.departmentName ?? '-'}</td>
                           <td className="px-4 py-3 text-sm text-slate-600">{row.positionName ?? '-'}</td>
                           <td className="px-4 py-3 text-sm text-slate-600">{row.levelCode ?? '-'}</td>
-                          <td className="px-4 py-3">
-                            <span className="inline-flex items-center gap-1 rounded-full bg-red-50 px-2.5 py-1 text-[10px] font-black text-red-700">
-                              <X size={10} />
-                              {row.missingReason === 'NO_MATCHING_TEMPLATE' ? 'No Matching Template' : row.missingReason}
-                            </span>
-                          </td>
                         </tr>
                       ))
                     )}
