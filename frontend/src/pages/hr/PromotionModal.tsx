@@ -66,7 +66,7 @@ export const PromotionModal: React.FC<PromotionModalProps> = ({
       await proposePromotion({
         ...promotionPayload,
       }).unwrap();
-      
+
       setSuccess(true);
       setTimeout(() => {
         setSuccess(false);
@@ -114,16 +114,16 @@ export const PromotionModal: React.FC<PromotionModalProps> = ({
               alignment: { horizontal: 'center', vertical: 'center' }
             };
           } else if (r > 1) {
-             ws[cellRef].s = {
-               font: { name: 'Segoe UI', sz: 11, bold: c === 0 },
-               alignment: { vertical: 'top', wrapText: true },
-               border: {
-                 top: { style: 'thin', color: { rgb: 'E2E8F0' } },
-                 bottom: { style: 'thin', color: { rgb: 'E2E8F0' } },
-                 left: { style: 'thin', color: { rgb: 'E2E8F0' } },
-                 right: { style: 'thin', color: { rgb: 'E2E8F0' } }
-               }
-             };
+            ws[cellRef].s = {
+              font: { name: 'Segoe UI', sz: 11, bold: c === 0 },
+              alignment: { vertical: 'top', wrapText: true },
+              border: {
+                top: { style: 'thin', color: { rgb: 'E2E8F0' } },
+                bottom: { style: 'thin', color: { rgb: 'E2E8F0' } },
+                left: { style: 'thin', color: { rgb: 'E2E8F0' } },
+                right: { style: 'thin', color: { rgb: 'E2E8F0' } }
+              }
+            };
           }
         }
       }
@@ -189,7 +189,7 @@ export const PromotionModal: React.FC<PromotionModalProps> = ({
             <ClipboardCheck className="text-indigo-600 dark:text-indigo-400" size={20} />
             <h3 className="text-lg font-bold text-slate-800 dark:text-slate-100">Propose Promotion</h3>
           </div>
-          <button 
+          <button
             onClick={onClose}
             className="text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 transition-colors"
           >
