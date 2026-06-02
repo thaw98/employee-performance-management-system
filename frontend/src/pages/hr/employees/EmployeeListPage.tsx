@@ -339,8 +339,12 @@ export default function EmployeeListPage() {
         id: statusModal.employeeId,
         body: request,
       }).unwrap()
-      const labels: Record<string, string> = { PERMANENT: 'Permanent', RESIGNED: 'Resigned', TERMINATED: 'Terminated' }
-      toast.success(`Employment status changed to ${labels[request.targetStatus] || request.targetStatus}`)
+      if (request.targetStatus === 'REHIRE') {
+        toast.success('Employee rehired successfully. A new temporary password has been sent.')
+      } else {
+        const labels: Record<string, string> = { PERMANENT: 'Permanent', RESIGNED: 'Resigned', TERMINATED: 'Terminated' }
+        toast.success(`Employment status changed to ${labels[request.targetStatus] || request.targetStatus}`)
+      }
       setStatusModal({ isOpen: false, employeeId: null, currentStatus: null, probationInfo: null })
     } catch (error: unknown) {
       const errorMessage = error && typeof error === 'object' && 'data' in error

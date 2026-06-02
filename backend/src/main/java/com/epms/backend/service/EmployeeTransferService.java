@@ -395,9 +395,9 @@ public class EmployeeTransferService {
     }
 
     private static void validateEffectiveDate(LocalDate newDate, LocalDate prevStartDate) {
-        if (!newDate.isAfter(prevStartDate)) {
-            throw new IllegalArgumentException(
-                "Effective start date must be after the previous transfer's start date (" + prevStartDate + ")");
+        // Inclusive rule: new effective date can be the same day as the previous transfer start date.
+        if (newDate.isBefore(prevStartDate)) {
+            throw new IllegalArgumentException("Effective start date must be on or after the previous transfer start date: " + prevStartDate);
         }
     }
 
@@ -547,6 +547,21 @@ public class EmployeeTransferService {
             .build();
     }
 
-    private record HomePlacement(Department department, Position position) {
+    private static final class HomePlacement {
+        private final Department department;
+        private final Position position;
+
+        private HomePlacement(Department department, Position position) {
+            this.department = department;
+            this.position = position;
+        }
+
+        private Department department() {
+            return department;
+        }
+
+        private Position position() {
+            return position;
+        }
     }
 }

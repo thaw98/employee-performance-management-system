@@ -521,7 +521,31 @@ public class HrEmployeeService {
         String newStatus = normalizeTargetDisplayStatus(targetStatus);
 
         boolean shouldDeactivateUserAccount = false;
-        if ("PERMANENT".equalsIgnoreCase(targetStatus)) {
+
+        if ("REHIRE".equalsIgnoreCase(targetStatus)) {
+            if (!"Resigned".equals(currentStatus) && !"Terminated".equals(currentStatus)) {
+                throw new IllegalArgumentException("Only Resigned or Terminated employees can be rehired");
+            }
+
+            if (request.getEffectiveDate() == null) {
+                throw new IllegalArgumentException("Effective date is required for Rehire");
+            }
+
+            if (request.getReason() == null || request.getReason().isBlank()) {
+                throw new IllegalArgumentException("Reason is required for Rehire");
+            }
+
+            if (request.getReason().length() > 255) {
+                throw new IllegalArgumentException("Reason must not exceed 255 characters");
+            }
+
+            employee.setEmploymentStatus(EmployeeStatus.ACTIVE);
+
+            StaffType permanentType = staffTypeRepository.findById(StaffTypes.PERMANENT)
+                    .orElseThrow(() -> new IllegalStateException("Permanent staff type not found"));
+            employee.setStaffType(permanentType);
+
+        } else if ("PERMANENT".equalsIgnoreCase(targetStatus)) {
             if (!"Probation".equals(currentStatus)) {
                 throw new IllegalArgumentException("Only Probation employees can be changed to Permanent");
             }
@@ -593,7 +617,7 @@ public class HrEmployeeService {
             shouldDeactivateUserAccount = true;
 
         } else {
-            throw new IllegalArgumentException("Invalid target status: " + targetStatus + ". Must be PERMANENT, RESIGNED, or TERMINATED");
+            throw new IllegalArgumentException("Invalid target status: " + targetStatus + ". Must be PERMANENT, REHIRE, RESIGNED, or TERMINATED");
         }
 
         recordEmploymentStatusHistory(employee, currentStatus, newStatus, statusEffectiveDate, principal.getId(), request.getReason());
@@ -609,13 +633,34 @@ public class HrEmployeeService {
             });
         }
 
+        if ("REHIRE".equalsIgnoreCase(targetStatus)) {
+            userRepository.findByEmployee_Id(employee.getId()).ifPresent(user -> {
+                user.setActive(true);
+                if (employee.getEmail() != null && !employee.getEmail().isBlank()) {
+                    String tempPassword = generateTemporaryPassword();
+                    user.setPassword(passwordEncoder.encode(tempPassword));
+                    user.setMustChangePassword(true);
+                    userRepository.save(user);
+                    mailService.sendTemporaryPasswordEmail(employee.getEmail(), employee.getEmployeeName(), tempPassword);
+                } else {
+                    userRepository.save(user);
+                }
+            });
+        }
+
+        String auditDescription;
+        if ("REHIRE".equalsIgnoreCase(targetStatus)) {
+            auditDescription = "Rehired employee (Resigned/Terminated -> Permanent) for employee_id " + employee.getId();
+        } else {
+            auditDescription = "HR updated employment status to " + targetStatus + " for employee_id " + employee.getId();
+        }
         auditService.record(
             AuditActionType.EMPLOYMENT_STATUS_UPDATED,
             AuditTargetType.EMPLOYEE,
             employee.getId(),
             principal.getId(),
             principal.getRoleId(),
-            "HR updated employment status to " + targetStatus + " for employee_id " + employee.getId(),
+            auditDescription,
             null
         );
     }
@@ -651,7 +696,7 @@ public class HrEmployeeService {
     }
 
     private String normalizeTargetDisplayStatus(String targetStatus) {
-        if ("PERMANENT".equalsIgnoreCase(targetStatus)) {
+        if ("PERMANENT".equalsIgnoreCase(targetStatus) || "REHIRE".equalsIgnoreCase(targetStatus)) {
             return "Permanent";
         }
         if ("RESIGNED".equalsIgnoreCase(targetStatus)) {
@@ -660,7 +705,7 @@ public class HrEmployeeService {
         if ("TERMINATED".equalsIgnoreCase(targetStatus)) {
             return "Terminated";
         }
-        throw new IllegalArgumentException("Invalid target status: " + targetStatus + ". Must be PERMANENT, RESIGNED, or TERMINATED");
+        throw new IllegalArgumentException("Invalid target status: " + targetStatus + ". Must be PERMANENT, REHIRE, RESIGNED, or TERMINATED");
     }
 
     private String normalizeReason(String reason) {
