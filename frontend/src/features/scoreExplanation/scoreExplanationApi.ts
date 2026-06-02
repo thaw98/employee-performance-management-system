@@ -25,6 +25,20 @@ export interface UpdateScoreExplanationRequest {
   applyToModules: ScoreExplanationModule[]
 }
 
+export interface BulkBandUpdate {
+  sortOrder: number
+  minScore: number
+  maxScore: number
+  title: string
+  details: string
+}
+
+export interface BulkUpdateScoreExplanationRequest {
+  bands: BulkBandUpdate[]
+  reason: string
+  applyToModules: ScoreExplanationModule[]
+}
+
 export const scoreExplanationApi = baseApi.injectEndpoints({
   endpoints: (builder) => ({
     getScoreExplanations: builder.query<Record<ScoreExplanationModule, ScoreExplanation[]>, void>({
@@ -41,7 +55,16 @@ export const scoreExplanationApi = baseApi.injectEndpoints({
       transformResponse: (response: { data: ScoreExplanation[] }) => response.data,
       invalidatesTags: ['ScoreExplanation', 'AuditLog'],
     }),
+    bulkUpdateScoreExplanation: builder.mutation<ScoreExplanation[], { body: BulkUpdateScoreExplanationRequest }>({
+      query: ({ body }) => ({
+        url: '/score-explanations/bulk',
+        method: 'PUT',
+        body,
+      }),
+      transformResponse: (response: { data: ScoreExplanation[] }) => response.data,
+      invalidatesTags: ['ScoreExplanation', 'AuditLog'],
+    }),
   }),
 })
 
-export const { useGetScoreExplanationsQuery, useUpdateScoreExplanationMutation } = scoreExplanationApi
+export const { useGetScoreExplanationsQuery, useUpdateScoreExplanationMutation, useBulkUpdateScoreExplanationMutation } = scoreExplanationApi

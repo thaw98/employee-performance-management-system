@@ -1,27 +1,65 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
 import { toast } from 'react-hot-toast'
-import { Building2, CalendarRange, CheckCircle2, ClipboardList, Copy, Download, Eye, FileText, Filter, LayoutGrid, Pencil, Plus, Search, Table2, Trash2, Upload, Users, X } from 'lucide-react'
-import * as XLSX from 'xlsx'
+import {
+  AlertCircle,
+  Building2,
+  Briefcase,
+  CalendarRange,
+  CheckCircle2,
+  ClipboardList,
+  Copy,
+  Download,
+  Eye,
+  FileSpreadsheet,
+  FileText,
+  Filter,
+  Layers,
+  LayoutGrid,
+  Network,
+  Pencil,
+  Plus,
+  Search,
+  Star,
+  Table2,
+  Trash2,
+  Upload,
+  User,
+  Users,
+  X,
+  type LucideIcon,
+} from 'lucide-react'
 import axios from '../../app/axiosInstance'
-import { baseApi } from '../../app/baseApi'
-import { useAppDispatch } from '../../app/hooks'
+import { PaginationBar } from '../../components/common/PaginationBar'
 import { CriteriaPage } from './CriteriaPage'
 import { formatDateTime } from '../../utils/dateUtils'
 import {
+  type FeedbackCoverage,
+  type FeedbackCoverageEmployeeRow,
   type FeedbackLimitConfig,
   type FeedbackTemplateConfig,
+  type FeedbackTemplateImportValidRow,
+  type FeedbackTemplateImportValidationResponse,
   useDeleteFeedbackTemplateMutation,
+  useGetFeedbackCoverageQuery,
   useGetFeedbackLimitsQuery,
   useGetFeedbackTemplatesQuery,
   useSaveFeedbackLimitMutation,
   useSaveFeedbackTemplateMutation,
+  useValidateFeedbackTemplateImportMutation,
 } from '../../features/feedback/api/feedbackManagementApi'
 import { useGetReviewCyclesQuery, type ReviewCycleDto } from '../../features/reviewCycle/api/reviewCycleApi'
 
-type TabKey = 'criteria' | 'template' | 'progress'
+type TabKey = 'criteria' | 'template' | 'progress' | 'coverage'
 type Option = { id: number; name: string; active?: boolean }
 type FeedbackTemplateRow = FeedbackTemplateConfig & { currentInUseFallback?: boolean }
 const LOCK_MESSAGE = 'This configuration is already active for the current review cycle and cannot be changed. Any updates will apply only to future review cycles.'
+
+const FEEDBACK_ROLE_OPTIONS = [
+  { value: 'SELF', label: 'Self-evaluate' },
+  { value: 'PEER', label: 'Peers' },
+  { value: 'MANAGER', label: 'Manager' },
+  { value: 'SUBORDINATE', label: 'Subordinate' },
+] as const
 
 const emptyTemplate: FeedbackTemplateConfig = {
   templateName: '',
@@ -30,6 +68,9 @@ const emptyTemplate: FeedbackTemplateConfig = {
   targetName: '',
   questionIds: [],
   status: 'ACTIVE',
+  maxRating: 5,
+  activeRoles: ['SELF', 'PEER', 'MANAGER', 'SUBORDINATE'],
+  questionsByRole: {},
 }
 
 const emptyLimit: FeedbackLimitConfig = {
@@ -41,7 +82,10 @@ const emptyLimit: FeedbackLimitConfig = {
 const targetLabel = (type: string) => {
   if (type === 'DEPARTMENT') return 'Department-based template'
   if (type === 'LEVEL_CODE') return 'Level code-based template'
-  return 'Person-based template'
+  if (type === 'PERSON') return 'Person-based template'
+  if (type === 'POSITION') return 'Position-based template'
+  if (type === 'HYBRID') return 'Hybrid (Department + Position) template'
+  return 'Template'
 }
 
 const displayType = (value: string) => value.toLowerCase().replace(/\b\w/g, (char) => char.toUpperCase())
@@ -49,6 +93,22 @@ const isLockedCycle = (cycle?: ReviewCycleDto | null) => Boolean(cycle && (cycle
 const cycleDate = (value?: string) => value ? new Date(`${value}T00:00:00`).toLocaleDateString('en-GB') : '-'
 const cycleDateRange = (cycle?: ReviewCycleDto | null) => `${cycleDate(cycle?.startDate)} - ${cycleDate(cycle?.endDate)}`
 const isCurrentCycle = (cycle?: ReviewCycleDto | null) => Boolean(cycle && (cycle.isActive || cycle.status?.toUpperCase() === 'ACTIVE'))
+const cycleSearchText = (cycle: ReviewCycleDto) =>
+  `${cycle.cycleType ?? ''} ${cycle.name ?? ''} ${cycle.code ?? ''}`.toUpperCase()
+const isQ2Cycle = (cycle: ReviewCycleDto) => /\bQ2\b/.test(cycleSearchText(cycle))
+
+function pickDefaultCoverageReviewCycle(cycles: ReviewCycleDto[]): ReviewCycleDto | undefined {
+  if (cycles.length === 0) return undefined
+  const q2Cycles = cycles.filter(isQ2Cycle)
+  if (q2Cycles.length > 0) {
+    const activeQ2 = q2Cycles.find((cycle) => cycle.isActive || cycle.status?.toUpperCase() === 'ACTIVE')
+    if (activeQ2) return activeQ2
+    const upcomingQ2 = q2Cycles.find((cycle) => cycle.status?.toUpperCase() === 'UPCOMING')
+    if (upcomingQ2) return upcomingQ2
+    return [...q2Cycles].sort((a, b) => b.startDate.localeCompare(a.startDate))[0]
+  }
+  return cycles.find((cycle) => cycle.isActive || cycle.status?.toUpperCase() === 'ACTIVE') ?? cycles[0]
+}
 
 function CurrentInUseBadge() {
   return (
@@ -59,112 +119,7 @@ function CurrentInUseBadge() {
 }
 
 export default function FeedbackManagementPage() {
-  const dispatch = useAppDispatch()
   const [activeTab, setActiveTab] = useState<TabKey>('criteria')
-  const fileInputRef = useRef<HTMLInputElement>(null)
-  const [isImporting, setIsImporting] = useState(false)
-
-  const handleDownloadTemplate = () => {
-    const workbook = XLSX.utils.book_new()
-    XLSX.utils.book_append_sheet(workbook, XLSX.utils.aoa_to_sheet([
-      ['Feedback Management Import Template'],
-      ['Fill the Criteria, Feedback Templates, and Peer Progress sheets. Keep the column names unchanged.'],
-      ['For Question Ids, enter criteria IDs separated by commas, for example: 1,2,3.'],
-      ['Review Cycle Id is required for Feedback Templates and Peer Progress. Use a future/upcoming review cycle.'],
-      ['Target Type values: DEPARTMENT, LEVEL_CODE, PERSON. Relationship Type values: MANAGER, PEER, SUBORDINATE.'],
-    ]), 'Instructions')
-    XLSX.utils.book_append_sheet(workbook, XLSX.utils.aoa_to_sheet([
-      ['Name', 'Description', 'Status'],
-      ['Communication', 'Shares clear and timely feedback.', 'ACTIVE'],
-      ['Teamwork', 'Collaborates well with others.', 'ACTIVE'],
-    ]), 'Criteria')
-    XLSX.utils.book_append_sheet(workbook, XLSX.utils.aoa_to_sheet([
-      ['Template Name', 'Review Cycle Id', 'Target Type', 'Target Id', 'Target Name', 'Question Ids', 'Status'],
-      ['Engineering Peer Feedback', 2, 'DEPARTMENT', 1, 'Engineering', '1,2,3', 'ACTIVE'],
-      ['Level L2 Feedback', 2, 'LEVEL_CODE', 2, 'L2', '1,3', 'ACTIVE'],
-      ['Lisa Wong Feedback', 2, 'PERSON', 6, 'Lisa Wong', '2,3', 'ACTIVE'],
-    ]), 'Feedback Templates')
-    XLSX.utils.book_append_sheet(workbook, XLSX.utils.aoa_to_sheet([
-      ['Relationship Type', 'Review Cycle Id', 'Minimum Count', 'Maximum Count'],
-      ['MANAGER', 2, 1, 2],
-      ['PEER', 2, 2, 5],
-      ['SUBORDINATE', 2, 0, 3],
-    ]), 'Peer Progress')
-    XLSX.writeFile(workbook, 'feedback_management_import_template.xlsx')
-  }
-
-  const normalize = (value: unknown) => String(value ?? '').trim()
-  const parseStatus = (value: unknown) => {
-    const status = normalize(value).toUpperCase()
-    return status === '' || status === 'ACTIVE' || status === 'TRUE' || status === 'YES'
-  }
-  const parseIds = (value: unknown) => normalize(value).split(/[,\n;]/).map((item) => Number(item.trim())).filter(Boolean)
-
-  const handleImportFile = async (event: React.ChangeEvent<HTMLInputElement>) => {
-    const file = event.target.files?.[0]
-    if (!file) return
-    setIsImporting(true)
-    try {
-      const workbook = XLSX.read(await file.arrayBuffer(), { type: 'array' })
-      const rows = (sheetName: string) => {
-        const sheet = workbook.Sheets[sheetName]
-        return sheet ? XLSX.utils.sheet_to_json<Record<string, unknown>>(sheet, { defval: '' }) : []
-      }
-
-      let importedCriteria = 0
-      let importedTemplates = 0
-      let importedLimits = 0
-
-      for (const row of rows('Criteria')) {
-        const name = normalize(row['Name'])
-        if (!name) continue
-        await axios.post('/criteria', {
-          name,
-          description: normalize(row['Description']),
-          active: parseStatus(row['Status']),
-          sortOrder: importedCriteria + 1,
-        })
-        importedCriteria += 1
-      }
-
-      for (const row of rows('Feedback Templates')) {
-        const templateName = normalize(row['Template Name'])
-        const targetType = normalize(row['Target Type']).toUpperCase()
-        const reviewCycleId = Number(row['Review Cycle Id'])
-        const targetId = Number(row['Target Id'])
-        const questionIds = parseIds(row['Question Ids'])
-        if (!templateName || !targetType || !reviewCycleId || !targetId || questionIds.length === 0) continue
-        await axios.post('/feedback-management/templates', {
-          templateName,
-          reviewCycleId,
-          targetType,
-          targetId,
-          targetName: normalize(row['Target Name']),
-          questionIds,
-          status: parseStatus(row['Status']) ? 'ACTIVE' : 'INACTIVE',
-        })
-        importedTemplates += 1
-      }
-
-      for (const row of rows('Peer Progress')) {
-        const relationshipType = normalize(row['Relationship Type']).toUpperCase()
-        const reviewCycleId = Number(row['Review Cycle Id'])
-        const minimumCount = Number(row['Minimum Count'])
-        const maximumCount = Number(row['Maximum Count'])
-        if (!relationshipType || !reviewCycleId || Number.isNaN(minimumCount) || Number.isNaN(maximumCount)) continue
-        await axios.post('/feedback-management/limits', { relationshipType, reviewCycleId, minimumCount, maximumCount })
-        importedLimits += 1
-      }
-
-      toast.success(`Imported ${importedCriteria} criteria, ${importedTemplates} templates, and ${importedLimits} limits`)
-      dispatch(baseApi.util.invalidateTags(['Criteria', 'FeedbackManagement']))
-    } catch (error: any) {
-      toast.error(error?.response?.data?.message ?? 'Failed to import feedback management file')
-    } finally {
-      setIsImporting(false)
-      if (fileInputRef.current) fileInputRef.current.value = ''
-    }
-  }
 
   return (
     <div className="p-8 space-y-6 max-w-7xl mx-auto">
@@ -175,51 +130,33 @@ export default function FeedbackManagementPage() {
         </div>
       </div>
 
-      <div className="flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
-        <div className="flex flex-wrap gap-2 rounded-xl border border-slate-200 bg-white p-2 shadow-sm">
-          {[
-            ['criteria', 'Criteria', ClipboardList],
-            ['template', 'Template', FileText],
-            ['progress', 'Peer Progress', Users],
-          ].map(([key, label, Icon]) => {
-            const selected = activeTab === key
-            const TabIcon = Icon as typeof ClipboardList
-            return (
-              <button
-                key={key as string}
-                type="button"
-                onClick={() => setActiveTab(key as TabKey)}
-                className={`flex items-center gap-2 rounded-lg px-4 py-2 text-sm font-bold transition-colors ${selected ? 'bg-blue-600 text-white shadow-sm' : 'text-slate-500 hover:bg-slate-50 hover:text-slate-900'}`}
-              >
-                <TabIcon size={16} />
-                {label as string}
-              </button>
-            )
-          })}
-        </div>
-        <div className="flex flex-wrap items-center gap-3">
-          <button
-            onClick={handleDownloadTemplate}
-            className="inline-flex min-h-11 items-center justify-center gap-2 rounded-xl border border-[#bfdbfe] bg-white px-4 py-2.5 text-sm font-semibold text-[#1d4ed8] shadow-sm transition hover:border-[#93c5fd] hover:bg-[#eff6ff] focus:outline-none focus:ring-4 focus:ring-[#dbeafe]"
-          >
-            <Download size={16} />
-            <span className="whitespace-nowrap">Download Template</span>
-          </button>
-          <button
-            onClick={() => fileInputRef.current?.click()}
-            disabled={isImporting}
-            className="inline-flex min-h-11 items-center justify-center gap-2 rounded-xl bg-gradient-to-r from-[#2463eb] to-[#1d4ed8] px-4 py-2.5 text-sm font-semibold text-white shadow-sm shadow-[#dbeafe] transition hover:from-[#1d4ed8] hover:to-[#1e40af] focus:outline-none focus:ring-4 focus:ring-[#dbeafe] disabled:cursor-not-allowed disabled:opacity-60"
-          >
-            <Upload size={16} />
-            <span className="whitespace-nowrap">{isImporting ? 'Importing...' : 'Import File'}</span>
-          </button>
-          <input ref={fileInputRef} type="file" accept=".xlsx,.xls" className="hidden" onChange={handleImportFile} />
-        </div>
+      <div className="flex flex-wrap gap-2 rounded-xl border border-slate-200 bg-white p-2 shadow-sm">
+        {[
+          ['criteria', 'Criteria', ClipboardList],
+          ['template', 'Template', FileText],
+          ['progress', 'Peer Progress', Users],
+          ['coverage', 'Coverage', CheckCircle2],
+        ].map(([key, label, Icon]) => {
+          const selected = activeTab === key
+          const TabIcon = Icon as typeof ClipboardList
+          return (
+            <button
+              key={key as string}
+              type="button"
+              onClick={() => setActiveTab(key as TabKey)}
+              className={`flex items-center gap-2 rounded-lg px-4 py-2 text-sm font-bold transition-colors ${selected ? 'bg-blue-600 text-white shadow-sm' : 'text-slate-500 hover:bg-slate-50 hover:text-slate-900'}`}
+            >
+              <TabIcon size={16} />
+              {label as string}
+            </button>
+          )
+        })}
       </div>
 
       {activeTab === 'criteria' && <CriteriaPage />}
       {activeTab === 'template' && <TemplateTab />}
       {activeTab === 'progress' && <PeerProgressTab />}
+      {activeTab === 'coverage' && <CoverageTab />}
     </div>
   )
 }
@@ -290,12 +227,18 @@ function TemplateTab() {
   const [departments, setDepartments] = useState<Option[]>([])
   const [levelCodes, setLevelCodes] = useState<Option[]>([])
   const [employees, setEmployees] = useState<Option[]>([])
+  const [positions, setPositions] = useState<Option[]>([])
   const [showModal, setShowModal] = useState(false)
   const [viewing, setViewing] = useState<FeedbackTemplateRow | null>(null)
   const [form, setForm] = useState<FeedbackTemplateConfig>(emptyTemplate)
   const [searchQuery, setSearchQuery] = useState('')
   const [targetFilter, setTargetFilter] = useState<'ALL' | FeedbackTemplateConfig['targetType']>('ALL')
   const [viewMode, setViewMode] = useState<'grid' | 'table'>('table')
+  const fileInputRef = useRef<HTMLInputElement>(null)
+  const [importedRows, setImportedRows] = useState<FeedbackTemplateImportValidRow[]>([])
+  const [importErrors, setImportErrors] = useState<FeedbackTemplateImportValidationResponse | null>(null)
+  const [isImporting, setIsImporting] = useState(false)
+  const [validateImport, { isLoading: isValidating }] = useValidateFeedbackTemplateImportMutation()
 
   useEffect(() => {
     void loadOptions()
@@ -309,24 +252,26 @@ function TemplateTab() {
 
   const loadOptions = async () => {
     try {
-      const [criteriaRes, deptRes, levelCodeRes, empRes] = await Promise.all([
+      const [criteriaRes, deptRes, levelCodeRes, empRes, positionRes] = await Promise.all([
         axios.get('/criteria'),
         axios.get('/departments'),
         axios.get('/lookups/level-codes/active'),
         axios.get('/hr/employees', { params: { size: 1000 } }),
+        axios.get('/positions/by-department'),
       ])
       setCriteria((criteriaRes.data?.data ?? []).map((c: any) => ({ id: Number(c.id), name: c.name, active: c.active !== false })))
       setDepartments((deptRes.data?.data ?? []).map((d: any) => ({ id: Number(d.departmentId ?? d.id), name: d.departmentName ?? d.name })))
       setLevelCodes((levelCodeRes.data?.data ?? []).map((levelCode: any) => ({ id: Number(levelCode.id), name: levelCode.code ?? levelCode.name })))
       const employeeRows = empRes.data?.data?.content ?? empRes.data?.data ?? []
       setEmployees(employeeRows.map((e: any) => ({ id: Number(e.employeeId ?? e.id), name: e.employeeName ?? e.name ?? e.email })))
+      setPositions((positionRes.data?.data ?? []).map((p: any) => ({ id: Number(p.positionId ?? p.id), name: p.positionName ?? p.name })))
     } catch (error) {
       console.error(error)
       toast.error('Failed to load template options')
     }
   }
 
-  const targetOptions = form.targetType === 'DEPARTMENT' ? departments : form.targetType === 'LEVEL_CODE' ? levelCodes : employees
+  const targetOptions = form.targetType === 'DEPARTMENT' ? departments : form.targetType === 'LEVEL_CODE' ? levelCodes : form.targetType === 'POSITION' ? positions : employees
   const activeCriteria = useMemo(() => criteria.filter((item) => item.active !== false), [criteria])
   const criteriaNameById = useMemo(() => new Map(criteria.map((item) => [item.id, item.name])), [criteria])
   const activeLimitTypes = new Set(limits.map((limit) => limit.relationshipType))
@@ -387,7 +332,12 @@ function TemplateTab() {
 
   const openEdit = (template: FeedbackTemplateConfig) => {
     if (isLocked) return toast.error(LOCK_MESSAGE)
-    setForm({ ...template, questionIds: template.questionIds ?? [] })
+    setForm({
+      ...template,
+      questionIds: template.questionIds ?? [],
+      activeRoles: template.activeRoles ?? ['SELF', 'PEER', 'MANAGER', 'SUBORDINATE'],
+      questionsByRole: template.questionsByRole ?? {},
+    })
     setShowModal(true)
   }
 
@@ -402,6 +352,8 @@ function TemplateTab() {
       reviewCycleId: selectedReviewCycleId,
       reviewCycleName: selectedReviewCycle?.name,
       questionIds: template.questionIds ?? [],
+      activeRoles: template.activeRoles ?? ['SELF', 'PEER', 'MANAGER', 'SUBORDINATE'],
+      questionsByRole: template.questionsByRole ?? {},
     })
     setShowModal(true)
   }
@@ -410,15 +362,135 @@ function TemplateTab() {
     if (!selectedReviewCycleId) return toast.error('Review cycle is required')
     if (isLocked) return toast.error(LOCK_MESSAGE)
     if (!form.templateName.trim()) return toast.error('Template name is required')
-    if (!form.targetId) return toast.error('Template target is required')
-    if (!form.questionIds.length) return toast.error('At least one question is required')
-    const targetName = targetOptions.find((item) => item.id === Number(form.targetId))?.name ?? form.targetName ?? ''
+    if (form.targetType === 'HYBRID') {
+      if (!form.audienceRules || form.audienceRules.length === 0) return toast.error('At least one audience rule is required')
+      const invalidRule = form.audienceRules.find((rule) => !rule.departmentId)
+      if (invalidRule) return toast.error('Each rule must have a department selected')
+    } else {
+      if (!form.targetId) return toast.error('Template target is required')
+    }
+    const activeRoles = form.activeRoles ?? []
+    if (activeRoles.length === 0) return toast.error('At least one feedback role must be selected')
+    if (importedRows.length === 0) {
+      for (const role of activeRoles) {
+        const roleQuestions = form.questionsByRole?.[role] ?? []
+        if (roleQuestions.length === 0) return toast.error(`At least one question is required for ${FEEDBACK_ROLE_OPTIONS.find(r => r.value === role)?.label ?? role}`)
+      }
+    }
+    let targetName = form.targetName ?? ''
+    let targetId = Number(form.targetId)
+    if (form.targetType === 'POSITION') {
+      targetName = targetOptions.find((item) => item.id === targetId)?.name ?? targetName
+    } else if (form.targetType === 'HYBRID') {
+      targetId = 0
+      const deptMap = new Map(departments.map((d) => [d.id, d.name]))
+      const posMap = new Map(positions.map((p) => [p.id, p.name]))
+      targetName = (form.audienceRules ?? []).map((rule) => {
+        const deptName = deptMap.get(rule.departmentId) ?? rule.departmentName ?? `Dept ${rule.departmentId}`
+        const posName = rule.positionId ? (posMap.get(rule.positionId) ?? rule.positionName ?? `Pos ${rule.positionId}`) : 'All Positions'
+        return `${deptName} / ${posName}`
+      }).join('; ')
+    } else {
+      targetName = targetOptions.find((item) => item.id === targetId)?.name ?? targetName
+    }
     try {
-      await saveTemplate({ ...form, reviewCycleId: selectedReviewCycleId, reviewCycleName: selectedReviewCycle?.name, targetId: Number(form.targetId), targetName }).unwrap()
+      if (importedRows.length > 0) {
+        const ids = await resolveCriteriaIds()
+        const questionsByRole: Record<string, number[]> = {}
+        for (const role of activeRoles) {
+          questionsByRole[role] = [...ids]
+        }
+        await saveTemplate({
+          ...form,
+          reviewCycleId: selectedReviewCycleId,
+          reviewCycleName: selectedReviewCycle?.name,
+          targetId,
+          targetName,
+          activeRoles,
+          questionsByRole,
+          questionIds: ids,
+        }).unwrap()
+        setImportedRows([])
+        setImportErrors(null)
+      } else {
+        await saveTemplate({ ...form, reviewCycleId: selectedReviewCycleId, reviewCycleName: selectedReviewCycle?.name, targetId, targetName, activeRoles, questionsByRole: form.questionsByRole }).unwrap()
+      }
       toast.success(form.id ? 'Template updated' : 'Template created')
       setShowModal(false)
     } catch (error: any) {
       toast.error(error?.data?.message ?? 'Failed to save template')
+    }
+  }
+
+  const handleDownloadTemplate = async () => {
+    try {
+      const response = await axios.get('/feedback-management/templates/import/template', { responseType: 'blob' })
+      const url = window.URL.createObjectURL(new Blob([response.data]))
+      const a = document.createElement('a')
+      a.href = url
+      a.download = '360_feedback_template_import_template.xlsx'
+      document.body.appendChild(a)
+      a.click()
+      a.remove()
+      window.URL.revokeObjectURL(url)
+    } catch (error) {
+      toast.error('Failed to download template')
+    }
+  }
+
+  const handleFileSelect = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0]
+    if (!file) return
+    setIsImporting(true)
+    setImportErrors(null)
+    try {
+      const formData = new FormData()
+      formData.append('file', file)
+      const res = await validateImport(formData).unwrap()
+      if (!res.success) {
+        toast.error(res.message || 'Validation failed')
+        return
+      }
+      if (!res.data) {
+        toast.error('No validation data received')
+        return
+      }
+      if (res.data.invalidRows > 0) {
+        setImportErrors(res.data)
+      }
+      if (res.data.validRows > 0) {
+        setImportedRows(res.data.validRowData)
+        const importedCriteriaIds: number[] = res.data.validRowData
+          .filter((r) => r.existingCriteriaId != null)
+          .map((r) => r.existingCriteriaId!)
+        if (importedCriteriaIds.length > 0) {
+          setCriteria((prev) => {
+            const existingIds = new Set(prev.map((c) => c.id))
+            const newItems = res.data.validRowData
+              .filter((r) => r.existingCriteriaId != null && !existingIds.has(r.existingCriteriaId!))
+              .map((r) => ({ id: r.existingCriteriaId!, name: r.criteriaName, active: true }))
+            return newItems.length > 0 ? [...prev, ...newItems] : prev
+          })
+        }
+        const defaultRoles = ['SELF', 'PEER', 'MANAGER', 'SUBORDINATE']
+        setForm({
+          ...emptyTemplate,
+          reviewCycleId: selectedReviewCycleId ?? undefined,
+          reviewCycleName: selectedReviewCycle?.name,
+          activeRoles: defaultRoles,
+          questionsByRole: {},
+          questionIds: [],
+        })
+        setShowModal(true)
+      }
+      if (res.data.validRows === 0 && res.data.invalidRows > 0) {
+        toast.error('No valid rows found. Check the error details below.')
+      }
+    } catch (error: any) {
+      toast.error(error?.data?.message ?? 'Failed to validate import')
+    } finally {
+      setIsImporting(false)
+      if (fileInputRef.current) fileInputRef.current.value = ''
     }
   }
 
@@ -428,6 +500,25 @@ function TemplateTab() {
     if (!window.confirm('Delete this feedback template?')) return
     await deleteTemplate(id).unwrap()
     toast.success('Template deleted')
+  }
+
+  const resolveCriteriaIds = async (): Promise<number[]> => {
+    if (importedRows.length === 0) return form.questionIds ?? []
+    const ids: number[] = []
+    for (const row of importedRows) {
+      if (row.existingCriteriaId != null) {
+        ids.push(row.existingCriteriaId)
+      } else if (row.criteriaName.trim()) {
+        try {
+          const response = await axios.post('/criteria', { name: row.criteriaName.trim(), description: row.description ?? '', active: true })
+          const newId = Number(response.data?.data?.id)
+          if (newId) ids.push(newId)
+        } catch {
+          toast.error(`Failed to create criteria: ${row.criteriaName}`)
+        }
+      }
+    }
+    return ids
   }
 
   return (
@@ -449,9 +540,19 @@ function TemplateTab() {
             <p className="mt-1 max-w-xl text-sm text-slate-500">Create, configure, and manage feedback question templates across departments, level codes, and individual employees.</p>
           </div>
         </div>
-        <button onClick={openCreate} disabled={!selectedReviewCycleId || isLocked} className="inline-flex items-center gap-2 rounded-xl bg-gradient-to-r from-[#2463eb] to-[#1d4ed8] px-4 py-2.5 text-sm font-bold text-white shadow-md shadow-[#2463eb]/20 hover:brightness-110 disabled:cursor-not-allowed disabled:opacity-50">
-          <Plus size={16} /> Create Template
-        </button>
+        <div className="flex flex-wrap items-center gap-2">
+          <input ref={fileInputRef} type="file" accept=".xlsx" onChange={handleFileSelect} className="hidden" />
+          <button onClick={handleDownloadTemplate} disabled={!selectedReviewCycleId} className="inline-flex items-center gap-2 rounded-xl border border-slate-200 bg-white px-4 py-2.5 text-sm font-bold text-slate-600 shadow-sm hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-50">
+            <Download size={16} /> Download Template
+          </button>
+          <button onClick={() => fileInputRef.current?.click()} disabled={!selectedReviewCycleId || isLocked || isValidating || isImporting} className="inline-flex items-center gap-2 rounded-xl border border-slate-200 bg-white px-4 py-2.5 text-sm font-bold text-slate-600 shadow-sm hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-50">
+            {isValidating || isImporting ? <span className="inline-block h-4 w-4 animate-spin rounded-full border-2 border-slate-400 border-t-transparent" /> : <Upload size={16} />}
+            {isValidating ? 'Validating...' : isImporting ? 'Importing...' : 'Import Template'}
+          </button>
+          <button onClick={openCreate} disabled={!selectedReviewCycleId || isLocked} className="inline-flex items-center gap-2 rounded-xl bg-gradient-to-r from-[#2463eb] to-[#1d4ed8] px-4 py-2.5 text-sm font-bold text-white shadow-md shadow-[#2463eb]/20 hover:brightness-110 disabled:cursor-not-allowed disabled:opacity-50">
+            <Plus size={16} /> Create Template
+          </button>
+        </div>
       </div>
 
       <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
@@ -504,6 +605,8 @@ function TemplateTab() {
               <option value="DEPARTMENT">Department</option>
               <option value="LEVEL_CODE">Level Code</option>
               <option value="PERSON">Person</option>
+              <option value="POSITION">Position</option>
+              <option value="HYBRID">Hybrid</option>
             </select>
             <div className="flex rounded-xl border border-slate-200 bg-slate-50 p-1">
               <button
@@ -736,8 +839,13 @@ function TemplateTab() {
           isSaving={isSaving}
           reviewCycleName={selectedReviewCycle?.name ?? null}
           reviewCycleDetail={selectedCycleRange}
-          onClose={() => setShowModal(false)}
+          onClose={() => { setShowModal(false); setImportedRows([]); setImportErrors(null) }}
           onSave={handleSave}
+          departments={departments}
+          positions={positions}
+          importedRows={importedRows}
+          setImportedRows={setImportedRows}
+          importErrors={importErrors}
         />
       )}
       {viewing && (
@@ -753,6 +861,8 @@ function TemplateTab() {
           onSave={() => undefined}
           readOnly
           modalTitle="View Feedback Template"
+          departments={departments}
+          positions={positions}
           readOnlyMessage={
             viewing.currentInUseFallback
               ? 'This is the current feedback template generated from active criteria and cannot be edited.'
@@ -763,6 +873,84 @@ function TemplateTab() {
         />
       )}
     </section>
+  )
+}
+
+type FeedbackTargetType = FeedbackTemplateConfig['targetType']
+
+const FEEDBACK_TARGET_TYPE_OPTIONS: {
+  value: FeedbackTargetType
+  label: string
+  description: string
+  icon: LucideIcon
+}[] = [
+  { value: 'DEPARTMENT', label: 'Department', description: 'Assign to all employees in a department.', icon: Building2 },
+  { value: 'LEVEL_CODE', label: 'Level Code', description: 'Assign by organization level code.', icon: Layers },
+  { value: 'PERSON', label: 'Person', description: 'Assign to one employee.', icon: User },
+  { value: 'POSITION', label: 'Position', description: 'Assign by job position.', icon: Briefcase },
+  { value: 'HYBRID', label: 'Hybrid', description: 'Department + optional position per rule.', icon: Network },
+]
+
+function FeedbackTargetTypeCard({
+  label,
+  description,
+  icon: Icon,
+  selected,
+  readOnly,
+  onClick,
+}: {
+  label: string
+  description: string
+  icon: LucideIcon
+  selected: boolean
+  readOnly: boolean
+  onClick: () => void
+}) {
+  return (
+    <button
+      type="button"
+      onClick={() => {
+        if (!readOnly) onClick()
+      }}
+      aria-pressed={selected}
+      className={`group relative flex h-full min-h-[148px] flex-col rounded-2xl border p-4 text-left transition-all duration-200 ${
+        readOnly ? 'cursor-default' : 'cursor-pointer'
+      } ${
+        selected
+          ? 'border-[#2463eb]/50 bg-[#2463eb]/[0.05] shadow-md shadow-[#2463eb]/10 ring-1 ring-[#2463eb]/25'
+          : 'border-slate-200/90 bg-white hover:border-slate-300 hover:bg-slate-50/80 hover:shadow-sm'
+      } ${readOnly && !selected ? 'opacity-55' : ''}`}
+    >
+      {selected && (
+        <div className="pointer-events-none absolute inset-0 rounded-2xl bg-gradient-to-br from-[#2463eb]/[0.04] to-[#1d4ed8]/[0.02]" />
+      )}
+      <div className="relative flex flex-1 flex-col">
+        <div className="mb-3 flex items-start justify-between gap-2">
+          <div
+            className={`flex h-10 w-10 shrink-0 items-center justify-center rounded-xl transition-all duration-200 ${
+              selected
+                ? 'bg-gradient-to-br from-[#2463eb] to-[#1d4ed8] text-white shadow-lg shadow-[#2463eb]/25'
+                : 'bg-slate-100 text-slate-500 group-hover:bg-slate-200/90 group-hover:scale-105'
+            }`}
+          >
+            <Icon size={18} strokeWidth={2.25} />
+          </div>
+          {selected && (
+            <div className="flex h-5 w-5 shrink-0 items-center justify-center rounded-full bg-gradient-to-br from-[#2463eb] to-[#1d4ed8] shadow-sm">
+              <CheckCircle2 size={14} className="text-white" strokeWidth={2.75} />
+            </div>
+          )}
+        </div>
+        <h5
+          className={`text-sm font-bold leading-snug ${
+            selected ? 'text-[#1d4ed8]' : 'text-slate-900'
+          }`}
+        >
+          {label}
+        </h5>
+        <p className="mt-1.5 flex-1 text-xs leading-relaxed text-slate-500">{description}</p>
+      </div>
+    </button>
   )
 }
 
@@ -779,6 +967,11 @@ function TemplateModal({
   readOnly = false,
   modalTitle,
   readOnlyMessage,
+  departments,
+  positions,
+  importedRows,
+  setImportedRows,
+  importErrors,
 }: {
   form: FeedbackTemplateConfig
   setForm: (form: FeedbackTemplateConfig) => void
@@ -792,13 +985,44 @@ function TemplateModal({
   readOnly?: boolean
   modalTitle?: string
   readOnlyMessage?: string
+  departments: Option[]
+  positions: Option[]
+  importedRows?: FeedbackTemplateImportValidRow[]
+  setImportedRows?: (rows: FeedbackTemplateImportValidRow[]) => void
+  importErrors?: FeedbackTemplateImportValidationResponse | null
 }) {
   const selectedTarget = targetOptions.find((item) => item.id === Number(form.targetId))
   const selectedQuestions = criteria.filter((item) => form.questionIds.includes(item.id))
+  const deptMap = useMemo(() => new Map(departments.map((d) => [d.id, d.name])), [departments])
+  const posMap = useMemo(() => new Map(positions.map((p) => [p.id, p.name])), [positions])
+  const activeRoles = form.activeRoles ?? []
+  const [activeRoleTab, setActiveRoleTab] = useState(activeRoles.length > 0 ? activeRoles[0] : 'SELF')
+  useEffect(() => {
+    if (activeRoles.length > 0 && !activeRoles.includes(activeRoleTab)) {
+      setActiveRoleTab(activeRoles[0])
+    }
+  }, [activeRoles, activeRoleTab])
+
+  const addHybridRule = () => {
+    const rules = form.audienceRules ?? []
+    setForm({ ...form, audienceRules: [...rules, { departmentId: 0, positionId: null }] })
+  }
+
+  const updateHybridRule = (index: number, updates: Partial<FeedbackTemplateConfig['audienceRules'][number]>) => {
+    const rules = [...(form.audienceRules ?? [])]
+    rules[index] = { ...rules[index], ...updates }
+    setForm({ ...form, audienceRules: rules })
+  }
+
+  const removeHybridRule = (index: number) => {
+    const rules = [...(form.audienceRules ?? [])]
+    rules.splice(index, 1)
+    setForm({ ...form, audienceRules: rules.length > 0 ? rules : undefined })
+  }
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/50 p-4">
-      <div className="max-h-[92vh] w-full max-w-5xl overflow-hidden rounded-2xl bg-white shadow-2xl">
+      <div className="max-h-[92vh] w-full max-w-7xl overflow-hidden rounded-2xl bg-white shadow-2xl">
         <div className="relative overflow-hidden border-b border-slate-100 bg-gradient-to-r from-[#2463eb] to-[#1d4ed8] px-6 py-5 text-white">
           <div className="flex items-start justify-between gap-4">
             <div className="flex items-center gap-3">
@@ -847,6 +1071,33 @@ function TemplateModal({
               )}
             </section>
 
+            {importErrors && importErrors.invalidRowsData && importErrors.invalidRowsData.length > 0 && (
+              <section className="rounded-2xl border border-red-200 bg-red-50 p-5">
+                <div className="mb-3 flex items-center gap-2">
+                  <AlertCircle size={18} className="text-red-500" />
+                  <h4 className="text-sm font-black text-red-700">Import Errors</h4>
+                  <span className="ml-auto rounded-full bg-red-100 px-2 py-0.5 text-[10px] font-bold text-red-700">{importErrors.invalidRows} invalid row{importErrors.invalidRows === 1 ? '' : 's'}</span>
+                </div>
+                <div className="space-y-2 max-h-48 overflow-auto">
+                  {importErrors.invalidRowsData.map((row, idx) => (
+                    <div key={idx} className="rounded-xl border border-red-100 bg-white p-3">
+                      <div className="flex items-start gap-2">
+                        <span className="text-xs font-bold text-red-600 shrink-0 w-10">Row {row.rowNumber}</span>
+                        <div className="flex-1 min-w-0">
+                          {row.criteriaName && <p className="text-xs font-semibold text-red-900 truncate">{row.criteriaName}</p>}
+                          <ul className="mt-1 space-y-0.5">
+                            {row.errors.map((err, eIdx) => (
+                              <li key={eIdx} className="text-xs text-red-600">- {err}</li>
+                            ))}
+                          </ul>
+                        </div>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </section>
+            )}
+
             <section className="rounded-2xl border border-slate-200 p-5">
               <div className="mb-4 flex items-center gap-3">
                 <span className="flex h-9 w-9 items-center justify-center rounded-xl bg-gradient-to-br from-[#2463eb] to-[#1d4ed8] text-white shadow-md shadow-[#2463eb]/20">
@@ -882,74 +1133,341 @@ function TemplateModal({
             <section className="rounded-2xl border border-slate-200 p-5">
               <div className="mb-4 flex items-center gap-3">
                 <span className="flex h-9 w-9 items-center justify-center rounded-xl bg-gradient-to-br from-[#2463eb] to-[#1d4ed8] text-white shadow-md shadow-[#2463eb]/20">
-                  <Users size={17} />
+                  <Star size={17} />
                 </span>
                 <div>
                   <span className="text-[11px] font-bold uppercase tracking-widest text-[#2463eb]">Step 3</span>
-                  <h4 className="font-black text-slate-900">Audience</h4>
-                  <p className="text-xs text-slate-500">Match the self-assessment audience style by selecting one target type.</p>
+                  <h4 className="font-black text-slate-900">Rating Scale</h4>
+                  <p className="text-xs text-slate-500">Set the maximum rating value for this template (2-10).</p>
                 </div>
               </div>
-              <div className="grid gap-3 sm:grid-cols-3">
-                {[
-                  ['DEPARTMENT', 'Department', 'Assign to all employees in a department.'],
-                  ['LEVEL_CODE', 'Level Code', 'Assign by organization level code.'],
-                  ['PERSON', 'Person', 'Assign to one employee.'],
-                ].map(([value, label, description]) => (
-                  <button
-                    key={value}
-                    type="button"
+              <div className="space-y-3">
+                <div>
+                  <label className="mb-1.5 block text-sm font-bold text-slate-700">Max Rating</label>
+                  <select
                     disabled={readOnly}
-                    onClick={() => setForm({ ...form, targetType: value as FeedbackTemplateConfig['targetType'], targetId: 0 })}
-                    className={`rounded-xl border p-4 text-left transition disabled:cursor-not-allowed ${form.targetType === value ? 'border-[#2463eb] bg-blue-50 ring-2 ring-blue-100' : 'border-slate-200 hover:border-slate-300 hover:bg-slate-50'} ${readOnly && form.targetType !== value ? 'opacity-50' : ''}`}
+                    className="w-full rounded-xl border border-slate-300 px-4 py-2.5 text-sm font-semibold focus:border-[#2463eb] focus:outline-none disabled:cursor-not-allowed disabled:bg-slate-50 disabled:text-slate-500"
+                    value={form.maxRating ?? 5}
+                    onChange={(e) => setForm({ ...form, maxRating: Number(e.target.value) })}
                   >
-                    <p className="font-black text-slate-900">{label}</p>
-                    <p className="mt-1 text-xs text-slate-500">{description}</p>
-                  </button>
-                ))}
+                    {[2, 3, 4, 5, 6, 7, 8, 9, 10].map((n) => (
+                      <option key={n} value={n}>
+                        {n}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+                <div className="w-full rounded-xl border border-slate-100 bg-slate-50 px-4 py-3">
+                  <p className="mb-2 text-xs font-bold text-slate-500">Preview</p>
+                  <div className="flex flex-wrap items-center gap-1">
+                    {Array.from({ length: form.maxRating ?? 5 }, (_, i) => i + 1).map((num) => {
+                      const max = form.maxRating ?? 5
+                      const isMax = num === max
+                      return (
+                        <span
+                          key={num}
+                          aria-hidden
+                          className={`flex h-9 w-9 items-center justify-center rounded-lg text-sm font-bold ${
+                            isMax ? 'bg-blue-600 text-white shadow-md' : 'bg-slate-100 text-slate-500'
+                          }`}
+                        >
+                          {num}
+                        </span>
+                      )
+                    })}
+                  </div>
+                </div>
               </div>
-              <div className="mt-4">
-                <label className="mb-1.5 block text-xs font-black uppercase tracking-wider text-slate-400">Target</label>
-                <select disabled={readOnly} className="w-full rounded-xl border border-slate-300 px-4 py-2.5 text-sm font-semibold focus:border-[#2463eb] focus:outline-none disabled:bg-slate-50 disabled:text-slate-500" value={form.targetId || ''} onChange={(e) => setForm({ ...form, targetId: Number(e.target.value) })}>
-                  <option value="">Select {displayType(form.targetType).replace('_', ' ').toLowerCase()}...</option>
-                  {targetOptions.map((item) => <option key={item.id} value={item.id}>{item.name}</option>)}
-                </select>
+            </section>
+
+            {importedRows && importedRows.length > 0 && (
+              <section className="rounded-2xl border border-blue-200 bg-blue-50/40 p-5">
+                <div className="mb-3 flex items-center gap-2">
+                  <FileSpreadsheet size={18} className="text-blue-600" />
+                  <h4 className="text-sm font-black text-blue-800">Imported Criteria ({importedRows.length})</h4>
+                </div>
+                <div className="overflow-x-auto rounded-xl border border-blue-100 bg-white">
+                  <table className="w-full text-left">
+                    <thead>
+                      <tr className="bg-blue-50 text-[10px] font-black uppercase tracking-wider text-blue-700 border-b border-blue-100">
+                        <th className="py-2.5 px-3 w-10 text-center">#</th>
+                        <th className="py-2.5 px-3">Criteria Name</th>
+                        <th className="py-2.5 px-3">Description</th>
+                        <th className="py-2.5 px-3 text-center w-12">Known</th>
+                        <th className="py-2.5 px-3 text-center w-14">Action</th>
+                      </tr>
+                    </thead>
+                    <tbody className="divide-y divide-blue-50">
+                      {importedRows.map((row, idx) => (
+                        <tr key={idx} className="hover:bg-blue-50/30 transition-colors">
+                          <td className="py-2 px-3 text-center text-xs font-bold text-slate-400">{idx + 1}</td>
+                          <td className="py-2 px-3">
+                            <input
+                              type="text"
+                              className="w-full bg-white border border-gray-200 rounded-lg px-3 py-1.5 text-xs font-bold text-slate-800 outline-none focus:ring-2 focus:ring-blue-100"
+                              value={row.criteriaName}
+                              maxLength={100}
+                              onChange={(e) => {
+                                const next = [...importedRows]
+                                next[idx] = { ...next[idx], criteriaName: e.target.value }
+                                setImportedRows?.(next)
+                              }}
+                              readOnly={readOnly}
+                            />
+                          </td>
+                          <td className="py-2 px-3">
+                            <input
+                              type="text"
+                              className="w-full bg-white border border-gray-200 rounded-lg px-3 py-1.5 text-xs text-slate-600 outline-none focus:ring-2 focus:ring-blue-100"
+                              value={row.description ?? ''}
+                              onChange={(e) => {
+                                const next = [...importedRows]
+                                next[idx] = { ...next[idx], description: e.target.value }
+                                setImportedRows?.(next)
+                              }}
+                              readOnly={readOnly}
+                            />
+                          </td>
+                          <td className="py-2 px-3 text-center">
+                            {row.existingCriteriaId ? (
+                              <span className="inline-flex items-center rounded-full bg-emerald-100 px-2 py-0.5 text-[10px] font-bold text-emerald-700">Yes</span>
+                            ) : (
+                              <span className="inline-flex items-center rounded-full bg-amber-100 px-2 py-0.5 text-[10px] font-bold text-amber-700">New</span>
+                            )}
+                          </td>
+                          <td className="py-2 px-3 text-center">
+                            {!readOnly && (
+                              <button
+                                onClick={() => {
+                                  const next = importedRows.filter((_, i) => i !== idx)
+                                  setImportedRows?.(next)
+                                }}
+                                className="p-1 text-slate-300 hover:text-red-500 hover:bg-red-50 rounded-lg transition-all"
+                              >
+                                <Trash2 size={12} />
+                              </button>
+                            )}
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+                <p className="mt-2 text-[11px] text-blue-600 font-medium">
+                  Imported criteria will be auto-assigned to all selected feedback roles. You can edit names above before saving.
+                </p>
+              </section>
+            )}
+
+            <section className="rounded-2xl border border-slate-200 p-5">
+              <div className="mb-4 flex items-center gap-3">
+                <span className="flex h-9 w-9 items-center justify-center rounded-xl bg-gradient-to-br from-[#2463eb] to-[#1d4ed8] text-white shadow-md shadow-[#2463eb]/20">
+                  <Users size={17} />
+                </span>
+                <div>
+                  <span className="text-[11px] font-bold uppercase tracking-widest text-[#2463eb]">Step 4</span>
+                  <h4 className="font-black text-slate-900">Feedback Roles</h4>
+                  <p className="text-xs text-slate-500">Select which feedback roles this template applies to.</p>
+                </div>
+              </div>
+              <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
+                {FEEDBACK_ROLE_OPTIONS.map(({ value, label }) => {
+                  const selected = (form.activeRoles ?? []).includes(value)
+                  const roleQuestions = form.questionsByRole?.[value] ?? []
+                  return (
+                    <button
+                      key={value}
+                      type="button"
+                      disabled={readOnly}
+                      onClick={() => {
+                        if (readOnly) return
+                        const currentRoles = form.activeRoles ?? []
+                        const newRoles = selected
+                          ? currentRoles.filter(r => r !== value)
+                          : [...currentRoles, value]
+                        const newQuestionsByRole = { ...(form.questionsByRole ?? {}) }
+                        if (!selected) {
+                          newQuestionsByRole[value] = []
+                        }
+                        setForm({ ...form, activeRoles: newRoles, questionsByRole: newQuestionsByRole })
+                      }}
+                      className={`relative flex flex-col items-center gap-2 rounded-2xl border p-4 text-center transition-all ${
+                        selected
+                          ? 'border-[#2463eb]/50 bg-[#2463eb]/[0.05] shadow-md shadow-[#2463eb]/10 ring-1 ring-[#2463eb]/25'
+                          : 'border-slate-200/90 bg-white hover:border-slate-300 hover:bg-slate-50/80'
+                      } ${readOnly && !selected ? 'opacity-55' : ''}`}
+                    >
+                      {selected && (
+                        <div className="pointer-events-none absolute inset-0 rounded-2xl bg-gradient-to-br from-[#2463eb]/[0.04] to-[#1d4ed8]/[0.02]" />
+                      )}
+                      <div className="relative flex flex-col items-center">
+                        <p className={`text-sm font-bold ${selected ? 'text-[#1d4ed8]' : 'text-slate-900'}`}>{label}</p>
+                        <p className={`mt-1 text-xs ${selected ? 'text-blue-500' : 'text-slate-400'}`}>
+                          {roleQuestions.length} question{roleQuestions.length === 1 ? '' : 's'}
+                        </p>
+                      </div>
+                    </button>
+                  )
+                })}
               </div>
             </section>
 
             <section className="rounded-2xl border border-slate-200 p-5">
-              <div className="mb-4 flex items-center justify-between gap-3">
-                <div className="flex items-center gap-3">
-                  <span className="flex h-9 w-9 items-center justify-center rounded-xl bg-gradient-to-br from-[#2463eb] to-[#1d4ed8] text-white shadow-md shadow-[#2463eb]/20">
-                    <ClipboardList size={17} />
-                  </span>
-                  <div>
-                    <span className="text-[11px] font-bold uppercase tracking-widest text-[#2463eb]">Step 4</span>
-                    <h4 className="font-black text-slate-900">Criteria Assignment</h4>
-                    <p className="text-xs text-slate-500">Select the feedback criteria included in this template.</p>
-                  </div>
+              <div className="mb-4 flex items-center gap-3">
+                <span className="flex h-9 w-9 items-center justify-center rounded-xl bg-gradient-to-br from-[#2463eb] to-[#1d4ed8] text-white shadow-md shadow-[#2463eb]/20">
+                  <Users size={17} />
+                </span>
+                <div>
+                  <span className="text-[11px] font-bold uppercase tracking-widest text-[#2463eb]">Step 5</span>
+                  <h4 className="font-black text-slate-900">Audience</h4>
+                  <p className="text-xs text-slate-500">Match the self-assessment audience style by selecting one target type.</p>
                 </div>
-                <span className="rounded-full bg-slate-100 px-3 py-1 text-xs font-black text-slate-600">{form.questionIds.length} selected</span>
               </div>
-              <div className="grid max-h-72 gap-2 overflow-auto rounded-xl border border-slate-100 bg-slate-50 p-3">
-                {criteria.map((item) => (
-                  <label key={item.id} className="flex items-start gap-3 rounded-xl bg-white px-3 py-2.5 text-sm shadow-sm ring-1 ring-slate-100">
-                    <input
-                      type="checkbox"
-                      disabled={readOnly}
-                      className="mt-1"
-                      checked={form.questionIds.includes(item.id)}
-                      onChange={(e) => {
-                        const questionIds = e.target.checked
-                          ? [...form.questionIds, item.id]
-                          : form.questionIds.filter((id) => id !== item.id)
-                        setForm({ ...form, questionIds })
-                      }}
-                    />
-                    <span className="font-semibold text-slate-700">{item.name}</span>
-                  </label>
+              <div
+                className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3 2xl:grid-cols-5"
+                role="radiogroup"
+                aria-label="Audience target type"
+              >
+                {FEEDBACK_TARGET_TYPE_OPTIONS.map(({ value, label, description, icon }) => (
+                  <FeedbackTargetTypeCard
+                    key={value}
+                    label={label}
+                    description={description}
+                    icon={icon}
+                    selected={form.targetType === value}
+                    readOnly={readOnly}
+                    onClick={() =>
+                      setForm({
+                        ...form,
+                        targetType: value,
+                        targetId: 0,
+                        audienceRules: value === 'HYBRID' ? (form.audienceRules ?? []) : undefined,
+                      })
+                    }
+                  />
                 ))}
               </div>
+
+              {form.targetType === 'HYBRID' ? (
+                <div className="mt-4 space-y-3">
+                  <label className="mb-1.5 block text-xs font-black uppercase tracking-wider text-slate-400">Audience Rules</label>
+                  {(form.audienceRules ?? []).map((rule, index) => (
+                    <div key={index} className="flex flex-wrap items-end gap-3 rounded-xl border border-slate-200 bg-slate-50 p-3">
+                      <div className="min-w-0 flex-1">
+                        <label className="mb-1 block text-[10px] font-bold uppercase tracking-wider text-slate-400">Department</label>
+                        <select
+                          disabled={readOnly}
+                          value={rule.departmentId || ''}
+                          onChange={(e) => updateHybridRule(index, { departmentId: Number(e.target.value) })}
+                          className="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm font-semibold focus:border-[#2463eb] focus:outline-none disabled:bg-slate-100"
+                        >
+                          <option value="">Select department...</option>
+                          {departments.map((dept) => <option key={dept.id} value={dept.id}>{dept.name}</option>)}
+                        </select>
+                      </div>
+                      <div className="min-w-0 flex-1">
+                        <label className="mb-1 block text-[10px] font-bold uppercase tracking-wider text-slate-400">Position (optional)</label>
+                        <select
+                          disabled={readOnly}
+                          value={rule.positionId ?? ''}
+                          onChange={(e) => updateHybridRule(index, { positionId: e.target.value ? Number(e.target.value) : null })}
+                          className="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm font-semibold focus:border-[#2463eb] focus:outline-none disabled:bg-slate-100"
+                        >
+                          <option value="">All Positions</option>
+                          {positions.map((pos) => <option key={pos.id} value={pos.id}>{pos.name}</option>)}
+                        </select>
+                      </div>
+                      {!readOnly && (form.audienceRules ?? []).length > 1 && (
+                        <button type="button" onClick={() => removeHybridRule(index)} className="rounded-lg p-2 text-red-400 hover:bg-red-50 hover:text-red-600">
+                          <X size={16} />
+                        </button>
+                      )}
+                    </div>
+                  ))}
+                  {!readOnly && (
+                    <button type="button" onClick={addHybridRule} className="inline-flex items-center gap-1.5 rounded-lg border border-dashed border-slate-300 px-4 py-2 text-sm font-semibold text-slate-500 hover:border-blue-300 hover:text-blue-600">
+                      <Plus size={14} /> Add Rule
+                    </button>
+                  )}
+                </div>
+              ) : (
+                <div className="mt-4">
+                  <label className="mb-1.5 block text-xs font-black uppercase tracking-wider text-slate-400">Target</label>
+                  <select disabled={readOnly} className="w-full rounded-xl border border-slate-300 px-4 py-2.5 text-sm font-semibold focus:border-[#2463eb] focus:outline-none disabled:bg-slate-50 disabled:text-slate-500" value={form.targetId || ''} onChange={(e) => setForm({ ...form, targetId: Number(e.target.value) })}>
+                    <option value="">Select {displayType(form.targetType).replace('_', ' ').toLowerCase()}...</option>
+                    {targetOptions.map((item) => <option key={item.id} value={item.id}>{item.name}</option>)}
+                  </select>
+                </div>
+              )}
+            </section>
+
+            <section className="rounded-2xl border border-slate-200 p-5">
+              <div className="mb-4 flex items-center gap-3">
+                <span className="flex h-9 w-9 items-center justify-center rounded-xl bg-gradient-to-br from-[#2463eb] to-[#1d4ed8] text-white shadow-md shadow-[#2463eb]/20">
+                  <ClipboardList size={17} />
+                </span>
+                <div>
+                  <span className="text-[11px] font-bold uppercase tracking-widest text-[#2463eb]">Step 6</span>
+                  <h4 className="font-black text-slate-900">Criteria Assignment</h4>
+                  <p className="text-xs text-slate-500">Select feedback criteria for each selected role.</p>
+                </div>
+              </div>
+              {activeRoles.length === 0 ? (
+                <p className="text-sm text-slate-500 italic">Select at least one feedback role first.</p>
+              ) : (
+                <div>
+                  <div className="mb-4 flex flex-wrap gap-2">
+                    {activeRoles.map(role => {
+                      const roleLabel = FEEDBACK_ROLE_OPTIONS.find(r => r.value === role)?.label ?? role
+                      const roleQuestions = form.questionsByRole?.[role] ?? []
+                      return (
+                        <button
+                          key={role}
+                          type="button"
+                          onClick={() => setActiveRoleTab(role)}
+                          className={`inline-flex items-center gap-2 rounded-xl px-3 py-2 text-xs font-bold transition-all ${
+                            activeRoleTab === role
+                              ? 'bg-blue-600 text-white shadow-sm'
+                              : 'bg-slate-100 text-slate-600 hover:bg-slate-200'
+                          }`}
+                        >
+                          {roleLabel}
+                          <span className={`rounded-full px-1.5 py-0.5 text-[10px] ${
+                            activeRoleTab === role ? 'bg-white/20 text-white' : 'bg-slate-200 text-slate-500'
+                          }`}>
+                            {roleQuestions.length}
+                          </span>
+                        </button>
+                      )
+                    })}
+                  </div>
+                  <div className="grid max-h-72 gap-2 overflow-auto rounded-xl border border-slate-100 bg-slate-50 p-3">
+                    {criteria.map((item) => {
+                      const roleQuestions = form.questionsByRole?.[activeRoleTab] ?? []
+                      return (
+                        <label key={item.id} className="flex items-start gap-3 rounded-xl bg-white px-3 py-2.5 text-sm shadow-sm ring-1 ring-slate-100">
+                          <input
+                            type="checkbox"
+                            disabled={readOnly}
+                            className="mt-1"
+                            checked={roleQuestions.includes(item.id)}
+                            onChange={(e) => {
+                              const newQuestionsByRole = { ...(form.questionsByRole ?? {}) }
+                              const current = newQuestionsByRole[activeRoleTab] ?? []
+                              newQuestionsByRole[activeRoleTab] = e.target.checked
+                                ? [...current, item.id]
+                                : current.filter((id) => id !== item.id)
+                              const allQuestionIds = [...new Set(Object.values(newQuestionsByRole).flat())]
+                              setForm({ ...form, questionsByRole: newQuestionsByRole, questionIds: allQuestionIds })
+                            }}
+                          />
+                          <span className="font-semibold text-slate-700">{item.name}</span>
+                        </label>
+                      )
+                    })}
+                  </div>
+                </div>
+              )}
             </section>
           </div>
 
@@ -966,9 +1484,40 @@ function TemplateModal({
                 <p className="mt-1 font-bold text-slate-900">{form.templateName || 'Untitled template'}</p>
               </div>
               <div>
+                <p className="text-xs font-black uppercase tracking-wider text-slate-400">Rating Scale</p>
+                <p className="mt-1 font-bold text-slate-900">1 - {form.maxRating ?? 5}</p>
+              </div>
+              <div>
+                <p className="text-xs font-black uppercase tracking-wider text-slate-400">Feedback Roles</p>
+                <div className="mt-1 flex flex-wrap gap-1">
+                  {(form.activeRoles ?? ['SELF', 'PEER', 'MANAGER', 'SUBORDINATE']).map(role => {
+                    const roleLabel = FEEDBACK_ROLE_OPTIONS.find(r => r.value === role)?.label ?? role
+                    return (
+                      <span key={role} className="inline-flex items-center rounded-full bg-blue-50 px-2 py-0.5 text-[10px] font-bold text-blue-700">
+                        {roleLabel}
+                      </span>
+                    )
+                  })}
+                </div>
+              </div>
+              <div>
                 <p className="text-xs font-black uppercase tracking-wider text-slate-400">Audience</p>
                 <p className="mt-1 font-semibold text-slate-700">{targetLabel(form.targetType)}</p>
-                <p className="text-xs text-slate-500">{selectedTarget?.name || 'No target selected'}</p>
+                {form.targetType === 'HYBRID' ? (
+                  <div className="mt-2 space-y-1">
+                    {(form.audienceRules ?? []).length === 0 ? (
+                      <p className="text-xs text-slate-500">No rules configured</p>
+                    ) : (
+                      (form.audienceRules ?? []).map((rule, i) => {
+                        const deptName = deptMap.get(rule.departmentId) ?? rule.departmentName ?? `Dept ${rule.departmentId}`
+                        const posName = rule.positionId ? (posMap.get(rule.positionId) ?? rule.positionName ?? `Pos ${rule.positionId}`) : 'All Positions'
+                        return <p key={i} className="text-xs text-slate-500">{deptName} / {posName}</p>
+                      })
+                    )}
+                  </div>
+                ) : (
+                  <p className="text-xs text-slate-500">{selectedTarget?.name || form.targetName || 'No target selected'}</p>
+                )}
               </div>
               <div>
                 <p className="text-xs font-black uppercase tracking-wider text-slate-400">Criteria</p>
@@ -993,6 +1542,262 @@ function TemplateModal({
         </div>
       </div>
     </div>
+  )
+}
+
+function CoverageTab() {
+  const { data: reviewCycles = [] } = useGetReviewCyclesQuery({ requiresEmployeeSubmission: true })
+  const [selectedReviewCycleId, setSelectedReviewCycleId] = useState<number | null>(null)
+  const { data: coverage, isLoading } = useGetFeedbackCoverageQuery(selectedReviewCycleId ?? undefined, { skip: !selectedReviewCycleId })
+  const [searchQuery, setSearchQuery] = useState('')
+  const [deptFilter, setDeptFilter] = useState('ALL')
+  const [posFilter, setPosFilter] = useState('ALL')
+  const [levelCodeFilter, setLevelCodeFilter] = useState('ALL')
+  const [pageIndex, setPageIndex] = useState(0)
+  const [pageSize, setPageSize] = useState(10)
+
+  useEffect(() => {
+    if (selectedReviewCycleId != null || reviewCycles.length === 0) return
+    const defaultCycle = pickDefaultCoverageReviewCycle(reviewCycles)
+    if (defaultCycle) setSelectedReviewCycleId(defaultCycle.id)
+  }, [reviewCycles, selectedReviewCycleId])
+
+  const departments = useMemo(() => {
+    if (!coverage) return new Map<string, string>()
+    const map = new Map<string, string>()
+    for (const row of coverage.uncoveredEmployees) {
+      if (row.departmentId != null && row.departmentName) {
+        map.set(String(row.departmentId), row.departmentName)
+      }
+    }
+    return map
+  }, [coverage])
+
+  const positions = useMemo(() => {
+    if (!coverage) return new Map<string, string>()
+    const map = new Map<string, string>()
+    for (const row of coverage.uncoveredEmployees) {
+      if (row.positionId != null && row.positionName) {
+        map.set(String(row.positionId), row.positionName)
+      }
+    }
+    return map
+  }, [coverage])
+
+  const levelCodes = useMemo(() => {
+    if (!coverage) return new Map<string, string>()
+    const map = new Map<string, string>()
+    for (const row of coverage.uncoveredEmployees) {
+      if (row.levelCodeId != null && row.levelCode) {
+        map.set(String(row.levelCodeId), row.levelCode)
+      }
+    }
+    return map
+  }, [coverage])
+
+  const filteredRows = useMemo(() => {
+    if (!coverage) return []
+    const query = searchQuery.trim().toLowerCase()
+    return coverage.uncoveredEmployees.filter((row) => {
+      if (deptFilter !== 'ALL' && String(row.departmentId) !== deptFilter) return false
+      if (posFilter !== 'ALL' && String(row.positionId) !== posFilter) return false
+      if (levelCodeFilter !== 'ALL' && String(row.levelCodeId) !== levelCodeFilter) return false
+      if (!query) return true
+      const text = [row.employeeName, row.employeeCode, row.departmentName, row.positionName, row.levelCode, row.missingReason].filter(Boolean).join(' ').toLowerCase()
+      return text.includes(query)
+    })
+  }, [coverage, searchQuery, deptFilter, posFilter, levelCodeFilter])
+
+  const pageCount = useMemo(
+    () => Math.max(1, Math.ceil(filteredRows.length / pageSize)),
+    [filteredRows.length, pageSize],
+  )
+
+  const paginatedRows = useMemo(() => {
+    const start = pageIndex * pageSize
+    return filteredRows.slice(start, start + pageSize)
+  }, [filteredRows, pageIndex, pageSize])
+
+  useEffect(() => {
+    setPageIndex(0)
+  }, [selectedReviewCycleId, searchQuery, deptFilter, posFilter, levelCodeFilter])
+
+  return (
+    <section className="space-y-6">
+      <ReviewCycleSelector
+        reviewCycles={reviewCycles}
+        selectedReviewCycleId={selectedReviewCycleId}
+        onChange={setSelectedReviewCycleId}
+        locked={false}
+      />
+      <div className="flex flex-col gap-5 rounded-2xl border border-slate-200 bg-white p-6 shadow-sm sm:flex-row sm:items-end sm:justify-between">
+        <div className="flex items-start gap-4">
+          <div className="flex h-12 w-12 items-center justify-center rounded-2xl bg-gradient-to-br from-emerald-500 to-teal-600 text-white shadow-lg shadow-emerald-500/20">
+            <CheckCircle2 size={22} />
+          </div>
+          <div>
+            <h2 className="text-2xl font-black tracking-tight text-slate-900">360 Feedback Coverage</h2>
+            <p className="mt-1 max-w-xl text-sm text-slate-500">Identify active employees with active accounts who do not have a matching 360 Feedback template for the selected review cycle.</p>
+          </div>
+        </div>
+      </div>
+
+      <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-5">
+        {[
+          ['Eligible Employees', coverage?.eligibleCount ?? 0, Users, 'bg-blue-50 text-blue-600'],
+          ['Covered', coverage?.coveredCount ?? 0, CheckCircle2, 'bg-emerald-50 text-emerald-600'],
+          ['Uncovered', coverage?.uncoveredCount ?? 0, AlertCircle, 'bg-red-50 text-red-600'],
+          ['No Template', coverage?.noTemplateCount ?? 0, X, 'bg-amber-50 text-amber-600'],
+          ['Coverage %', coverage?.coveragePercent ?? 0, FileText, 'bg-violet-50 text-violet-600'],
+        ].map(([label, value, Icon, tone]) => {
+          const StatIcon = Icon as typeof Users
+          const displayValue = label === 'Coverage %' ? `${(value as number).toFixed(1)}%` : (value as number)
+          return (
+            <div key={label as string} className="rounded-2xl border border-slate-200/80 bg-white p-5 shadow-sm transition hover:-translate-y-0.5 hover:shadow-md">
+              <div className="flex items-start justify-between">
+                <div>
+                  <p className="text-[11px] font-black uppercase tracking-widest text-slate-400">{label as string}</p>
+                  <p className="mt-2 text-3xl font-black text-slate-900">{displayValue as string | number}</p>
+                </div>
+                <div className={`flex h-10 w-10 items-center justify-center rounded-xl ${tone as string}`}>
+                  <StatIcon size={18} />
+                </div>
+              </div>
+            </div>
+          )
+        })}
+      </div>
+
+      {isLoading ? (
+        <div className="rounded-2xl border border-slate-200 bg-white p-10 text-center text-sm text-slate-500">Loading coverage...</div>
+      ) : !selectedReviewCycleId ? (
+        <div className="rounded-2xl border border-dashed border-slate-200 bg-white p-10 text-center text-sm text-slate-500">Select a review cycle to view coverage.</div>
+      ) : coverage && coverage.uncoveredCount === 0 ? (
+        <div className="rounded-2xl border border-dashed border-slate-200 bg-white p-10 text-center">
+          <CheckCircle2 size={40} className="mx-auto text-emerald-400" />
+          <p className="mt-4 text-lg font-black text-slate-700">All Eligible Employees Are Covered</p>
+          <p className="mt-1 text-sm text-slate-500">Every active employee with an active account has a matching 360 Feedback template for this cycle.</p>
+        </div>
+      ) : (
+        <div className="overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm">
+          <div className="flex flex-col gap-4 border-b border-slate-100 bg-gradient-to-r from-slate-50/80 to-white p-5 lg:flex-row lg:items-center lg:justify-between">
+            <div>
+              <h3 className="text-lg font-black text-slate-900">Uncovered Employees</h3>
+              <p className="text-xs text-slate-500">{filteredRows.length} of {coverage?.uncoveredCount ?? 0} uncovered employee{coverage?.uncoveredCount !== 1 ? 's' : ''}</p>
+            </div>
+            <div className="flex flex-col gap-3 sm:flex-row">
+              <div className="relative">
+                <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400" />
+                <input
+                  type="search"
+                  placeholder="Search employee..."
+                  value={searchQuery}
+                  onChange={(e) => setSearchQuery(e.target.value)}
+                  className="w-full rounded-xl border border-slate-200 bg-white py-2 pl-10 pr-3 text-sm focus:border-[#2463eb] focus:outline-none sm:w-56"
+                />
+              </div>
+              <select
+                value={deptFilter}
+                onChange={(e) => setDeptFilter(e.target.value)}
+                className="rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm font-semibold text-slate-600 focus:border-[#2463eb] focus:outline-none"
+              >
+                <option value="ALL">All Departments</option>
+                {Array.from(departments.entries()).map(([id, name]) => (
+                  <option key={id} value={id}>{name}</option>
+                ))}
+              </select>
+              <select
+                value={posFilter}
+                onChange={(e) => setPosFilter(e.target.value)}
+                className="rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm font-semibold text-slate-600 focus:border-[#2463eb] focus:outline-none"
+              >
+                <option value="ALL">All Positions</option>
+                {Array.from(positions.entries()).map(([id, name]) => (
+                  <option key={id} value={id}>{name}</option>
+                ))}
+              </select>
+              <select
+                value={levelCodeFilter}
+                onChange={(e) => setLevelCodeFilter(e.target.value)}
+                className="rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm font-semibold text-slate-600 focus:border-[#2463eb] focus:outline-none"
+              >
+                <option value="ALL">All Level Codes</option>
+                {Array.from(levelCodes.entries()).map(([id, code]) => (
+                  <option key={id} value={id}>{code}</option>
+                ))}
+              </select>
+            </div>
+          </div>
+          <div className="p-5">
+            <div className="overflow-hidden rounded-2xl border border-slate-200">
+              <div className="w-full overflow-x-auto">
+                <table className="w-full text-left">
+                  <colgroup>
+                    <col className="w-[22%]" />
+                    <col className="w-[8%]" />
+                    <col className="w-[18%]" />
+                    <col className="w-[16%]" />
+                    <col className="w-[12%]" />
+                    <col className="w-[24%]" />
+                  </colgroup>
+                  <thead className="bg-slate-50 text-[10px] font-black uppercase tracking-wider text-slate-400">
+                    <tr>
+                      <th className="px-4 py-4">Employee</th>
+                      <th className="px-4 py-4">Staff No</th>
+                      <th className="px-4 py-4">Department</th>
+                      <th className="px-4 py-4">Position</th>
+                      <th className="px-4 py-4">Level Code</th>
+                      <th className="px-4 py-4">Missing Reason</th>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-slate-100 bg-white">
+                    {filteredRows.length === 0 ? (
+                      <tr>
+                        <td colSpan={6} className="px-4 py-10 text-center text-sm text-slate-500">No uncovered employees match the current filters.</td>
+                      </tr>
+                    ) : (
+                      paginatedRows.map((row) => (
+                        <tr key={row.employeeId} className="transition hover:bg-slate-50">
+                          <td className="px-4 py-3">
+                            <p className="font-bold text-slate-900">{row.employeeName}</p>
+                          </td>
+                          <td className="px-4 py-3 text-sm font-semibold text-slate-600">{row.employeeCode ?? '-'}</td>
+                          <td className="px-4 py-3 text-sm text-slate-600">{row.departmentName ?? '-'}</td>
+                          <td className="px-4 py-3 text-sm text-slate-600">{row.positionName ?? '-'}</td>
+                          <td className="px-4 py-3 text-sm text-slate-600">{row.levelCode ?? '-'}</td>
+                          <td className="px-4 py-3">
+                            <span className="inline-flex items-center gap-1 rounded-full bg-red-50 px-2.5 py-1 text-[10px] font-black text-red-700">
+                              <X size={10} />
+                              {row.missingReason === 'NO_MATCHING_TEMPLATE' ? 'No Matching Template' : row.missingReason}
+                            </span>
+                          </td>
+                        </tr>
+                      ))
+                    )}
+                  </tbody>
+                </table>
+              </div>
+            </div>
+            <div className="border-t border-slate-100 px-5 py-4">
+              <PaginationBar
+                className="mt-0 rounded-none border-0 shadow-none"
+                pageIndex={pageIndex}
+                pageSize={pageSize}
+                pageCount={pageCount}
+                totalItems={filteredRows.length}
+                itemLabel="employees"
+                rowsPerPageOptions={[5, 10, 20, 50]}
+                onPageIndexChange={setPageIndex}
+                onPageSizeChange={(nextSize) => {
+                  setPageSize(nextSize)
+                  setPageIndex(0)
+                }}
+              />
+            </div>
+          </div>
+        </div>
+      )}
+    </section>
   )
 }
 

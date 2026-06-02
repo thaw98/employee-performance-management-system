@@ -7,4 +7,5 @@ public class FeedbackDetailDto {
     private String criteriaName;
     private Integer rating;
     private String comment;
+    private Integer maxRating;
 }

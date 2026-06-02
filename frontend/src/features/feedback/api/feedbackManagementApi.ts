@@ -1,17 +1,41 @@
 import { baseApi } from '../../../app/baseApi'
 
+export interface AudienceRule {
+  departmentId: number
+  departmentName?: string
+  positionId?: number | null
+  positionName?: string | null
+}
+
 export interface FeedbackTemplateConfig {
   id?: number
   templateName: string
-  targetType: 'DEPARTMENT' | 'LEVEL_CODE' | 'PERSON'
+  targetType: 'DEPARTMENT' | 'LEVEL_CODE' | 'PERSON' | 'POSITION' | 'HYBRID'
   targetId: number
   targetName?: string
   reviewCycleId?: number
   reviewCycleName?: string
   questionIds: number[]
+  audienceRules?: AudienceRule[]
   status: 'ACTIVE' | 'INACTIVE'
+  maxRating?: number
   createdDate?: string
   updatedDate?: string
+  activeRoles?: string[]
+  questionsByRole?: Record<string, number[]>
+}
+
+export interface FormConfigCriteria {
+  id: number
+  name: string
+  description: string
+}
+
+export interface FormConfigResponse {
+  templateId?: number
+  templateName?: string
+  maxRating: number
+  criteria: FormConfigCriteria[]
 }
 
 export interface FeedbackLimitConfig {
@@ -23,6 +47,60 @@ export interface FeedbackLimitConfig {
   maximumCount: number
   createdDate?: string
   updatedDate?: string
+}
+
+export interface FeedbackTemplateImportValidRow {
+  rowNumber: number
+  criteriaName: string
+  description: string | null
+  existingCriteriaId?: number | null
+}
+
+export interface FeedbackTemplateImportInvalidRow {
+  rowNumber: number
+  criteriaName: string | null
+  description: string | null
+  errors: string[]
+}
+
+export interface FeedbackTemplateImportValidationResponse {
+  totalRows: number
+  validRows: number
+  invalidRows: number
+  validRowData: FeedbackTemplateImportValidRow[]
+  invalidRowsData: FeedbackTemplateImportInvalidRow[]
+}
+
+export interface SelectedReviewCycleDto {
+  id: number
+  name: string
+  code: string
+  startDate: string
+  endDate: string
+  status: string
+}
+
+export interface FeedbackCoverageEmployeeRow {
+  employeeId: number
+  employeeCode: string | null
+  employeeName: string
+  departmentId: number | null
+  departmentName: string | null
+  positionId: number | null
+  positionName: string | null
+  levelCodeId: number | null
+  levelCode: string | null
+  missingReason: string
+}
+
+export interface FeedbackCoverage {
+  selectedReviewCycle: SelectedReviewCycleDto | null
+  eligibleCount: number
+  coveredCount: number
+  uncoveredCount: number
+  noTemplateCount: number
+  coveragePercent: number
+  uncoveredEmployees: FeedbackCoverageEmployeeRow[]
 }
 
 interface ApiResponse<T> {
@@ -75,6 +153,24 @@ export const feedbackManagementApi = baseApi.injectEndpoints({
       query: (id) => ({ url: `/feedback-management/limits/${id}`, method: 'DELETE' }),
       invalidatesTags: ['FeedbackManagement'],
     }),
+    validateFeedbackTemplateImport: builder.mutation<
+      { success: boolean; message: string; data: FeedbackTemplateImportValidationResponse },
+      FormData
+    >({
+      query: (body) => ({
+        url: '/feedback-management/templates/import/validate',
+        method: 'POST',
+        body,
+      }),
+    }),
+    getFeedbackCoverage: builder.query<FeedbackCoverage, number | void>({
+      query: (reviewCycleId) => ({
+        url: '/feedback-management/coverage',
+        params: reviewCycleId ? { reviewCycleId } : undefined,
+      }),
+      transformResponse: (response: ApiResponse<FeedbackCoverage>) => response.data,
+      providesTags: ['FeedbackManagement'],
+    }),
   }),
 })
 
@@ -85,4 +181,6 @@ export const {
   useGetFeedbackLimitsQuery,
   useSaveFeedbackLimitMutation,
   useDeleteFeedbackLimitMutation,
+  useValidateFeedbackTemplateImportMutation,
+  useGetFeedbackCoverageQuery,
 } = feedbackManagementApi

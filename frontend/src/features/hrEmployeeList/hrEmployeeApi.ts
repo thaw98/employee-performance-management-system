@@ -275,5 +275,6 @@ export const {
   useUpdateEmploymentStatusMutation,
   useGetEmploymentStatusHistoryQuery,
   useExportEmployeesMutation,
+  useLazyGetEmployeesQuery,
   useLazyGetEmployeeViewByIdQuery,
 } = hrEmployeeApi

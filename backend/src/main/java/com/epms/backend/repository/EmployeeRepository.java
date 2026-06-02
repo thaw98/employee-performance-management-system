@@ -57,6 +57,19 @@ public interface EmployeeRepository extends JpaRepository<Employee, Long>, JpaSp
 	 */
 	boolean existsByStaffNrcNoAndIdNot(String normalizedStaffNrcNo, Long excludeId);
 
+	@Query("""
+			select e
+			from Employee e
+			join fetch e.userAccount u
+			left join fetch e.department
+			left join fetch e.position
+			left join fetch e.position.levelCode
+			where e.employmentStatus = com.epms.backend.entity.EmployeeStatus.ACTIVE
+			  and u.active = true
+			order by e.employeeName asc
+			""")
+	java.util.List<Employee> findAllActiveWithUserAccount();
+
 	java.util.List<Employee> findByDepartmentId(Long departmentId);
 	
 	java.util.List<Employee> findByManagerId(Long managerId);

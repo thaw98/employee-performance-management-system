@@ -37,6 +37,7 @@ import java.util.List;
 import java.util.Locale;
 import java.util.Set;
 import java.util.Arrays;
+import java.util.Optional;
 import org.springframework.data.jpa.domain.Specification;
 import jakarta.persistence.criteria.Predicate;
 
@@ -93,6 +94,24 @@ public class PipService {
                 .toList();
     }
 
+    @Transactional(readOnly = true)
+    public Optional<Long> findOpenPipIdForEmployee(Long employeeId) {
+        if (employeeId == null) {
+            return Optional.empty();
+        }
+        Employee employee = employeeRepository.findById(employeeId).orElse(null);
+        if (employee == null) {
+            return Optional.empty();
+        }
+        return pipRepository.findByEmployeeAndStatusIn(employee,
+                List.of(STATUS_ACTIVE, STATUS_AUTO_CLOSED, STATUS_REOPEN_REQUESTED))
+                .stream()
+                .filter(pip -> !STATUS_CLOSED.equalsIgnoreCase(pip.getStatus())
+                        && !STATUS_DENIED.equalsIgnoreCase(pip.getStatus()))
+                .map(Pip::getId)
+                .findFirst();
+    }
+
     @Transactional
     public Pip createPip(PipCreateRequest request, User manager) {
         Employee managerEmployee = requireManagerEmployee(manager);
@@ -143,12 +162,7 @@ public class PipService {
             throw new RuntimeException(PIP_HOURS_LIMIT_MESSAGE);
         }
 
-        boolean hasOpenPip = pipRepository.findByEmployeeAndStatusIn(employee,
-                List.of(STATUS_ACTIVE, STATUS_AUTO_CLOSED, STATUS_REOPEN_REQUESTED))
-                .stream()
-                .anyMatch(pip -> !STATUS_CLOSED.equalsIgnoreCase(pip.getStatus())
-                        && !STATUS_DENIED.equalsIgnoreCase(pip.getStatus()));
-        if (hasOpenPip) {
+        if (findOpenPipIdForEmployee(employee.getId()).isPresent()) {
             throw new RuntimeException("An active PIP already exists for this employee");
         }
 

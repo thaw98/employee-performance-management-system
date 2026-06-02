@@ -1902,7 +1902,8 @@ export function AppraisalsPage() {
                 onClose={() => setShowImportModal(false)}
                 onImportSuccess={() => {
                     fetchCategories();
-                    toast.success('Categories and questions imported successfully!');
+                    fetchAllTemplates();
+                    toast.success('Appraisal template created successfully!');
                 }}
                 token={authToken}
             />

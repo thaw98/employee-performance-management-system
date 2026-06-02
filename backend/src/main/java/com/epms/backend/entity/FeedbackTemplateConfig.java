@@ -40,8 +40,20 @@ public class FeedbackTemplateConfig {
     @Column(columnDefinition = "text")
     private String questionIds;
 
+    @Column(name = "role_question_ids", columnDefinition = "text")
+    private String roleQuestionIds;
+
+    @Column(name = "active_roles", columnDefinition = "text")
+    private String activeRoles;
+
+    @Column(columnDefinition = "text")
+    private String audienceRulesJson;
+
     @Column(length = 20)
     private String status = "ACTIVE";
+
+    @Column(name = "max_rating", nullable = false)
+    private Integer maxRating = 5;
 
     private Instant createdDate;
     private Instant updatedDate;

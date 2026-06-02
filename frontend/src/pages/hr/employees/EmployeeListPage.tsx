@@ -23,6 +23,7 @@ import {
   useResendPasswordMutation,
   useUpdateEmploymentStatusMutation,
   useExportEmployeesMutation,
+  useLazyGetEmployeesQuery,
   useLazyGetEmployeeViewByIdQuery,
 } from '../../../features/hrEmployeeList/hrEmployeeApi'
 import ChangeStatusModal from '../../../features/hrEmployeeList/components/ChangeStatusModal'
@@ -32,6 +33,7 @@ import {
 } from '../../../features/hrCreateEmployee/hrEmployeeAccountApi'
 import { useAppSelector } from '../../../app/hooks'
 import { downloadBlobFile } from '../../../utils/downloadBlobFile'
+import { exportEmployeeListPdf } from '../../../utils/exportEmployeeListPdf'
 
 const API_BASE =
   (import.meta.env.VITE_API_BASE_URL as string)?.replace(/\/$/, '') ||
@@ -189,6 +191,8 @@ export default function EmployeeListPage() {
   const [resendPassword, { isLoading: isResending }] = useResendPasswordMutation()
   const [updateEmploymentStatus, { isLoading: isUpdatingStatus }] = useUpdateEmploymentStatusMutation()
   const [exportEmployees, { isLoading: isExporting }] = useExportEmployeesMutation()
+  const [triggerGetAllEmployees] = useLazyGetEmployeesQuery()
+  const [isExportingPdf, setIsExportingPdf] = useState(false)
   const [
     triggerGetEmployeeView,
     { data: viewData, isLoading: isViewLoading, isError: isViewError },
@@ -436,6 +440,54 @@ export default function EmployeeListPage() {
     }
   }, [exportEmployees])
 
+  const handleExportPdf = useCallback(async () => {
+    setIsExportingPdf(true)
+    try {
+      const result = await triggerGetAllEmployees({
+        page: 0,
+        size: 9999,
+        search,
+        departmentId: canFilterAllDepartments ? departmentId : undefined,
+        positionId: canFilterAllDepartments ? positionId : undefined,
+        employmentStatus,
+        sortBy: sorting[0]?.id || 'staffNo',
+        sortDir: sorting[0]?.desc ? 'desc' : 'asc',
+      }).unwrap()
+
+      const employees = result?.data?.content || []
+      if (employees.length === 0) {
+        toast.error('No employees found matching the current filters.')
+        return
+      }
+
+      await exportEmployeeListPdf({
+        employees,
+        search,
+        departmentId: canFilterAllDepartments ? departmentId : undefined,
+        positionId: canFilterAllDepartments ? positionId : undefined,
+        employmentStatus,
+        departments: deptData?.data ?? undefined,
+        positions: posData?.data ?? undefined,
+      })
+
+      toast.success('Employee list PDF exported successfully.')
+    } catch {
+      toast.error('Failed to export employee list PDF.')
+    } finally {
+      setIsExportingPdf(false)
+    }
+  }, [
+    triggerGetAllEmployees,
+    search,
+    canFilterAllDepartments,
+    departmentId,
+    positionId,
+    employmentStatus,
+    sorting,
+    deptData?.data,
+    posData?.data,
+  ])
+
   const handleImportSuccess = useCallback(() => {
     // RTK Query invalidation via commitEmployeeImport handles the refetch automatically
   }, [])
@@ -475,6 +527,20 @@ export default function EmployeeListPage() {
                   Import Employees
                 </button>
               </>
+            )}
+            {canExportEmployees && (
+              <button
+                onClick={handleExportPdf}
+                disabled={isExportingPdf}
+                className="flex items-center gap-2 px-4 py-2 rounded-xl border border-red-200 bg-white text-red-700 text-sm font-semibold hover:bg-red-50 disabled:opacity-60 transition shadow-sm"
+              >
+                {isExportingPdf ? (
+                  <span className="inline-block w-3.5 h-3.5 border-2 border-red-400 border-t-transparent rounded-full animate-spin" />
+                ) : (
+                  <i className="bi bi-file-earmark-pdf"></i>
+                )}
+                {isExportingPdf ? 'Exporting PDF...' : 'Export PDF'}
+              </button>
             )}
             {canExportEmployees && (
               <button

@@ -61,6 +61,13 @@ interface FeedbackDraft {
     }>;
 }
 
+interface FormConfig {
+    templateId?: number;
+    templateName?: string;
+    maxRating: number;
+    criteria: Criteria[];
+}
+
 interface FeedbackFormData {
     ratings: Record<string, number | undefined>;
     comments: Record<string, string>;
@@ -89,6 +96,8 @@ export function GiveFeedbackPage() {
     const [evaluatees, setEvaluatees] = useState<Evaluatee[]>([]);
     const [selectedEvaluatee, setSelectedEvaluatee] = useState<Evaluatee | null>(null);
     const [criteriaList, setCriteriaList] = useState<Criteria[]>([]);
+    const [formConfig, setFormConfig] = useState<FormConfig | null>(null);
+    const [maxRating, setMaxRating] = useState(5);
     const [role, setRole] = useState<FeedbackRole>('PEER');
     const [roleFeedbackCount, setRoleFeedbackCount] = useState(0);
     const [roleFeedbackLimit, setRoleFeedbackLimit] = useState(5);
@@ -117,7 +126,6 @@ export function GiveFeedbackPage() {
 
     useEffect(() => {
         fetchEvaluatorInfo();
-        fetchCriteria();
         fetchActiveCycle();
     }, []);
 
@@ -134,6 +142,7 @@ export function GiveFeedbackPage() {
                 return;
             }
             reset({ ratings: {}, comments: {}, additionalComments: '', anonymous: false });
+            fetchFormConfig(selectedEvaluatee.id, role);
             fetchDraft(selectedEvaluatee.id, role);
         }
     }, [selectedEvaluatee?.id, role, reset]);
@@ -152,11 +161,29 @@ export function GiveFeedbackPage() {
         }
     };
 
-    const fetchCriteria = async () => {
+    const fetchFormConfig = async (evaluateeId: number, targetRole: string) => {
+        try {
+            const resp = await axios.get(`/feedback-management/form-config?evaluateeId=${evaluateeId}&role=${targetRole}`);
+            if (resp.data.success) {
+                const config: FormConfig = resp.data.data;
+                setFormConfig(config);
+                setMaxRating(config.maxRating || 5);
+                setCriteriaList(config.criteria || []);
+            }
+        } catch (err) {
+            console.error('Form Config Load Error:', err);
+            fetchFallbackCriteria();
+        }
+    };
+
+    const fetchFallbackCriteria = async () => {
         try {
             const resp = await axios.get('/criteria');
             if (resp.data.success) {
-                setCriteriaList(resp.data.data.filter((c: any) => c.active));
+                const list = resp.data.data.filter((c: any) => c.active);
+                setCriteriaList(list);
+                setMaxRating(5);
+                setFormConfig(null);
             }
         } catch (err) {
             console.error('Criteria Load Error:', err);
@@ -328,6 +355,14 @@ export function GiveFeedbackPage() {
             return toast.error('Additional comments must be 1000 characters or fewer');
         }
 
+        const invalidRating = criteriaList.find(c => {
+            const rating = ratings[String(c.id)];
+            return rating != null && (rating < 1 || rating > maxRating);
+        });
+        if (invalidRating) {
+            return toast.error(`Ratings must be between 1 and ${maxRating}`);
+        }
+
         try {
             setIsSubmitting(true);
             const payload = {
@@ -412,7 +447,7 @@ export function GiveFeedbackPage() {
         const questionCount = criteriaList.length;
         if (questionCount === 0) return { score: 0, remark: 'N/A' };
         
-        const score = (totalPoints * 100) / (questionCount * 5);
+        const score = (totalPoints * 100) / (questionCount * maxRating);
         let remark = '';
         if (score >= 86) remark = 'Outstanding';
         else if (score >= 71) remark = 'Good';
@@ -725,6 +760,14 @@ export function GiveFeedbackPage() {
                 </div>
             ) : (
                 <div className="bg-white rounded-[32px] border border-slate-100 shadow-xl shadow-slate-200/50 overflow-hidden">
+                    {formConfig && (
+                        <div className="px-8 pt-6 pb-0">
+                            <div className="inline-flex items-center gap-2 rounded-2xl bg-blue-50 border border-blue-100 px-4 py-2 text-xs font-bold text-blue-700">
+                                <FileText size={14} />
+                                Template: {formConfig.templateName || 'Default'} &middot; Rating Scale: 1 - {maxRating}
+                            </div>
+                        </div>
+                    )}
                     <div className="p-8 space-y-10">
                         {criteriaList.map(criteria => (
                             <div key={criteria.id} className="space-y-6 animate-in slide-in-from-right-4 duration-300">
@@ -735,7 +778,7 @@ export function GiveFeedbackPage() {
                                 
                                 <div className="flex flex-wrap items-center gap-6">
                                     <div className="flex items-center gap-2 bg-slate-50 p-2 rounded-2xl border border-slate-100">
-                                        {[1, 2, 3, 4, 5].map(num => (
+                                        {Array.from({ length: maxRating }, (_, i) => i + 1).map(num => (
                                             <button
                                                 key={num}
                                                 onClick={() => setValue(`ratings.${criteria.id}`, num, { shouldDirty: true, shouldTouch: true })}

@@ -15,12 +15,12 @@ import {
   FileDown,
   FileSpreadsheet,
 } from 'lucide-react';
-import * as XLSX from 'xlsx-js-style';
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, PieChart, Pie, Cell } from 'recharts';
 import {
   useGetPerformanceSummariesQuery,
 } from '../../features/performanceReport/performanceReportApi';
 import { resolveProfilePictureSrc } from '../../utils/mediaUrl';
+import { exportPerformanceReportListExcel } from '../../utils/exportPerformanceReportListExcel';
 import { exportPerformanceReportListPdf } from '../../utils/exportPerformanceReportListPdf';
 
 /* ── Helpers ─────────────────────────────────────────── */
@@ -156,41 +156,6 @@ export const PerformanceReportPage: React.FC<PerformanceReportPageProps> = ({
 
   const totalPages = Math.ceil(filtered.length / pageSize) || 1;
 
-  const handleExportExcel = () => {
-    const rows = filtered.map((emp, index) => ({
-      No: index + 1,
-      Employee: emp.employeeName,
-      'Staff No': emp.staffNo || '-',
-      Department: emp.departmentName || '-',
-      Position: emp.positionName || '-',
-      'KPI Score': formatScore(emp.kpiScore),
-      'Appraisal Score': formatScore(emp.appraisalScore),
-      'Self-Assessment Score': formatScore(emp.selfAssessmentScore),
-      'Feedback Score': formatScore(emp.feedbackScore),
-      PIP: emp.hasActivePip ? 'Active' : 'None',
-      Overall: formatScore(emp.overallRating),
-      Eligibility: emp.promotionEligibility,
-    }));
-    const worksheet = XLSX.utils.json_to_sheet(rows);
-    worksheet['!cols'] = [
-      { wch: 6 },
-      { wch: 24 },
-      { wch: 14 },
-      { wch: 20 },
-      { wch: 20 },
-      { wch: 12 },
-      { wch: 16 },
-      { wch: 20 },
-      { wch: 16 },
-      { wch: 10 },
-      { wch: 10 },
-      { wch: 18 },
-    ];
-    const workbook = XLSX.utils.book_new();
-    XLSX.utils.book_append_sheet(workbook, worksheet, 'Performance Reports');
-    XLSX.writeFile(workbook, `performance-report-summary-${new Date().toISOString().slice(0, 10)}.xlsx`);
-  };
-
   const toggleSort = (field: 'overallRating' | 'employeeName') => {
     setCurrentPage(1);
     if (sortField === field) {
@@ -212,6 +177,24 @@ export const PerformanceReportPage: React.FC<PerformanceReportPageProps> = ({
         summaries.filter((s) => s.overallRating != null).length
       : 0;
   const activePipCount = summaries.filter((s) => s.hasActivePip).length;
+
+  const handleExportExcel = () => {
+    const filteredRated = filtered.filter((s) => s.overallRating != null);
+    const filteredAvgRating =
+      filteredRated.length > 0
+        ? filteredRated.reduce((sum, s) => sum + (s.overallRating ?? 0), 0) / filteredRated.length
+        : 0;
+
+    exportPerformanceReportListExcel(filtered, {
+      searchTerm,
+      filterDepartment,
+      filterEligibility,
+      totalInSystem: summaries.length,
+      avgRating: filteredAvgRating,
+      eligibleCount: filtered.filter((s) => s.promotionEligible).length,
+      activePipCount: filtered.filter((s) => s.hasActivePip).length,
+    });
+  };
 
   const deptPerformanceData = useMemo(() => {
     const deptTotals: Record<string, { totalRating: number; count: number }> = {};

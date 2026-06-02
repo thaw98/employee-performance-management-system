@@ -148,6 +148,7 @@ export interface PipWarning {
   negativeFeedbackCount: number;
   message: string;
   latestFeedbackId: number | null;
+  activePipId?: number | null;
 }
 
 export interface AuditLogEntry {

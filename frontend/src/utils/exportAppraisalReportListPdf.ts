@@ -106,6 +106,13 @@ export async function exportAppraisalReportListPdf(data: any[]): Promise<void> {
     margin: { left: pageMargin, right: pageMargin, bottom: 15 },
   });
 
+  const finalY =
+    (doc as jsPDF & { lastAutoTable?: { finalY?: number } }).lastAutoTable?.finalY ?? 32;
+  doc.setFont('helvetica', 'bold');
+  doc.setFontSize(9);
+  doc.setTextColor(...navy);
+  doc.text(`Total Employees: ${data.length}`, pageWidth - pageMargin, finalY + 8, { align: 'right' });
+
   // Loop through all pages
   const pageCount = doc.getNumberOfPages();
   for (let i = 1; i <= pageCount; i++) {

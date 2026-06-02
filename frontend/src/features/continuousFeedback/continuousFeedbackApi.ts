@@ -17,6 +17,7 @@ import type {
   FollowUpMeetingResponse,
   PipWarning,
 } from './types';
+import type { Pip } from '../pip/pipApi';
 
 const BASE_URL = '/continuous-feedback';
 
@@ -85,7 +86,7 @@ export const continuousFeedbackApi = {
 
   createPipFromFeedback: (feedbackId: number, triggerReason?: string) =>
     axiosInstance
-      .post<ApiResponse<unknown>>(`${BASE_URL}/${feedbackId}/create-pip`, { triggerReason })
+      .post<ApiResponse<Pip>>(`${BASE_URL}/${feedbackId}/create-pip`, { triggerReason })
       .then((r) => r.data),
 
   createMeetingFromFeedback: (feedbackId: number, data?: { scheduledTime?: string; durationMinutes?: number; description?: string }) =>

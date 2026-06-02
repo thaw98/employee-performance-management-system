@@ -1,30 +1,54 @@
 package com.epms.backend.service;
 
+import com.epms.backend.dto.feedbackmanagement.FeedbackCoverageDto;
+import com.epms.backend.dto.feedbackmanagement.FeedbackCoverageDto.CoverageEmployeeRow;
+import com.epms.backend.dto.feedbackmanagement.FeedbackCoverageDto.SelectedReviewCycleDto;
 import com.epms.backend.dto.feedbackmanagement.FeedbackLimitConfigDto;
 import com.epms.backend.dto.feedbackmanagement.FeedbackTemplateConfigDto;
+import com.epms.backend.dto.feedbackmanagement.FeedbackTemplateConfigDto.AudienceRuleDto;
+import com.epms.backend.dto.feedbackmanagement.FormConfigResponse;
+import com.epms.backend.entity.Criteria;
+import com.epms.backend.entity.Employee;
+import com.epms.backend.entity.EmployeeStatus;
 import com.epms.backend.entity.FeedbackLimitConfig;
 import com.epms.backend.entity.FeedbackTemplateConfig;
 import com.epms.backend.entity.ReviewCycle;
+import com.epms.backend.repository.CriteriaRepository;
+import com.epms.backend.repository.EmployeeRepository;
 import com.epms.backend.repository.FeedbackLimitConfigRepository;
 import com.epms.backend.repository.FeedbackTemplateConfigRepository;
 import com.epms.backend.repository.ReviewCycleRepository;
+import com.fasterxml.jackson.core.JsonProcessingException;
+import com.fasterxml.jackson.core.type.TypeReference;
+import com.fasterxml.jackson.databind.ObjectMapper;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.time.Instant;
 import java.time.LocalDate;
+import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.Collections;
+import java.util.Comparator;
+import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Locale;
+import java.util.Map;
+import java.util.Objects;
+import java.util.Set;
 import java.util.stream.Collectors;
 
 @Service
 @RequiredArgsConstructor
 public class FeedbackManagementService {
+    private static final ObjectMapper OBJECT_MAPPER = new ObjectMapper();
+
     private final FeedbackTemplateConfigRepository templateRepository;
     private final FeedbackLimitConfigRepository limitRepository;
     private final ReviewCycleRepository reviewCycleRepository;
+    private final CriteriaRepository criteriaRepository;
+    private final EmployeeRepository employeeRepository;
 
     public List<FeedbackTemplateConfigDto> getTemplates(Long reviewCycleId) {
         boolean activeCycle = isActiveCycle(reviewCycleId);
@@ -47,15 +71,25 @@ public class FeedbackManagementService {
         if (entity.getCreatedDate() == null) {
             entity.setCreatedDate(Instant.now());
         }
+        String targetType = normalizeTargetType(request.getTargetType());
         entity.setTemplateName(request.getTemplateName().trim());
-        entity.setTargetType(normalizeTargetType(request.getTargetType()));
-        entity.setTargetId(request.getTargetId());
+        entity.setTargetType(targetType);
+        entity.setTargetId("HYBRID".equals(targetType) ? 0L : request.getTargetId());
         entity.setTargetName(request.getTargetName() == null ? "" : request.getTargetName().trim());
         entity.setReviewCycleId(cycle.getId());
         entity.setReviewCycleName(cycle.getName());
         entity.setQuestionIds(toQuestionIdString(request.getQuestionIds()));
         entity.setStatus(normalizeStatus(request.getStatus()));
+        entity.setAudienceRulesJson(serializeAudienceRules(request.getAudienceRules()));
+        entity.setMaxRating(request.getMaxRating() != null ? request.getMaxRating() : 5);
         entity.setUpdatedDate(Instant.now());
+
+        List<String> roles = request.getActiveRoles() != null && !request.getActiveRoles().isEmpty()
+                ? request.getActiveRoles()
+                : List.of("SELF", "PEER", "MANAGER", "SUBORDINATE");
+        entity.setActiveRoles(String.join(",", roles));
+        entity.setRoleQuestionIds(serializeQuestionsByRole(request.getQuestionsByRole()));
+
         return toTemplateDto(templateRepository.save(entity));
     }
 
@@ -112,16 +146,54 @@ public class FeedbackManagementService {
         if (request == null || request.getTemplateName() == null || request.getTemplateName().trim().isEmpty()) {
             throw new RuntimeException("Template name is required");
         }
-        normalizeTargetType(request.getTargetType());
-        if (request.getTargetId() == null) {
-            throw new RuntimeException("Template target is required");
-        }
-        if (request.getQuestionIds() == null || request.getQuestionIds().isEmpty()) {
-            throw new RuntimeException("At least one question is required");
+        String targetType = normalizeTargetType(request.getTargetType());
+        if ("HYBRID".equals(targetType)) {
+            if (request.getAudienceRules() == null || request.getAudienceRules().isEmpty()) {
+                throw new RuntimeException("At least one audience rule is required for Hybrid target");
+            }
+            boolean allValid = request.getAudienceRules().stream()
+                    .allMatch(rule -> rule.getDepartmentId() != null && rule.getDepartmentId() > 0);
+            if (!allValid) {
+                throw new RuntimeException("Each Hybrid audience rule must have a department selected");
+            }
+        } else {
+            if (request.getTargetId() == null) {
+                throw new RuntimeException("Template target is required");
+            }
         }
         if (request.getReviewCycleId() == null) {
             throw new RuntimeException("Review cycle is required");
         }
+        Integer maxRating = request.getMaxRating();
+        if (maxRating == null || maxRating < 2 || maxRating > 10) {
+            throw new RuntimeException("Rating scale must be between 2 and 10");
+        }
+
+        List<String> activeRoles = request.getActiveRoles();
+        if (activeRoles == null || activeRoles.isEmpty()) {
+            throw new RuntimeException("At least one feedback role must be selected");
+        }
+        Map<String, List<Long>> questionsByRole = request.getQuestionsByRole();
+        Set<String> validRoles = Set.of("SELF", "PEER", "MANAGER", "SUBORDINATE");
+        for (String role : activeRoles) {
+            if (!validRoles.contains(role)) {
+                throw new RuntimeException("Invalid feedback role: " + role);
+            }
+            List<Long> roleQuestions = questionsByRole != null ? questionsByRole.get(role) : null;
+            if (roleQuestions == null || roleQuestions.isEmpty()) {
+                throw new RuntimeException("At least one question is required for " + roleLabel(role));
+            }
+        }
+    }
+
+    private String roleLabel(String role) {
+        return switch (role) {
+            case "SELF" -> "Self-evaluate";
+            case "PEER" -> "Peers";
+            case "MANAGER" -> "Manager";
+            case "SUBORDINATE" -> "Subordinate";
+            default -> role;
+        };
     }
 
     private void validateLimit(FeedbackLimitConfigDto request) {
@@ -180,8 +252,8 @@ public class FeedbackManagementService {
 
     private String normalizeTargetType(String value) {
         String normalized = value == null ? "" : value.trim().toUpperCase(Locale.ROOT);
-        if (!List.of("DEPARTMENT", "LEVEL_CODE", "PERSON").contains(normalized)) {
-            throw new RuntimeException("Target type must be DEPARTMENT, LEVEL_CODE, or PERSON");
+        if (!List.of("DEPARTMENT", "LEVEL_CODE", "PERSON", "POSITION", "HYBRID").contains(normalized)) {
+            throw new RuntimeException("Target type must be DEPARTMENT, LEVEL_CODE, PERSON, POSITION, or HYBRID");
         }
         return normalized;
     }
@@ -228,10 +300,89 @@ public class FeedbackManagementService {
         dto.setReviewCycleId(entity.getReviewCycleId());
         dto.setReviewCycleName(entity.getReviewCycleName());
         dto.setQuestionIds(parseQuestionIds(entity.getQuestionIds()));
+        dto.setAudienceRules(deserializeAudienceRules(entity.getAudienceRulesJson()));
         dto.setStatus(entity.getStatus());
+        dto.setMaxRating(entity.getMaxRating() != null ? entity.getMaxRating() : 5);
         dto.setCreatedDate(entity.getCreatedDate());
         dto.setUpdatedDate(entity.getUpdatedDate());
+
+        List<String> roles = parseActiveRoles(entity.getActiveRoles());
+        dto.setActiveRoles(roles);
+        dto.setQuestionsByRole(deserializeQuestionsByRole(entity.getRoleQuestionIds(), entity.getQuestionIds(), roles));
+
         return dto;
+    }
+
+    private List<String> parseActiveRoles(String value) {
+        if (value == null || value.isBlank()) {
+            return List.of("SELF", "PEER", "MANAGER", "SUBORDINATE");
+        }
+        return Arrays.stream(value.split(","))
+                .map(String::trim)
+                .filter(s -> !s.isEmpty())
+                .collect(Collectors.toList());
+    }
+
+    private String serializeQuestionsByRole(Map<String, List<Long>> questionsByRole) {
+        if (questionsByRole == null || questionsByRole.isEmpty()) {
+            return null;
+        }
+        try {
+            return OBJECT_MAPPER.writeValueAsString(questionsByRole);
+        } catch (JsonProcessingException e) {
+            throw new RuntimeException("Failed to serialize questions by role", e);
+        }
+    }
+
+    private Map<String, List<Long>> deserializeQuestionsByRole(String json, String globalQuestionIds, List<String> activeRoles) {
+        if (json != null && !json.isBlank()) {
+            try {
+                return OBJECT_MAPPER.readValue(json, new TypeReference<Map<String, List<Long>>>() {});
+            } catch (JsonProcessingException e) {
+                return buildDefaultQuestionsByRole(globalQuestionIds, activeRoles);
+            }
+        }
+        return buildDefaultQuestionsByRole(globalQuestionIds, activeRoles);
+    }
+
+    private Map<String, List<Long>> buildDefaultQuestionsByRole(String globalQuestionIds, List<String> activeRoles) {
+        List<Long> ids = parseQuestionIds(globalQuestionIds);
+        Map<String, List<Long>> map = new LinkedHashMap<>();
+        for (String role : activeRoles) {
+            map.put(role, new ArrayList<>(ids));
+        }
+        return map;
+    }
+
+    private List<Long> getRoleQuestions(FeedbackTemplateConfig entity, String role) {
+        Map<String, List<Long>> map = deserializeQuestionsByRole(entity.getRoleQuestionIds(), entity.getQuestionIds(), List.of(role));
+        return map.getOrDefault(role, parseQuestionIds(entity.getQuestionIds()));
+    }
+
+    private String serializeAudienceRules(List<AudienceRuleDto> rules) {
+        if (rules == null || rules.isEmpty()) {
+            return null;
+        }
+        List<AudienceRuleDto> deduplicated = rules.stream()
+                .filter(Objects::nonNull)
+                .distinct()
+                .toList();
+        try {
+            return OBJECT_MAPPER.writeValueAsString(deduplicated);
+        } catch (JsonProcessingException e) {
+            throw new RuntimeException("Failed to serialize audience rules", e);
+        }
+    }
+
+    private List<AudienceRuleDto> deserializeAudienceRules(String json) {
+        if (json == null || json.isBlank()) {
+            return null;
+        }
+        try {
+            return OBJECT_MAPPER.readValue(json, new TypeReference<List<AudienceRuleDto>>() {});
+        } catch (JsonProcessingException e) {
+            return Collections.emptyList();
+        }
     }
 
     private FeedbackLimitConfigDto toLimitDto(FeedbackLimitConfig entity) {
@@ -246,4 +397,234 @@ public class FeedbackManagementService {
         dto.setUpdatedDate(entity.getUpdatedDate());
         return dto;
     }
+
+    public FormConfigResponse getFormConfig(Long evaluateeId, String role) {
+        Employee evaluatee = employeeRepository.findById(evaluateeId)
+                .orElseThrow(() -> new RuntimeException("Evaluatee not found"));
+
+        List<ReviewCycle> activeCycles = reviewCycleRepository
+                .findByStartDateLessThanEqualAndEndDateGreaterThanEqualOrderByRequiresEmployeeSubmissionDescStartDateDesc(
+                        LocalDate.now(), LocalDate.now());
+        ReviewCycle activeCycle = activeCycles.stream()
+                .filter(ReviewCycle::isRequiresEmployeeSubmission)
+                .findFirst()
+                .orElse(null);
+
+        if (activeCycle == null) {
+            List<Criteria> allCriteria = criteriaRepository.findAll().stream()
+                    .filter(c -> Boolean.TRUE.equals(c.getActive()))
+                    .collect(Collectors.toList());
+            return buildFallbackFormConfig(allCriteria);
+        }
+
+        List<FeedbackTemplateConfig> templates = templateRepository
+                .findByReviewCycleIdOrReviewCycleIdIsNull(activeCycle.getId())
+                .stream()
+                .filter(t -> "ACTIVE".equals(t.getStatus()))
+                .collect(Collectors.toList());
+
+        if (templates.isEmpty()) {
+            List<Criteria> allCriteria = criteriaRepository.findAll().stream()
+                    .filter(c -> Boolean.TRUE.equals(c.getActive()))
+                    .collect(Collectors.toList());
+            return buildFallbackFormConfig(allCriteria);
+        }
+
+        Long evaluateeDeptId = evaluatee.getDepartment() != null ? evaluatee.getDepartment().getId() : null;
+        Long evaluateePosId = evaluatee.getPosition() != null ? evaluatee.getPosition().getId() : null;
+        Long evaluateeLevelCodeId = evaluatee.getPosition() != null && evaluatee.getPosition().getLevelCode() != null
+                ? evaluatee.getPosition().getLevelCode().getId()
+                : null;
+
+        List<MatchedTemplate> scored = new ArrayList<>();
+
+        for (FeedbackTemplateConfig template : templates) {
+            String targetType = template.getTargetType();
+            int priority = -1;
+
+            if ("PERSON".equals(targetType) && template.getTargetId().equals(evaluatee.getId())) {
+                priority = 5;
+            } else if ("HYBRID".equals(targetType)) {
+                List<AudienceRuleDto> rules = deserializeAudienceRules(template.getAudienceRulesJson());
+                if (rules != null && evaluateeDeptId != null) {
+                    boolean matches = rules.stream().anyMatch(rule ->
+                            rule.getDepartmentId().equals(evaluateeDeptId)
+                            && (rule.getPositionId() == null || rule.getPositionId().equals(evaluateePosId)));
+                    if (matches) priority = 4;
+                }
+            } else if ("POSITION".equals(targetType) && evaluateePosId != null
+                    && template.getTargetId().equals(evaluateePosId)) {
+                priority = 3;
+            } else if ("LEVEL_CODE".equals(targetType) && evaluateeLevelCodeId != null
+                    && template.getTargetId().equals(evaluateeLevelCodeId)) {
+                priority = 2;
+            } else if ("DEPARTMENT".equals(targetType) && evaluateeDeptId != null
+                    && template.getTargetId().equals(evaluateeDeptId)) {
+                priority = 1;
+            }
+
+            if (priority >= 0) {
+                scored.add(new MatchedTemplate(template, priority));
+            }
+        }
+
+        scored.sort(Comparator.comparingInt(MatchedTemplate::priority).reversed());
+
+        FeedbackTemplateConfig best = scored.isEmpty() ? null : scored.get(0).template;
+
+        if (best == null) {
+            List<Criteria> allCriteria = criteriaRepository.findAll().stream()
+                    .filter(c -> Boolean.TRUE.equals(c.getActive()))
+                    .collect(Collectors.toList());
+            return buildFallbackFormConfig(allCriteria);
+        }
+
+        List<String> templateRoles = parseActiveRoles(best.getActiveRoles());
+        String normalizedRole = role.toUpperCase(Locale.ROOT).trim();
+        if (!templateRoles.contains(normalizedRole)) {
+            List<Criteria> allCriteria = criteriaRepository.findAll().stream()
+                    .filter(c -> Boolean.TRUE.equals(c.getActive()))
+                    .collect(Collectors.toList());
+            return buildFallbackFormConfig(allCriteria);
+        }
+
+        return buildFormConfigFromTemplate(best, normalizedRole);
+    }
+
+    public FeedbackCoverageDto getCoverage(Long reviewCycleId) {
+        if (reviewCycleId == null) {
+            return emptyCoverage(null);
+        }
+
+        ReviewCycle cycle = reviewCycleRepository.findById(reviewCycleId).orElse(null);
+        if (cycle == null) {
+            return emptyCoverage(null);
+        }
+
+        List<FeedbackTemplateConfig> templates = templateRepository
+                .findByReviewCycleIdOrReviewCycleIdIsNull(reviewCycleId)
+                .stream()
+                .filter(t -> "ACTIVE".equals(t.getStatus()))
+                .collect(Collectors.toList());
+
+        List<Employee> eligibleEmployees = employeeRepository.findAllActiveWithUserAccount();
+
+        List<CoverageEmployeeRow> uncoveredRows = new ArrayList<>();
+        int coveredCount = 0;
+
+        for (Employee emp : eligibleEmployees) {
+            String missingReason = findMissingReason(emp, templates);
+            if (missingReason == null) {
+                coveredCount++;
+            } else {
+                Long deptId = emp.getDepartment() != null ? emp.getDepartment().getId() : null;
+                String deptName = emp.getDepartment() != null ? emp.getDepartment().getName() : null;
+                Long posId = emp.getPosition() != null ? emp.getPosition().getId() : null;
+                String posName = emp.getPosition() != null ? emp.getPosition().getName() : null;
+                Long levelCodeId = emp.getPosition() != null && emp.getPosition().getLevelCode() != null
+                        ? emp.getPosition().getLevelCode().getId() : null;
+                String levelCode = emp.getPosition() != null && emp.getPosition().getLevelCode() != null
+                        ? emp.getPosition().getLevelCode().getCode() : null;
+
+                uncoveredRows.add(new CoverageEmployeeRow(
+                        emp.getId(), emp.getEmployeeId(), emp.getEmployeeName(),
+                        deptId, deptName, posId, posName, levelCodeId, levelCode, missingReason));
+            }
+        }
+
+        int eligibleCount = eligibleEmployees.size();
+        int uncoveredCount = uncoveredRows.size();
+        int noTemplateCount = (int) uncoveredRows.stream()
+                .filter(r -> "NO_MATCHING_TEMPLATE".equals(r.missingReason()))
+                .count();
+        double coveragePercent = eligibleCount > 0
+                ? Math.round((double) coveredCount / eligibleCount * 10000.0) / 100.0
+                : 0.0;
+
+        SelectedReviewCycleDto cycleInfo = new SelectedReviewCycleDto(
+                cycle.getId(), cycle.getName(), cycle.getCode(),
+                cycle.getStartDate().toString(), cycle.getEndDate().toString(),
+                statusOf(cycle));
+
+        return new FeedbackCoverageDto(cycleInfo, eligibleCount, coveredCount,
+                uncoveredCount, noTemplateCount, coveragePercent, uncoveredRows);
+    }
+
+    private String findMissingReason(Employee emp, List<FeedbackTemplateConfig> templates) {
+        if (templates.isEmpty()) {
+            return "NO_MATCHING_TEMPLATE";
+        }
+
+        Long deptId = emp.getDepartment() != null ? emp.getDepartment().getId() : null;
+        Long posId = emp.getPosition() != null ? emp.getPosition().getId() : null;
+        Long levelCodeId = emp.getPosition() != null && emp.getPosition().getLevelCode() != null
+                ? emp.getPosition().getLevelCode().getId() : null;
+
+        for (FeedbackTemplateConfig template : templates) {
+            String targetType = template.getTargetType();
+
+            if ("PERSON".equals(targetType) && template.getTargetId().equals(emp.getId())) {
+                return null;
+            } else if ("HYBRID".equals(targetType)) {
+                List<AudienceRuleDto> rules = deserializeAudienceRules(template.getAudienceRulesJson());
+                if (rules != null && deptId != null) {
+                    boolean matches = rules.stream().anyMatch(rule ->
+                            rule.getDepartmentId().equals(deptId)
+                            && (rule.getPositionId() == null || rule.getPositionId().equals(posId)));
+                    if (matches) return null;
+                }
+            } else if ("POSITION".equals(targetType) && posId != null
+                    && template.getTargetId().equals(posId)) {
+                return null;
+            } else if ("LEVEL_CODE".equals(targetType) && levelCodeId != null
+                    && template.getTargetId().equals(levelCodeId)) {
+                return null;
+            } else if ("DEPARTMENT".equals(targetType) && deptId != null
+                    && template.getTargetId().equals(deptId)) {
+                return null;
+            }
+        }
+
+        return "NO_MATCHING_TEMPLATE";
+    }
+
+    private FeedbackCoverageDto emptyCoverage(SelectedReviewCycleDto cycleInfo) {
+        return new FeedbackCoverageDto(cycleInfo, 0, 0, 0, 0, 0.0, List.of());
+    }
+
+    private FormConfigResponse buildFormConfigFromTemplate(FeedbackTemplateConfig template, String role) {
+        List<Long> questionIds = getRoleQuestions(template, role);
+        List<Criteria> criteriaEntities = criteriaRepository.findAllById(questionIds);
+        List<FormConfigResponse.CriteriaDto> criteriaDtos = criteriaEntities.stream()
+                .map(c -> FormConfigResponse.CriteriaDto.builder()
+                        .id(c.getId())
+                        .name(c.getName())
+                        .description(c.getDescription())
+                        .build())
+                .collect(Collectors.toList());
+        return FormConfigResponse.builder()
+                .templateId(template.getId())
+                .templateName(template.getTemplateName())
+                .maxRating(template.getMaxRating() != null ? template.getMaxRating() : 5)
+                .criteria(criteriaDtos)
+                .build();
+    }
+
+    private FormConfigResponse buildFallbackFormConfig(List<Criteria> allCriteria) {
+        List<FormConfigResponse.CriteriaDto> criteriaDtos = allCriteria.stream()
+                .map(c -> FormConfigResponse.CriteriaDto.builder()
+                        .id(c.getId())
+                        .name(c.getName())
+                        .description(c.getDescription())
+                        .build())
+                .collect(Collectors.toList());
+        return FormConfigResponse.builder()
+                .templateId(null)
+                .templateName("Default (All Active Criteria)")
+                .maxRating(5)
+                .criteria(criteriaDtos)
+                .build();
+    }
+
+    private record MatchedTemplate(FeedbackTemplateConfig template, int priority) {}
 }

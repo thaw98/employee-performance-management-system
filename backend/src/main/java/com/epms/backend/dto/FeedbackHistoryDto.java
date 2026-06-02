@@ -27,4 +27,5 @@ public class FeedbackHistoryDto {
     private Long reviewCycleId;
     private String reviewCycleName;
     private LocalDate reviewCycleStartDate;
+    private Integer maxRating;
 }
