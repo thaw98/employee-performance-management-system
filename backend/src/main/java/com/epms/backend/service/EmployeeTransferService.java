@@ -547,6 +547,21 @@ public class EmployeeTransferService {
             .build();
     }
 
-    private record HomePlacement(Department department, Position position) {
+    private static final class HomePlacement {
+        private final Department department;
+        private final Position position;
+
+        private HomePlacement(Department department, Position position) {
+            this.department = department;
+            this.position = position;
+        }
+
+        private Department department() {
+            return department;
+        }
+
+        private Position position() {
+            return position;
+        }
     }
 }

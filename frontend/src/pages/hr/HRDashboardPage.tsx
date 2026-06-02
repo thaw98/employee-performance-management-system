@@ -5,7 +5,6 @@ import {
   Building2,
   CalendarClock,
   ClipboardCheck,
-  Plus,
   Users,
   type LucideIcon,
 } from 'lucide-react'
@@ -187,7 +186,7 @@ export function HRDashboardPage() {
       setActivityError('')
 
       const showMeetings = canViewMeetings()
-      const requests: Promise<unknown>[] = [
+      const requests: Promise<any>[] = [
         axios.get('/hr/dashboard'),
         axios.get('/notifications?status=all&page=0&size=10'),
       ]
@@ -412,7 +411,7 @@ export function HRDashboardPage() {
               <Link key={activity.id} to="/hr/notifications" className="block rounded-2xl border border-blue-50 bg-blue-50/50 p-4 transition hover:bg-blue-50 dark:border-slate-800 dark:bg-slate-800">
                 <div className="flex items-start justify-between gap-3">
                   <div className="min-w-0">
-                    <p className="break-words text-sm font-black text-slate-950 dark:text-white">{activity.title}</p>
+                    <p className="wrap-break-word text-sm font-black text-slate-950 dark:text-white">{activity.title}</p>
                     <p className="mt-1 line-clamp-2 text-xs font-semibold leading-5 text-slate-500">{activity.message}</p>
                   </div>
                   <span className={`shrink-0 rounded-full px-2 py-1 text-[10px] font-black uppercase tracking-widest ${activity.read ? 'bg-slate-100 text-slate-500' : 'bg-blue-600 text-white'}`}>
