@@ -99,17 +99,17 @@ const cycleDateRange = (cycle?: ReviewCycleDto | null) => `${cycleDate(cycle?.st
 const isCurrentCycle = (cycle?: ReviewCycleDto | null) => Boolean(cycle && (cycle.isActive || cycle.status?.toUpperCase() === 'ACTIVE'))
 const cycleSearchText = (cycle: ReviewCycleDto) =>
   `${cycle.cycleType ?? ''} ${cycle.name ?? ''} ${cycle.code ?? ''}`.toUpperCase()
-const isQ2Cycle = (cycle: ReviewCycleDto) => /\bQ2\b/.test(cycleSearchText(cycle))
+const isQ1Cycle = (cycle: ReviewCycleDto) => /\bQ1\b/.test(cycleSearchText(cycle))
 
 function pickDefaultCoverageReviewCycle(cycles: ReviewCycleDto[]): ReviewCycleDto | undefined {
   if (cycles.length === 0) return undefined
-  const q2Cycles = cycles.filter(isQ2Cycle)
-  if (q2Cycles.length > 0) {
-    const activeQ2 = q2Cycles.find((cycle) => cycle.isActive || cycle.status?.toUpperCase() === 'ACTIVE')
-    if (activeQ2) return activeQ2
-    const upcomingQ2 = q2Cycles.find((cycle) => cycle.status?.toUpperCase() === 'UPCOMING')
-    if (upcomingQ2) return upcomingQ2
-    return [...q2Cycles].sort((a, b) => b.startDate.localeCompare(a.startDate))[0]
+  const q1Cycles = cycles.filter(isQ1Cycle)
+  if (q1Cycles.length > 0) {
+    const activeQ1 = q1Cycles.find((cycle) => cycle.isActive || cycle.status?.toUpperCase() === 'ACTIVE')
+    if (activeQ1) return activeQ1
+    const upcomingQ1 = q1Cycles.find((cycle) => cycle.status?.toUpperCase() === 'UPCOMING')
+    if (upcomingQ1) return upcomingQ1
+    return [...q1Cycles].sort((a, b) => b.startDate.localeCompare(a.startDate))[0]
   }
   return cycles.find((cycle) => cycle.isActive || cycle.status?.toUpperCase() === 'ACTIVE') ?? cycles[0]
 }
