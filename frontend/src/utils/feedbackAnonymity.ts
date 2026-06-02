@@ -12,5 +12,7 @@ export const isReceivedAnonymous = (item: AnonymousCheckable): boolean =>
   item.direction === 'RECEIVED' &&
   (Boolean(item.anonymous) || item.evaluatorName?.trim().toLowerCase() === 'anonymous');
 
-export const feedbackRoleDisplay = (item: RoleDisplayable): string =>
-  isReceivedAnonymous(item) ? '-' : (item.role || '-');
+export const feedbackRoleDisplay = (item: RoleDisplayable): string => {
+  if (item.role === 'SELF') return 'Self';
+  return isReceivedAnonymous(item) ? '-' : (item.role || '-');
+};

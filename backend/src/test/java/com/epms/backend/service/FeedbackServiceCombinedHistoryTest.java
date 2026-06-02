@@ -37,6 +37,40 @@ import static org.mockito.Mockito.when;
 class FeedbackServiceCombinedHistoryTest {
 
     @Test
+    void combinedHistoryMapsSelfFeedbackRow() {
+        FeedbackRepository feedbackRepository = mock(FeedbackRepository.class);
+        FeedbackService service = new FeedbackService(
+                feedbackRepository,
+                mock(FeedbackDraftRepository.class),
+                mock(EmployeeRepository.class),
+                mock(ReportingManagerResolver.class),
+                mock(CriteriaRepository.class),
+                mock(UserRepository.class),
+                mock(NotificationService.class),
+                mock(TimeSettingService.class),
+                mock(ReviewCycleService.class),
+                mock(ReviewCycleRepository.class),
+                mock(AuditService.class));
+
+        Employee current = employee(10L, "E010", "Current User", "Engineer", "Product");
+
+        Feedback selfFeedback = feedback(1L, current, current, "SELF", false);
+        selfFeedback.setScore(75.0);
+        selfFeedback.setRemark("Meet Requirement");
+
+        when(feedbackRepository.findAll(any(Specification.class), eq(PageRequest.of(0, 10))))
+                .thenReturn(new PageImpl<>(List.of(selfFeedback)));
+
+        Page<FeedbackHistoryDto> page = service.getCombinedFeedbackHistory(10L, null, PageRequest.of(0, 10));
+
+        assertThat(page.getContent()).hasSize(1);
+        FeedbackHistoryDto dto = page.getContent().get(0);
+        assertThat(dto.getRole()).isEqualTo("SELF");
+        assertThat(dto.getEvaluatorName()).isEqualTo("Current User");
+        assertThat(dto.getEvaluateeName()).isEqualTo("Current User");
+    }
+
+    @Test
     void combinedHistoryMapsGivenAndReceivedRowsWithAnonymousRules() {
         FeedbackRepository feedbackRepository = mock(FeedbackRepository.class);
         FeedbackService service = new FeedbackService(
