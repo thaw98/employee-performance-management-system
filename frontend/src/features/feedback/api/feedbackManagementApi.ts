@@ -71,6 +71,38 @@ export interface FeedbackTemplateImportValidationResponse {
   invalidRowsData: FeedbackTemplateImportInvalidRow[]
 }
 
+export interface SelectedReviewCycleDto {
+  id: number
+  name: string
+  code: string
+  startDate: string
+  endDate: string
+  status: string
+}
+
+export interface FeedbackCoverageEmployeeRow {
+  employeeId: number
+  employeeCode: string | null
+  employeeName: string
+  departmentId: number | null
+  departmentName: string | null
+  positionId: number | null
+  positionName: string | null
+  levelCodeId: number | null
+  levelCode: string | null
+  missingReason: string
+}
+
+export interface FeedbackCoverage {
+  selectedReviewCycle: SelectedReviewCycleDto | null
+  eligibleCount: number
+  coveredCount: number
+  uncoveredCount: number
+  noTemplateCount: number
+  coveragePercent: number
+  uncoveredEmployees: FeedbackCoverageEmployeeRow[]
+}
+
 interface ApiResponse<T> {
   success: boolean
   message: string
@@ -131,6 +163,14 @@ export const feedbackManagementApi = baseApi.injectEndpoints({
         body,
       }),
     }),
+    getFeedbackCoverage: builder.query<FeedbackCoverage, number | void>({
+      query: (reviewCycleId) => ({
+        url: '/feedback-management/coverage',
+        params: reviewCycleId ? { reviewCycleId } : undefined,
+      }),
+      transformResponse: (response: ApiResponse<FeedbackCoverage>) => response.data,
+      providesTags: ['FeedbackManagement'],
+    }),
   }),
 })
 
@@ -142,4 +182,5 @@ export const {
   useSaveFeedbackLimitMutation,
   useDeleteFeedbackLimitMutation,
   useValidateFeedbackTemplateImportMutation,
+  useGetFeedbackCoverageQuery,
 } = feedbackManagementApi

@@ -1,6 +1,7 @@
 package com.epms.backend.controller;
 
 import com.epms.backend.common.ApiResponse;
+import com.epms.backend.dto.feedbackmanagement.FeedbackCoverageDto;
 import com.epms.backend.dto.feedbackmanagement.FeedbackLimitConfigDto;
 import com.epms.backend.dto.feedbackmanagement.FeedbackTemplateConfigDto;
 import com.epms.backend.dto.feedbackmanagement.FeedbackTemplateImportValidationResponseDto;
@@ -63,6 +64,11 @@ public class FeedbackManagementController {
             @RequestParam String role) {
         return ResponseEntity.ok(ApiResponse.ok("Form config retrieved successfully",
                 service.getFormConfig(evaluateeId, role)));
+    }
+
+    @GetMapping("/coverage")
+    public ResponseEntity<ApiResponse<FeedbackCoverageDto>> getCoverage(@RequestParam(required = false) Long reviewCycleId) {
+        return ResponseEntity.ok(ApiResponse.ok("Feedback coverage retrieved successfully", service.getCoverage(reviewCycleId)));
     }
 
     @GetMapping("/limits")

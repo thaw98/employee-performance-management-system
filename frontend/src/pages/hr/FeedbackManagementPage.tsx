@@ -32,11 +32,14 @@ import axios from '../../app/axiosInstance'
 import { CriteriaPage } from './CriteriaPage'
 import { formatDateTime } from '../../utils/dateUtils'
 import {
+  type FeedbackCoverage,
+  type FeedbackCoverageEmployeeRow,
   type FeedbackLimitConfig,
   type FeedbackTemplateConfig,
   type FeedbackTemplateImportValidRow,
   type FeedbackTemplateImportValidationResponse,
   useDeleteFeedbackTemplateMutation,
+  useGetFeedbackCoverageQuery,
   useGetFeedbackLimitsQuery,
   useGetFeedbackTemplatesQuery,
   useSaveFeedbackLimitMutation,
@@ -45,7 +48,7 @@ import {
 } from '../../features/feedback/api/feedbackManagementApi'
 import { useGetReviewCyclesQuery, type ReviewCycleDto } from '../../features/reviewCycle/api/reviewCycleApi'
 
-type TabKey = 'criteria' | 'template' | 'progress'
+type TabKey = 'criteria' | 'template' | 'progress' | 'coverage'
 type Option = { id: number; name: string; active?: boolean }
 type FeedbackTemplateRow = FeedbackTemplateConfig & { currentInUseFallback?: boolean }
 const LOCK_MESSAGE = 'This configuration is already active for the current review cycle and cannot be changed. Any updates will apply only to future review cycles.'
@@ -115,6 +118,7 @@ export default function FeedbackManagementPage() {
           ['criteria', 'Criteria', ClipboardList],
           ['template', 'Template', FileText],
           ['progress', 'Peer Progress', Users],
+          ['coverage', 'Coverage', CheckCircle2],
         ].map(([key, label, Icon]) => {
           const selected = activeTab === key
           const TabIcon = Icon as typeof ClipboardList
@@ -135,6 +139,7 @@ export default function FeedbackManagementPage() {
       {activeTab === 'criteria' && <CriteriaPage />}
       {activeTab === 'template' && <TemplateTab />}
       {activeTab === 'progress' && <PeerProgressTab />}
+      {activeTab === 'coverage' && <CoverageTab />}
     </div>
   )
 }
@@ -1520,6 +1525,230 @@ function TemplateModal({
         </div>
       </div>
     </div>
+  )
+}
+
+function CoverageTab() {
+  const { data: reviewCycles = [] } = useGetReviewCyclesQuery({ requiresEmployeeSubmission: true })
+  const [selectedReviewCycleId, setSelectedReviewCycleId] = useState<number | null>(null)
+  const { data: coverage, isLoading } = useGetFeedbackCoverageQuery(selectedReviewCycleId ?? undefined, { skip: !selectedReviewCycleId })
+  const [searchQuery, setSearchQuery] = useState('')
+  const [deptFilter, setDeptFilter] = useState('ALL')
+  const [posFilter, setPosFilter] = useState('ALL')
+  const [levelCodeFilter, setLevelCodeFilter] = useState('ALL')
+
+  useEffect(() => {
+    if (selectedReviewCycleId != null || reviewCycles.length === 0) return
+    const activeFirst = reviewCycles.find((cycle) => cycle.isActive || cycle.status?.toUpperCase() === 'ACTIVE') ?? reviewCycles[0]
+    setSelectedReviewCycleId(activeFirst.id)
+  }, [reviewCycles, selectedReviewCycleId])
+
+  const departments = useMemo(() => {
+    if (!coverage) return new Map<string, string>()
+    const map = new Map<string, string>()
+    for (const row of coverage.uncoveredEmployees) {
+      if (row.departmentId != null && row.departmentName) {
+        map.set(String(row.departmentId), row.departmentName)
+      }
+    }
+    return map
+  }, [coverage])
+
+  const positions = useMemo(() => {
+    if (!coverage) return new Map<string, string>()
+    const map = new Map<string, string>()
+    for (const row of coverage.uncoveredEmployees) {
+      if (row.positionId != null && row.positionName) {
+        map.set(String(row.positionId), row.positionName)
+      }
+    }
+    return map
+  }, [coverage])
+
+  const levelCodes = useMemo(() => {
+    if (!coverage) return new Map<string, string>()
+    const map = new Map<string, string>()
+    for (const row of coverage.uncoveredEmployees) {
+      if (row.levelCodeId != null && row.levelCode) {
+        map.set(String(row.levelCodeId), row.levelCode)
+      }
+    }
+    return map
+  }, [coverage])
+
+  const filteredRows = useMemo(() => {
+    if (!coverage) return []
+    const query = searchQuery.trim().toLowerCase()
+    return coverage.uncoveredEmployees.filter((row) => {
+      if (deptFilter !== 'ALL' && String(row.departmentId) !== deptFilter) return false
+      if (posFilter !== 'ALL' && String(row.positionId) !== posFilter) return false
+      if (levelCodeFilter !== 'ALL' && String(row.levelCodeId) !== levelCodeFilter) return false
+      if (!query) return true
+      const text = [row.employeeName, row.employeeCode, row.departmentName, row.positionName, row.levelCode, row.missingReason].filter(Boolean).join(' ').toLowerCase()
+      return text.includes(query)
+    })
+  }, [coverage, searchQuery, deptFilter, posFilter, levelCodeFilter])
+
+  return (
+    <section className="space-y-6">
+      <ReviewCycleSelector
+        reviewCycles={reviewCycles}
+        selectedReviewCycleId={selectedReviewCycleId}
+        onChange={setSelectedReviewCycleId}
+        locked={false}
+      />
+      <div className="flex flex-col gap-5 rounded-2xl border border-slate-200 bg-white p-6 shadow-sm sm:flex-row sm:items-end sm:justify-between">
+        <div className="flex items-start gap-4">
+          <div className="flex h-12 w-12 items-center justify-center rounded-2xl bg-gradient-to-br from-emerald-500 to-teal-600 text-white shadow-lg shadow-emerald-500/20">
+            <CheckCircle2 size={22} />
+          </div>
+          <div>
+            <h2 className="text-2xl font-black tracking-tight text-slate-900">360 Feedback Coverage</h2>
+            <p className="mt-1 max-w-xl text-sm text-slate-500">Identify active employees with active accounts who do not have a matching 360 Feedback template for the selected review cycle.</p>
+          </div>
+        </div>
+      </div>
+
+      <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-5">
+        {[
+          ['Eligible Employees', coverage?.eligibleCount ?? 0, Users, 'bg-blue-50 text-blue-600'],
+          ['Covered', coverage?.coveredCount ?? 0, CheckCircle2, 'bg-emerald-50 text-emerald-600'],
+          ['Uncovered', coverage?.uncoveredCount ?? 0, AlertCircle, 'bg-red-50 text-red-600'],
+          ['No Template', coverage?.noTemplateCount ?? 0, X, 'bg-amber-50 text-amber-600'],
+          ['Coverage %', coverage?.coveragePercent ?? 0, FileText, 'bg-violet-50 text-violet-600'],
+        ].map(([label, value, Icon, tone]) => {
+          const StatIcon = Icon as typeof Users
+          const displayValue = label === 'Coverage %' ? `${(value as number).toFixed(1)}%` : (value as number)
+          return (
+            <div key={label as string} className="rounded-2xl border border-slate-200/80 bg-white p-5 shadow-sm transition hover:-translate-y-0.5 hover:shadow-md">
+              <div className="flex items-start justify-between">
+                <div>
+                  <p className="text-[11px] font-black uppercase tracking-widest text-slate-400">{label as string}</p>
+                  <p className="mt-2 text-3xl font-black text-slate-900">{displayValue as string | number}</p>
+                </div>
+                <div className={`flex h-10 w-10 items-center justify-center rounded-xl ${tone as string}`}>
+                  <StatIcon size={18} />
+                </div>
+              </div>
+            </div>
+          )
+        })}
+      </div>
+
+      {isLoading ? (
+        <div className="rounded-2xl border border-slate-200 bg-white p-10 text-center text-sm text-slate-500">Loading coverage...</div>
+      ) : !selectedReviewCycleId ? (
+        <div className="rounded-2xl border border-dashed border-slate-200 bg-white p-10 text-center text-sm text-slate-500">Select a review cycle to view coverage.</div>
+      ) : coverage && coverage.uncoveredCount === 0 ? (
+        <div className="rounded-2xl border border-dashed border-slate-200 bg-white p-10 text-center">
+          <CheckCircle2 size={40} className="mx-auto text-emerald-400" />
+          <p className="mt-4 text-lg font-black text-slate-700">All Eligible Employees Are Covered</p>
+          <p className="mt-1 text-sm text-slate-500">Every active employee with an active account has a matching 360 Feedback template for this cycle.</p>
+        </div>
+      ) : (
+        <div className="overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm">
+          <div className="flex flex-col gap-4 border-b border-slate-100 bg-gradient-to-r from-slate-50/80 to-white p-5 lg:flex-row lg:items-center lg:justify-between">
+            <div>
+              <h3 className="text-lg font-black text-slate-900">Uncovered Employees</h3>
+              <p className="text-xs text-slate-500">{filteredRows.length} of {coverage?.uncoveredCount ?? 0} uncovered employee{coverage?.uncoveredCount !== 1 ? 's' : ''}</p>
+            </div>
+            <div className="flex flex-col gap-3 sm:flex-row">
+              <div className="relative">
+                <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400" />
+                <input
+                  type="search"
+                  placeholder="Search employee..."
+                  value={searchQuery}
+                  onChange={(e) => setSearchQuery(e.target.value)}
+                  className="w-full rounded-xl border border-slate-200 bg-white py-2 pl-10 pr-3 text-sm focus:border-[#2463eb] focus:outline-none sm:w-56"
+                />
+              </div>
+              <select
+                value={deptFilter}
+                onChange={(e) => setDeptFilter(e.target.value)}
+                className="rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm font-semibold text-slate-600 focus:border-[#2463eb] focus:outline-none"
+              >
+                <option value="ALL">All Departments</option>
+                {Array.from(departments.entries()).map(([id, name]) => (
+                  <option key={id} value={id}>{name}</option>
+                ))}
+              </select>
+              <select
+                value={posFilter}
+                onChange={(e) => setPosFilter(e.target.value)}
+                className="rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm font-semibold text-slate-600 focus:border-[#2463eb] focus:outline-none"
+              >
+                <option value="ALL">All Positions</option>
+                {Array.from(positions.entries()).map(([id, name]) => (
+                  <option key={id} value={id}>{name}</option>
+                ))}
+              </select>
+              <select
+                value={levelCodeFilter}
+                onChange={(e) => setLevelCodeFilter(e.target.value)}
+                className="rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm font-semibold text-slate-600 focus:border-[#2463eb] focus:outline-none"
+              >
+                <option value="ALL">All Level Codes</option>
+                {Array.from(levelCodes.entries()).map(([id, code]) => (
+                  <option key={id} value={id}>{code}</option>
+                ))}
+              </select>
+            </div>
+          </div>
+          <div className="p-5">
+            <div className="overflow-hidden rounded-2xl border border-slate-200">
+              <div className="w-full overflow-x-auto">
+                <table className="w-full text-left">
+                  <colgroup>
+                    <col className="w-[22%]" />
+                    <col className="w-[8%]" />
+                    <col className="w-[18%]" />
+                    <col className="w-[16%]" />
+                    <col className="w-[12%]" />
+                    <col className="w-[24%]" />
+                  </colgroup>
+                  <thead className="bg-slate-50 text-[10px] font-black uppercase tracking-wider text-slate-400">
+                    <tr>
+                      <th className="px-4 py-4">Employee</th>
+                      <th className="px-4 py-4">Staff No</th>
+                      <th className="px-4 py-4">Department</th>
+                      <th className="px-4 py-4">Position</th>
+                      <th className="px-4 py-4">Level Code</th>
+                      <th className="px-4 py-4">Missing Reason</th>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-slate-100 bg-white">
+                    {filteredRows.length === 0 ? (
+                      <tr>
+                        <td colSpan={6} className="px-4 py-10 text-center text-sm text-slate-500">No uncovered employees match the current filters.</td>
+                      </tr>
+                    ) : (
+                      filteredRows.map((row) => (
+                        <tr key={row.employeeId} className="transition hover:bg-slate-50">
+                          <td className="px-4 py-3">
+                            <p className="font-bold text-slate-900">{row.employeeName}</p>
+                          </td>
+                          <td className="px-4 py-3 text-sm font-semibold text-slate-600">{row.employeeCode ?? '-'}</td>
+                          <td className="px-4 py-3 text-sm text-slate-600">{row.departmentName ?? '-'}</td>
+                          <td className="px-4 py-3 text-sm text-slate-600">{row.positionName ?? '-'}</td>
+                          <td className="px-4 py-3 text-sm text-slate-600">{row.levelCode ?? '-'}</td>
+                          <td className="px-4 py-3">
+                            <span className="inline-flex items-center gap-1 rounded-full bg-red-50 px-2.5 py-1 text-[10px] font-black text-red-700">
+                              <X size={10} />
+                              {row.missingReason === 'NO_MATCHING_TEMPLATE' ? 'No Matching Template' : row.missingReason}
+                            </span>
+                          </td>
+                        </tr>
+                      ))
+                    )}
+                  </tbody>
+                </table>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+    </section>
   )
 }
 

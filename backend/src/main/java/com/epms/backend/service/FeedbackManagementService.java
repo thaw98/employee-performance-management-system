@@ -1,11 +1,15 @@
 package com.epms.backend.service;
 
+import com.epms.backend.dto.feedbackmanagement.FeedbackCoverageDto;
+import com.epms.backend.dto.feedbackmanagement.FeedbackCoverageDto.CoverageEmployeeRow;
+import com.epms.backend.dto.feedbackmanagement.FeedbackCoverageDto.SelectedReviewCycleDto;
 import com.epms.backend.dto.feedbackmanagement.FeedbackLimitConfigDto;
 import com.epms.backend.dto.feedbackmanagement.FeedbackTemplateConfigDto;
 import com.epms.backend.dto.feedbackmanagement.FeedbackTemplateConfigDto.AudienceRuleDto;
 import com.epms.backend.dto.feedbackmanagement.FormConfigResponse;
 import com.epms.backend.entity.Criteria;
 import com.epms.backend.entity.Employee;
+import com.epms.backend.entity.EmployeeStatus;
 import com.epms.backend.entity.FeedbackLimitConfig;
 import com.epms.backend.entity.FeedbackTemplateConfig;
 import com.epms.backend.entity.ReviewCycle;
@@ -485,6 +489,107 @@ public class FeedbackManagementService {
         }
 
         return buildFormConfigFromTemplate(best, normalizedRole);
+    }
+
+    public FeedbackCoverageDto getCoverage(Long reviewCycleId) {
+        if (reviewCycleId == null) {
+            return emptyCoverage(null);
+        }
+
+        ReviewCycle cycle = reviewCycleRepository.findById(reviewCycleId).orElse(null);
+        if (cycle == null) {
+            return emptyCoverage(null);
+        }
+
+        List<FeedbackTemplateConfig> templates = templateRepository
+                .findByReviewCycleIdOrReviewCycleIdIsNull(reviewCycleId)
+                .stream()
+                .filter(t -> "ACTIVE".equals(t.getStatus()))
+                .collect(Collectors.toList());
+
+        List<Employee> eligibleEmployees = employeeRepository.findAllActiveWithUserAccount();
+
+        List<CoverageEmployeeRow> uncoveredRows = new ArrayList<>();
+        int coveredCount = 0;
+
+        for (Employee emp : eligibleEmployees) {
+            String missingReason = findMissingReason(emp, templates);
+            if (missingReason == null) {
+                coveredCount++;
+            } else {
+                Long deptId = emp.getDepartment() != null ? emp.getDepartment().getId() : null;
+                String deptName = emp.getDepartment() != null ? emp.getDepartment().getName() : null;
+                Long posId = emp.getPosition() != null ? emp.getPosition().getId() : null;
+                String posName = emp.getPosition() != null ? emp.getPosition().getName() : null;
+                Long levelCodeId = emp.getPosition() != null && emp.getPosition().getLevelCode() != null
+                        ? emp.getPosition().getLevelCode().getId() : null;
+                String levelCode = emp.getPosition() != null && emp.getPosition().getLevelCode() != null
+                        ? emp.getPosition().getLevelCode().getCode() : null;
+
+                uncoveredRows.add(new CoverageEmployeeRow(
+                        emp.getId(), emp.getEmployeeId(), emp.getEmployeeName(),
+                        deptId, deptName, posId, posName, levelCodeId, levelCode, missingReason));
+            }
+        }
+
+        int eligibleCount = eligibleEmployees.size();
+        int uncoveredCount = uncoveredRows.size();
+        int noTemplateCount = (int) uncoveredRows.stream()
+                .filter(r -> "NO_MATCHING_TEMPLATE".equals(r.missingReason()))
+                .count();
+        double coveragePercent = eligibleCount > 0
+                ? Math.round((double) coveredCount / eligibleCount * 10000.0) / 100.0
+                : 0.0;
+
+        SelectedReviewCycleDto cycleInfo = new SelectedReviewCycleDto(
+                cycle.getId(), cycle.getName(), cycle.getCode(),
+                cycle.getStartDate().toString(), cycle.getEndDate().toString(),
+                statusOf(cycle));
+
+        return new FeedbackCoverageDto(cycleInfo, eligibleCount, coveredCount,
+                uncoveredCount, noTemplateCount, coveragePercent, uncoveredRows);
+    }
+
+    private String findMissingReason(Employee emp, List<FeedbackTemplateConfig> templates) {
+        if (templates.isEmpty()) {
+            return "NO_MATCHING_TEMPLATE";
+        }
+
+        Long deptId = emp.getDepartment() != null ? emp.getDepartment().getId() : null;
+        Long posId = emp.getPosition() != null ? emp.getPosition().getId() : null;
+        Long levelCodeId = emp.getPosition() != null && emp.getPosition().getLevelCode() != null
+                ? emp.getPosition().getLevelCode().getId() : null;
+
+        for (FeedbackTemplateConfig template : templates) {
+            String targetType = template.getTargetType();
+
+            if ("PERSON".equals(targetType) && template.getTargetId().equals(emp.getId())) {
+                return null;
+            } else if ("HYBRID".equals(targetType)) {
+                List<AudienceRuleDto> rules = deserializeAudienceRules(template.getAudienceRulesJson());
+                if (rules != null && deptId != null) {
+                    boolean matches = rules.stream().anyMatch(rule ->
+                            rule.getDepartmentId().equals(deptId)
+                            && (rule.getPositionId() == null || rule.getPositionId().equals(posId)));
+                    if (matches) return null;
+                }
+            } else if ("POSITION".equals(targetType) && posId != null
+                    && template.getTargetId().equals(posId)) {
+                return null;
+            } else if ("LEVEL_CODE".equals(targetType) && levelCodeId != null
+                    && template.getTargetId().equals(levelCodeId)) {
+                return null;
+            } else if ("DEPARTMENT".equals(targetType) && deptId != null
+                    && template.getTargetId().equals(deptId)) {
+                return null;
+            }
+        }
+
+        return "NO_MATCHING_TEMPLATE";
+    }
+
+    private FeedbackCoverageDto emptyCoverage(SelectedReviewCycleDto cycleInfo) {
+        return new FeedbackCoverageDto(cycleInfo, 0, 0, 0, 0, 0.0, List.of());
     }
 
     private FormConfigResponse buildFormConfigFromTemplate(FeedbackTemplateConfig template, String role) {
