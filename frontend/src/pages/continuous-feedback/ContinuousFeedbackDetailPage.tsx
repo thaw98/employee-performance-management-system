@@ -45,6 +45,8 @@ export default function ContinuousFeedbackDetailPage() {
   const [editScheduledTime, setEditScheduledTime] = useState('');
   const [editMessage, setEditMessage] = useState('');
   const [showCancelConfirm, setShowCancelConfirm] = useState(false);
+  const [showPipConfirmModal, setShowPipConfirmModal] = useState(false);
+  const [isCreatingPip, setIsCreatingPip] = useState(false);
 
   const authUser = useAppSelector((s) => s.auth.user);
   const { hasPermission } = usePermissionState();
@@ -199,13 +201,27 @@ export default function ContinuousFeedbackDetailPage() {
     }
   };
 
-  const handleCreatePip = async () => {
+  const handleCreatePip = () => {
+    setShowPipConfirmModal(true);
+  };
+
+  const handleConfirmCreatePip = async () => {
+    setIsCreatingPip(true);
     try {
-      await continuousFeedbackApi.createPipFromFeedback(Number(feedbackId));
+      const resp = await continuousFeedbackApi.createPipFromFeedback(Number(feedbackId));
       toast.success('PIP created from feedback');
-      loadFeedback();
+      setShowPipConfirmModal(false);
+      const rolePath = window.location.pathname.startsWith('/hr') ? '/hr' : '/manager';
+      if (resp.data?.id) {
+        const pipPath = rolePath === '/hr' ? `/hr/pip-monitoring/${resp.data.id}` : `/manager/pip/${resp.data.id}`;
+        navigate(pipPath);
+      } else {
+        navigate(rolePath === '/hr' ? '/hr/pip-monitoring' : '/manager/pip');
+      }
     } catch {
       toast.error('Failed to create PIP');
+    } finally {
+      setIsCreatingPip(false);
     }
   };
 
@@ -824,6 +840,20 @@ export default function ContinuousFeedbackDetailPage() {
         isLoading={false}
         variant="danger"
         icon={<XCircle size={22} />}
+      />
+
+      <ConfirmActionModal
+        isOpen={showPipConfirmModal}
+        onClose={() => { if (!isCreatingPip) setShowPipConfirmModal(false); }}
+        onConfirm={handleConfirmCreatePip}
+        title="Create PIP?"
+        message={`This will create a Performance Improvement Plan for ${feedback.employeeName} based on this feedback.${pipCount > 0 ? ` (${pipCount} negative feedback records in 30 days)` : ''}`}
+        description="You will be redirected to the new PIP record after creation."
+        confirmText="Confirm"
+        cancelText="Cancel"
+        isLoading={isCreatingPip}
+        variant="warning"
+        icon={<AlertTriangle size={22} />}
       />
     </div>
   );
