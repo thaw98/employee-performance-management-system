@@ -112,7 +112,7 @@ export const SelfAssessmentFormTemplatePage: React.FC = () => {
   const [copyTemplate, { isLoading: isCopyingTemplate }] = useCopyTemplateMutation();
   const [deleteCopiedTemplate, { isLoading: isClearingCopiedTemplate }] = useDeleteCopiedTemplateMutation();
   const { data: timeSettings, isLoading: timeSettingsLoading } = useGetTimeSettingsQuery();
-  const { data: reviewCycles = [] } = useGetReviewCyclesQuery();
+  const { data: reviewCycles = [] } = useGetReviewCyclesQuery(undefined);
 
   const cyclePhaseById = useMemo(() => {
     const today = todayIsoLocal();
@@ -238,7 +238,10 @@ export const SelfAssessmentFormTemplatePage: React.FC = () => {
   };
 
   const handleDownloadImportTemplate = async () => {
-    const baseUrl = (import.meta.env.VITE_API_BASE_URL as string)?.replace(/\/$/, '') || 'http://localhost:8080';
+    const configuredBaseUrl = (import.meta.env.VITE_API_BASE_URL as string)?.replace(/\/$/, '') || 'http://localhost:8080';
+    const baseUrl = configuredBaseUrl.endsWith('/api')
+      ? configuredBaseUrl.slice(0, -4)
+      : configuredBaseUrl;
     try {
       const res = await fetch(`${baseUrl}/api/self-assessment-forms/templates/import/template`, {
         headers: token ? { Authorization: `Bearer ${token}` } : {},
