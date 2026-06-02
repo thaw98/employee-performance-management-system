@@ -151,4 +151,7 @@ public interface EmployeeRepository extends JpaRepository<Employee, Long>, JpaSp
 			GROUP BY e.department.id, e.position.id
 			""")
 	List<Object[]> countActiveEmployeesPerDepartmentAndPosition();
+
+	@Query("SELECT e.id, e.department.id, e.position.id FROM Employee e WHERE e.id IN :ids")
+	List<Object[]> findBasicInfoByIds(@Param("ids") java.util.Set<Long> ids);
 }

@@ -3,6 +3,7 @@ package com.epms.backend.controller;
 import com.epms.backend.common.ApiResponse;
 import com.epms.backend.dto.AppraisalCategoryDto;
 import com.epms.backend.dto.AppraisalTemplateDto;
+import com.epms.backend.dto.appraisal.AppraisalCoverageDto;
 import com.epms.backend.service.AppraisalService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.ResponseEntity;
@@ -64,5 +65,11 @@ public class AppraisalCategoryController {
     public ResponseEntity<ApiResponse<Void>> distributeToManagers(@RequestParam(required = false) Long templateId) {
         appraisalService.distributeAppraisalsToManagers(templateId);
         return ResponseEntity.ok(ApiResponse.ok("Appraisals distributed to managers successfully", null));
+    }
+
+    @GetMapping("/coverage")
+    @PreAuthorize("hasAnyRole('HR')")
+    public ResponseEntity<ApiResponse<AppraisalCoverageDto>> getCoverage(@RequestParam Long reviewCycleId) {
+        return ResponseEntity.ok(ApiResponse.ok("Coverage fetched successfully", appraisalService.getCoverage(reviewCycleId)));
     }
 }

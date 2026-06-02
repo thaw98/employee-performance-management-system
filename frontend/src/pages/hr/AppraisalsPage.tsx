@@ -106,6 +106,27 @@ interface ReviewCycleDto {
     yearLabel?: string;
 }
 
+interface CoverageData {
+    reviewCycleId: number | null;
+    reviewCycleName: string | null;
+    totalEligiblePairs: number;
+    coveredPairs: number;
+    missingPairsCount: number;
+    coveragePercent: number;
+    missingPairs: MissingPairDto[];
+}
+
+interface MissingPairDto {
+    departmentPositionId: number;
+    departmentId: number;
+    departmentName: string;
+    positionId: number;
+    positionCode: string;
+    positionName: string;
+    levelCodeName: string;
+    eligibleEmployeeCount: number;
+}
+
 interface SortableCategoryRowProps {
     category: Category;
     index: number;
@@ -621,6 +642,12 @@ export function AppraisalsPage() {
     const [allPositions, setAllPositions] = useState<DepartmentPositionMapping[]>([]);
     const [employeeCounts, setEmployeeCounts] = useState<Record<string, number>>({});
 
+    // Coverage state
+    const [coverageData, setCoverageData] = useState<CoverageData | null>(null);
+    const [coverageLoading, setCoverageLoading] = useState(false);
+    const [coverageError, setCoverageError] = useState<string | null>(null);
+    const [coverageExpanded, setCoverageExpanded] = useState(false);
+
     const sensors = useSensors(
         useSensor(PointerSensor, { activationConstraint: { distance: 8 } }),
         useSensor(KeyboardSensor, { coordinateGetter: sortableKeyboardCoordinates })
@@ -762,12 +789,35 @@ export function AppraisalsPage() {
         }
     };
 
+    const fetchCoverage = async (cycleId: number) => {
+        setCoverageLoading(true);
+        setCoverageError(null);
+        try {
+            const resp = await axios.get(`/appraisal-categories/coverage?reviewCycleId=${cycleId}`);
+            setCoverageData(resp.data.data || null);
+        } catch (err: any) {
+            const msg = err.response?.data?.message || 'Failed to fetch coverage';
+            setCoverageError(msg);
+            setCoverageData(null);
+        } finally {
+            setCoverageLoading(false);
+        }
+    };
+
     useEffect(() => {
         fetchCategories();
         fetchAllTemplates();
         fetchPositionsAndLevels();
         fetchReviewCycles();
     }, []);
+
+    useEffect(() => {
+        if (selectedCycleId) {
+            fetchCoverage(selectedCycleId);
+        } else {
+            setCoverageData(null);
+        }
+    }, [selectedCycleId]);
 
     useEffect(() => {
         setHistoryPage(1);
@@ -1023,6 +1073,141 @@ export function AppraisalsPage() {
                         </button>
                     </div>
                 </div>
+            </div>
+
+            {/* Appraisal Coverage Card */}
+            <div className="bg-white p-6 rounded-[32px] border border-slate-100 shadow-sm animate-in fade-in duration-500">
+                <div className="flex items-start justify-between gap-4">
+                    <div className="flex items-center gap-4">
+                        <div className="w-12 h-12 bg-indigo-50 text-indigo-600 rounded-2xl flex items-center justify-center">
+                            <Layers size={24} />
+                        </div>
+                        <div>
+                            <h3 className="text-sm font-black text-slate-800 uppercase tracking-tight">Appraisal Coverage</h3>
+                            <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mt-0.5">
+                                {selectedCycle
+                                    ? `${selectedCycle.name} — ${selectedCycle.yearLabel || ''}`
+                                    : 'Select a review cycle to view coverage'}
+                            </p>
+                        </div>
+                    </div>
+                    {coverageLoading && (
+                        <div className="flex items-center gap-2 text-[10px] font-black text-slate-400 uppercase tracking-widest">
+                            <RefreshCcw size={14} className="animate-spin" />
+                            Loading...
+                        </div>
+                    )}
+                </div>
+
+                {!selectedCycleId ? (
+                    <div className="mt-4 p-6 bg-slate-50 rounded-2xl border border-slate-100 text-center">
+                        <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest">
+                            Select a review cycle in the REVIEW & FINALIZE tab to see coverage details.
+                        </p>
+                    </div>
+                ) : coverageLoading ? (
+                    <div className="mt-4 grid grid-cols-3 gap-4 animate-pulse">
+                        <div className="h-20 bg-slate-100 rounded-2xl" />
+                        <div className="h-20 bg-slate-100 rounded-2xl" />
+                        <div className="h-20 bg-slate-100 rounded-2xl" />
+                    </div>
+                ) : coverageError ? (
+                    <div className="mt-4 p-6 bg-red-50 rounded-2xl border border-red-100 text-center">
+                        <p className="text-[10px] font-black text-red-500 uppercase tracking-widest">{coverageError}</p>
+                    </div>
+                ) : coverageData ? (
+                    <>
+                        <div className="mt-4 grid grid-cols-2 md:grid-cols-4 gap-4">
+                            <div className="p-5 bg-slate-50/70 rounded-2xl border border-slate-100">
+                                <p className="text-[9px] font-black text-slate-400 uppercase tracking-widest flex items-center gap-1.5 mb-2">
+                                    <Building2 size={12} /> Eligible Pairs
+                                </p>
+                                <p className="text-2xl font-black text-slate-800">{coverageData.totalEligiblePairs}</p>
+                            </div>
+                            <div className="p-5 bg-emerald-50/70 rounded-2xl border border-emerald-100">
+                                <p className="text-[9px] font-black text-emerald-600 uppercase tracking-widest flex items-center gap-1.5 mb-2">
+                                    <CheckCircle2 size={12} /> Covered
+                                </p>
+                                <p className="text-2xl font-black text-emerald-700">{coverageData.coveredPairs}</p>
+                            </div>
+                            <div className="p-5 bg-rose-50/70 rounded-2xl border border-rose-100">
+                                <p className="text-[9px] font-black text-rose-600 uppercase tracking-widest flex items-center gap-1.5 mb-2">
+                                    <X size={12} /> Missing Templates
+                                </p>
+                                <p className="text-2xl font-black text-rose-700">{coverageData.missingPairsCount}</p>
+                            </div>
+                            <div className={`p-5 rounded-2xl border ${coverageData.coveragePercent >= 100 ? 'bg-emerald-50/70 border-emerald-100' : 'bg-amber-50/70 border-amber-100'}`}>
+                                <p className="text-[9px] font-black uppercase tracking-widest flex items-center gap-1.5 mb-2 ${coverageData.coveragePercent >= 100 ? 'text-emerald-600' : 'text-amber-600'}">
+                                    <CheckCircle2 size={12} /> Coverage %
+                                </p>
+                                <p className={`text-2xl font-black ${coverageData.coveragePercent >= 100 ? 'text-emerald-700' : 'text-amber-700'}`}>
+                                    {coverageData.coveragePercent}%
+                                </p>
+                            </div>
+                        </div>
+
+                        {coverageData.missingPairs.length > 0 && (
+                            <div className="mt-4">
+                                <button
+                                    onClick={() => setCoverageExpanded(!coverageExpanded)}
+                                    className="flex items-center gap-2 text-[10px] font-black text-rose-600 hover:text-rose-700 uppercase tracking-widest transition-colors"
+                                >
+                                    {coverageExpanded ? <ChevronDown size={14} /> : <ChevronRight size={14} />}
+                                    {coverageData.missingPairs.length} missing pair{coverageData.missingPairs.length !== 1 ? 's' : ''} — click to {coverageExpanded ? 'collapse' : 'expand'}
+                                </button>
+
+                                {coverageExpanded && (
+                                    <div className="mt-3 space-y-2 max-h-80 overflow-y-auto">
+                                        {(() => {
+                                            const grouped: Record<string, MissingPairDto[]> = {};
+                                            for (const p of coverageData.missingPairs) {
+                                                if (!grouped[p.departmentName]) grouped[p.departmentName] = [];
+                                                grouped[p.departmentName].push(p);
+                                            }
+                                            return Object.entries(grouped).map(([deptName, pairs]) => (
+                                                <div key={deptName} className="bg-rose-50/30 rounded-2xl border border-rose-100 overflow-hidden">
+                                                    <div className="px-4 py-3 bg-rose-50/50 border-b border-rose-100 flex items-center justify-between">
+                                                        <span className="text-[10px] font-black text-rose-700 uppercase tracking-wider flex items-center gap-2">
+                                                            <Building2 size={12} /> {deptName}
+                                                        </span>
+                                                        <span className="text-[9px] font-black text-rose-500 bg-white px-2 py-0.5 rounded-md border border-rose-200">
+                                                            {pairs.length} position{pairs.length !== 1 ? 's' : ''}
+                                                        </span>
+                                                    </div>
+                                                    <div className="p-3 space-y-1.5">
+                                                        {pairs.map(p => (
+                                                            <div key={p.departmentPositionId} className="flex items-center justify-between bg-white rounded-xl px-4 py-2.5 border border-rose-100/50">
+                                                                <div className="flex items-center gap-3">
+                                                                    <div className="w-1.5 h-1.5 rounded-full bg-rose-400" />
+                                                                    <span className="text-[11px] font-bold text-slate-700">{p.positionName}</span>
+                                                                    <span className="text-[8px] font-black text-slate-400 bg-slate-50 px-1.5 py-0.5 rounded uppercase tracking-wider border border-slate-100">
+                                                                        {p.levelCodeName || p.positionCode}
+                                                                    </span>
+                                                                </div>
+                                                                <span className="text-[9px] font-black text-rose-600 bg-rose-50 px-2 py-0.5 rounded-md">
+                                                                    {p.eligibleEmployeeCount} emp{p.eligibleEmployeeCount !== 1 ? 's' : ''}
+                                                                </span>
+                                                            </div>
+                                                        ))}
+                                                    </div>
+                                                </div>
+                                            ));
+                                        })()}
+                                    </div>
+                                )}
+                            </div>
+                        )}
+
+                        {coverageData.missingPairsCount === 0 && (
+                            <div className="mt-4 p-5 bg-emerald-50/50 rounded-2xl border border-emerald-100 flex items-center gap-3">
+                                <CheckCircle2 size={18} className="text-emerald-500 shrink-0" />
+                                <p className="text-[10px] font-black text-emerald-700 uppercase tracking-widest">
+                                    All department-position pairs are covered by at least one template.
+                                </p>
+                            </div>
+                        )}
+                    </>
+                ) : null}
             </div>
 
             {activeTab === 'finalized' ? (
