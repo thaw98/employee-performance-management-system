@@ -1,13 +1,16 @@
-import { useEffect, useMemo, useState } from 'react'
+import { useEffect, useMemo, useRef, useState } from 'react'
 import { toast } from 'react-hot-toast'
 import {
+  AlertCircle,
   Building2,
   Briefcase,
   CalendarRange,
   CheckCircle2,
   ClipboardList,
   Copy,
+  Download,
   Eye,
+  FileSpreadsheet,
   FileText,
   Filter,
   Layers,
@@ -19,6 +22,7 @@ import {
   Star,
   Table2,
   Trash2,
+  Upload,
   User,
   Users,
   X,
@@ -30,11 +34,14 @@ import { formatDateTime } from '../../utils/dateUtils'
 import {
   type FeedbackLimitConfig,
   type FeedbackTemplateConfig,
+  type FeedbackTemplateImportValidRow,
+  type FeedbackTemplateImportValidationResponse,
   useDeleteFeedbackTemplateMutation,
   useGetFeedbackLimitsQuery,
   useGetFeedbackTemplatesQuery,
   useSaveFeedbackLimitMutation,
   useSaveFeedbackTemplateMutation,
+  useValidateFeedbackTemplateImportMutation,
 } from '../../features/feedback/api/feedbackManagementApi'
 import { useGetReviewCyclesQuery, type ReviewCycleDto } from '../../features/reviewCycle/api/reviewCycleApi'
 
@@ -42,6 +49,13 @@ type TabKey = 'criteria' | 'template' | 'progress'
 type Option = { id: number; name: string; active?: boolean }
 type FeedbackTemplateRow = FeedbackTemplateConfig & { currentInUseFallback?: boolean }
 const LOCK_MESSAGE = 'This configuration is already active for the current review cycle and cannot be changed. Any updates will apply only to future review cycles.'
+
+const FEEDBACK_ROLE_OPTIONS = [
+  { value: 'SELF', label: 'Self-evaluate' },
+  { value: 'PEER', label: 'Peers' },
+  { value: 'MANAGER', label: 'Manager' },
+  { value: 'SUBORDINATE', label: 'Subordinate' },
+] as const
 
 const emptyTemplate: FeedbackTemplateConfig = {
   templateName: '',
@@ -51,6 +65,8 @@ const emptyTemplate: FeedbackTemplateConfig = {
   questionIds: [],
   status: 'ACTIVE',
   maxRating: 5,
+  activeRoles: ['SELF', 'PEER', 'MANAGER', 'SUBORDINATE'],
+  questionsByRole: {},
 }
 
 const emptyLimit: FeedbackLimitConfig = {
@@ -196,6 +212,11 @@ function TemplateTab() {
   const [searchQuery, setSearchQuery] = useState('')
   const [targetFilter, setTargetFilter] = useState<'ALL' | FeedbackTemplateConfig['targetType']>('ALL')
   const [viewMode, setViewMode] = useState<'grid' | 'table'>('table')
+  const fileInputRef = useRef<HTMLInputElement>(null)
+  const [importedRows, setImportedRows] = useState<FeedbackTemplateImportValidRow[]>([])
+  const [importErrors, setImportErrors] = useState<FeedbackTemplateImportValidationResponse | null>(null)
+  const [isImporting, setIsImporting] = useState(false)
+  const [validateImport, { isLoading: isValidating }] = useValidateFeedbackTemplateImportMutation()
 
   useEffect(() => {
     void loadOptions()
@@ -289,7 +310,12 @@ function TemplateTab() {
 
   const openEdit = (template: FeedbackTemplateConfig) => {
     if (isLocked) return toast.error(LOCK_MESSAGE)
-    setForm({ ...template, questionIds: template.questionIds ?? [] })
+    setForm({
+      ...template,
+      questionIds: template.questionIds ?? [],
+      activeRoles: template.activeRoles ?? ['SELF', 'PEER', 'MANAGER', 'SUBORDINATE'],
+      questionsByRole: template.questionsByRole ?? {},
+    })
     setShowModal(true)
   }
 
@@ -304,6 +330,8 @@ function TemplateTab() {
       reviewCycleId: selectedReviewCycleId,
       reviewCycleName: selectedReviewCycle?.name,
       questionIds: template.questionIds ?? [],
+      activeRoles: template.activeRoles ?? ['SELF', 'PEER', 'MANAGER', 'SUBORDINATE'],
+      questionsByRole: template.questionsByRole ?? {},
     })
     setShowModal(true)
   }
@@ -319,7 +347,14 @@ function TemplateTab() {
     } else {
       if (!form.targetId) return toast.error('Template target is required')
     }
-    if (!form.questionIds.length) return toast.error('At least one question is required')
+    const activeRoles = form.activeRoles ?? []
+    if (activeRoles.length === 0) return toast.error('At least one feedback role must be selected')
+    if (importedRows.length === 0) {
+      for (const role of activeRoles) {
+        const roleQuestions = form.questionsByRole?.[role] ?? []
+        if (roleQuestions.length === 0) return toast.error(`At least one question is required for ${FEEDBACK_ROLE_OPTIONS.find(r => r.value === role)?.label ?? role}`)
+      }
+    }
     let targetName = form.targetName ?? ''
     let targetId = Number(form.targetId)
     if (form.targetType === 'POSITION') {
@@ -337,11 +372,103 @@ function TemplateTab() {
       targetName = targetOptions.find((item) => item.id === targetId)?.name ?? targetName
     }
     try {
-      await saveTemplate({ ...form, reviewCycleId: selectedReviewCycleId, reviewCycleName: selectedReviewCycle?.name, targetId, targetName }).unwrap()
+      if (importedRows.length > 0) {
+        const ids = await resolveCriteriaIds()
+        const questionsByRole: Record<string, number[]> = {}
+        for (const role of activeRoles) {
+          questionsByRole[role] = [...ids]
+        }
+        await saveTemplate({
+          ...form,
+          reviewCycleId: selectedReviewCycleId,
+          reviewCycleName: selectedReviewCycle?.name,
+          targetId,
+          targetName,
+          activeRoles,
+          questionsByRole,
+          questionIds: ids,
+        }).unwrap()
+        setImportedRows([])
+        setImportErrors(null)
+      } else {
+        await saveTemplate({ ...form, reviewCycleId: selectedReviewCycleId, reviewCycleName: selectedReviewCycle?.name, targetId, targetName, activeRoles, questionsByRole: form.questionsByRole }).unwrap()
+      }
       toast.success(form.id ? 'Template updated' : 'Template created')
       setShowModal(false)
     } catch (error: any) {
       toast.error(error?.data?.message ?? 'Failed to save template')
+    }
+  }
+
+  const handleDownloadTemplate = async () => {
+    try {
+      const response = await axios.get('/feedback-management/templates/import/template', { responseType: 'blob' })
+      const url = window.URL.createObjectURL(new Blob([response.data]))
+      const a = document.createElement('a')
+      a.href = url
+      a.download = '360_feedback_template_import_template.xlsx'
+      document.body.appendChild(a)
+      a.click()
+      a.remove()
+      window.URL.revokeObjectURL(url)
+    } catch (error) {
+      toast.error('Failed to download template')
+    }
+  }
+
+  const handleFileSelect = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0]
+    if (!file) return
+    setIsImporting(true)
+    setImportErrors(null)
+    try {
+      const formData = new FormData()
+      formData.append('file', file)
+      const res = await validateImport(formData).unwrap()
+      if (!res.success) {
+        toast.error(res.message || 'Validation failed')
+        return
+      }
+      if (!res.data) {
+        toast.error('No validation data received')
+        return
+      }
+      if (res.data.invalidRows > 0) {
+        setImportErrors(res.data)
+      }
+      if (res.data.validRows > 0) {
+        setImportedRows(res.data.validRowData)
+        const importedCriteriaIds: number[] = res.data.validRowData
+          .filter((r) => r.existingCriteriaId != null)
+          .map((r) => r.existingCriteriaId!)
+        if (importedCriteriaIds.length > 0) {
+          setCriteria((prev) => {
+            const existingIds = new Set(prev.map((c) => c.id))
+            const newItems = res.data.validRowData
+              .filter((r) => r.existingCriteriaId != null && !existingIds.has(r.existingCriteriaId!))
+              .map((r) => ({ id: r.existingCriteriaId!, name: r.criteriaName, active: true }))
+            return newItems.length > 0 ? [...prev, ...newItems] : prev
+          })
+        }
+        const defaultRoles = ['SELF', 'PEER', 'MANAGER', 'SUBORDINATE']
+        setForm({
+          ...emptyTemplate,
+          reviewCycleId: selectedReviewCycleId ?? undefined,
+          reviewCycleName: selectedReviewCycle?.name,
+          activeRoles: defaultRoles,
+          questionsByRole: {},
+          questionIds: [],
+        })
+        setShowModal(true)
+      }
+      if (res.data.validRows === 0 && res.data.invalidRows > 0) {
+        toast.error('No valid rows found. Check the error details below.')
+      }
+    } catch (error: any) {
+      toast.error(error?.data?.message ?? 'Failed to validate import')
+    } finally {
+      setIsImporting(false)
+      if (fileInputRef.current) fileInputRef.current.value = ''
     }
   }
 
@@ -351,6 +478,25 @@ function TemplateTab() {
     if (!window.confirm('Delete this feedback template?')) return
     await deleteTemplate(id).unwrap()
     toast.success('Template deleted')
+  }
+
+  const resolveCriteriaIds = async (): Promise<number[]> => {
+    if (importedRows.length === 0) return form.questionIds ?? []
+    const ids: number[] = []
+    for (const row of importedRows) {
+      if (row.existingCriteriaId != null) {
+        ids.push(row.existingCriteriaId)
+      } else if (row.criteriaName.trim()) {
+        try {
+          const response = await axios.post('/criteria', { name: row.criteriaName.trim(), description: row.description ?? '', active: true })
+          const newId = Number(response.data?.data?.id)
+          if (newId) ids.push(newId)
+        } catch {
+          toast.error(`Failed to create criteria: ${row.criteriaName}`)
+        }
+      }
+    }
+    return ids
   }
 
   return (
@@ -372,9 +518,19 @@ function TemplateTab() {
             <p className="mt-1 max-w-xl text-sm text-slate-500">Create, configure, and manage feedback question templates across departments, level codes, and individual employees.</p>
           </div>
         </div>
-        <button onClick={openCreate} disabled={!selectedReviewCycleId || isLocked} className="inline-flex items-center gap-2 rounded-xl bg-gradient-to-r from-[#2463eb] to-[#1d4ed8] px-4 py-2.5 text-sm font-bold text-white shadow-md shadow-[#2463eb]/20 hover:brightness-110 disabled:cursor-not-allowed disabled:opacity-50">
-          <Plus size={16} /> Create Template
-        </button>
+        <div className="flex flex-wrap items-center gap-2">
+          <input ref={fileInputRef} type="file" accept=".xlsx" onChange={handleFileSelect} className="hidden" />
+          <button onClick={handleDownloadTemplate} disabled={!selectedReviewCycleId} className="inline-flex items-center gap-2 rounded-xl border border-slate-200 bg-white px-4 py-2.5 text-sm font-bold text-slate-600 shadow-sm hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-50">
+            <Download size={16} /> Download Template
+          </button>
+          <button onClick={() => fileInputRef.current?.click()} disabled={!selectedReviewCycleId || isLocked || isValidating || isImporting} className="inline-flex items-center gap-2 rounded-xl border border-slate-200 bg-white px-4 py-2.5 text-sm font-bold text-slate-600 shadow-sm hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-50">
+            {isValidating || isImporting ? <span className="inline-block h-4 w-4 animate-spin rounded-full border-2 border-slate-400 border-t-transparent" /> : <Upload size={16} />}
+            {isValidating ? 'Validating...' : isImporting ? 'Importing...' : 'Import Template'}
+          </button>
+          <button onClick={openCreate} disabled={!selectedReviewCycleId || isLocked} className="inline-flex items-center gap-2 rounded-xl bg-gradient-to-r from-[#2463eb] to-[#1d4ed8] px-4 py-2.5 text-sm font-bold text-white shadow-md shadow-[#2463eb]/20 hover:brightness-110 disabled:cursor-not-allowed disabled:opacity-50">
+            <Plus size={16} /> Create Template
+          </button>
+        </div>
       </div>
 
       <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
@@ -661,10 +817,13 @@ function TemplateTab() {
           isSaving={isSaving}
           reviewCycleName={selectedReviewCycle?.name ?? null}
           reviewCycleDetail={selectedCycleRange}
-          onClose={() => setShowModal(false)}
+          onClose={() => { setShowModal(false); setImportedRows([]); setImportErrors(null) }}
           onSave={handleSave}
           departments={departments}
           positions={positions}
+          importedRows={importedRows}
+          setImportedRows={setImportedRows}
+          importErrors={importErrors}
         />
       )}
       {viewing && (
@@ -788,6 +947,9 @@ function TemplateModal({
   readOnlyMessage,
   departments,
   positions,
+  importedRows,
+  setImportedRows,
+  importErrors,
 }: {
   form: FeedbackTemplateConfig
   setForm: (form: FeedbackTemplateConfig) => void
@@ -803,11 +965,21 @@ function TemplateModal({
   readOnlyMessage?: string
   departments: Option[]
   positions: Option[]
+  importedRows?: FeedbackTemplateImportValidRow[]
+  setImportedRows?: (rows: FeedbackTemplateImportValidRow[]) => void
+  importErrors?: FeedbackTemplateImportValidationResponse | null
 }) {
   const selectedTarget = targetOptions.find((item) => item.id === Number(form.targetId))
   const selectedQuestions = criteria.filter((item) => form.questionIds.includes(item.id))
   const deptMap = useMemo(() => new Map(departments.map((d) => [d.id, d.name])), [departments])
   const posMap = useMemo(() => new Map(positions.map((p) => [p.id, p.name])), [positions])
+  const activeRoles = form.activeRoles ?? []
+  const [activeRoleTab, setActiveRoleTab] = useState(activeRoles.length > 0 ? activeRoles[0] : 'SELF')
+  useEffect(() => {
+    if (activeRoles.length > 0 && !activeRoles.includes(activeRoleTab)) {
+      setActiveRoleTab(activeRoles[0])
+    }
+  }, [activeRoles, activeRoleTab])
 
   const addHybridRule = () => {
     const rules = form.audienceRules ?? []
@@ -876,6 +1048,33 @@ function TemplateModal({
                 </div>
               )}
             </section>
+
+            {importErrors && importErrors.invalidRowsData && importErrors.invalidRowsData.length > 0 && (
+              <section className="rounded-2xl border border-red-200 bg-red-50 p-5">
+                <div className="mb-3 flex items-center gap-2">
+                  <AlertCircle size={18} className="text-red-500" />
+                  <h4 className="text-sm font-black text-red-700">Import Errors</h4>
+                  <span className="ml-auto rounded-full bg-red-100 px-2 py-0.5 text-[10px] font-bold text-red-700">{importErrors.invalidRows} invalid row{importErrors.invalidRows === 1 ? '' : 's'}</span>
+                </div>
+                <div className="space-y-2 max-h-48 overflow-auto">
+                  {importErrors.invalidRowsData.map((row, idx) => (
+                    <div key={idx} className="rounded-xl border border-red-100 bg-white p-3">
+                      <div className="flex items-start gap-2">
+                        <span className="text-xs font-bold text-red-600 shrink-0 w-10">Row {row.rowNumber}</span>
+                        <div className="flex-1 min-w-0">
+                          {row.criteriaName && <p className="text-xs font-semibold text-red-900 truncate">{row.criteriaName}</p>}
+                          <ul className="mt-1 space-y-0.5">
+                            {row.errors.map((err, eIdx) => (
+                              <li key={eIdx} className="text-xs text-red-600">- {err}</li>
+                            ))}
+                          </ul>
+                        </div>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </section>
+            )}
 
             <section className="rounded-2xl border border-slate-200 p-5">
               <div className="mb-4 flex items-center gap-3">
@@ -959,6 +1158,85 @@ function TemplateModal({
               </div>
             </section>
 
+            {importedRows && importedRows.length > 0 && (
+              <section className="rounded-2xl border border-blue-200 bg-blue-50/40 p-5">
+                <div className="mb-3 flex items-center gap-2">
+                  <FileSpreadsheet size={18} className="text-blue-600" />
+                  <h4 className="text-sm font-black text-blue-800">Imported Criteria ({importedRows.length})</h4>
+                </div>
+                <div className="overflow-x-auto rounded-xl border border-blue-100 bg-white">
+                  <table className="w-full text-left">
+                    <thead>
+                      <tr className="bg-blue-50 text-[10px] font-black uppercase tracking-wider text-blue-700 border-b border-blue-100">
+                        <th className="py-2.5 px-3 w-10 text-center">#</th>
+                        <th className="py-2.5 px-3">Criteria Name</th>
+                        <th className="py-2.5 px-3">Description</th>
+                        <th className="py-2.5 px-3 text-center w-12">Known</th>
+                        <th className="py-2.5 px-3 text-center w-14">Action</th>
+                      </tr>
+                    </thead>
+                    <tbody className="divide-y divide-blue-50">
+                      {importedRows.map((row, idx) => (
+                        <tr key={idx} className="hover:bg-blue-50/30 transition-colors">
+                          <td className="py-2 px-3 text-center text-xs font-bold text-slate-400">{idx + 1}</td>
+                          <td className="py-2 px-3">
+                            <input
+                              type="text"
+                              className="w-full bg-white border border-gray-200 rounded-lg px-3 py-1.5 text-xs font-bold text-slate-800 outline-none focus:ring-2 focus:ring-blue-100"
+                              value={row.criteriaName}
+                              maxLength={100}
+                              onChange={(e) => {
+                                const next = [...importedRows]
+                                next[idx] = { ...next[idx], criteriaName: e.target.value }
+                                setImportedRows?.(next)
+                              }}
+                              readOnly={readOnly}
+                            />
+                          </td>
+                          <td className="py-2 px-3">
+                            <input
+                              type="text"
+                              className="w-full bg-white border border-gray-200 rounded-lg px-3 py-1.5 text-xs text-slate-600 outline-none focus:ring-2 focus:ring-blue-100"
+                              value={row.description ?? ''}
+                              onChange={(e) => {
+                                const next = [...importedRows]
+                                next[idx] = { ...next[idx], description: e.target.value }
+                                setImportedRows?.(next)
+                              }}
+                              readOnly={readOnly}
+                            />
+                          </td>
+                          <td className="py-2 px-3 text-center">
+                            {row.existingCriteriaId ? (
+                              <span className="inline-flex items-center rounded-full bg-emerald-100 px-2 py-0.5 text-[10px] font-bold text-emerald-700">Yes</span>
+                            ) : (
+                              <span className="inline-flex items-center rounded-full bg-amber-100 px-2 py-0.5 text-[10px] font-bold text-amber-700">New</span>
+                            )}
+                          </td>
+                          <td className="py-2 px-3 text-center">
+                            {!readOnly && (
+                              <button
+                                onClick={() => {
+                                  const next = importedRows.filter((_, i) => i !== idx)
+                                  setImportedRows?.(next)
+                                }}
+                                className="p-1 text-slate-300 hover:text-red-500 hover:bg-red-50 rounded-lg transition-all"
+                              >
+                                <Trash2 size={12} />
+                              </button>
+                            )}
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+                <p className="mt-2 text-[11px] text-blue-600 font-medium">
+                  Imported criteria will be auto-assigned to all selected feedback roles. You can edit names above before saving.
+                </p>
+              </section>
+            )}
+
             <section className="rounded-2xl border border-slate-200 p-5">
               <div className="mb-4 flex items-center gap-3">
                 <span className="flex h-9 w-9 items-center justify-center rounded-xl bg-gradient-to-br from-[#2463eb] to-[#1d4ed8] text-white shadow-md shadow-[#2463eb]/20">
@@ -966,6 +1244,59 @@ function TemplateModal({
                 </span>
                 <div>
                   <span className="text-[11px] font-bold uppercase tracking-widest text-[#2463eb]">Step 4</span>
+                  <h4 className="font-black text-slate-900">Feedback Roles</h4>
+                  <p className="text-xs text-slate-500">Select which feedback roles this template applies to.</p>
+                </div>
+              </div>
+              <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
+                {FEEDBACK_ROLE_OPTIONS.map(({ value, label }) => {
+                  const selected = (form.activeRoles ?? []).includes(value)
+                  const roleQuestions = form.questionsByRole?.[value] ?? []
+                  return (
+                    <button
+                      key={value}
+                      type="button"
+                      disabled={readOnly}
+                      onClick={() => {
+                        if (readOnly) return
+                        const currentRoles = form.activeRoles ?? []
+                        const newRoles = selected
+                          ? currentRoles.filter(r => r !== value)
+                          : [...currentRoles, value]
+                        const newQuestionsByRole = { ...(form.questionsByRole ?? {}) }
+                        if (!selected) {
+                          newQuestionsByRole[value] = []
+                        }
+                        setForm({ ...form, activeRoles: newRoles, questionsByRole: newQuestionsByRole })
+                      }}
+                      className={`relative flex flex-col items-center gap-2 rounded-2xl border p-4 text-center transition-all ${
+                        selected
+                          ? 'border-[#2463eb]/50 bg-[#2463eb]/[0.05] shadow-md shadow-[#2463eb]/10 ring-1 ring-[#2463eb]/25'
+                          : 'border-slate-200/90 bg-white hover:border-slate-300 hover:bg-slate-50/80'
+                      } ${readOnly && !selected ? 'opacity-55' : ''}`}
+                    >
+                      {selected && (
+                        <div className="pointer-events-none absolute inset-0 rounded-2xl bg-gradient-to-br from-[#2463eb]/[0.04] to-[#1d4ed8]/[0.02]" />
+                      )}
+                      <div className="relative flex flex-col items-center">
+                        <p className={`text-sm font-bold ${selected ? 'text-[#1d4ed8]' : 'text-slate-900'}`}>{label}</p>
+                        <p className={`mt-1 text-xs ${selected ? 'text-blue-500' : 'text-slate-400'}`}>
+                          {roleQuestions.length} question{roleQuestions.length === 1 ? '' : 's'}
+                        </p>
+                      </div>
+                    </button>
+                  )
+                })}
+              </div>
+            </section>
+
+            <section className="rounded-2xl border border-slate-200 p-5">
+              <div className="mb-4 flex items-center gap-3">
+                <span className="flex h-9 w-9 items-center justify-center rounded-xl bg-gradient-to-br from-[#2463eb] to-[#1d4ed8] text-white shadow-md shadow-[#2463eb]/20">
+                  <Users size={17} />
+                </span>
+                <div>
+                  <span className="text-[11px] font-bold uppercase tracking-widest text-[#2463eb]">Step 5</span>
                   <h4 className="font-black text-slate-900">Audience</h4>
                   <p className="text-xs text-slate-500">Match the self-assessment audience style by selecting one target type.</p>
                 </div>
@@ -1049,38 +1380,72 @@ function TemplateModal({
             </section>
 
             <section className="rounded-2xl border border-slate-200 p-5">
-              <div className="mb-4 flex items-center justify-between gap-3">
-                <div className="flex items-center gap-3">
-                  <span className="flex h-9 w-9 items-center justify-center rounded-xl bg-gradient-to-br from-[#2463eb] to-[#1d4ed8] text-white shadow-md shadow-[#2463eb]/20">
-                    <ClipboardList size={17} />
-                  </span>
-                  <div>
-                    <span className="text-[11px] font-bold uppercase tracking-widest text-[#2463eb]">Step 5</span>
-                    <h4 className="font-black text-slate-900">Criteria Assignment</h4>
-                    <p className="text-xs text-slate-500">Select the feedback criteria included in this template.</p>
+              <div className="mb-4 flex items-center gap-3">
+                <span className="flex h-9 w-9 items-center justify-center rounded-xl bg-gradient-to-br from-[#2463eb] to-[#1d4ed8] text-white shadow-md shadow-[#2463eb]/20">
+                  <ClipboardList size={17} />
+                </span>
+                <div>
+                  <span className="text-[11px] font-bold uppercase tracking-widest text-[#2463eb]">Step 6</span>
+                  <h4 className="font-black text-slate-900">Criteria Assignment</h4>
+                  <p className="text-xs text-slate-500">Select feedback criteria for each selected role.</p>
+                </div>
+              </div>
+              {activeRoles.length === 0 ? (
+                <p className="text-sm text-slate-500 italic">Select at least one feedback role first.</p>
+              ) : (
+                <div>
+                  <div className="mb-4 flex flex-wrap gap-2">
+                    {activeRoles.map(role => {
+                      const roleLabel = FEEDBACK_ROLE_OPTIONS.find(r => r.value === role)?.label ?? role
+                      const roleQuestions = form.questionsByRole?.[role] ?? []
+                      return (
+                        <button
+                          key={role}
+                          type="button"
+                          onClick={() => setActiveRoleTab(role)}
+                          className={`inline-flex items-center gap-2 rounded-xl px-3 py-2 text-xs font-bold transition-all ${
+                            activeRoleTab === role
+                              ? 'bg-blue-600 text-white shadow-sm'
+                              : 'bg-slate-100 text-slate-600 hover:bg-slate-200'
+                          }`}
+                        >
+                          {roleLabel}
+                          <span className={`rounded-full px-1.5 py-0.5 text-[10px] ${
+                            activeRoleTab === role ? 'bg-white/20 text-white' : 'bg-slate-200 text-slate-500'
+                          }`}>
+                            {roleQuestions.length}
+                          </span>
+                        </button>
+                      )
+                    })}
+                  </div>
+                  <div className="grid max-h-72 gap-2 overflow-auto rounded-xl border border-slate-100 bg-slate-50 p-3">
+                    {criteria.map((item) => {
+                      const roleQuestions = form.questionsByRole?.[activeRoleTab] ?? []
+                      return (
+                        <label key={item.id} className="flex items-start gap-3 rounded-xl bg-white px-3 py-2.5 text-sm shadow-sm ring-1 ring-slate-100">
+                          <input
+                            type="checkbox"
+                            disabled={readOnly}
+                            className="mt-1"
+                            checked={roleQuestions.includes(item.id)}
+                            onChange={(e) => {
+                              const newQuestionsByRole = { ...(form.questionsByRole ?? {}) }
+                              const current = newQuestionsByRole[activeRoleTab] ?? []
+                              newQuestionsByRole[activeRoleTab] = e.target.checked
+                                ? [...current, item.id]
+                                : current.filter((id) => id !== item.id)
+                              const allQuestionIds = [...new Set(Object.values(newQuestionsByRole).flat())]
+                              setForm({ ...form, questionsByRole: newQuestionsByRole, questionIds: allQuestionIds })
+                            }}
+                          />
+                          <span className="font-semibold text-slate-700">{item.name}</span>
+                        </label>
+                      )
+                    })}
                   </div>
                 </div>
-                <span className="rounded-full bg-slate-100 px-3 py-1 text-xs font-black text-slate-600">{form.questionIds.length} selected</span>
-              </div>
-              <div className="grid max-h-72 gap-2 overflow-auto rounded-xl border border-slate-100 bg-slate-50 p-3">
-                {criteria.map((item) => (
-                  <label key={item.id} className="flex items-start gap-3 rounded-xl bg-white px-3 py-2.5 text-sm shadow-sm ring-1 ring-slate-100">
-                    <input
-                      type="checkbox"
-                      disabled={readOnly}
-                      className="mt-1"
-                      checked={form.questionIds.includes(item.id)}
-                      onChange={(e) => {
-                        const questionIds = e.target.checked
-                          ? [...form.questionIds, item.id]
-                          : form.questionIds.filter((id) => id !== item.id)
-                        setForm({ ...form, questionIds })
-                      }}
-                    />
-                    <span className="font-semibold text-slate-700">{item.name}</span>
-                  </label>
-                ))}
-              </div>
+              )}
             </section>
           </div>
 
@@ -1099,6 +1464,19 @@ function TemplateModal({
               <div>
                 <p className="text-xs font-black uppercase tracking-wider text-slate-400">Rating Scale</p>
                 <p className="mt-1 font-bold text-slate-900">1 - {form.maxRating ?? 5}</p>
+              </div>
+              <div>
+                <p className="text-xs font-black uppercase tracking-wider text-slate-400">Feedback Roles</p>
+                <div className="mt-1 flex flex-wrap gap-1">
+                  {(form.activeRoles ?? ['SELF', 'PEER', 'MANAGER', 'SUBORDINATE']).map(role => {
+                    const roleLabel = FEEDBACK_ROLE_OPTIONS.find(r => r.value === role)?.label ?? role
+                    return (
+                      <span key={role} className="inline-flex items-center rounded-full bg-blue-50 px-2 py-0.5 text-[10px] font-bold text-blue-700">
+                        {roleLabel}
+                      </span>
+                    )
+                  })}
+                </div>
               </div>
               <div>
                 <p className="text-xs font-black uppercase tracking-wider text-slate-400">Audience</p>

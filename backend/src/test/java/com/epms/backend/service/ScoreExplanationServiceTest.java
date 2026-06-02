@@ -231,7 +231,7 @@ class ScoreExplanationServiceTest {
                 .hasMessageContaining("at least one module");
     }
 
-    private static void mockModuleFindAll(ScoreExplanationModule module, List<ScoreExplanation> rows) {
+    private void mockModuleFindAll(ScoreExplanationModule module, List<ScoreExplanation> rows) {
         when(repository.findByModuleOrderBySortOrderAsc(module)).thenReturn(rows);
     }
 

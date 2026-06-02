@@ -27,9 +27,12 @@ import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collections;
 import java.util.Comparator;
+import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Locale;
+import java.util.Map;
 import java.util.Objects;
+import java.util.Set;
 import java.util.stream.Collectors;
 
 @Service
@@ -76,6 +79,13 @@ public class FeedbackManagementService {
         entity.setAudienceRulesJson(serializeAudienceRules(request.getAudienceRules()));
         entity.setMaxRating(request.getMaxRating() != null ? request.getMaxRating() : 5);
         entity.setUpdatedDate(Instant.now());
+
+        List<String> roles = request.getActiveRoles() != null && !request.getActiveRoles().isEmpty()
+                ? request.getActiveRoles()
+                : List.of("SELF", "PEER", "MANAGER", "SUBORDINATE");
+        entity.setActiveRoles(String.join(",", roles));
+        entity.setRoleQuestionIds(serializeQuestionsByRole(request.getQuestionsByRole()));
+
         return toTemplateDto(templateRepository.save(entity));
     }
 
@@ -147,9 +157,6 @@ public class FeedbackManagementService {
                 throw new RuntimeException("Template target is required");
             }
         }
-        if (request.getQuestionIds() == null || request.getQuestionIds().isEmpty()) {
-            throw new RuntimeException("At least one question is required");
-        }
         if (request.getReviewCycleId() == null) {
             throw new RuntimeException("Review cycle is required");
         }
@@ -157,6 +164,32 @@ public class FeedbackManagementService {
         if (maxRating == null || maxRating < 2 || maxRating > 10) {
             throw new RuntimeException("Rating scale must be between 2 and 10");
         }
+
+        List<String> activeRoles = request.getActiveRoles();
+        if (activeRoles == null || activeRoles.isEmpty()) {
+            throw new RuntimeException("At least one feedback role must be selected");
+        }
+        Map<String, List<Long>> questionsByRole = request.getQuestionsByRole();
+        Set<String> validRoles = Set.of("SELF", "PEER", "MANAGER", "SUBORDINATE");
+        for (String role : activeRoles) {
+            if (!validRoles.contains(role)) {
+                throw new RuntimeException("Invalid feedback role: " + role);
+            }
+            List<Long> roleQuestions = questionsByRole != null ? questionsByRole.get(role) : null;
+            if (roleQuestions == null || roleQuestions.isEmpty()) {
+                throw new RuntimeException("At least one question is required for " + roleLabel(role));
+            }
+        }
+    }
+
+    private String roleLabel(String role) {
+        return switch (role) {
+            case "SELF" -> "Self-evaluate";
+            case "PEER" -> "Peers";
+            case "MANAGER" -> "Manager";
+            case "SUBORDINATE" -> "Subordinate";
+            default -> role;
+        };
     }
 
     private void validateLimit(FeedbackLimitConfigDto request) {
@@ -268,7 +301,58 @@ public class FeedbackManagementService {
         dto.setMaxRating(entity.getMaxRating() != null ? entity.getMaxRating() : 5);
         dto.setCreatedDate(entity.getCreatedDate());
         dto.setUpdatedDate(entity.getUpdatedDate());
+
+        List<String> roles = parseActiveRoles(entity.getActiveRoles());
+        dto.setActiveRoles(roles);
+        dto.setQuestionsByRole(deserializeQuestionsByRole(entity.getRoleQuestionIds(), entity.getQuestionIds(), roles));
+
         return dto;
+    }
+
+    private List<String> parseActiveRoles(String value) {
+        if (value == null || value.isBlank()) {
+            return List.of("SELF", "PEER", "MANAGER", "SUBORDINATE");
+        }
+        return Arrays.stream(value.split(","))
+                .map(String::trim)
+                .filter(s -> !s.isEmpty())
+                .collect(Collectors.toList());
+    }
+
+    private String serializeQuestionsByRole(Map<String, List<Long>> questionsByRole) {
+        if (questionsByRole == null || questionsByRole.isEmpty()) {
+            return null;
+        }
+        try {
+            return OBJECT_MAPPER.writeValueAsString(questionsByRole);
+        } catch (JsonProcessingException e) {
+            throw new RuntimeException("Failed to serialize questions by role", e);
+        }
+    }
+
+    private Map<String, List<Long>> deserializeQuestionsByRole(String json, String globalQuestionIds, List<String> activeRoles) {
+        if (json != null && !json.isBlank()) {
+            try {
+                return OBJECT_MAPPER.readValue(json, new TypeReference<Map<String, List<Long>>>() {});
+            } catch (JsonProcessingException e) {
+                return buildDefaultQuestionsByRole(globalQuestionIds, activeRoles);
+            }
+        }
+        return buildDefaultQuestionsByRole(globalQuestionIds, activeRoles);
+    }
+
+    private Map<String, List<Long>> buildDefaultQuestionsByRole(String globalQuestionIds, List<String> activeRoles) {
+        List<Long> ids = parseQuestionIds(globalQuestionIds);
+        Map<String, List<Long>> map = new LinkedHashMap<>();
+        for (String role : activeRoles) {
+            map.put(role, new ArrayList<>(ids));
+        }
+        return map;
+    }
+
+    private List<Long> getRoleQuestions(FeedbackTemplateConfig entity, String role) {
+        Map<String, List<Long>> map = deserializeQuestionsByRole(entity.getRoleQuestionIds(), entity.getQuestionIds(), List.of(role));
+        return map.getOrDefault(role, parseQuestionIds(entity.getQuestionIds()));
     }
 
     private String serializeAudienceRules(List<AudienceRuleDto> rules) {
@@ -391,7 +475,34 @@ public class FeedbackManagementService {
             return buildFallbackFormConfig(allCriteria);
         }
 
-        return buildFormConfigFromTemplate(best);
+        List<String> templateRoles = parseActiveRoles(best.getActiveRoles());
+        String normalizedRole = role.toUpperCase(Locale.ROOT).trim();
+        if (!templateRoles.contains(normalizedRole)) {
+            List<Criteria> allCriteria = criteriaRepository.findAll().stream()
+                    .filter(c -> Boolean.TRUE.equals(c.getActive()))
+                    .collect(Collectors.toList());
+            return buildFallbackFormConfig(allCriteria);
+        }
+
+        return buildFormConfigFromTemplate(best, normalizedRole);
+    }
+
+    private FormConfigResponse buildFormConfigFromTemplate(FeedbackTemplateConfig template, String role) {
+        List<Long> questionIds = getRoleQuestions(template, role);
+        List<Criteria> criteriaEntities = criteriaRepository.findAllById(questionIds);
+        List<FormConfigResponse.CriteriaDto> criteriaDtos = criteriaEntities.stream()
+                .map(c -> FormConfigResponse.CriteriaDto.builder()
+                        .id(c.getId())
+                        .name(c.getName())
+                        .description(c.getDescription())
+                        .build())
+                .collect(Collectors.toList());
+        return FormConfigResponse.builder()
+                .templateId(template.getId())
+                .templateName(template.getTemplateName())
+                .maxRating(template.getMaxRating() != null ? template.getMaxRating() : 5)
+                .criteria(criteriaDtos)
+                .build();
     }
 
     private FormConfigResponse buildFallbackFormConfig(List<Criteria> allCriteria) {
@@ -406,24 +517,6 @@ public class FeedbackManagementService {
                 .templateId(null)
                 .templateName("Default (All Active Criteria)")
                 .maxRating(5)
-                .criteria(criteriaDtos)
-                .build();
-    }
-
-    private FormConfigResponse buildFormConfigFromTemplate(FeedbackTemplateConfig template) {
-        List<Long> questionIds = parseQuestionIds(template.getQuestionIds());
-        List<Criteria> criteriaEntities = criteriaRepository.findAllById(questionIds);
-        List<FormConfigResponse.CriteriaDto> criteriaDtos = criteriaEntities.stream()
-                .map(c -> FormConfigResponse.CriteriaDto.builder()
-                        .id(c.getId())
-                        .name(c.getName())
-                        .description(c.getDescription())
-                        .build())
-                .collect(Collectors.toList());
-        return FormConfigResponse.builder()
-                .templateId(template.getId())
-                .templateName(template.getTemplateName())
-                .maxRating(template.getMaxRating() != null ? template.getMaxRating() : 5)
                 .criteria(criteriaDtos)
                 .build();
     }

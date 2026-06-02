@@ -4,7 +4,9 @@ import lombok.Data;
 
 import java.time.Instant;
 import java.util.ArrayList;
+import java.util.LinkedHashMap;
 import java.util.List;
+import java.util.Map;
 
 @Data
 public class FeedbackTemplateConfigDto {
@@ -21,6 +23,8 @@ public class FeedbackTemplateConfigDto {
     private Integer maxRating = 5;
     private Instant createdDate;
     private Instant updatedDate;
+    private List<String> activeRoles = List.of("SELF", "PEER", "MANAGER", "SUBORDINATE");
+    private Map<String, List<Long>> questionsByRole;
 
     @Data
     public static class AudienceRuleDto {

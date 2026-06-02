@@ -40,6 +40,12 @@ public class FeedbackTemplateConfig {
     @Column(columnDefinition = "text")
     private String questionIds;
 
+    @Column(name = "role_question_ids", columnDefinition = "text")
+    private String roleQuestionIds;
+
+    @Column(name = "active_roles", columnDefinition = "text")
+    private String activeRoles;
+
     @Column(columnDefinition = "text")
     private String audienceRulesJson;
 

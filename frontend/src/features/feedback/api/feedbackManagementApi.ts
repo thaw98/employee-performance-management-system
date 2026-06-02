@@ -21,6 +21,8 @@ export interface FeedbackTemplateConfig {
   maxRating?: number
   createdDate?: string
   updatedDate?: string
+  activeRoles?: string[]
+  questionsByRole?: Record<string, number[]>
 }
 
 export interface FormConfigCriteria {
@@ -45,6 +47,28 @@ export interface FeedbackLimitConfig {
   maximumCount: number
   createdDate?: string
   updatedDate?: string
+}
+
+export interface FeedbackTemplateImportValidRow {
+  rowNumber: number
+  criteriaName: string
+  description: string | null
+  existingCriteriaId?: number | null
+}
+
+export interface FeedbackTemplateImportInvalidRow {
+  rowNumber: number
+  criteriaName: string | null
+  description: string | null
+  errors: string[]
+}
+
+export interface FeedbackTemplateImportValidationResponse {
+  totalRows: number
+  validRows: number
+  invalidRows: number
+  validRowData: FeedbackTemplateImportValidRow[]
+  invalidRowsData: FeedbackTemplateImportInvalidRow[]
 }
 
 interface ApiResponse<T> {
@@ -97,6 +121,16 @@ export const feedbackManagementApi = baseApi.injectEndpoints({
       query: (id) => ({ url: `/feedback-management/limits/${id}`, method: 'DELETE' }),
       invalidatesTags: ['FeedbackManagement'],
     }),
+    validateFeedbackTemplateImport: builder.mutation<
+      { success: boolean; message: string; data: FeedbackTemplateImportValidationResponse },
+      FormData
+    >({
+      query: (body) => ({
+        url: '/feedback-management/templates/import/validate',
+        method: 'POST',
+        body,
+      }),
+    }),
   }),
 })
 
@@ -107,4 +141,5 @@ export const {
   useGetFeedbackLimitsQuery,
   useSaveFeedbackLimitMutation,
   useDeleteFeedbackLimitMutation,
+  useValidateFeedbackTemplateImportMutation,
 } = feedbackManagementApi

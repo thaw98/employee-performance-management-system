@@ -1,4 +1,4 @@
-import React, { useEffect, useMemo, useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import { ArrowLeft, Download, Eye, FileSpreadsheet, FileText, RefreshCcw, Search } from 'lucide-react';
 import { useNavigate, useParams, useSearchParams } from 'react-router-dom';
 import { toast } from 'react-hot-toast';
@@ -181,18 +181,6 @@ export function AuditFeedbackHistoryPage() {
     setFilters(prev => ({ ...prev, [key]: value }));
   };
 
-  const filterSummary = useMemo(() => {
-    const entries = [
-      ['Search', filters.search || 'All'],
-      ['Department', departments.find(d => String(d.id) === filters.department)?.name || filters.department || 'All'],
-      ['Cycle', reviewCycles.find(c => String(c.id) === filters.reviewCycleId)?.name || 'All'],
-      ['Type', filters.feedbackType || 'All'],
-      ['From', filters.fromDate || 'Any'],
-      ['To', filters.toDate || 'Any'],
-    ];
-    return entries;
-  }, [departments, filters, reviewCycles]);
-
   const fetchExportRows = async () => {
     const resp = await axios.get(`/feedback/audit/history-summary?${buildParams(0, 10000, filters).toString()}`);
     return resp.data.data?.content || rows;
@@ -202,9 +190,6 @@ export function AuditFeedbackHistoryPage() {
     try {
       const exportRows = await fetchExportRows();
       const summaryRows = [
-        ['Report Filters'],
-        ...filterSummary,
-        [],
         ['Total Evaluatees', totals.totalEvaluatees],
         ['Total Feedback Count', totals.totalFeedbackCount],
         ['Anonymous Count', totals.anonymousCount],
@@ -240,9 +225,7 @@ export function AuditFeedbackHistoryPage() {
       const margin = 14;
       const logoDataUrl = await loadPdfLogo();
       addPdfProfessionalHeader(doc, '360 Feedback Summary', `Generated: ${new Date().toLocaleString('en-GB')}`, { margin, logoDataUrl });
-      let currentY = addPdfSectionHeader(doc, margin, 42, 'Report Filters', { width: 182 });
-      currentY = addPdfInfoTable(doc, currentY + 2, filterSummary, { marginLeft: margin, marginRight: margin }) + 8;
-      currentY = addPdfSectionHeader(doc, margin, currentY, 'Totals', { width: 182 });
+      let currentY = addPdfSectionHeader(doc, margin, 42, 'Totals', { width: 182 });
       currentY = addPdfInfoTable(doc, currentY + 2, [
         ['Total Evaluatees', String(totals.totalEvaluatees), 'Feedback Count', String(totals.totalFeedbackCount)],
         ['Anonymous', String(totals.anonymousCount), 'Not Anonymous', String(totals.nonAnonymousCount)],

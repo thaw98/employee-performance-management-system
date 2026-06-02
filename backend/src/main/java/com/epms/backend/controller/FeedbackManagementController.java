@@ -3,9 +3,14 @@ package com.epms.backend.controller;
 import com.epms.backend.common.ApiResponse;
 import com.epms.backend.dto.feedbackmanagement.FeedbackLimitConfigDto;
 import com.epms.backend.dto.feedbackmanagement.FeedbackTemplateConfigDto;
+import com.epms.backend.dto.feedbackmanagement.FeedbackTemplateImportValidationResponseDto;
 import com.epms.backend.dto.feedbackmanagement.FormConfigResponse;
 import com.epms.backend.service.FeedbackManagementService;
+import com.epms.backend.service.FeedbackTemplateImportService;
 import lombok.RequiredArgsConstructor;
+import org.springframework.http.ContentDisposition;
+import org.springframework.http.HttpHeaders;
+import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.DeleteMapping;
@@ -16,7 +21,9 @@ import org.springframework.web.bind.annotation.PutMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
+import org.springframework.web.bind.annotation.RequestPart;
 import org.springframework.web.bind.annotation.RestController;
+import org.springframework.web.multipart.MultipartFile;
 
 import java.util.List;
 
@@ -26,6 +33,7 @@ import java.util.List;
 @PreAuthorize("hasRole('HR')")
 public class FeedbackManagementController {
     private final FeedbackManagementService service;
+    private final FeedbackTemplateImportService importService;
 
     @GetMapping("/templates")
     public ResponseEntity<ApiResponse<List<FeedbackTemplateConfigDto>>> getTemplates(@RequestParam(required = false) Long reviewCycleId) {
@@ -76,5 +84,33 @@ public class FeedbackManagementController {
     public ResponseEntity<ApiResponse<Void>> deleteLimit(@PathVariable Long id) {
         service.deleteLimit(id);
         return ResponseEntity.ok(ApiResponse.ok("Feedback limit deleted successfully", null));
+    }
+
+    @GetMapping("/templates/import/template")
+    public ResponseEntity<byte[]> downloadImportTemplate() {
+        try {
+            byte[] bytes = importService.generateTemplate();
+            HttpHeaders headers = new HttpHeaders();
+            headers.setContentType(MediaType.parseMediaType(
+                    "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"));
+            headers.setContentDisposition(
+                    ContentDisposition.attachment().filename("360_feedback_template_import_template.xlsx").build());
+            return ResponseEntity.ok().headers(headers).body(bytes);
+        } catch (Exception e) {
+            return ResponseEntity.internalServerError().build();
+        }
+    }
+
+    @PostMapping(value = "/templates/import/validate", consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
+    public ResponseEntity<ApiResponse<FeedbackTemplateImportValidationResponseDto>> validateImport(
+            @RequestPart("file") MultipartFile file) {
+        try {
+            FeedbackTemplateImportValidationResponseDto result = importService.validate(file);
+            return ResponseEntity.ok(ApiResponse.ok("Validation complete", result));
+        } catch (IllegalArgumentException ex) {
+            return ResponseEntity.badRequest().body(ApiResponse.fail(ex.getMessage()));
+        } catch (Exception ex) {
+            return ResponseEntity.internalServerError().body(ApiResponse.fail("Validation failed: " + ex.getMessage()));
+        }
     }
 }
