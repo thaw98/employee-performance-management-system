@@ -147,6 +147,20 @@ type PipCreateFormProps = {
   onCancel?: () => void
 }
 
+const EMBEDDED_STEPS = [
+  { id: 1, label: 'People & Timeline', shortLabel: 'Timeline' },
+  { id: 2, label: 'Objectives', shortLabel: 'Objectives' },
+  { id: 3, label: 'Expected Improvements', shortLabel: 'Improvements' },
+  { id: 4, label: 'Reason for Plan', shortLabel: 'Reason' },
+] as const
+
+const EMBEDDED_STEP_FIELDS: Record<number, (keyof PipCreateFormValues | `objectives.${number}.value` | `expectedImprovements.${number}.value`)[]> = {
+  1: ['employeeId', 'totalHours', 'startDate', 'endDate'],
+  2: ['objectives'],
+  3: ['expectedImprovements'],
+  4: ['reasonForPlan'],
+}
+
 const getCreatePipErrorMessage = (error: unknown) => {
   const fallback = 'Failed to create PIP. Please check the employee record ID and try again.'
   if (typeof error !== 'object' || error === null) return fallback
@@ -177,6 +191,7 @@ export function PipCreateForm({ embedded = false, onCreated, onCancel }: PipCrea
   const { data: existingPips } = useGetPipsQuery()
   const [createPip, { isLoading: isCreating }] = useCreatePipMutation()
   const [submitError, setSubmitError] = useState<string | null>(null)
+  const [embeddedStep, setEmbeddedStep] = useState(1)
   const userRole = user?.role?.toUpperCase().replace(/\s+/g, '_') || ''
   const isHr = userRole === 'HR'
   const isManager = userRole === 'DEPARTMENT_HEAD' || userRole === 'TEAM_HEAD' || userRole === 'MANAGER'
@@ -253,6 +268,19 @@ export function PipCreateForm({ embedded = false, onCreated, onCancel }: PipCrea
     removeExpectedImprovement(index)
   }
 
+  const isEmbeddedStepVisible = (stepId: number) => !embedded || embeddedStep === stepId
+
+  const goToNextEmbeddedStep = async () => {
+    const fields = EMBEDDED_STEP_FIELDS[embeddedStep] ?? []
+    const valid = await trigger(fields as Parameters<typeof trigger>[0])
+    if (!valid) return
+    setEmbeddedStep((prev) => Math.min(prev + 1, EMBEDDED_STEPS.length))
+  }
+
+  const goToPreviousEmbeddedStep = () => {
+    setEmbeddedStep((prev) => Math.max(prev - 1, 1))
+  }
+
   const onSubmit = async (values: PipCreateFormValues) => {
     setSubmitError(null)
     const expectedImprovements = values.expectedImprovements
@@ -262,15 +290,6 @@ export function PipCreateForm({ embedded = false, onCreated, onCancel }: PipCrea
     const startDate = toIsoDate(values.startDate)
     const endDate = toIsoDate(values.endDate)
 
-    console.log('[PIP Create] Submitting payload:', {
-      employeeId: values.employeeId,
-      startDate,
-      endDate,
-      totalHours: values.totalHours,
-      objectives: values.objectives.map((item) => item.value.trim()).filter(Boolean),
-      expectedImprovements: expectedImprovements || undefined,
-      reasonForPlan: values.reasonForPlan?.trim() || undefined,
-    })
     try {
       await createPip({
         employeeId: values.employeeId,
@@ -287,7 +306,6 @@ export function PipCreateForm({ embedded = false, onCreated, onCancel }: PipCrea
         navigate(routeBase)
       }
     } catch (error: unknown) {
-      console.error('[PIP Create] Request failed:', error)
       const message = getCreatePipErrorMessage(error)
 
       if (message === 'An active PIP already exists for this employee') {
@@ -312,8 +330,37 @@ export function PipCreateForm({ embedded = false, onCreated, onCancel }: PipCrea
     }
   }
 
+  const summaryPanel = (
+    <aside className="h-fit rounded-2xl bg-gradient-to-br from-[#2463eb] to-[#1d4ed8] p-5 text-white shadow-lg shadow-blue-200/50 lg:sticky lg:top-4">
+      <p className="text-[11px] font-black uppercase tracking-[0.2em] text-blue-100">PIP Summary</p>
+      <div className="mt-5 space-y-4">
+        <div>
+          <p className="text-xs font-bold text-blue-200">Employee</p>
+          <p className="mt-1 text-base font-black">{selectedEmployee?.employeeName || 'Not selected'}</p>
+          <p className="text-xs text-blue-100/90">{selectedEmployee?.departmentName || 'Choose a low performer'}</p>
+        </div>
+        <div className="grid grid-cols-2 gap-3">
+          <div className="rounded-xl bg-white/15 p-3 backdrop-blur-sm">
+            <p className="text-[10px] font-black uppercase tracking-wider text-blue-100">Days</p>
+            <p className="mt-1 text-2xl font-black tabular-nums">{selectedPipDays ?? '–'}</p>
+          </div>
+          <div className="rounded-xl bg-white/15 p-3 backdrop-blur-sm">
+            <p className="text-[10px] font-black uppercase tracking-wider text-blue-100">Max Hours</p>
+            <p className="mt-1 text-2xl font-black tabular-nums">{selectedMaxHours ?? '–'}</p>
+          </div>
+        </div>
+        <div className="rounded-xl border border-white/20 bg-white/10 p-4 backdrop-blur-sm">
+          <p className="text-xs font-bold text-white">Hour rule</p>
+          <p className="mt-1 text-sm font-medium leading-relaxed text-blue-50">
+            {HOURS_PER_DAY} hours per PIP day. Total hours must stay within the selected date range.
+          </p>
+        </div>
+      </div>
+    </aside>
+  )
+
   return (
-    <div className={embedded ? '' : 'mx-auto w-full p-6 lg:w-[80vw] lg:max-w-none lg:p-8'}>
+    <div className={embedded ? 'pt-4' : 'mx-auto w-full p-6 lg:w-[80vw] lg:max-w-none lg:p-8'}>
       {!embedded && (
         <div className="mb-6 overflow-hidden rounded-3xl border border-blue-100 bg-white shadow-sm">
           <div className="bg-gradient-to-r from-[#2463eb] to-[#1d4ed8] px-7 py-6 text-white">
@@ -326,11 +373,65 @@ export function PipCreateForm({ embedded = false, onCreated, onCancel }: PipCrea
         </div>
       )}
 
-      <Box component="form" onSubmit={handleSubmit(onSubmit)} className={embedded ? 'space-y-6' : 'rounded-3xl border border-slate-200 bg-white p-5 shadow-sm lg:p-6'}>
+      {embedded ? (
+        <nav aria-label="PIP creation steps" className="mb-6">
+          <ol className="flex items-center gap-1 sm:gap-2">
+            {EMBEDDED_STEPS.map((step, index) => {
+              const isActive = embeddedStep === step.id
+              const isComplete = embeddedStep > step.id
+              return (
+                <li key={step.id} className="flex min-w-0 flex-1 items-center">
+                  <button
+                    type="button"
+                    onClick={() => {
+                      if (step.id < embeddedStep) setEmbeddedStep(step.id)
+                    }}
+                    disabled={step.id > embeddedStep}
+                    className={`flex w-full min-w-0 flex-col items-center gap-1.5 rounded-xl px-1 py-2 transition sm:flex-row sm:justify-center sm:gap-2 sm:px-3 ${
+                      isActive
+                        ? 'bg-blue-50 text-[#2463eb]'
+                        : isComplete
+                          ? 'text-[#2463eb] hover:bg-slate-50'
+                          : 'text-slate-400'
+                    } ${step.id < embeddedStep ? 'cursor-pointer' : 'cursor-default'}`}
+                  >
+                    <span
+                      className={`flex h-7 w-7 shrink-0 items-center justify-center rounded-full text-xs font-black ${
+                        isActive
+                          ? 'bg-[#2463eb] text-white shadow-sm'
+                          : isComplete
+                            ? 'bg-[#2463eb]/15 text-[#2463eb]'
+                            : 'bg-slate-100 text-slate-500'
+                      }`}
+                    >
+                      {isComplete ? <i className="bi bi-check-lg text-sm" /> : step.id}
+                    </span>
+                    <span className="hidden truncate text-[11px] font-bold sm:inline sm:text-xs">{step.shortLabel}</span>
+                  </button>
+                  {index < EMBEDDED_STEPS.length - 1 ? (
+                    <div
+                      className={`mx-0.5 hidden h-px w-4 shrink-0 sm:block sm:w-6 ${isComplete ? 'bg-[#2463eb]/40' : 'bg-slate-200'}`}
+                      aria-hidden
+                    />
+                  ) : null}
+                </li>
+              )
+            })}
+          </ol>
+        </nav>
+      ) : null}
+
+      <Box
+        component="form"
+        onSubmit={handleSubmit(onSubmit)}
+        className={embedded ? 'space-y-0' : 'rounded-3xl border border-slate-200 bg-white p-5 shadow-sm lg:p-6'}
+      >
         {submitError ? <Alert severity="error" className="mb-5">{submitError}</Alert> : null}
-        <div className="grid gap-6 xl:grid-cols-[minmax(0,1fr)_320px]">
+        <div className={`grid gap-6 ${embedded ? 'lg:grid-cols-[minmax(0,1fr)_280px] xl:grid-cols-[minmax(0,1fr)_300px]' : 'xl:grid-cols-[minmax(0,1fr)_320px]'}`}>
           <div className="space-y-5">
-            <section className="rounded-2xl border border-slate-200 bg-slate-50/60 p-5">
+            <section
+              className={`${embedded ? '' : 'rounded-2xl border border-slate-200 bg-slate-50/60 p-5'} ${!isEmbeddedStepVisible(1) ? 'hidden' : ''}`}
+            >
               <div className="mb-4">
                 <p className="text-[11px] font-black uppercase tracking-widest text-[#2463eb]">Step 1</p>
                 <h2 className="text-lg font-black text-slate-900">People & Timeline</h2>
@@ -481,7 +582,9 @@ export function PipCreateForm({ embedded = false, onCreated, onCancel }: PipCrea
               </Stack>
             </section>
 
-            <section className="rounded-2xl border border-slate-200 bg-white p-5">
+            <section
+              className={`${embedded ? '' : 'rounded-2xl border border-slate-200 bg-white p-5'} ${!isEmbeddedStepVisible(2) ? 'hidden' : ''}`}
+            >
               <div className="mb-4">
                 <p className="text-[11px] font-black uppercase tracking-widest text-[#2463eb]">Step 2</p>
                 <h2 className="text-lg font-black text-slate-900">Objectives</h2>
@@ -519,7 +622,9 @@ export function PipCreateForm({ embedded = false, onCreated, onCancel }: PipCrea
           </Stack>
             </section>
 
-            <section className="rounded-2xl border border-slate-200 bg-white p-5">
+            <section
+              className={`${embedded ? '' : 'rounded-2xl border border-slate-200 bg-white p-5'} ${!isEmbeddedStepVisible(3) ? 'hidden' : ''}`}
+            >
               <div className="mb-4">
                 <p className="text-[11px] font-black uppercase tracking-widest text-[#2463eb]">Step 3</p>
                 <h2 className="text-lg font-black text-slate-900">Expected Improvements</h2>
@@ -562,7 +667,17 @@ export function PipCreateForm({ embedded = false, onCreated, onCancel }: PipCrea
           </Stack>
             </section>
 
-            <section className="rounded-2xl border border-slate-200 bg-white p-5">
+            <section
+              className={`${embedded ? '' : 'rounded-2xl border border-slate-200 bg-white p-5'} ${!isEmbeddedStepVisible(4) ? 'hidden' : ''}`}
+            >
+          <div className={embedded ? 'mb-4' : ''}>
+            {embedded ? (
+              <>
+                <p className="text-[11px] font-black uppercase tracking-widest text-[#2463eb]">Step 4</p>
+                <h2 className="text-lg font-black text-slate-900">Reason for Plan</h2>
+              </>
+            ) : null}
+          </div>
           <TextField
             label="Reason for Plan"
             fullWidth
@@ -575,39 +690,35 @@ export function PipCreateForm({ embedded = false, onCreated, onCancel }: PipCrea
             </section>
           </div>
 
-          <aside className="h-fit rounded-2xl border border-slate-200 bg-slate-950 p-5 text-white xl:sticky xl:top-24">
-            <p className="text-[11px] font-black uppercase tracking-widest text-blue-200">PIP Summary</p>
-            <div className="mt-5 space-y-4">
-              <div>
-                <p className="text-xs font-bold text-slate-400">Employee</p>
-                <p className="mt-1 text-sm font-black">{selectedEmployee?.employeeName || 'Not selected'}</p>
-                <p className="text-xs text-slate-400">{selectedEmployee?.departmentName || 'Choose a low performer'}</p>
-              </div>
-              <div className="grid grid-cols-2 gap-3">
-                <div className="rounded-2xl bg-white/10 p-3">
-                  <p className="text-[10px] font-black uppercase tracking-wider text-slate-400">Days</p>
-                  <p className="mt-1 text-2xl font-black">{selectedPipDays ?? '-'}</p>
-                </div>
-                <div className="rounded-2xl bg-white/10 p-3">
-                  <p className="text-[10px] font-black uppercase tracking-wider text-slate-400">Max Hours</p>
-                  <p className="mt-1 text-2xl font-black">{selectedMaxHours ?? '-'}</p>
-                </div>
-              </div>
-              <div className="rounded-2xl border border-blue-400/30 bg-blue-500/10 p-4">
-                <p className="text-xs font-bold text-blue-100">Hour rule</p>
-                <p className="mt-1 text-sm font-semibold text-blue-50">{HOURS_PER_DAY} hours per PIP day. Total hours must stay within the selected date range.</p>
-              </div>
-            </div>
-          </aside>
+          {summaryPanel}
         </div>
 
-        <div className="mt-6 flex justify-end gap-3 border-t border-slate-100 pt-5">
-          <Button type="button" variant="outlined" onClick={onCancel ?? (() => navigate(routeBase))}>
-            Cancel
-          </Button>
-          <Button type="submit" disabled={isCreating} variant="contained">
-            {isCreating ? 'Creating...' : 'Create PIP'}
-          </Button>
+        <div className={`mt-6 flex flex-col-reverse gap-3 border-t border-slate-100 pt-5 sm:flex-row sm:items-center ${embedded ? 'sm:justify-between' : 'sm:justify-end'}`}>
+          {embedded ? (
+            <p className="text-center text-xs font-semibold text-slate-400 sm:text-left">
+              Step {embeddedStep} of {EMBEDDED_STEPS.length} · {EMBEDDED_STEPS[embeddedStep - 1]?.label}
+            </p>
+          ) : null}
+          <div className="flex flex-col-reverse gap-3 sm:flex-row sm:justify-end">
+            {embedded && embeddedStep > 1 ? (
+              <Button type="button" variant="outlined" onClick={goToPreviousEmbeddedStep}>
+                Back
+              </Button>
+            ) : (
+              <Button type="button" variant="outlined" onClick={onCancel ?? (() => navigate(routeBase))}>
+                Cancel
+              </Button>
+            )}
+            {embedded && embeddedStep < EMBEDDED_STEPS.length ? (
+              <Button type="button" variant="contained" onClick={() => void goToNextEmbeddedStep()}>
+                Continue
+              </Button>
+            ) : (
+              <Button type="submit" disabled={isCreating} variant="contained">
+                {isCreating ? 'Creating...' : 'Create PIP'}
+              </Button>
+            )}
+          </div>
         </div>
       </Box>
     </div>

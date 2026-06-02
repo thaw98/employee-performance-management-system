@@ -10,7 +10,7 @@ import { useEffect, useState, useMemo } from 'react'
 import type { RootState } from '../app/store'
 import { useGetDepartmentsQuery, useGetDepartmentPositionsQuery } from '../features/hrCreateEmployee/hrEmployeeAccountApi'
 import PipUnifiedLog from '../features/pip/components/PipUnifiedLog'
-import { PipCreateForm } from './PipCreatePage'
+import { PipCreateModal } from '../features/pip/components/PipCreateModal'
 import { addPdfFooterBranding, addPdfHeaderBranding, addPdfHeaderLogo, loadPdfLogo } from '../utils/pdfBranding'
 
 const STATUS_COLORS: Record<string, string> = {
@@ -705,33 +705,13 @@ export default function PipMonitoringPage() {
         </div>
       </div>
 
-      {isCreateModalOpen && (
-        <div className="fixed inset-0 z-50 flex items-start justify-center overflow-y-auto bg-slate-950/50 p-4 pt-8 backdrop-blur-sm sm:pt-12">
-          <div className="w-full max-w-3xl rounded-[2.5rem] bg-white p-8 shadow-2xl animate-scale-in">
-            <div className="mb-6 flex items-start justify-between gap-4">
-              <div>
-                <h2 className="text-2xl font-black text-slate-900 tracking-tight">Create New PIP</h2>
-                <p className="mt-1 text-sm font-bold text-slate-500">Create a respectful, measurable Performance Improvement Plan.</p>
-              </div>
-              <button
-                type="button"
-                onClick={() => setIsCreateModalOpen(false)}
-                className="flex h-10 w-10 items-center justify-center rounded-2xl bg-slate-100 text-slate-500 transition-all hover:bg-slate-200 hover:text-slate-900"
-              >
-                <i className="bi bi-x-lg" />
-              </button>
-            </div>
-            <PipCreateForm
-              embedded
-              onCancel={() => setIsCreateModalOpen(false)}
-              onCreated={() => {
-                setIsCreateModalOpen(false)
-                if (!invalidDateRange) void refetch()
-              }}
-            />
-          </div>
-        </div>
-      )}
+      <PipCreateModal
+        isOpen={isCreateModalOpen}
+        onClose={() => setIsCreateModalOpen(false)}
+        onCreated={() => {
+          if (!invalidDateRange) void refetch()
+        }}
+      />
 
       {exportError && (
         <div className="mb-8 rounded-2xl border border-red-100 bg-red-50 p-5 text-sm font-bold text-red-700">
