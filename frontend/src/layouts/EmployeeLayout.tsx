@@ -6,12 +6,14 @@ import {
   RefreshCcw,
   TrendingUp,
   Send,
-  Inbox,
   History,
   FileText,
   ClipboardList,
   BarChart,
   MessageSquare,
+  Settings,
+  Bell,
+  PenLine,
 } from 'lucide-react';
 import { Outlet } from 'react-router-dom';
 import { useSelector } from 'react-redux';
@@ -78,7 +80,6 @@ const EmployeeLayout: React.FC = () => {
           icon: <RefreshCcw size={18} />,
           subItems: [
             { label: 'Give Feedback', path: '/employee/360-feedback/give', icon: <Send size={16} />, permission: { moduleKey: '360_FEEDBACK', actionKey: 'give' } },
-            { label: 'Receive Feedback', path: '/employee/360-feedback/received', icon: <Inbox size={16} />, permission: { moduleKey: '360_FEEDBACK', actionKey: 'view' } },
             { label: 'Feedback History', path: '/employee/360-feedback/history', icon: <History size={16} />, permission: { moduleKey: '360_FEEDBACK', actionKey: 'review_history' } },
           ],
         },
@@ -93,6 +94,22 @@ const EmployeeLayout: React.FC = () => {
         { label: 'Meetings', path: '/employee/meetings', icon: <Calendar size={18} />, permission: { moduleKey: 'MEETINGS', actionKey: 'view' } },
         reportsItem,
         ...(!isEmployeeRole ? [selfAssessmentItem] : []),
+      ],
+    },
+    {
+      label: 'Settings',
+      items: [
+        {
+          label: 'Settings',
+          path: '/employee/settings/system',
+          icon: <Settings size={18} />,
+          isActive: (pathname) => pathname.startsWith('/employee/settings'),
+          subItems: [
+            { label: 'System Settings', path: '/employee/settings/system', icon: <Settings size={16} /> },
+            { label: 'Notification Settings', path: '/employee/settings/system/notifications', icon: <Bell size={16} /> },
+            { label: 'Signature Settings', path: '/employee/settings/signature', icon: <PenLine size={16} /> },
+          ],
+        },
       ],
     },
   ];

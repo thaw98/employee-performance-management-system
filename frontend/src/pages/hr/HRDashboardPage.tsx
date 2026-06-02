@@ -11,6 +11,7 @@ import {
 } from 'lucide-react'
 
 import axios from '../../app/axiosInstance'
+import { AnnouncementPanel } from '../../components/dashboard/AnnouncementPanel'
 import { getNotificationSourceLabel } from '../../features/notification/notificationSourceLabels'
 import { usePermissionState } from '../../features/permission'
 
@@ -53,6 +54,9 @@ type MeetingItem = {
   scheduledTime?: string
   meetingTime?: string
   status: string
+  meetingGroupKey?: string | null
+  meetingScope?: string | null
+  departmentName?: string | null
 }
 
 type ActivityItem = {
@@ -88,6 +92,22 @@ const formatTime = (value?: string) => {
   if (Number.isNaN(date.getTime())) return '-'
   return date.toLocaleTimeString(undefined, { hour: '2-digit', minute: '2-digit' })
 }
+
+const isDepartmentMeeting = (meeting: MeetingItem) => String(meeting.meetingScope ?? '').toUpperCase() === 'DEPARTMENT'
+
+const getMeetingCardKey = (meeting: MeetingItem) => {
+  const dateValue = meeting.scheduledTime || meeting.meetingTime || ''
+  if (!isDepartmentMeeting(meeting)) return `meeting-${meeting.id}`
+  return meeting.meetingGroupKey || `department-${meeting.departmentName || 'all'}-${meeting.title}-${dateValue}`
+}
+
+const getDashboardMeetingCards = (rows: MeetingItem[]) => Array.from(
+  new Map(rows.map((meeting) => [getMeetingCardKey(meeting), meeting])).values(),
+)
+
+const getMeetingAudienceLabel = (meeting: MeetingItem) => (
+  isDepartmentMeeting(meeting) ? `For department: ${meeting.departmentName || 'Department'}` : null
+)
 
 function LoadingState() {
   return (
@@ -208,7 +228,7 @@ export function HRDashboardPage() {
           setMeetingError(reason?.response?.data?.message || 'Unable to load your upcoming meetings.')
         }
         setMeetings(
-          Array.from(new Map(loadedMeetings.map((meeting) => [meeting.id, meeting])).values())
+          getDashboardMeetingCards(loadedMeetings)
             .sort((a, b) => new Date(a.scheduledTime || a.meetingTime || '').getTime() - new Date(b.scheduledTime || b.meetingTime || '').getTime())
             .slice(0, 5),
         )
@@ -288,6 +308,8 @@ export function HRDashboardPage() {
         </Link>
       </section>
 
+      <AnnouncementPanel />
+
       {summaryError ? (
         <div className="rounded-3xl border border-red-100 bg-red-50 p-5 text-sm font-bold text-red-700">
           {summaryError}
@@ -351,10 +373,12 @@ export function HRDashboardPage() {
                 <EmptyPanel message="You have no upcoming meetings." />
               ) : meetings.map((meeting) => {
                 const dateValue = meeting.scheduledTime || meeting.meetingTime
+                const audienceLabel = getMeetingAudienceLabel(meeting)
                 return (
                   <Link key={meeting.id} to={`/hr/meetings/${meeting.id}`} className="grid gap-3 rounded-2xl border border-blue-50 bg-blue-50/60 p-4 transition hover:bg-blue-50 sm:grid-cols-[1fr_auto] sm:items-center dark:border-slate-800 dark:bg-slate-800">
                     <div className="min-w-0">
                       <p className="truncate text-sm font-black text-slate-950 dark:text-white">{meeting.title}</p>
+                      {audienceLabel && <p className="mt-1 text-[10px] font-black uppercase tracking-widest text-blue-600">{audienceLabel}</p>}
                       <p className="mt-1 text-xs font-semibold text-slate-500">{formatDate(dateValue)} at {formatTime(dateValue)}</p>
                     </div>
                     <span className="w-fit rounded-full bg-white px-3 py-1 text-[10px] font-black uppercase tracking-widest text-blue-700 shadow-sm dark:bg-slate-900">

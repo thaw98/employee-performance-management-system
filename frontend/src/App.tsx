@@ -46,6 +46,7 @@ import { SystemSettingsPage } from './pages/SystemSettingsPage';
 import { ScoreExplanationSettingsPage } from './pages/ScoreExplanationSettingsPage';
 import { EditScoreBoundariesPage } from './pages/EditScoreBoundariesPage';
 import { TimeSettingsPage } from './pages/TimeSettingsPage';
+import { NotificationSettingsPage } from './pages/NotificationSettingsPage';
 import { DefaultSignaturePage } from './pages/DefaultSignaturePage';
 import { FaqSupportPage } from './pages/hr/FaqSupportPage';
 import { FaqPage } from './pages/FaqPage';
@@ -237,6 +238,7 @@ function App() {
             <Route path="settings/signature" element={<DefaultSignaturePage />} />
 	            <Route path="settings/system" element={<SystemSettingsPage />} />
 	            <Route path="settings/system/time" element={<TimeSettingsPage />} />
+	            <Route path="settings/system/notifications" element={<NotificationSettingsPage />} />
 	            <Route path="settings/system/score-explanations" element={<ScoreExplanationSettingsPage />} />
 	            <Route path="settings/system/score-explanations/edit" element={<EditScoreBoundariesPage />} />
             <Route path="settings/system/score-formulas" element={<FormulaManagementPage />} />
@@ -313,6 +315,7 @@ function App() {
             <Route path="settings/profile" element={<Navigate to="/manager/profile" replace />} />
             <Route path="settings/signature" element={<DefaultSignaturePage />} />
             <Route path="settings/system" element={<SystemSettingsPage />} />
+            <Route path="settings/system/notifications" element={<NotificationSettingsPage />} />
             <Route path="faq" element={<FaqPage />} />
             <Route path="self-assessment/templates" element={gated('SELF_ASSESSMENT', 'manage_templates', <SelfAssessmentFormTemplatePage />)} />
             <Route path="self-assessment/templates/:templateId/edit" element={gated('SELF_ASSESSMENT', 'manage_templates', <EditSelfAssessmentTemplatePage />)} />
@@ -359,6 +362,7 @@ function App() {
             <Route path="settings/profile" element={<Navigate to="/employee/profile" replace />} />
             <Route path="settings/signature" element={<DefaultSignaturePage />} />
             <Route path="settings/system" element={<SystemSettingsPage />} />
+            <Route path="settings/system/notifications" element={<NotificationSettingsPage />} />
             <Route path="faq" element={<FaqPage />} />
             <Route path="self-assessment-forms" element={gated('SELF_ASSESSMENT', 'view', <EmployeeSelfAssessmentHubPage />)} />
             <Route path="self-assessment-forms/my-form" element={gated('SELF_ASSESSMENT', 'view', <MySelfAssessmentFormPage />)} />
@@ -426,6 +430,7 @@ function App() {
             <Route path="settings/profile" element={<Navigate to="/audit/profile" replace />} />
             <Route path="settings/signature" element={<DefaultSignaturePage />} />
             <Route path="settings/system" element={<SystemSettingsPage />} />
+            <Route path="settings/system/notifications" element={<NotificationSettingsPage />} />
             <Route path="faq" element={<FaqPage />} />
             <Route path="*" element={<Navigate to="/audit/dashboard" replace />} />
           </Route>

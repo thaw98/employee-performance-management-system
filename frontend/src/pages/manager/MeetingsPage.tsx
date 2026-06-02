@@ -6,6 +6,7 @@ import {
     MessageSquare, Play, Square, Search, Filter,
     ChevronLeft, ChevronRight
 } from 'lucide-react';
+import { ViewModeToggle, type ViewMode } from '../../components/common/ViewModeToggle';
 import { useLocation, useNavigate, useSearchParams } from 'react-router-dom';
 
 const isHrEmployeeOption = (employee: any) => {
@@ -68,6 +69,7 @@ export function MeetingsPage() {
     const isFaqHrMeeting = searchParams.get('target') === 'hr';
     const isPipSchedule = searchParams.get('source') === 'pip' || Boolean(searchParams.get('pipId')) || (searchParams.get('meetingDescription') || '').includes('[PIP_ID:');
     const activeTab = (searchParams.get('tab') || 'UPCOMING') as 'UPCOMING' | 'ONGOING' | 'COMPLETED';
+    const emptyMeetingLabel = isHistoryOnlyView ? 'meeting history' : `${activeTab.toLowerCase()} meetings`;
     const setActiveTab = (tab: string) => {
         const nextParams = new URLSearchParams(searchParams);
         nextParams.set('tab', tab);
@@ -106,6 +108,7 @@ export function MeetingsPage() {
     const [sortBy, setSortBy] = useState('latest');
     const [subStatus, setSubStatus] = useState('ALL');
     const [showFilters, setShowFilters] = useState(false);
+    const [viewMode, setViewMode] = useState<ViewMode>('grid');
 
     // End Meeting Modal
     const [isEndModalOpen, setIsEndModalOpen] = useState(false);
@@ -491,6 +494,8 @@ export function MeetingsPage() {
                     ))}
                 </div>
 
+                <div className="flex flex-wrap items-center gap-2">
+                    <ViewModeToggle value={viewMode} onChange={setViewMode} label="Meeting view mode" />
                 {activeTab === 'COMPLETED' && (
                     <div className="flex items-center gap-2">
                         <div className="relative group flex-1 md:w-64">
@@ -512,11 +517,13 @@ export function MeetingsPage() {
                         </button>
                     </div>
                 )}
+                </div>
             </div>
             )}
 
             {isHistoryOnlyView && (
-                <div className="flex items-center gap-2 justify-end">
+                <div className="flex flex-col gap-3 md:flex-row md:items-center md:justify-end">
+                    <ViewModeToggle value={viewMode} onChange={setViewMode} label="Meeting history view mode" />
                     <div className="relative group flex-1 md:max-w-xs">
                         <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" size={16} />
                         <input
@@ -593,11 +600,69 @@ export function MeetingsPage() {
                 </div>
             )}
 
+            {viewMode === 'table' ? (
+                <div className="overflow-hidden rounded-2xl border border-slate-100 bg-white shadow-sm">
+                    <div className="overflow-x-auto">
+                        <table className="w-full text-left">
+                            <thead className="bg-slate-50 text-[10px] font-black uppercase tracking-widest text-slate-400">
+                                <tr>
+                                    <th className="p-4">Title</th>
+                                    <th className="p-4">Person</th>
+                                    <th className="p-4">Status</th>
+                                    <th className="p-4">Date</th>
+                                    <th className="p-4">Duration</th>
+                                    <th className="p-4 text-right">Actions</th>
+                                </tr>
+                            </thead>
+                            <tbody className="divide-y divide-slate-50">
+                                {meetings.length === 0 ? (
+                                    <tr>
+                                        <td colSpan={6} className="p-12 text-center">
+                                            <Calendar size={42} className="mx-auto mb-3 text-slate-300" />
+                                            <p className="font-bold text-slate-600">No {emptyMeetingLabel} found</p>
+                                        </td>
+                                    </tr>
+                                ) : meetings.map((m) => {
+                                    const detailPath = isAuditView ? `/audit/meetings/${m.id}` : isHrView ? `/hr/meetings/${m.id}` : `/manager/meetings/${m.id}`;
+                                    return (
+                                        <tr
+                                            key={m.id}
+                                            onClick={() => navigate(detailPath)}
+                                            className="cursor-pointer hover:bg-blue-50/30"
+                                        >
+                                            <td className="p-4">
+                                                <div className="font-black text-slate-800">{m.title}</div>
+                                                <div className="text-[11px] font-bold uppercase text-slate-400">{m.meetingScope === 'DEPARTMENT' ? 'Department' : 'One-on-one'}</div>
+                                            </td>
+                                            <td className="p-4 text-sm font-bold text-slate-600">{m.employeeName || m.managerName || m.departmentName || '-'}</td>
+                                            <td className="p-4"><span className="rounded-lg bg-slate-100 px-3 py-1 text-[10px] font-black uppercase text-slate-600">{m.status}</span></td>
+                                            <td className="p-4 text-sm font-bold text-slate-600">{formatDate(m.scheduledTime || m.meetingTime)}</td>
+                                            <td className="p-4 text-sm font-bold text-slate-600">{getDuration(m)}</td>
+                                            <td className="p-4 text-right">
+                                                <button
+                                                    type="button"
+                                                    onClick={(e) => {
+                                                        e.stopPropagation();
+                                                        navigate(detailPath);
+                                                    }}
+                                                    className="rounded-xl border border-slate-100 bg-slate-50 px-3 py-2 text-xs font-black text-slate-600 transition hover:bg-blue-600 hover:text-white"
+                                                >
+                                                    Details
+                                                </button>
+                                            </td>
+                                        </tr>
+                                    )
+                                })}
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            ) : (
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
                 {meetings.length === 0 && (
                     <div className="col-span-full bg-white p-12 rounded-2xl border border-slate-100 text-center shadow-sm">
                         <Calendar size={48} className="mx-auto text-slate-300 mb-4" />
-                        <h3 className="text-lg font-bold text-slate-700">No {activeTab.toLowerCase()} meetings found</h3>
+                        <h3 className="text-lg font-bold text-slate-700">No {emptyMeetingLabel} found</h3>
                         <p className="text-slate-500 text-sm mt-2">You don't have any meetings in this category.</p>
                     </div>
                 )}
@@ -744,6 +809,7 @@ export function MeetingsPage() {
                     );
                 })}
             </div>
+            )}
 
             {((activeTab === 'COMPLETED' && canManageMeetings) || isHistoryOnlyView) && totalPages > 1 && (
                 <div className="flex items-center justify-center gap-2 mt-8">

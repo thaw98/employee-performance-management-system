@@ -28,6 +28,8 @@ import {
   TableProperties,
   MessageSquare,
   Plus,
+  Bell,
+  PenLine,
 } from 'lucide-react';
 import { Outlet } from 'react-router-dom';
 import { useSelector } from 'react-redux';
@@ -132,7 +134,6 @@ const HrLayout: React.FC = () => {
           subItems: [
             { label: 'Management', path: '/hr/360-feedback/management', icon: <ListFilter size={16} />, permission: { moduleKey: '360_FEEDBACK', actionKey: 'configure' } },
             { label: 'Give Feedback', path: '/hr/360-feedback/give', icon: <Send size={16} />, permission: { moduleKey: '360_FEEDBACK', actionKey: 'give' } },
-            { label: 'Receive Feedback', path: '/hr/360-feedback/received', icon: <Inbox size={16} />, permission: { moduleKey: '360_FEEDBACK', actionKey: 'view' } },
             { label: 'Feedback History', path: '/hr/360-feedback/history', icon: <History size={16} />, permission: { moduleKey: '360_FEEDBACK', actionKey: 'review_history' } },
           ],
         },
@@ -220,12 +221,14 @@ const HrLayout: React.FC = () => {
       label: 'Settings',
       items: [
         {
-          label: 'System Settings',
-          path: '/hr/settings/system/time',
+          label: 'Settings',
+          path: '/hr/settings/system',
           icon: <Settings size={18} />,
           isActive: (pathname) => pathname.startsWith('/hr/settings/system'),
           subItems: [
-            { label: 'Time Settings', path: '/hr/settings/system/time', icon: <Calendar size={16} /> },
+            { label: 'System Settings', path: '/hr/settings/system', icon: <Settings size={16} /> },
+            { label: 'Notification Settings', path: '/hr/settings/system/notifications', icon: <Bell size={16} /> },
+            { label: 'Signature Settings', path: '/hr/settings/signature', icon: <PenLine size={16} /> },
             { label: 'Score Band Settings', path: '/hr/settings/system/score-explanations', icon: <TableProperties size={16} /> },
             { label: 'Score Formula Settings', path: '/hr/settings/system/score-formulas', icon: <SlidersHorizontal size={16} /> },
           ],

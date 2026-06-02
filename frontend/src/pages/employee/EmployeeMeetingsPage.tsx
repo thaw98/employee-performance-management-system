@@ -6,6 +6,7 @@ import {
     MessageSquare, Search, Filter,
     ChevronLeft, ChevronRight, Check
 } from 'lucide-react';
+import { ViewModeToggle, type ViewMode } from '../../components/common/ViewModeToggle';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 
 export function EmployeeMeetingsPage() {
@@ -47,6 +48,7 @@ export function EmployeeMeetingsPage() {
     const [sortBy, setSortBy] = useState('latest');
     const [subStatus, setSubStatus] = useState('ALL');
     const [showFilters, setShowFilters] = useState(false);
+    const [viewMode, setViewMode] = useState<ViewMode>('grid');
     const [requestableManagers, setRequestableManagers] = useState<any[]>([]);
     const [isRequestModalOpen, setIsRequestModalOpen] = useState(false);
     const [requestTitle, setRequestTitle] = useState('');
@@ -286,6 +288,8 @@ export function EmployeeMeetingsPage() {
                     ))}
                 </div>
 
+                <div className="flex flex-wrap items-center gap-2">
+                <ViewModeToggle value={viewMode} onChange={setViewMode} label="Meeting view mode" />
                 {activeTab === 'COMPLETED' && (
                     <div className="flex items-center gap-2">
                         <div className="relative group flex-1 md:w-64">
@@ -307,6 +311,7 @@ export function EmployeeMeetingsPage() {
                         </button>
                     </div>
                 )}
+                </div>
             </div>
 
             {activeTab === 'COMPLETED' && showFilters && (
@@ -352,6 +357,61 @@ export function EmployeeMeetingsPage() {
                 </div>
             )}
 
+            {viewMode === 'table' ? (
+                <div className="overflow-hidden rounded-2xl border border-slate-100 bg-white shadow-sm">
+                    <div className="overflow-x-auto">
+                        <table className="w-full text-left">
+                            <thead className="bg-slate-50 text-[10px] font-black uppercase tracking-widest text-slate-400">
+                                <tr>
+                                    <th className="p-4">Title</th>
+                                    <th className="p-4">Manager</th>
+                                    <th className="p-4">Status</th>
+                                    <th className="p-4">Date</th>
+                                    <th className="p-4">Duration</th>
+                                    <th className="p-4 text-right">Actions</th>
+                                </tr>
+                            </thead>
+                            <tbody className="divide-y divide-slate-50">
+                                {meetings.length === 0 ? (
+                                    <tr>
+                                        <td colSpan={6} className="p-12 text-center">
+                                            <Calendar size={42} className="mx-auto mb-3 text-slate-300" />
+                                            <p className="font-bold text-slate-600">No {activeTab.toLowerCase()} meetings found</p>
+                                        </td>
+                                    </tr>
+                                ) : meetings.map((m) => (
+                                    <tr
+                                        key={m.id}
+                                        onClick={() => navigate(`/employee/meetings/${m.id}`)}
+                                        className="cursor-pointer hover:bg-blue-50/30"
+                                    >
+                                        <td className="p-4">
+                                            <div className="font-black text-slate-800">{m.title}</div>
+                                            <div className="text-[11px] font-bold uppercase text-slate-400">{m.meetingScope === 'DEPARTMENT' ? 'Department' : 'One-on-one'}</div>
+                                        </td>
+                                        <td className="p-4 text-sm font-bold text-slate-600">{m.managerName || '-'}</td>
+                                        <td className="p-4"><span className="rounded-lg bg-slate-100 px-3 py-1 text-[10px] font-black uppercase text-slate-600">{m.status}</span></td>
+                                        <td className="p-4 text-sm font-bold text-slate-600">{formatDate(m.scheduledTime || m.meetingTime)}</td>
+                                        <td className="p-4 text-sm font-bold text-slate-600">{getDuration(m)}</td>
+                                        <td className="p-4 text-right">
+                                            <button
+                                                type="button"
+                                                onClick={(e) => {
+                                                    e.stopPropagation();
+                                                    navigate(`/employee/meetings/${m.id}`);
+                                                }}
+                                                className="rounded-xl border border-slate-100 bg-slate-50 px-3 py-2 text-xs font-black text-slate-600 transition hover:bg-blue-600 hover:text-white"
+                                            >
+                                                Details
+                                            </button>
+                                        </td>
+                                    </tr>
+                                ))}
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            ) : (
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
                 {meetings.length === 0 && (
                     <div className="col-span-full bg-white p-12 rounded-2xl border border-slate-100 text-center shadow-sm">
@@ -467,6 +527,7 @@ export function EmployeeMeetingsPage() {
                     )
                 })}
             </div>
+            )}
 
             {activeTab === 'COMPLETED' && totalPages > 1 && (
                 <div className="flex items-center justify-center gap-2 mt-8">
