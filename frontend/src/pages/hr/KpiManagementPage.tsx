@@ -213,7 +213,7 @@ export const KpiManagementPage: React.FC = () => {
   };
 
   // Template Logic
-  const { data: templates = [] } = useGetKpiTemplatesQuery({
+  const { data: templates = [], refetch: refetchTemplates } = useGetKpiTemplatesQuery({
     type: mode === 'individual' ? 'INDIVIDUAL' : mode === 'position' ? 'POSITION' : 'DEPARTMENT',
     departmentId: selectedDeptId || undefined,
     positionId: selectedPosId || undefined
@@ -1207,9 +1207,7 @@ export const KpiManagementPage: React.FC = () => {
           isOpen={showImportModal}
           onClose={() => setShowImportModal(false)}
           onImportSuccess={() => {
-            refetchKpis();
-            refetchPosKpis();
-            refetchDeptKpis();
+            refetchTemplates();
           }}
           token={token}
         />

@@ -18,9 +18,13 @@ import { useGetReviewCyclesQuery } from '../../features/reviewCycle/api/reviewCy
 import { formatCycleDate } from './SelfAssessmentReviewCycleInfo'
 import { formatEmployeeCount } from './SelfAssessmentAudienceCard'
 
-const API_BASE =
+const RAW_API_BASE =
   (import.meta.env.VITE_API_BASE_URL as string)?.replace(/\/$/, '') ||
   'http://localhost:8080'
+
+const API_BASE = RAW_API_BASE.endsWith('/api')
+  ? RAW_API_BASE.slice(0, -4)
+  : RAW_API_BASE
 
 function downloadBlob(url: string, filename: string, token: string | null) {
   return fetch(`${API_BASE}/api${url}`, {

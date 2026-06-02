@@ -3,6 +3,7 @@ package com.epms.backend.service;
 import com.epms.backend.dto.AppraisalCategoryDto;
 import com.epms.backend.dto.AppraisalQuestionDto;
 import com.epms.backend.dto.AppraisalTemplateDto;
+import com.epms.backend.dto.appraisal.AppraisalCoverageDto;
 import com.epms.backend.entity.*;
 import com.epms.backend.repository.*;
 import lombok.RequiredArgsConstructor;
@@ -26,6 +27,7 @@ public class AppraisalService {
     private final AppraisalCycleRepository appraisalCycleRepository;
     private final ReviewCycleRepository reviewCycleRepository;
     private final EmployeeRepository employeeRepository;
+    private final DepartmentRepository departmentRepository;
     private final NotificationService notificationService;
     private final UserRepository userRepository;
 
@@ -295,6 +297,109 @@ public class AppraisalService {
                 .map(this::mapToTemplateDto)
                 .sorted((a, b) -> b.getId().compareTo(a.getId()))
                 .collect(Collectors.toList());
+    }
+
+    public AppraisalCoverageDto getCoverage(Long reviewCycleId) {
+        if (reviewCycleId == null) {
+            return new AppraisalCoverageDto(null, null, 0, 0, 0, 0.0, List.of());
+        }
+
+        ReviewCycle cycle = reviewCycleRepository.findById(reviewCycleId).orElse(null);
+        if (cycle == null) {
+            return new AppraisalCoverageDto(null, null, 0, 0, 0, 0.0, List.of());
+        }
+
+        List<DepartmentPosition> activePairs = departmentPositionRepository.findAllActiveWithPosition();
+        List<Object[]> countResults = employeeRepository.countActiveEmployeesPerDepartmentAndPosition();
+        java.util.Map<String, Long> employeeCountMap = new java.util.HashMap<>();
+        for (Object[] row : countResults) {
+            employeeCountMap.put(row[0] + "_" + row[1], (Long) row[2]);
+        }
+
+        List<Department> allDepts = departmentRepository.findAll();
+        java.util.Map<Long, Long> deptManagerMap = new java.util.HashMap<>();
+        for (Department dept : allDepts) {
+            if (dept.getManagerId() != null) {
+                deptManagerMap.put(dept.getId(), dept.getManagerId());
+            }
+        }
+
+        java.util.Set<Long> managerIds = new java.util.HashSet<>(deptManagerMap.values());
+        java.util.Map<Long, Object[]> managerInfoMap = new java.util.HashMap<>();
+        if (!managerIds.isEmpty()) {
+            for (Object[] row : employeeRepository.findBasicInfoByIds(managerIds)) {
+                managerInfoMap.put((Long) row[0], row);
+            }
+        }
+
+        List<AppraisalTemplate> templates = templateRepository.findByReviewCycleIdWithPositions(reviewCycleId);
+        java.util.Set<Long> coveredDepartmentPositionIds = new java.util.HashSet<>();
+        for (AppraisalTemplate template : templates) {
+            if (template.getTargetDepartmentPositions() != null) {
+                for (DepartmentPosition dp : template.getTargetDepartmentPositions()) {
+                    coveredDepartmentPositionIds.add(dp.getId());
+                }
+            }
+        }
+
+        List<AppraisalCoverageDto.MissingPairDto> missingPairs = new java.util.ArrayList<>();
+        int totalEligible = 0;
+        int coveredCount = 0;
+
+        for (DepartmentPosition dp : activePairs) {
+            Long deptId = dp.getDepartment().getId();
+            Long posId = dp.getPosition().getId();
+
+            Long rawCount = employeeCountMap.getOrDefault(deptId + "_" + posId, 0L);
+            if (rawCount == 0) continue;
+
+            Long managerEmployeeId = deptManagerMap.get(deptId);
+            if (managerEmployeeId != null) {
+                Object[] mgrInfo = managerInfoMap.get(managerEmployeeId);
+                if (mgrInfo != null) {
+                    Long mgrDeptId = (Long) mgrInfo[1];
+                    Long mgrPosId = (Long) mgrInfo[2];
+                    if (deptId.equals(mgrDeptId) && posId.equals(mgrPosId)) {
+                        rawCount--;
+                    }
+                }
+            }
+
+            if (rawCount <= 0) continue;
+
+            totalEligible++;
+            int eligibleCount = rawCount.intValue();
+
+            if (coveredDepartmentPositionIds.contains(dp.getId())) {
+                coveredCount++;
+            } else {
+                missingPairs.add(new AppraisalCoverageDto.MissingPairDto(
+                        dp.getId(),
+                        deptId,
+                        dp.getDepartment().getName(),
+                        posId,
+                        dp.getPosition().getCode(),
+                        dp.getPosition().getName(),
+                        dp.getPosition().getLevelCode() != null ? dp.getPosition().getLevelCode().getDescription() : null,
+                        eligibleCount
+                ));
+            }
+        }
+
+        int missingCount = totalEligible - coveredCount;
+        double coveragePercent = totalEligible > 0
+                ? Math.round((double) coveredCount / totalEligible * 10000.0) / 100.0
+                : 0.0;
+
+        return new AppraisalCoverageDto(
+                cycle.getId(),
+                cycle.getName(),
+                totalEligible,
+                coveredCount,
+                missingCount,
+                coveragePercent,
+                missingPairs
+        );
     }
 
     private AppraisalTemplateDto mapToTemplateDto(AppraisalTemplate t) {

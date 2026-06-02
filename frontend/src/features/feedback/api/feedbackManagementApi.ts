@@ -90,7 +90,6 @@ export interface FeedbackCoverageEmployeeRow {
   positionName: string | null
   levelCodeId: number | null
   levelCode: string | null
-  missingReason: string
 }
 
 export interface FeedbackCoverage {
@@ -98,8 +97,8 @@ export interface FeedbackCoverage {
   eligibleCount: number
   coveredCount: number
   uncoveredCount: number
-  noTemplateCount: number
   coveragePercent: number
+  coveredEmployees: FeedbackCoverageEmployeeRow[]
   uncoveredEmployees: FeedbackCoverageEmployeeRow[]
 }
 

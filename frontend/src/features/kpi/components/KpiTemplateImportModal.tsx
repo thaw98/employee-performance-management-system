@@ -77,13 +77,20 @@ export default function KpiTemplateImportModal({ isOpen, onClose, onImportSucces
   }, [editedRows])
 
   const canSubmit = useMemo(() => {
+    const isScopeSelectionValid =
+      scopeType === 'INDIVIDUAL' ||
+      (scopeType === 'DEPARTMENT' && selectedDeptId !== null) ||
+      (scopeType === 'POSITION' && selectedDeptId !== null && selectedPosId !== null)
+
     return (
       templateName.trim() !== '' &&
       editedRows.length > 0 &&
       totalWeight === 100 &&
-      validationResult && validationResult.invalidRowsData.length === 0
+      isScopeSelectionValid &&
+      validationResult &&
+      validationResult.invalidRowsData.length === 0
     )
-  }, [templateName, editedRows, totalWeight, validationResult])
+  }, [templateName, editedRows, totalWeight, scopeType, selectedDeptId, selectedPosId, validationResult])
 
   const handleClose = useCallback(() => {
     setSelectedFile(null)
@@ -174,18 +181,27 @@ export default function KpiTemplateImportModal({ isOpen, onClose, onImportSucces
       })),
     }
 
+    let res: { success: boolean; message: string } | null = null
     try {
-      const res = await createFromImport(payload).unwrap()
-      if (res.success) {
-        toast.success('KPI template created successfully')
-        setStep('success')
-        onImportSuccess()
-      } else {
-        toast.error(res.message || 'Failed to create template')
-      }
+      res = await createFromImport(payload).unwrap()
     } catch (err: unknown) {
       const e = err as { data?: { message?: string } }
       toast.error(e.data?.message || 'Failed to create template')
+      return
+    }
+
+    if (!res?.success) {
+      toast.error(res?.message || 'Failed to create template')
+      return
+    }
+
+    toast.success('KPI template created successfully')
+    setStep('success')
+
+    try {
+      onImportSuccess()
+    } catch {
+      toast.error('Template created, but failed to refresh KPI lists')
     }
   }, [canSubmit, templateName, scopeType, selectedDeptId, selectedPosId, editedRows, createFromImport, onImportSuccess])
 

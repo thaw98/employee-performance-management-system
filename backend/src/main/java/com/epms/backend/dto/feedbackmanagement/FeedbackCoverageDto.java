@@ -7,8 +7,8 @@ public record FeedbackCoverageDto(
         int eligibleCount,
         int coveredCount,
         int uncoveredCount,
-        int noTemplateCount,
         double coveragePercent,
+        List<CoverageEmployeeRow> coveredEmployees,
         List<CoverageEmployeeRow> uncoveredEmployees
 ) {
     public record SelectedReviewCycleDto(
@@ -29,7 +29,6 @@ public record FeedbackCoverageDto(
             Long positionId,
             String positionName,
             Long levelCodeId,
-            String levelCode,
-            String missingReason
+            String levelCode
     ) {}
 }

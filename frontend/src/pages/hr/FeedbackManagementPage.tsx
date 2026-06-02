@@ -6,6 +6,7 @@ import {
   Briefcase,
   CalendarRange,
   CheckCircle2,
+  ChevronDown,
   ClipboardList,
   Copy,
   Download,
@@ -19,11 +20,14 @@ import {
   Pencil,
   Plus,
   Search,
+  SlidersHorizontal,
   Star,
   Table2,
   Trash2,
   Upload,
   User,
+  UserCheck,
+  UserX,
   Users,
   X,
   type LucideIcon,
@@ -95,17 +99,17 @@ const cycleDateRange = (cycle?: ReviewCycleDto | null) => `${cycleDate(cycle?.st
 const isCurrentCycle = (cycle?: ReviewCycleDto | null) => Boolean(cycle && (cycle.isActive || cycle.status?.toUpperCase() === 'ACTIVE'))
 const cycleSearchText = (cycle: ReviewCycleDto) =>
   `${cycle.cycleType ?? ''} ${cycle.name ?? ''} ${cycle.code ?? ''}`.toUpperCase()
-const isQ2Cycle = (cycle: ReviewCycleDto) => /\bQ2\b/.test(cycleSearchText(cycle))
+const isQ1Cycle = (cycle: ReviewCycleDto) => /\bQ1\b/.test(cycleSearchText(cycle))
 
 function pickDefaultCoverageReviewCycle(cycles: ReviewCycleDto[]): ReviewCycleDto | undefined {
   if (cycles.length === 0) return undefined
-  const q2Cycles = cycles.filter(isQ2Cycle)
-  if (q2Cycles.length > 0) {
-    const activeQ2 = q2Cycles.find((cycle) => cycle.isActive || cycle.status?.toUpperCase() === 'ACTIVE')
-    if (activeQ2) return activeQ2
-    const upcomingQ2 = q2Cycles.find((cycle) => cycle.status?.toUpperCase() === 'UPCOMING')
-    if (upcomingQ2) return upcomingQ2
-    return [...q2Cycles].sort((a, b) => b.startDate.localeCompare(a.startDate))[0]
+  const q1Cycles = cycles.filter(isQ1Cycle)
+  if (q1Cycles.length > 0) {
+    const activeQ1 = q1Cycles.find((cycle) => cycle.isActive || cycle.status?.toUpperCase() === 'ACTIVE')
+    if (activeQ1) return activeQ1
+    const upcomingQ1 = q1Cycles.find((cycle) => cycle.status?.toUpperCase() === 'UPCOMING')
+    if (upcomingQ1) return upcomingQ1
+    return [...q1Cycles].sort((a, b) => b.startDate.localeCompare(a.startDate))[0]
   }
   return cycles.find((cycle) => cycle.isActive || cycle.status?.toUpperCase() === 'ACTIVE') ?? cycles[0]
 }
@@ -1545,14 +1549,21 @@ function TemplateModal({
   )
 }
 
+type CoverageStatus = 'COVERED' | 'UNCOVERED'
+
+const coverageFilterControlClass =
+  'w-full rounded-xl border border-slate-200/80 bg-white px-3.5 py-2.5 text-sm text-slate-900 shadow-sm transition-all focus:border-[#2463eb] focus:outline-none focus:ring-2 focus:ring-[#2463eb]/20 dark:border-slate-600 dark:bg-slate-800 dark:text-white dark:focus:border-[#2463eb]'
+
 function CoverageTab() {
   const { data: reviewCycles = [] } = useGetReviewCyclesQuery({ requiresEmployeeSubmission: true })
   const [selectedReviewCycleId, setSelectedReviewCycleId] = useState<number | null>(null)
   const { data: coverage, isLoading } = useGetFeedbackCoverageQuery(selectedReviewCycleId ?? undefined, { skip: !selectedReviewCycleId })
+  const [statusFilter, setStatusFilter] = useState<CoverageStatus>('UNCOVERED')
   const [searchQuery, setSearchQuery] = useState('')
   const [deptFilter, setDeptFilter] = useState('ALL')
   const [posFilter, setPosFilter] = useState('ALL')
   const [levelCodeFilter, setLevelCodeFilter] = useState('ALL')
+  const [expandedFilters, setExpandedFilters] = useState(false)
   const [pageIndex, setPageIndex] = useState(0)
   const [pageSize, setPageSize] = useState(10)
 
@@ -1562,51 +1573,61 @@ function CoverageTab() {
     if (defaultCycle) setSelectedReviewCycleId(defaultCycle.id)
   }, [reviewCycles, selectedReviewCycleId])
 
+  const allRows = useMemo(() => {
+    if (!coverage) return []
+    return [...coverage.coveredEmployees, ...coverage.uncoveredEmployees]
+  }, [coverage])
+
   const departments = useMemo(() => {
     if (!coverage) return new Map<string, string>()
     const map = new Map<string, string>()
-    for (const row of coverage.uncoveredEmployees) {
+    for (const row of allRows) {
       if (row.departmentId != null && row.departmentName) {
         map.set(String(row.departmentId), row.departmentName)
       }
     }
     return map
-  }, [coverage])
+  }, [allRows])
 
   const positions = useMemo(() => {
     if (!coverage) return new Map<string, string>()
     const map = new Map<string, string>()
-    for (const row of coverage.uncoveredEmployees) {
+    for (const row of allRows) {
       if (row.positionId != null && row.positionName) {
         map.set(String(row.positionId), row.positionName)
       }
     }
     return map
-  }, [coverage])
+  }, [allRows])
 
   const levelCodes = useMemo(() => {
     if (!coverage) return new Map<string, string>()
     const map = new Map<string, string>()
-    for (const row of coverage.uncoveredEmployees) {
+    for (const row of allRows) {
       if (row.levelCodeId != null && row.levelCode) {
         map.set(String(row.levelCodeId), row.levelCode)
       }
     }
     return map
-  }, [coverage])
+  }, [allRows])
+
+  const sourceRows = useMemo(() => {
+    if (!coverage) return []
+    return statusFilter === 'COVERED' ? coverage.coveredEmployees : coverage.uncoveredEmployees
+  }, [coverage, statusFilter])
 
   const filteredRows = useMemo(() => {
     if (!coverage) return []
     const query = searchQuery.trim().toLowerCase()
-    return coverage.uncoveredEmployees.filter((row) => {
+    return sourceRows.filter((row) => {
       if (deptFilter !== 'ALL' && String(row.departmentId) !== deptFilter) return false
       if (posFilter !== 'ALL' && String(row.positionId) !== posFilter) return false
       if (levelCodeFilter !== 'ALL' && String(row.levelCodeId) !== levelCodeFilter) return false
       if (!query) return true
-      const text = [row.employeeName, row.employeeCode, row.departmentName, row.positionName, row.levelCode, row.missingReason].filter(Boolean).join(' ').toLowerCase()
+      const text = [row.employeeName, row.employeeCode, row.departmentName, row.positionName, row.levelCode].filter(Boolean).join(' ').toLowerCase()
       return text.includes(query)
     })
-  }, [coverage, searchQuery, deptFilter, posFilter, levelCodeFilter])
+  }, [sourceRows, searchQuery, deptFilter, posFilter, levelCodeFilter])
 
   const pageCount = useMemo(
     () => Math.max(1, Math.ceil(filteredRows.length / pageSize)),
@@ -1618,9 +1639,41 @@ function CoverageTab() {
     return filteredRows.slice(start, start + pageSize)
   }, [filteredRows, pageIndex, pageSize])
 
+  const hasActiveFilters =
+    searchQuery.trim() !== '' ||
+    deptFilter !== 'ALL' ||
+    posFilter !== 'ALL' ||
+    levelCodeFilter !== 'ALL'
+
+  const activeFilterCount = [
+    searchQuery.trim() !== '',
+    deptFilter !== 'ALL',
+    posFilter !== 'ALL',
+    levelCodeFilter !== 'ALL',
+  ].filter(Boolean).length
+
+  const clearAllFilters = () => {
+    setSearchQuery('')
+    setDeptFilter('ALL')
+    setPosFilter('ALL')
+    setLevelCodeFilter('ALL')
+  }
+
   useEffect(() => {
     setPageIndex(0)
-  }, [selectedReviewCycleId, searchQuery, deptFilter, posFilter, levelCodeFilter])
+  }, [selectedReviewCycleId, searchQuery, deptFilter, posFilter, levelCodeFilter, statusFilter])
+
+  useEffect(() => {
+    setDeptFilter('ALL')
+    setPosFilter('ALL')
+    setLevelCodeFilter('ALL')
+  }, [statusFilter])
+
+  useEffect(() => {
+    if (pageIndex > pageCount - 1) {
+      setPageIndex(Math.max(0, pageCount - 1))
+    }
+  }, [pageIndex, pageCount])
 
   return (
     <section className="space-y-6">
@@ -1630,171 +1683,348 @@ function CoverageTab() {
         onChange={setSelectedReviewCycleId}
         locked={false}
       />
-      <div className="flex flex-col gap-5 rounded-2xl border border-slate-200 bg-white p-6 shadow-sm sm:flex-row sm:items-end sm:justify-between">
+      <div className="flex flex-col gap-5 rounded-2xl border border-slate-200/60 bg-white p-6 shadow-sm dark:border-slate-700/60 dark:bg-slate-800/80 sm:flex-row sm:items-end sm:justify-between">
         <div className="flex items-start gap-4">
           <div className="flex h-12 w-12 items-center justify-center rounded-2xl bg-gradient-to-br from-emerald-500 to-teal-600 text-white shadow-lg shadow-emerald-500/20">
             <CheckCircle2 size={22} />
           </div>
           <div>
-            <h2 className="text-2xl font-black tracking-tight text-slate-900">360 Feedback Coverage</h2>
-            <p className="mt-1 max-w-xl text-sm text-slate-500">Identify active employees with active accounts who do not have a matching 360 Feedback template for the selected review cycle.</p>
+            <h2 className="text-2xl font-black tracking-tight text-slate-900 dark:text-white">360 Feedback Coverage</h2>
+            <p className="mt-1 max-w-xl text-sm text-slate-500 dark:text-slate-400">
+              Identify active employees with active accounts and whether they have a matching 360 Feedback template for the selected review cycle.
+            </p>
           </div>
         </div>
       </div>
 
-      <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-5">
-        {[
-          ['Eligible Employees', coverage?.eligibleCount ?? 0, Users, 'bg-blue-50 text-blue-600'],
-          ['Covered', coverage?.coveredCount ?? 0, CheckCircle2, 'bg-emerald-50 text-emerald-600'],
-          ['Uncovered', coverage?.uncoveredCount ?? 0, AlertCircle, 'bg-red-50 text-red-600'],
-          ['No Template', coverage?.noTemplateCount ?? 0, X, 'bg-amber-50 text-amber-600'],
-          ['Coverage %', coverage?.coveragePercent ?? 0, FileText, 'bg-violet-50 text-violet-600'],
-        ].map(([label, value, Icon, tone]) => {
-          const StatIcon = Icon as typeof Users
-          const displayValue = label === 'Coverage %' ? `${(value as number).toFixed(1)}%` : (value as number)
-          return (
-            <div key={label as string} className="rounded-2xl border border-slate-200/80 bg-white p-5 shadow-sm transition hover:-translate-y-0.5 hover:shadow-md">
-              <div className="flex items-start justify-between">
-                <div>
-                  <p className="text-[11px] font-black uppercase tracking-widest text-slate-400">{label as string}</p>
-                  <p className="mt-2 text-3xl font-black text-slate-900">{displayValue as string | number}</p>
-                </div>
-                <div className={`flex h-10 w-10 items-center justify-center rounded-xl ${tone as string}`}>
-                  <StatIcon size={18} />
-                </div>
+      <div className="grid grid-cols-2 gap-4 lg:grid-cols-4">
+        {([
+          { label: 'Eligible', value: coverage?.eligibleCount ?? 0, icon: Users, lightBg: 'bg-sky-50 dark:bg-sky-950/30', lightIcon: 'text-sky-600 dark:text-sky-400', ring: 'ring-sky-500/20', bgGlow: 'bg-sky-500/10' },
+          { label: 'Covered', value: coverage?.coveredCount ?? 0, icon: UserCheck, lightBg: 'bg-emerald-50 dark:bg-emerald-950/30', lightIcon: 'text-emerald-600 dark:text-emerald-400', ring: 'ring-emerald-500/20', bgGlow: 'bg-emerald-500/10' },
+          { label: 'Uncovered', value: coverage?.uncoveredCount ?? 0, icon: UserX, lightBg: 'bg-red-50 dark:bg-red-950/30', lightIcon: 'text-red-600 dark:text-red-400', ring: 'ring-red-500/20', bgGlow: 'bg-red-500/10' },
+          { label: 'Coverage', value: `${(coverage?.coveragePercent ?? 0).toFixed(1)}%`, icon: FileText, lightBg: 'bg-violet-50 dark:bg-violet-950/30', lightIcon: 'text-violet-600 dark:text-violet-400', ring: 'ring-violet-500/20', bgGlow: 'bg-violet-500/10' },
+        ] as const).map((card) => (
+          <div
+            key={card.label}
+            className="group relative overflow-hidden rounded-2xl border border-slate-200/60 bg-white p-4 shadow-sm transition-all duration-300 hover:-translate-y-0.5 hover:shadow-md dark:border-slate-700/60 dark:bg-slate-800/80"
+          >
+            <div className={`absolute -right-4 -top-4 h-20 w-20 rounded-full ${card.bgGlow} blur-2xl transition-all duration-500 group-hover:scale-150`} />
+            <div className="relative flex items-center justify-between">
+              <div>
+                <p className="text-[10px] font-bold uppercase tracking-widest text-slate-400 dark:text-slate-500">{card.label}</p>
+                <p className="mt-1 text-2xl font-extrabold tabular-nums text-slate-900 dark:text-white">{card.value}</p>
+              </div>
+              <div className={`flex h-8 w-8 items-center justify-center rounded-lg ${card.lightBg} ring-1 ${card.ring}`}>
+                <card.icon size={14} className={card.lightIcon} />
               </div>
             </div>
-          )
-        })}
+          </div>
+        ))}
       </div>
 
       {isLoading ? (
-        <div className="rounded-2xl border border-slate-200 bg-white p-10 text-center text-sm text-slate-500">Loading coverage...</div>
+        <div className="rounded-2xl border border-slate-200/60 bg-white p-10 text-center text-sm text-slate-500 dark:border-slate-700/60 dark:bg-slate-800/80 dark:text-slate-400">
+          Loading coverage...
+        </div>
       ) : !selectedReviewCycleId ? (
-        <div className="rounded-2xl border border-dashed border-slate-200 bg-white p-10 text-center text-sm text-slate-500">Select a review cycle to view coverage.</div>
-      ) : coverage && coverage.uncoveredCount === 0 ? (
-        <div className="rounded-2xl border border-dashed border-slate-200 bg-white p-10 text-center">
-          <CheckCircle2 size={40} className="mx-auto text-emerald-400" />
-          <p className="mt-4 text-lg font-black text-slate-700">All Eligible Employees Are Covered</p>
-          <p className="mt-1 text-sm text-slate-500">Every active employee with an active account has a matching 360 Feedback template for this cycle.</p>
+        <div className="rounded-2xl border border-dashed border-slate-200 bg-white p-10 text-center text-sm text-slate-500 dark:border-slate-700 dark:bg-slate-800/80 dark:text-slate-400">
+          Select a review cycle to view coverage.
+        </div>
+      ) : !coverage || coverage.eligibleCount === 0 ? (
+        <div className="rounded-2xl border border-slate-200/60 bg-white px-6 py-12 text-center shadow-sm dark:border-slate-700/60 dark:bg-slate-800/80">
+          <div className="mx-auto flex h-14 w-14 items-center justify-center rounded-2xl bg-gradient-to-br from-slate-100 to-slate-50 dark:from-slate-800 dark:to-slate-700/60">
+            <Users size={28} className="text-slate-300 dark:text-slate-500" />
+          </div>
+          <p className="mt-4 text-sm font-bold text-slate-700 dark:text-slate-200">No eligible employees</p>
+          <p className="mt-1 text-xs text-slate-500 dark:text-slate-400">
+            There are no eligible employees for 360 feedback coverage in the selected cycle.
+          </p>
         </div>
       ) : (
-        <div className="overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm">
-          <div className="flex flex-col gap-4 border-b border-slate-100 bg-gradient-to-r from-slate-50/80 to-white p-5 lg:flex-row lg:items-center lg:justify-between">
-            <div>
-              <h3 className="text-lg font-black text-slate-900">Uncovered Employees</h3>
-              <p className="text-xs text-slate-500">{filteredRows.length} of {coverage?.uncoveredCount ?? 0} uncovered employee{coverage?.uncoveredCount !== 1 ? 's' : ''}</p>
-            </div>
-            <div className="flex flex-col gap-3 sm:flex-row">
-              <div className="relative">
-                <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400" />
-                <input
-                  type="search"
-                  placeholder="Search employee..."
-                  value={searchQuery}
-                  onChange={(e) => setSearchQuery(e.target.value)}
-                  className="w-full rounded-xl border border-slate-200 bg-white py-2 pl-10 pr-3 text-sm focus:border-[#2463eb] focus:outline-none sm:w-56"
-                />
+        <div className="overflow-hidden rounded-2xl border border-slate-200/60 bg-white shadow-sm dark:border-slate-700/60 dark:bg-slate-800/80">
+          <div className="border-b border-slate-100 px-6 py-4 dark:border-slate-700/60">
+            <div className="flex flex-col gap-4">
+              <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+                <div
+                  role="tablist"
+                  aria-label="Coverage status"
+                  className="inline-flex rounded-xl border border-slate-200 bg-slate-50/50 p-1 dark:border-slate-700 dark:bg-slate-800/60"
+                >
+                  {([
+                    { id: 'COVERED' as const, label: 'Covered', icon: UserCheck, count: coverage.coveredCount, activeClass: 'bg-emerald-600 text-white shadow-sm shadow-emerald-600/20' },
+                    { id: 'UNCOVERED' as const, label: 'Uncovered', icon: UserX, count: coverage.uncoveredCount, activeClass: 'bg-red-600 text-white shadow-sm shadow-red-600/20' },
+                  ]).map((tab) => {
+                    const Icon = tab.icon
+                    const isActive = statusFilter === tab.id
+                    return (
+                      <button
+                        key={tab.id}
+                        type="button"
+                        role="tab"
+                        aria-selected={isActive}
+                        onClick={() => setStatusFilter(tab.id)}
+                        className={`inline-flex min-h-9 items-center gap-2 rounded-lg px-4 py-2 text-xs font-bold transition-all ${
+                          isActive
+                            ? tab.activeClass
+                            : 'text-slate-500 hover:bg-white hover:text-slate-800 dark:text-slate-400 dark:hover:bg-slate-700 dark:hover:text-white'
+                        }`}
+                      >
+                        <Icon size={14} />
+                        {tab.label}
+                        <span
+                          className={`ml-0.5 rounded-full px-1.5 py-0.5 text-[10px] font-black tabular-nums ${
+                            isActive ? 'bg-white/20 text-white' : 'bg-slate-200/80 text-slate-500 dark:bg-slate-600 dark:text-slate-400'
+                          }`}
+                        >
+                          {tab.count}
+                        </span>
+                      </button>
+                    )
+                  })}
+                </div>
+                <p className="text-xs text-slate-400 dark:text-slate-500">
+                  {filteredRows.length} of {sourceRows.length} employee{sourceRows.length !== 1 ? 's' : ''}
+                  {hasActiveFilters && (
+                    <span className="ml-1.5 inline-flex items-center gap-1 rounded-full bg-[#2463eb]/10 px-2 py-0.5 text-[10px] font-bold text-[#2463eb] dark:bg-[#2463eb]/20 dark:text-[#60a5fa]">
+                      <Filter size={9} />
+                      Filtered
+                    </span>
+                  )}
+                </p>
               </div>
-              <select
-                value={deptFilter}
-                onChange={(e) => setDeptFilter(e.target.value)}
-                className="rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm font-semibold text-slate-600 focus:border-[#2463eb] focus:outline-none"
-              >
-                <option value="ALL">All Departments</option>
-                {Array.from(departments.entries()).map(([id, name]) => (
-                  <option key={id} value={id}>{name}</option>
-                ))}
-              </select>
-              <select
-                value={posFilter}
-                onChange={(e) => setPosFilter(e.target.value)}
-                className="rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm font-semibold text-slate-600 focus:border-[#2463eb] focus:outline-none"
-              >
-                <option value="ALL">All Positions</option>
-                {Array.from(positions.entries()).map(([id, name]) => (
-                  <option key={id} value={id}>{name}</option>
-                ))}
-              </select>
-              <select
-                value={levelCodeFilter}
-                onChange={(e) => setLevelCodeFilter(e.target.value)}
-                className="rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm font-semibold text-slate-600 focus:border-[#2463eb] focus:outline-none"
-              >
-                <option value="ALL">All Level Codes</option>
-                {Array.from(levelCodes.entries()).map(([id, code]) => (
-                  <option key={id} value={id}>{code}</option>
-                ))}
-              </select>
+
+              <div className="flex flex-col gap-3 sm:flex-row">
+                <div className="relative flex-1">
+                  <Search size={14} className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" />
+                  <input
+                    type="search"
+                    value={searchQuery}
+                    onChange={(e) => setSearchQuery(e.target.value)}
+                    placeholder="Search by name, staff no, dept, position, level..."
+                    className={`${coverageFilterControlClass} py-2 pl-9 pr-9 text-xs font-medium`}
+                  />
+                  {searchQuery && (
+                    <button
+                      type="button"
+                      onClick={() => setSearchQuery('')}
+                      className="absolute right-3 top-1/2 -translate-y-1/2 rounded-md p-0.5 text-slate-400 transition hover:bg-slate-100 hover:text-slate-600 dark:hover:bg-slate-700 dark:hover:text-slate-200"
+                      aria-label="Clear search"
+                    >
+                      <X size={14} />
+                    </button>
+                  )}
+                </div>
+                <button
+                  type="button"
+                  onClick={() => setExpandedFilters(!expandedFilters)}
+                  className={`inline-flex items-center justify-center gap-2 rounded-xl border px-4 py-2 text-xs font-semibold transition-all shadow-sm ${
+                    expandedFilters || hasActiveFilters
+                      ? 'border-[#2463eb]/30 bg-[#2463eb]/[0.04] text-[#2463eb] dark:border-[#2463eb]/40 dark:bg-[#2463eb]/10 dark:text-[#60a5fa]'
+                      : 'border-slate-200 bg-white text-slate-600 hover:border-slate-300 hover:bg-slate-50 dark:border-slate-600 dark:bg-slate-800 dark:text-slate-300 dark:hover:border-slate-500'
+                  }`}
+                >
+                  <SlidersHorizontal size={14} />
+                  Filters
+                  {hasActiveFilters && (
+                    <span className="flex h-5 w-5 items-center justify-center rounded-full bg-[#2463eb] text-[10px] font-bold text-white">
+                      {activeFilterCount}
+                    </span>
+                  )}
+                  <ChevronDown size={12} className={`transition-transform ${expandedFilters ? 'rotate-180' : ''}`} />
+                </button>
+                {hasActiveFilters && (
+                  <button
+                    type="button"
+                    onClick={clearAllFilters}
+                    className="inline-flex items-center justify-center gap-1.5 rounded-xl border border-slate-200 bg-white px-4 py-2 text-xs font-semibold text-slate-500 shadow-sm transition-all hover:bg-slate-50 hover:text-slate-700 dark:border-slate-600 dark:bg-slate-800 dark:text-slate-400 dark:hover:bg-slate-700 dark:hover:text-slate-200"
+                  >
+                    <X size={13} />
+                    Clear
+                  </button>
+                )}
+              </div>
+
+              {expandedFilters && (
+                <div className="grid gap-3 animate-fade-in sm:grid-cols-3">
+                  <div>
+                    <label htmlFor="fb-coverage-dept-filter" className="mb-1.5 block text-[11px] font-bold uppercase tracking-widest text-slate-400 dark:text-slate-500">
+                      Department
+                    </label>
+                    <select
+                      id="fb-coverage-dept-filter"
+                      value={deptFilter}
+                      onChange={(e) => setDeptFilter(e.target.value)}
+                      className={coverageFilterControlClass}
+                    >
+                      <option value="ALL">All departments</option>
+                      {Array.from(departments.entries()).map(([id, name]) => (
+                        <option key={id} value={id}>{name}</option>
+                      ))}
+                    </select>
+                  </div>
+                  <div>
+                    <label htmlFor="fb-coverage-pos-filter" className="mb-1.5 block text-[11px] font-bold uppercase tracking-widest text-slate-400 dark:text-slate-500">
+                      Position
+                    </label>
+                    <select
+                      id="fb-coverage-pos-filter"
+                      value={posFilter}
+                      onChange={(e) => setPosFilter(e.target.value)}
+                      className={coverageFilterControlClass}
+                    >
+                      <option value="ALL">All positions</option>
+                      {Array.from(positions.entries()).map(([id, name]) => (
+                        <option key={id} value={id}>{name}</option>
+                      ))}
+                    </select>
+                  </div>
+                  <div>
+                    <label htmlFor="fb-coverage-level-filter" className="mb-1.5 block text-[11px] font-bold uppercase tracking-widest text-slate-400 dark:text-slate-500">
+                      Level code
+                    </label>
+                    <select
+                      id="fb-coverage-level-filter"
+                      value={levelCodeFilter}
+                      onChange={(e) => setLevelCodeFilter(e.target.value)}
+                      className={coverageFilterControlClass}
+                    >
+                      <option value="ALL">All level codes</option>
+                      {Array.from(levelCodes.entries()).map(([id, code]) => (
+                        <option key={id} value={id}>{code}</option>
+                      ))}
+                    </select>
+                  </div>
+                </div>
+              )}
             </div>
           </div>
-          <div className="p-5">
-            <div className="overflow-hidden rounded-2xl border border-slate-200">
-              <div className="w-full overflow-x-auto">
-                <table className="w-full text-left">
-                  <colgroup>
-                    <col className="w-[22%]" />
-                    <col className="w-[8%]" />
-                    <col className="w-[18%]" />
-                    <col className="w-[16%]" />
-                    <col className="w-[12%]" />
-                    <col className="w-[24%]" />
-                  </colgroup>
-                  <thead className="bg-slate-50 text-[10px] font-black uppercase tracking-wider text-slate-400">
-                    <tr>
-                      <th className="px-4 py-4">Employee</th>
-                      <th className="px-4 py-4">Staff No</th>
-                      <th className="px-4 py-4">Department</th>
-                      <th className="px-4 py-4">Position</th>
-                      <th className="px-4 py-4">Level Code</th>
-                      <th className="px-4 py-4">Missing Reason</th>
+
+          {filteredRows.length === 0 ? (
+            <div className="flex flex-col items-center justify-center px-4 py-16">
+              <div className="flex h-14 w-14 items-center justify-center rounded-2xl bg-gradient-to-br from-slate-100 to-slate-50 dark:from-slate-800 dark:to-slate-700/60">
+                {hasActiveFilters ? (
+                  <Search size={28} className="text-slate-300 dark:text-slate-500" />
+                ) : statusFilter === 'COVERED' ? (
+                  <UserCheck size={28} className="text-slate-300 dark:text-slate-500" />
+                ) : (
+                  <UserX size={28} className="text-slate-300 dark:text-slate-500" />
+                )}
+              </div>
+              <p className="mt-4 text-sm font-bold text-slate-700 dark:text-slate-200">
+                {hasActiveFilters
+                  ? 'No employees match your search or filters'
+                  : statusFilter === 'COVERED'
+                    ? 'No covered employees'
+                    : 'All employees are covered'}
+              </p>
+              {hasActiveFilters && (
+                <button
+                  type="button"
+                  onClick={clearAllFilters}
+                  className="mt-4 inline-flex items-center gap-2 rounded-xl border border-slate-200 bg-white px-4 py-2 text-xs font-semibold text-slate-600 shadow-sm transition-all hover:bg-slate-50 dark:border-slate-600 dark:bg-slate-800 dark:text-slate-300 dark:hover:bg-slate-700"
+                >
+                  <X size={14} />
+                  Clear all filters
+                </button>
+              )}
+            </div>
+          ) : (
+            <>
+              <div className="overflow-x-auto">
+                <table className="min-w-full text-sm">
+                  <thead>
+                    <tr className="border-b border-slate-100 bg-gradient-to-r from-slate-50/80 to-slate-50/40 dark:border-slate-700/60 dark:from-slate-800/60 dark:to-slate-800/30">
+                      <th className="px-5 py-3.5 text-left text-[11px] font-bold uppercase tracking-widest text-slate-400 dark:text-slate-500">
+                        Employee
+                      </th>
+                      <th className="hidden px-5 py-3.5 text-left text-[11px] font-bold uppercase tracking-widest text-slate-400 dark:text-slate-500 sm:table-cell">
+                        Department
+                      </th>
+                      <th className="hidden px-5 py-3.5 text-left text-[11px] font-bold uppercase tracking-widest text-slate-400 dark:text-slate-500 lg:table-cell">
+                        Position
+                      </th>
+                      <th className="hidden px-5 py-3.5 text-left text-[11px] font-bold uppercase tracking-widest text-slate-400 dark:text-slate-500 md:table-cell">
+                        Level
+                      </th>
+                      <th className="px-5 py-3.5 text-left text-[11px] font-bold uppercase tracking-widest text-slate-400 dark:text-slate-500">
+                        Status
+                      </th>
                     </tr>
                   </thead>
-                  <tbody className="divide-y divide-slate-100 bg-white">
-                    {filteredRows.length === 0 ? (
-                      <tr>
-                        <td colSpan={6} className="px-4 py-10 text-center text-sm text-slate-500">No uncovered employees match the current filters.</td>
-                      </tr>
-                    ) : (
-                      paginatedRows.map((row) => (
-                        <tr key={row.employeeId} className="transition hover:bg-slate-50">
-                          <td className="px-4 py-3">
-                            <p className="font-bold text-slate-900">{row.employeeName}</p>
-                          </td>
-                          <td className="px-4 py-3 text-sm font-semibold text-slate-600">{row.employeeCode ?? '-'}</td>
-                          <td className="px-4 py-3 text-sm text-slate-600">{row.departmentName ?? '-'}</td>
-                          <td className="px-4 py-3 text-sm text-slate-600">{row.positionName ?? '-'}</td>
-                          <td className="px-4 py-3 text-sm text-slate-600">{row.levelCode ?? '-'}</td>
-                          <td className="px-4 py-3">
-                            <span className="inline-flex items-center gap-1 rounded-full bg-red-50 px-2.5 py-1 text-[10px] font-black text-red-700">
-                              <X size={10} />
-                              {row.missingReason === 'NO_MATCHING_TEMPLATE' ? 'No Matching Template' : row.missingReason}
+                  <tbody className="divide-y divide-slate-100/80 dark:divide-slate-700/40">
+                    {paginatedRows.map((row) => (
+                      <tr
+                        key={row.employeeId}
+                        className="group transition-all duration-200 hover:bg-[#2463eb]/[0.02] dark:hover:bg-[#2463eb]/[0.04]"
+                      >
+                        <td className="px-5 py-3">
+                          <div className="flex items-center gap-3">
+                            <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-gradient-to-br from-slate-100 to-slate-50 text-xs font-bold text-slate-600 ring-1 ring-slate-200/80 dark:from-slate-700 dark:to-slate-800 dark:text-slate-300 dark:ring-slate-600">
+                              {(row.employeeName?.trim().charAt(0) ?? '?').toUpperCase()}
+                            </div>
+                            <div className="min-w-0">
+                              <p className="truncate font-semibold text-slate-900 dark:text-white">{row.employeeName}</p>
+                              <p className="text-[11px] text-slate-400 dark:text-slate-500">
+                                {row.employeeCode ? `Staff #${row.employeeCode}` : 'No staff no.'}
+                              </p>
+                              <p className="mt-0.5 truncate text-[11px] text-slate-500 sm:hidden dark:text-slate-400">
+                                {[row.departmentName, row.positionName].filter(Boolean).join(' · ') || '—'}
+                              </p>
+                            </div>
+                          </div>
+                        </td>
+                        <td className="hidden px-5 py-3 text-xs font-medium text-slate-600 dark:text-slate-300 sm:table-cell">
+                          {row.departmentName ?? '-'}
+                        </td>
+                        <td className="hidden max-w-[200px] truncate px-5 py-3 text-xs font-medium text-slate-600 dark:text-slate-300 lg:table-cell">
+                          {row.positionName ?? '-'}
+                        </td>
+                        <td className="hidden px-5 py-3 md:table-cell">
+                          {row.levelCode ? (
+                            <span className="inline-flex rounded-md bg-slate-100 px-2 py-0.5 text-[11px] font-bold text-slate-600 dark:bg-slate-700 dark:text-slate-300">
+                              {row.levelCode}
                             </span>
-                          </td>
-                        </tr>
-                      ))
-                    )}
+                          ) : (
+                            <span className="text-xs text-slate-400">-</span>
+                          )}
+                        </td>
+                        <td className="px-5 py-3">
+                          {statusFilter === 'COVERED' ? (
+                            <span className="inline-flex items-center gap-1.5 rounded-full bg-emerald-50 px-2.5 py-1 text-[11px] font-bold text-emerald-700 dark:bg-emerald-900/30 dark:text-emerald-400">
+                              <UserCheck size={10} />
+                              Covered
+                            </span>
+                          ) : (
+                            <span className="inline-flex items-center gap-1.5 rounded-full bg-red-50 px-2.5 py-1 text-[11px] font-bold text-red-700 dark:bg-red-900/30 dark:text-red-400">
+                              <UserX size={10} />
+                              No template
+                            </span>
+                          )}
+                        </td>
+                      </tr>
+                    ))}
                   </tbody>
                 </table>
               </div>
-            </div>
-            <div className="border-t border-slate-100 px-5 py-4">
-              <PaginationBar
-                className="mt-0 rounded-none border-0 shadow-none"
-                pageIndex={pageIndex}
-                pageSize={pageSize}
-                pageCount={pageCount}
-                totalItems={filteredRows.length}
-                itemLabel="employees"
-                rowsPerPageOptions={[5, 10, 20, 50]}
-                onPageIndexChange={setPageIndex}
-                onPageSizeChange={(nextSize) => {
-                  setPageSize(nextSize)
-                  setPageIndex(0)
-                }}
-              />
-            </div>
-          </div>
+
+              <div className="border-t border-slate-100 px-5 py-4 dark:border-slate-700/60">
+                <PaginationBar
+                  className="mt-0 rounded-none border-0 shadow-none dark:bg-transparent"
+                  pageIndex={pageIndex}
+                  pageSize={pageSize}
+                  pageCount={pageCount}
+                  totalItems={filteredRows.length}
+                  itemLabel="employees"
+                  rowsPerPageOptions={[5, 10, 20, 50]}
+                  onPageIndexChange={setPageIndex}
+                  onPageSizeChange={(nextSize) => {
+                    setPageSize(nextSize)
+                    setPageIndex(0)
+                  }}
+                />
+              </div>
+            </>
+          )}
         </div>
       )}
     </section>
