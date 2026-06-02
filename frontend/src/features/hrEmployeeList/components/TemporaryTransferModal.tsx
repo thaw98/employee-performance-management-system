@@ -31,11 +31,16 @@ const addDaysToIsoDate = (date: string, days: number) => {
   return value.toISOString().slice(0, 10)
 }
 
+function todayString() {
+  // ISO input format for <input type="date">: YYYY-MM-DD
+  return new Date().toISOString().split('T')[0]
+}
+
 export function TemporaryTransferModal({ isOpen, employeeId, employeeName, onClose, onSuccess }: TransferModalProps) {
   const [transferType, setTransferType] = useState<TransferType>('TEMPORARY')
   const [toDepartmentId, setToDepartmentId] = useState<number | ''>('')
   const [toPositionId, setToPositionId] = useState<number | ''>('')
-  const [effectiveStartDate, setEffectiveStartDate] = useState('')
+  const [effectiveStartDate, setEffectiveStartDate] = useState(todayString())
   const [effectiveEndDate, setEffectiveEndDate] = useState('')
   const [reason, setReason] = useState('')
   const [remarks, setRemarks] = useState('')
@@ -56,7 +61,7 @@ export function TemporaryTransferModal({ isOpen, employeeId, employeeName, onClo
   const currentTransfer = currentTransferRes?.data ?? null
   const previousEffectiveStartDate = currentTransfer?.effectiveStartDate ?? ''
   const minEffectiveStartDate = useMemo(
-    () => previousEffectiveStartDate ? addDaysToIsoDate(previousEffectiveStartDate, 1) : undefined,
+    () => previousEffectiveStartDate ? previousEffectiveStartDate : undefined,
     [previousEffectiveStartDate],
   )
   const minEffectiveEndDate = useMemo(
@@ -64,7 +69,7 @@ export function TemporaryTransferModal({ isOpen, employeeId, employeeName, onClo
     [effectiveStartDate],
   )
   const hasInvalidStartDate = Boolean(
-    previousEffectiveStartDate && effectiveStartDate && effectiveStartDate <= previousEffectiveStartDate,
+    previousEffectiveStartDate && effectiveStartDate && effectiveStartDate < previousEffectiveStartDate,
   )
   const hasInvalidEndDate = Boolean(
     effectiveStartDate && effectiveEndDate && effectiveEndDate <= effectiveStartDate,
@@ -78,7 +83,7 @@ export function TemporaryTransferModal({ isOpen, employeeId, employeeName, onClo
     setTransferType('TEMPORARY')
     setToDepartmentId('')
     setToPositionId('')
-    setEffectiveStartDate('')
+    setEffectiveStartDate(todayString())
     setEffectiveEndDate('')
     setReason('')
     setRemarks('')
@@ -252,7 +257,7 @@ export function TemporaryTransferModal({ isOpen, employeeId, employeeName, onClo
                       />
                       {hasInvalidStartDate ? (
                         <p className="mt-1 text-xs font-medium text-red-500">
-                          Start date must be after the previous transfer ({previousEffectiveStartDate})
+                          Start date must be on or after the previous transfer ({previousEffectiveStartDate})
                         </p>
                       ) : null}
                     </div>

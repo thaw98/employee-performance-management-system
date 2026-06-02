@@ -159,4 +159,35 @@ describe('TemporaryTransferModal (unified transfer modal)', () => {
       })
     })
   })
+
+  it('allows effective date equal to previous transfer start', async () => {
+    const user = userEvent.setup()
+    renderModal()
+
+    const selects = screen.getAllByRole('combobox')
+    await user.selectOptions(selects[0], 'PERMANENT')
+    await user.selectOptions(selects[1], '1')
+    await user.selectOptions(selects[2], '10')
+
+    const dateInputs = document.querySelectorAll('input[type="date"]')
+    await user.clear(dateInputs[0])
+    // Mocked current transfer start date (see vi.mock above)
+    await user.type(dateInputs[0], '2024-01-01')
+
+    const submitButton = screen.getByText('Confirm Permanent Transfer')
+    await user.click(submitButton)
+
+    await waitFor(() => {
+      expect(permanentTransferMock).toHaveBeenCalledWith({
+        employeeId: 100,
+        body: {
+          toDepartmentId: 1,
+          toPositionId: 10,
+          effectiveStartDate: '2024-01-01',
+          reason: undefined,
+          remarks: undefined,
+        },
+      })
+    })
+  })
 })
