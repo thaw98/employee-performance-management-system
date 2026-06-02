@@ -4,6 +4,7 @@ import { Activity, AlertTriangle, CalendarClock, ClipboardCheck, PenLine, Target
 import { Bar, BarChart, Cell, ResponsiveContainer, Tooltip, XAxis, YAxis } from 'recharts'
 
 import axios from '../../app/axiosInstance'
+import { AnnouncementPanel } from '../../components/dashboard/AnnouncementPanel'
 import { useGetManagerTeamQuery } from '../../features/kpi/kpiApi'
 import { usePermissionState } from '../../features/permission'
 import { getNotificationSourceLabel } from '../../features/notification/notificationSourceLabels'
@@ -15,6 +16,9 @@ type MeetingItem = {
   scheduledTime?: string
   meetingTime?: string
   status: string
+  meetingGroupKey?: string | null
+  meetingScope?: string | null
+  departmentName?: string | null
 }
 
 type ActivityItem = {
@@ -51,6 +55,22 @@ const formatTime = (value?: string) => {
   if (Number.isNaN(date.getTime())) return '-'
   return date.toLocaleTimeString(undefined, { hour: '2-digit', minute: '2-digit' })
 }
+
+const isDepartmentMeeting = (meeting: MeetingItem) => String(meeting.meetingScope ?? '').toUpperCase() === 'DEPARTMENT'
+
+const getMeetingCardKey = (meeting: MeetingItem) => {
+  const dateValue = meeting.scheduledTime || meeting.meetingTime || ''
+  if (!isDepartmentMeeting(meeting)) return `meeting-${meeting.id}`
+  return meeting.meetingGroupKey || `department-${meeting.departmentName || 'all'}-${meeting.title}-${dateValue}`
+}
+
+const getDashboardMeetingCards = (rows: MeetingItem[]) => Array.from(
+  new Map(rows.map((meeting) => [getMeetingCardKey(meeting), meeting])).values(),
+)
+
+const getMeetingAudienceLabel = (meeting: MeetingItem) => (
+  isDepartmentMeeting(meeting) ? `For department: ${meeting.departmentName || 'Department'}` : null
+)
 
 function EmptyPanel({ message }: { message: string }) {
   return (
@@ -97,7 +117,7 @@ export function ManagerDashboardPage() {
 
       if (showMeetings) {
         if (meetingResult?.status === 'fulfilled' && meetingResult.value.data?.success !== false) {
-          setMeetings(meetingResult.value.data?.data?.content ?? [])
+          setMeetings(getDashboardMeetingCards(meetingResult.value.data?.data?.content ?? []))
         } else if (meetingResult?.status === 'rejected') {
           const reason = meetingResult.reason as { response?: { data?: { message?: string } } }
           setMeetingError(reason?.response?.data?.message || 'Unable to load your upcoming meetings.')
@@ -187,6 +207,8 @@ export function ManagerDashboardPage() {
         </Link>
       </section>
 
+      <AnnouncementPanel />
+
       {!isDefaultSigLoading && !hasDefaultSignature && (
         <div className="flex flex-col gap-4 rounded-3xl border border-amber-200 bg-amber-50/90 p-5 sm:flex-row sm:items-center sm:justify-between dark:border-amber-900/50 dark:bg-amber-950/30">
           <div className="flex items-start gap-3">
@@ -270,10 +292,12 @@ export function ManagerDashboardPage() {
                 <EmptyPanel message="You have no upcoming meetings." />
               ) : meetings.map((meeting) => {
                 const dateValue = meeting.scheduledTime || meeting.meetingTime
+                const audienceLabel = getMeetingAudienceLabel(meeting)
                 return (
                   <Link key={meeting.id} to={`/manager/meetings/${meeting.id}`} className="grid gap-3 rounded-2xl border border-blue-50 bg-blue-50/60 p-4 transition hover:bg-blue-50 sm:grid-cols-[1fr_auto] sm:items-center dark:border-slate-800 dark:bg-slate-800">
                     <div className="min-w-0">
                       <p className="truncate text-sm font-black text-slate-950 dark:text-white">{meeting.title}</p>
+                      {audienceLabel && <p className="mt-1 text-[10px] font-black uppercase tracking-widest text-blue-600">{audienceLabel}</p>}
                       <p className="mt-1 text-xs font-semibold text-slate-500">{formatDate(dateValue)} at {formatTime(dateValue)}</p>
                     </div>
                     <span className="w-fit rounded-full bg-white px-3 py-1 text-[10px] font-black uppercase tracking-widest text-blue-700 shadow-sm dark:bg-slate-900">{meeting.status}</span>

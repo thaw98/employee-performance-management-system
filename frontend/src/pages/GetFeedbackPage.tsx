@@ -3,6 +3,7 @@ import { useLocation, useNavigate } from 'react-router-dom';
 import axios from '../app/axiosInstance';
 import { toast } from 'react-hot-toast';
 import { Calendar, ChevronLeft, ChevronRight, Eye, Inbox, Search, User } from 'lucide-react';
+import { ViewModeToggle, type ViewMode } from '../components/common/ViewModeToggle';
 import { useGetProfileQuery } from '../features/user/userApi';
 import { feedbackRoleDisplay } from '../utils/feedbackAnonymity';
 
@@ -39,6 +40,7 @@ export function GetFeedbackPage() {
     const [page, setPage] = useState(restoredState.page ?? 0);
     const [totalPages, setTotalPages] = useState(0);
     const [searchTerm, setSearchTerm] = useState(restoredState.searchTerm ?? '');
+    const [viewMode, setViewMode] = useState<ViewMode>('table');
     const { data: profileResponse } = useGetProfileQuery();
     const timeFormat = profileResponse?.data?.timeFormat || '12h';
 
@@ -115,7 +117,8 @@ export function GetFeedbackPage() {
                     </p>
                 </div>
 
-                <div className="flex items-center gap-4">
+                <div className="flex flex-wrap items-center gap-4">
+                    <ViewModeToggle value={viewMode} onChange={setViewMode} />
                     <div className="relative group">
                         <Search className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400 group-focus-within:text-blue-500 transition-colors" size={18} />
                         <input
@@ -129,6 +132,7 @@ export function GetFeedbackPage() {
                 </div>
             </div>
 
+            {viewMode === 'table' ? (
             <div className="bg-white rounded-[32px] border border-slate-100 shadow-xl shadow-slate-200/50 overflow-hidden">
                 <table className="w-full text-left border-collapse">
                     <thead>
@@ -196,6 +200,58 @@ export function GetFeedbackPage() {
                     </tbody>
                 </table>
             </div>
+            ) : (
+                <div className="grid grid-cols-1 gap-5 md:grid-cols-2 xl:grid-cols-3">
+                    {loading ? (
+                        Array.from({ length: 6 }).map((_, index) => (
+                            <div key={index} className="h-56 animate-pulse rounded-[28px] bg-white shadow-sm ring-1 ring-slate-100" />
+                        ))
+                    ) : filteredItems.length === 0 ? (
+                        <div className="col-span-full rounded-[32px] border border-dashed border-slate-200 bg-white p-16 text-center text-slate-400">
+                            <Inbox size={48} className="mx-auto mb-4 opacity-20" />
+                            <p className="font-bold">No feedback received yet.</p>
+                        </div>
+                    ) : filteredItems.map((item) => (
+                        <article key={item.id} className="rounded-[28px] border border-slate-100 bg-white p-5 shadow-sm transition hover:-translate-y-0.5 hover:shadow-lg">
+                            <div className="flex items-start justify-between gap-4">
+                                <div className="min-w-0">
+                                    <p className="text-[10px] font-black uppercase tracking-widest text-slate-400">Evaluator</p>
+                                    <div className="mt-2 flex items-center gap-3">
+                                        <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-slate-100 text-slate-400">
+                                            <User size={18} />
+                                        </div>
+                                        <div className="min-w-0">
+                                            <h3 className="truncate text-sm font-black text-slate-800">{item.evaluatorName}</h3>
+                                            <p className="text-[11px] font-bold text-slate-500">{feedbackRoleDisplay(item)}</p>
+                                        </div>
+                                    </div>
+                                </div>
+                                <button onClick={() => viewDetails(item)} className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl border border-slate-100 bg-slate-50 text-slate-400 transition hover:bg-blue-600 hover:text-white" title="View details">
+                                    <Eye size={18} />
+                                </button>
+                            </div>
+
+                            <div className="mt-5 grid grid-cols-2 gap-3">
+                                <div className="rounded-2xl bg-slate-50 p-3">
+                                    <p className="text-[10px] font-black uppercase tracking-widest text-slate-400">Date</p>
+                                    <p className="mt-1 text-sm font-black text-slate-700">{new Date(item.date).toLocaleDateString('en-GB')}</p>
+                                </div>
+                                <div className="rounded-2xl bg-blue-50 p-3">
+                                    <p className="text-[10px] font-black uppercase tracking-widest text-blue-400">Score</p>
+                                    <p className="mt-1 text-sm font-black text-blue-700">{item.score.toFixed(1)}%</p>
+                                </div>
+                            </div>
+
+                            <div className="mt-4 flex flex-wrap items-center justify-between gap-3">
+                                <span className={`px-4 py-2 rounded-xl border-2 text-xs font-black uppercase tracking-tight ${getRemarkColor(item.remark)}`}>{item.remark}</span>
+                                <span className="text-[10px] font-bold uppercase tracking-widest text-slate-400">
+                                    {new Date(item.date).toLocaleTimeString('en-US', { hour12: timeFormat === '12h', hour: '2-digit', minute: '2-digit' })}
+                                </span>
+                            </div>
+                        </article>
+                    ))}
+                </div>
+            )}
 
             {totalPages > 1 && (
                 <div className="flex items-center justify-center gap-3 pt-4 flex-wrap">

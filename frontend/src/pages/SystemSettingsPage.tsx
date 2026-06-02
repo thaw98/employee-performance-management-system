@@ -1,7 +1,6 @@
 import { useState, useEffect, useRef } from 'react'
 import type { ReactNode } from 'react'
-import { Link } from 'react-router-dom'
-import { Moon, Sun, Globe, Save, Loader2, Image as ImageIcon, Trash2, RotateCcw, AlertTriangle, X, Calendar, ChevronRight, ChevronDown, TableProperties } from 'lucide-react'
+import { Moon, Sun, Globe, Save, Loader2, Image as ImageIcon, Trash2, RotateCcw, AlertTriangle, X, ChevronDown } from 'lucide-react'
 import { toast } from 'react-hot-toast'
 import { useGetProfileQuery, useUpdateProfileMutation, useUpdateWallpaperMutation, useDeleteWallpaperMutation } from '../features/user/userApi'
 import {
@@ -56,7 +55,6 @@ export function SystemSettingsPage() {
   const [pendingWallpaper, setPendingWallpaper] = useState<File | 'remove' | null>(null)
   const [showResetModal, setShowResetModal] = useState(false)
   const [isResetting, setIsResetting] = useState(false)
-  const isHR = profileResponse?.data?.role === 'HR'
 
   useEffect(() => {
     if (isThemePreference(profileResponse?.data?.theme)) {
@@ -303,49 +301,6 @@ export function SystemSettingsPage() {
             </div>
           </div>
         </div>
-        {isHR && (
-          <>
-          <Link
-            to="/hr/settings/system/time"
-            className="block bg-white dark:bg-slate-900 rounded-[2rem] border border-slate-100 dark:border-slate-800 shadow-sm overflow-hidden transition-all hover:shadow-md hover:border-[#2463eb]/30 dark:hover:border-[#2463eb]/40 group"
-          >
-                        <div className="p-8 flex items-center justify-between gap-4">
-              <div className="flex items-center gap-4">
-                <div className="w-10 h-10 bg-[#dbeafe] dark:bg-[#2463eb]/20 text-[#2463eb] dark:text-[#60a5fa] rounded-xl flex items-center justify-center">
-                  <Calendar size={20} />
-                </div>
-                <div>
-                  <h2 className="text-lg font-black text-slate-900 dark:text-slate-200 tracking-tight">Time Settings</h2>
-                  <p className="text-sm text-slate-500 dark:text-slate-400 mt-1">
-                    Configure organization year type, review cycles, and duration.
-                  </p>
-                </div>
-              </div>
-              <ChevronRight size={20} className="text-slate-300 group-hover:text-[#2463eb] transition-colors" />
-            </div>
-          </Link>
-          <Link
-            to="/hr/settings/system/score-explanations"
-            className="block bg-white dark:bg-slate-900 rounded-[2rem] border border-slate-100 dark:border-slate-800 shadow-sm overflow-hidden transition-all hover:shadow-md hover:border-[#2463eb]/30 dark:hover:border-[#2463eb]/40 group"
-          >
-            <div className="p-8 flex items-center justify-between gap-4">
-              <div className="flex items-center gap-4">
-                <div className="w-10 h-10 bg-emerald-50 dark:bg-emerald-900/30 text-emerald-600 dark:text-emerald-400 rounded-xl flex items-center justify-center">
-                  <TableProperties size={20} />
-                </div>
-                <div>
-                  <h2 className="text-lg font-black text-slate-900 dark:text-slate-200 tracking-tight">Score Band Settings</h2>
-                  <p className="text-sm text-slate-500 dark:text-slate-400 mt-1">
-                    Configure score ranges and labels for assessments, appraisals, and feedback.
-                  </p>
-                </div>
-              </div>
-              <ChevronRight size={20} className="text-slate-300 group-hover:text-[#2463eb] transition-colors" />
-            </div>
-          </Link>
-          </>
-        )}
-
         {/* Action Bar */}
         <div className="pt-6 flex justify-end gap-3">
            <button 

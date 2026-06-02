@@ -21,6 +21,9 @@ import {
     Shield,
     Archive,
     MessageSquare,
+    Settings,
+    Bell,
+    PenLine,
 } from 'lucide-react';
 import { Outlet } from 'react-router-dom';
 import { useSelector } from 'react-redux';
@@ -164,6 +167,22 @@ const AuditLayout: React.FC = () => {
                 { label: 'Activity', path: '/audit/activity', icon: <History size={18} /> },
                 { label: 'Activity Monitor', path: '/audit/activity-monitor', icon: <Activity size={18} /> },
                 { label: 'Permission Groups', path: '/audit/permissions', icon: <Shield size={18} /> },
+            ],
+        },
+        {
+            label: 'Settings',
+            items: [
+                {
+                    label: 'Settings',
+                    path: '/audit/settings/system',
+                    icon: <Settings size={18} />,
+                    isActive: (pathname) => pathname.startsWith('/audit/settings'),
+                    subItems: [
+                        { label: 'System Settings', path: '/audit/settings/system', icon: <Settings size={16} /> },
+                        { label: 'Notification Settings', path: '/audit/settings/system/notifications', icon: <Bell size={16} /> },
+                        { label: 'Signature Settings', path: '/audit/settings/signature', icon: <PenLine size={16} /> },
+                    ],
+                },
             ],
         },
     ];

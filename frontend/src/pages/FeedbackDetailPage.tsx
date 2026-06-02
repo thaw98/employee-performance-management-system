@@ -392,22 +392,22 @@ export function FeedbackDetailPage() {
 
   return (
     <div className="max-w-6xl mx-auto space-y-6 animate-in fade-in duration-500">
-      <div className="relative overflow-hidden rounded-2xl bg-gradient-to-br from-slate-900 via-slate-800 to-slate-700 px-6 py-5 text-white shadow-xl">
-        <div className="absolute -right-8 -top-8 h-32 w-32 rounded-full bg-white/5 blur-3xl" />
-        <div className="absolute -bottom-6 -left-6 h-24 w-24 rounded-full bg-blue-500/10 blur-3xl" />
+      <div className="relative overflow-hidden rounded-2xl border border-blue-100 bg-gradient-to-br from-blue-50 via-white to-slate-50 px-6 py-5 text-slate-900 shadow-xl shadow-blue-100/50">
+        <div className="absolute -right-8 -top-8 h-32 w-32 rounded-full bg-blue-200/40 blur-3xl" />
+        <div className="absolute -bottom-6 -left-6 h-24 w-24 rounded-full bg-emerald-200/35 blur-3xl" />
         <div className="relative flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
           <div className="flex items-center gap-4">
-            <button type="button" onClick={handleBack} className="flex h-10 w-10 items-center justify-center rounded-xl bg-white/10 text-white/70 backdrop-blur-sm transition hover:bg-white/20 hover:text-white">
+            <button type="button" onClick={handleBack} className="flex h-10 w-10 items-center justify-center rounded-xl border border-blue-100 bg-white text-blue-600 shadow-sm transition hover:bg-blue-50 hover:text-blue-700">
               <ArrowLeft size={18} />
             </button>
-            <div className="h-10 w-px bg-white/10" />
+            <div className="h-10 w-px bg-blue-100" />
             <div className="flex items-center gap-4">
-              <div className="flex h-12 w-12 items-center justify-center rounded-xl bg-gradient-to-br from-blue-500 to-blue-600 shadow-lg shadow-blue-500/30">
+              <div className="flex h-12 w-12 items-center justify-center rounded-xl bg-blue-600 text-white shadow-lg shadow-blue-200">
                 <Star size={22} />
               </div>
               <div>
                 <h1 className="text-2xl font-black tracking-tight">{title}</h1>
-                <p className="text-sm font-medium text-slate-300">
+                <p className="text-sm font-medium text-slate-500">
                   360 Feedback Assessment
                   {data.reviewCycleName && <span className="hidden sm:inline"> &middot; {data.reviewCycleName}</span>}
                 </p>
@@ -417,13 +417,13 @@ export function FeedbackDetailPage() {
           <div className="flex items-center gap-3">
             <span className={`inline-flex items-center gap-1.5 rounded-full px-4 py-2 text-xs font-black uppercase backdrop-blur-sm ${
               data.anonymous
-                ? 'bg-orange-500/15 text-orange-300 ring-1 ring-orange-500/30'
-                : 'bg-emerald-500/15 text-emerald-300 ring-1 ring-emerald-500/30'
+                ? 'bg-orange-50 text-orange-700 ring-1 ring-orange-200'
+                : 'bg-emerald-50 text-emerald-700 ring-1 ring-emerald-200'
             }`}>
-              <span className={`h-1.5 w-1.5 rounded-full ${data.anonymous ? 'bg-orange-400' : 'bg-emerald-400'}`} />
+              <span className={`h-1.5 w-1.5 rounded-full ${data.anonymous ? 'bg-orange-500' : 'bg-emerald-500'}`} />
               {data.anonymous ? 'Anonymous' : 'Not Anonymous'}
             </span>
-            <button type="button" onClick={generatePDF} className="inline-flex items-center gap-2 rounded-xl bg-white/10 px-4 py-2.5 text-xs font-black text-white backdrop-blur-sm transition hover:bg-white/20">
+            <button type="button" onClick={generatePDF} className="inline-flex items-center gap-2 rounded-xl bg-blue-600 px-4 py-2.5 text-xs font-black text-white shadow-sm shadow-blue-200 transition hover:bg-blue-700">
               <Download size={16} /> PDF
             </button>
           </div>
@@ -537,12 +537,12 @@ export function FeedbackDetailPage() {
           </div>
         </div>
 
-        <div className="space-y-6">
+        <div className="space-y-6 lg:sticky lg:top-24 lg:self-start">
           <div className="bg-white rounded-2xl border border-slate-100 shadow-sm overflow-hidden">
-            <div className="bg-gradient-to-br from-slate-900 via-slate-800 to-slate-700 px-6 py-5 text-center">
+            <div className="border-b border-blue-100 bg-gradient-to-br from-blue-50 via-white to-slate-50 px-6 py-5 text-center">
               <ScoreGauge score={data.score} size={100} />
               <div className="mt-3">
-                <p className="text-[10px] font-black uppercase tracking-widest text-slate-400">Performance Score</p>
+                <p className="text-[10px] font-black uppercase tracking-widest text-blue-600">Performance Score</p>
                 <span className={`mt-1 inline-flex items-center gap-1.5 rounded-full px-3 py-1 text-[11px] font-black uppercase ${getRemarkColor(data.remark)}`}>
                   {data.remark || 'Not Rated'}
                 </span>

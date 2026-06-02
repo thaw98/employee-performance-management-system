@@ -3,6 +3,7 @@ import { Link } from 'react-router-dom'
 import { Activity, CalendarClock, ClipboardCheck, MessageSquare, Target, CheckCircle2 } from 'lucide-react'
 
 import axios from '../../app/axiosInstance'
+import { AnnouncementPanel } from '../../components/dashboard/AnnouncementPanel'
 import { useGetMyLatestKpisQuery } from '../../features/kpi/kpiApi'
 import { getNotificationSourceLabel } from '../../features/notification/notificationSourceLabels'
 
@@ -12,6 +13,9 @@ type MeetingItem = {
   scheduledTime?: string
   meetingTime?: string
   status: string
+  meetingGroupKey?: string | null
+  meetingScope?: string | null
+  departmentName?: string | null
 }
 
 type ActivityItem = {
@@ -51,6 +55,22 @@ const formatTime = (value?: string) => {
   return date.toLocaleTimeString(undefined, { hour: '2-digit', minute: '2-digit' })
 }
 
+const isDepartmentMeeting = (meeting: MeetingItem) => String(meeting.meetingScope ?? '').toUpperCase() === 'DEPARTMENT'
+
+const getMeetingCardKey = (meeting: MeetingItem) => {
+  const dateValue = meeting.scheduledTime || meeting.meetingTime || ''
+  if (!isDepartmentMeeting(meeting)) return `meeting-${meeting.id}`
+  return meeting.meetingGroupKey || `department-${meeting.departmentName || 'all'}-${meeting.title}-${dateValue}`
+}
+
+const getDashboardMeetingCards = (rows: MeetingItem[]) => Array.from(
+  new Map(rows.map((meeting) => [getMeetingCardKey(meeting), meeting])).values(),
+)
+
+const getMeetingAudienceLabel = (meeting: MeetingItem) => (
+  isDepartmentMeeting(meeting) ? `For department: ${meeting.departmentName || 'Department'}` : null
+)
+
 function EmptyPanel({ message }: { message: string }) {
   return (
     <div className="grid min-h-32 place-items-center rounded-3xl border border-dashed border-blue-200 bg-blue-50/70 px-4 text-center text-sm font-bold text-blue-700 dark:border-blue-900 dark:bg-blue-950/30 dark:text-blue-200">
@@ -87,7 +107,7 @@ export function EmployeeDashboardPage() {
       if (!active) return
 
       if (meetingResult.status === 'fulfilled') {
-        setMeetings(meetingResult.value.data?.data?.content ?? [])
+        setMeetings(getDashboardMeetingCards(meetingResult.value.data?.data?.content ?? []))
       } else {
         setMeetingError('Unable to load your upcoming meetings.')
       }
@@ -165,6 +185,8 @@ export function EmployeeDashboardPage() {
           <Target size={18} /> View My KPIs
         </Link>
       </section>
+
+      <AnnouncementPanel />
 
       {/* Congratulations Animated Banner */}
       {showCongrats && (
@@ -271,10 +293,12 @@ export function EmployeeDashboardPage() {
                 <EmptyPanel message="You have no upcoming meetings." />
               ) : meetings.map((meeting) => {
                 const dateValue = meeting.scheduledTime || meeting.meetingTime
+                const audienceLabel = getMeetingAudienceLabel(meeting)
                 return (
                   <Link key={meeting.id} to={`/employee/meetings/${meeting.id}`} className="grid gap-3 rounded-2xl border border-blue-50 bg-blue-50/60 p-4 transition hover:bg-blue-50 sm:grid-cols-[1fr_auto] sm:items-center dark:border-slate-800 dark:bg-slate-800">
                     <div className="min-w-0">
                       <p className="truncate text-sm font-black text-slate-950 dark:text-white">{meeting.title}</p>
+                      {audienceLabel && <p className="mt-1 text-[10px] font-black uppercase tracking-widest text-blue-600">{audienceLabel}</p>}
                       <p className="mt-1 text-xs font-semibold text-slate-500">{formatDate(dateValue)} at {formatTime(dateValue)}</p>
                     </div>
                     <span className="w-fit rounded-full bg-white px-3 py-1 text-[10px] font-black uppercase tracking-widest text-blue-700 shadow-sm dark:bg-slate-900">{meeting.status}</span>

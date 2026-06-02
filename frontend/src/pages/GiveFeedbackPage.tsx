@@ -83,6 +83,12 @@ const ROLE_LABELS: Record<FeedbackRole, string> = {
     MANAGER: 'MANAGER',
     SUBORDINATE: 'SUBORDINATE'
 };
+const ROLE_DESCRIPTIONS: Record<FeedbackRole, string> = {
+    SELF: 'Reflect on your own performance.',
+    PEER: 'Share feedback for a colleague.',
+    MANAGER: 'Evaluate direct reports.',
+    SUBORDINATE: 'Give upward feedback.'
+};
 
 function formatEvaluateeMeta(staffNo: string, levelCode?: string | null) {
     const parts: string[] = [];
@@ -485,28 +491,59 @@ export function GiveFeedbackPage() {
 
     return (
         <div className="max-w-6xl mx-auto p-4 space-y-8 animate-in fade-in duration-500">
-            {role !== 'SELF' && (
-                <div className="bg-white px-8 py-4 rounded-3xl border border-slate-100 shadow-sm flex items-center justify-between">
-                    <div className="flex items-center gap-3">
-                        <div className={`w-3 h-3 rounded-full ${isLimitReached ? 'bg-red-500' : 'bg-blue-500 animate-pulse'}`} />
-                        <span className="text-xs font-black uppercase text-slate-500 tracking-widest">
-                            {role} Feedback Progress:
-                        </span>
-                    </div>
-                    <div className="flex items-center gap-4">
-                        <div className="text-xs font-black text-slate-800 tracking-widest">
-                            {roleFeedbackCount} / {roleFeedbackLimit} COMPLETED
+            <section className="relative overflow-hidden rounded-[2rem] border border-blue-100 bg-gradient-to-br from-blue-50 via-white to-emerald-50 px-6 py-7 text-slate-900 shadow-xl shadow-blue-100/50">
+                <div className="absolute right-0 top-0 h-40 w-40 rounded-full bg-blue-200/35 blur-3xl" />
+                <div className="absolute bottom-0 left-1/3 h-32 w-32 rounded-full bg-emerald-200/30 blur-3xl" />
+                <div className="relative flex flex-col gap-5 lg:flex-row lg:items-center lg:justify-between">
+                    <div className="max-w-2xl">
+                        <div className="mb-3 inline-flex items-center gap-2 rounded-full bg-white px-3 py-1.5 text-[10px] font-black uppercase tracking-widest text-blue-700 ring-1 ring-blue-100">
+                            <Star size={13} />
+                            360 Feedback Workspace
                         </div>
-                        <div className="w-32 h-2 bg-slate-100 rounded-full overflow-hidden border border-slate-200/50">
-                            <div
-                                className={`h-full transition-all duration-1000 ${isLimitReached ? 'bg-red-500' : 'bg-blue-600'}`}
-                                style={{ width: `${(roleFeedbackCount / roleFeedbackLimit) * 100}%` }}
-                            />
+                        <h1 className="text-3xl font-black tracking-tight sm:text-4xl">Give Feedback</h1>
+                        <p className="mt-2 text-sm font-semibold leading-6 text-slate-600">
+                            Select the feedback type, choose an eligible employee, and record clear criteria-based feedback for the active cycle.
+                        </p>
+                    </div>
+                    <button
+                        type="button"
+                        onClick={openDraftModal}
+                        className="inline-flex h-12 w-fit items-center justify-center gap-2 rounded-2xl bg-blue-600 px-5 text-xs font-black uppercase tracking-widest text-white shadow-sm shadow-blue-200 transition hover:bg-blue-700"
+                    >
+                        <FileText size={18} />
+                        View Drafts
+                    </button>
+                </div>
+            </section>
+
+            {role !== 'SELF' && (
+                <div className="rounded-3xl border border-slate-100 bg-white p-5 shadow-sm">
+                    <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+                        <div className="flex items-center gap-3">
+                            <div className={`grid h-10 w-10 place-items-center rounded-2xl ${isLimitReached ? 'bg-red-50 text-red-600' : 'bg-blue-50 text-blue-600'}`}>
+                                <CheckCircle2 size={20} />
+                            </div>
+                            <div>
+                                <p className="text-[10px] font-black uppercase tracking-widest text-slate-400">{role} feedback progress</p>
+                                <p className="text-sm font-black text-slate-800">{roleFeedbackCount} of {roleFeedbackLimit} completed</p>
+                            </div>
+                        </div>
+                        <div className="min-w-[220px]">
+                            <div className="mb-2 flex items-center justify-between text-[10px] font-black uppercase tracking-widest text-slate-400">
+                                <span>Cycle quota</span>
+                                <span>{Math.min(100, Math.round((roleFeedbackCount / Math.max(1, roleFeedbackLimit)) * 100))}%</span>
+                            </div>
+                            <div className="h-2.5 overflow-hidden rounded-full bg-slate-100">
+                                <div
+                                    className={`h-full rounded-full transition-all duration-1000 ${isLimitReached ? 'bg-red-500' : 'bg-blue-600'}`}
+                                    style={{ width: `${(roleFeedbackCount / Math.max(1, roleFeedbackLimit)) * 100}%` }}
+                                />
+                            </div>
                         </div>
                     </div>
                 </div>
             )}
-            <div className="bg-amber-50 border border-amber-200 rounded-3xl px-8 py-5 flex flex-col md:flex-row md:items-center justify-between gap-4">
+            <div className="bg-amber-50 border border-amber-200 rounded-3xl px-6 py-5 flex flex-col md:flex-row md:items-center justify-between gap-4">
                 <div className="flex items-center gap-3">
                     <div className="w-11 h-11 rounded-2xl bg-white text-amber-600 flex items-center justify-center shadow-sm">
                         <Calendar size={20} />
@@ -522,33 +559,25 @@ export function GiveFeedbackPage() {
                     Feedback for this cycle must be submitted before the deadline ends.
                 </p>
             </div>
-            <div className="flex justify-end">
-                <button
-                    type="button"
-                    onClick={openDraftModal}
-                    className="flex items-center gap-2 px-6 py-3 bg-white border-2 border-slate-100 text-slate-600 rounded-2xl font-black text-xs hover:border-blue-200 hover:text-blue-600 transition-all shadow-sm"
-                >
-                    <FileText size={18} />
-                    VIEW DRAFTS
-                </button>
-            </div>
             <div className="grid grid-cols-1 md:grid-cols-2 gap-6 items-stretch">
                 {/* Evaluator Card */}
-                <div className="bg-white p-8 rounded-[2rem] border border-slate-100 shadow-sm flex flex-col h-full">
-                    <h3 className="text-xs font-black uppercase text-blue-600 tracking-widest flex items-center gap-2 mb-6">
-                        <CheckCircle2 size={16} /> Evaluator Information
-                    </h3>
-                    <div className="p-5 bg-slate-50 rounded-3xl space-y-4 flex-1 flex flex-col justify-center">
+                <div className="bg-white rounded-[2rem] border border-blue-50 shadow-sm flex flex-col h-full overflow-hidden">
+                    <div className="px-7 py-5 bg-blue-50/70 border-b border-blue-100">
+                        <h3 className="text-xs font-black uppercase text-blue-700 tracking-widest flex items-center gap-2">
+                            <CheckCircle2 size={16} /> Evaluator Information
+                        </h3>
+                    </div>
+                    <div className="p-7 space-y-5 flex-1 flex flex-col justify-center">
                         <div className="flex items-center gap-4">
                             {evaluator?.profilePictureUrl && !evaluatorImgError ? (
                                 <img 
                                     src={evaluator.profilePictureUrl} 
                                     alt="" 
                                     onError={() => setEvaluatorImgError(true)}
-                                    className="w-14 h-14 rounded-full object-cover border-4 border-white shadow-md" 
+                                    className="w-16 h-16 rounded-2xl object-cover border-4 border-white shadow-md ring-1 ring-blue-100" 
                                 />
                             ) : (
-                                <div className="w-14 h-14 bg-blue-100 text-blue-600 rounded-full flex items-center justify-center font-black text-lg shadow-inner">
+                                <div className="w-16 h-16 bg-blue-100 text-blue-600 rounded-2xl flex items-center justify-center font-black text-lg shadow-inner ring-1 ring-blue-200">
                                    {evaluator?.name?.charAt(0) || <User size={24} />}
                                 </div>
                             )}
@@ -558,14 +587,14 @@ export function GiveFeedbackPage() {
                             </div>
                         </div>
                         
-                        <div className="grid grid-cols-2 gap-4 pt-4 border-t border-slate-200/60">
-                            <div className="space-y-1">
+                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 pt-2">
+                            <div className="space-y-1 rounded-2xl border border-slate-100 bg-slate-50 px-4 py-3">
                                 <p className="text-[9px] font-black uppercase text-slate-400 tracking-widest flex items-center gap-1">
                                     <Briefcase size={10} /> Position
                                 </p>
                                 <p className="text-xs font-bold text-slate-600">{evaluator?.position || 'N/A'}</p>
                             </div>
-                            <div className="space-y-1">
+                            <div className="space-y-1 rounded-2xl border border-slate-100 bg-slate-50 px-4 py-3">
                                 <p className="text-[9px] font-black uppercase text-slate-400 tracking-widest flex items-center gap-1">
                                     <Building size={10} /> Department
                                 </p>
@@ -576,34 +605,36 @@ export function GiveFeedbackPage() {
                 </div>
 
                 {/* Evaluatee Selection Dropdown - Custom UI */}
-                <div className="bg-white p-8 rounded-[2rem] border border-slate-100 shadow-sm flex flex-col h-full relative">
-                    <h3 className="text-xs font-black uppercase text-blue-600 tracking-widest flex items-center gap-2 mb-6">
-                        <Star size={16} /> Evaluatee Selection
-                    </h3>
+                <div className="bg-white rounded-[2rem] border border-violet-50 shadow-sm flex flex-col h-full relative overflow-visible">
+                    <div className="px-7 py-5 bg-violet-50/70 border-b border-violet-100 rounded-t-[2rem]">
+                        <h3 className="text-xs font-black uppercase text-violet-700 tracking-widest flex items-center gap-2">
+                            <Star size={16} /> Evaluatee Selection
+                        </h3>
+                    </div>
 
-                    <div className="flex-1 flex flex-col gap-4">
+                    <div className="flex-1 flex flex-col gap-4 p-7">
                         <div className="relative">
                             <button 
                                 onClick={() => { if (role !== 'PEER' && role !== 'SELF') setIsDropdownOpen(!isDropdownOpen); }}
-                                className={`w-full flex items-center justify-between p-4 rounded-2xl border-2 transition-all ${
-                                    role === 'PEER' || role === 'SELF' ? 'cursor-default border-slate-100 bg-slate-50/50' : 
+                                className={`w-full flex items-center justify-between p-4 rounded-3xl border-2 transition-all ${
+                                    role === 'PEER' || role === 'SELF' ? 'cursor-default border-slate-100 bg-slate-50/80' : 
                                     isDropdownOpen ? 'border-blue-600 ring-4 ring-blue-50 bg-white' : 'border-slate-100 bg-white hover:border-blue-200 font-bold'
                                 }`}
                             >
                                 {selectedEvaluatee ? (
                                     <div className="flex items-center gap-3">
-                                {selectedEvaluatee.profilePictureUrl && !evaluateeImgErrors[selectedEvaluatee.id] ? (
-                                    <img 
-                                        src={selectedEvaluatee.profilePictureUrl} 
-                                        alt="" 
-                                        onError={() => setEvaluateeImgErrors(prev => ({ ...prev, [selectedEvaluatee.id]: true }))}
-                                        className="w-8 h-8 rounded-full object-cover border border-white shadow-sm" 
-                                    />
-                                ) : (
-                                    <div className="w-8 h-8 bg-blue-600 text-white rounded-full flex items-center justify-center font-black text-[10px]">
-                                        {selectedEvaluatee.name.charAt(0)}
-                                    </div>
-                                )}
+                                        {selectedEvaluatee.profilePictureUrl && !evaluateeImgErrors[selectedEvaluatee.id] ? (
+                                            <img 
+                                                src={selectedEvaluatee.profilePictureUrl} 
+                                                alt="" 
+                                                onError={() => setEvaluateeImgErrors(prev => ({ ...prev, [selectedEvaluatee.id]: true }))}
+                                                className="w-10 h-10 rounded-2xl object-cover border border-white shadow-sm" 
+                                            />
+                                        ) : (
+                                            <div className="w-10 h-10 bg-blue-600 text-white rounded-2xl flex items-center justify-center font-black text-xs">
+                                                {selectedEvaluatee.name.charAt(0)}
+                                            </div>
+                                        )}
                                         <div className="text-left">
                                             <p className="text-xs font-black text-blue-700">{selectedEvaluatee.name}</p>
                                             <p className="text-[10px] font-bold text-slate-400">
@@ -693,8 +724,8 @@ export function GiveFeedbackPage() {
                         </div>
 
                         {selectedEvaluatee && (
-                            <div className="p-4 bg-blue-50 border border-blue-100 rounded-2xl space-y-3 animate-in fade-in duration-300">
-                                <div className="grid grid-cols-3 gap-4">
+                            <div className="p-4 bg-blue-50 border border-blue-100 rounded-3xl space-y-3 animate-in fade-in duration-300">
+                                <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
                                     <div className="space-y-1">
                                         <p className="text-[9px] font-black uppercase text-slate-400 tracking-widest flex items-center gap-1">
                                             <Star size={10} /> Level Code
@@ -717,7 +748,7 @@ export function GiveFeedbackPage() {
                             </div>
                         )}
                         {!selectedEvaluatee && (
-                            <div className="flex-1 flex items-center justify-center border-2 border-dashed border-slate-100 rounded-2xl p-4 text-center">
+                            <div className="flex-1 flex items-center justify-center border-2 border-dashed border-slate-100 rounded-3xl p-6 text-center bg-slate-50/60">
                                 <p className="text-xs font-bold text-slate-300">Select an employee to view details</p>
                             </div>
                         )}
@@ -726,15 +757,34 @@ export function GiveFeedbackPage() {
             </div>
 
             {/* Role Selection Tabs */}
-            <div className="flex justify-center">
-                <div className="bg-white p-1.5 rounded-2xl border border-slate-100 shadow-sm flex gap-2">
+            <div className="space-y-3">
+                <div className="flex items-center justify-between gap-4">
+                    <div>
+                        <p className="text-[10px] font-black uppercase tracking-widest text-blue-600">Feedback Mode</p>
+                        <h3 className="text-xl font-black text-slate-900">Choose evaluation type</h3>
+                    </div>
+                    <span className="hidden sm:inline-flex rounded-full border border-slate-200 bg-white px-4 py-2 text-xs font-black text-slate-500">
+                        {ROLE_LABELS[role]} selected
+                    </span>
+                </div>
+                <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-4">
                     {FEEDBACK_ROLES.map(r => (
                         <button
                             key={r}
                             onClick={() => handleRoleChange(r)}
-                            className={`px-8 py-3 rounded-xl text-xs font-black transition-all ${role === r ? 'bg-blue-600 text-white shadow-lg shadow-blue-100' : 'text-slate-400 hover:text-slate-600 hover:bg-slate-50'}`}
+                            className={`rounded-3xl border p-4 text-left transition-all ${
+                                role === r
+                                    ? 'border-blue-600 bg-blue-600 text-white shadow-xl shadow-blue-100'
+                                    : 'border-slate-100 bg-white text-slate-600 shadow-sm hover:border-blue-200 hover:bg-blue-50/40'
+                            }`}
                         >
-                            {ROLE_LABELS[r]}
+                            <div className="flex items-center justify-between gap-3">
+                                <span className="text-sm font-black">{ROLE_LABELS[r]}</span>
+                                <span className={`h-3 w-3 rounded-full border-2 ${role === r ? 'border-white bg-white' : 'border-slate-300 bg-slate-50'}`} />
+                            </div>
+                            <p className={`mt-2 text-xs font-bold leading-relaxed ${role === r ? 'text-blue-50' : 'text-slate-400'}`}>
+                                {ROLE_DESCRIPTIONS[r]}
+                            </p>
                         </button>
                     ))}
                 </div>
@@ -761,23 +811,38 @@ export function GiveFeedbackPage() {
             ) : (
                 <div className="bg-white rounded-[32px] border border-slate-100 shadow-xl shadow-slate-200/50 overflow-hidden">
                     {formConfig && (
-                        <div className="px-8 pt-6 pb-0">
-                            <div className="inline-flex items-center gap-2 rounded-2xl bg-blue-50 border border-blue-100 px-4 py-2 text-xs font-bold text-blue-700">
-                                <FileText size={14} />
-                                Template: {formConfig.templateName || 'Default'} &middot; Rating Scale: 1 - {maxRating}
+                        <div className="px-8 pt-7 pb-0">
+                            <div className="flex flex-col gap-3 rounded-3xl border border-blue-100 bg-blue-50/70 px-5 py-4 sm:flex-row sm:items-center sm:justify-between">
+                                <div className="flex items-center gap-3">
+                                    <div className="flex h-10 w-10 items-center justify-center rounded-2xl bg-white text-blue-600 shadow-sm">
+                                        <FileText size={18} />
+                                    </div>
+                                    <div>
+                                        <p className="text-[10px] font-black uppercase tracking-widest text-blue-500">Active Template</p>
+                                        <p className="text-sm font-black text-blue-900">{formConfig.templateName || 'Default'}</p>
+                                    </div>
+                                </div>
+                                <span className="rounded-full bg-white px-4 py-2 text-xs font-black text-blue-700 shadow-sm">
+                                    Rating Scale: 1 - {maxRating}
+                                </span>
                             </div>
                         </div>
                     )}
-                    <div className="p-8 space-y-10">
+                    <div className="p-8 space-y-5">
                         {criteriaList.map(criteria => (
-                            <div key={criteria.id} className="space-y-6 animate-in slide-in-from-right-4 duration-300">
-                                <div className="space-y-2">
-                                    <h4 className="text-lg font-black text-slate-800">{criteria.name}</h4>
-                                    <p className="text-sm text-slate-500 font-medium leading-relaxed">{criteria.description}</p>
+                            <div key={criteria.id} className="space-y-6 rounded-3xl border border-slate-100 bg-slate-50/70 p-5 animate-in slide-in-from-right-4 duration-300">
+                                <div className="flex flex-col gap-2 sm:flex-row sm:items-start sm:justify-between">
+                                    <div className="space-y-2">
+                                        <h4 className="text-lg font-black text-slate-800">{criteria.name}</h4>
+                                        <p className="text-sm text-slate-500 font-medium leading-relaxed">{criteria.description}</p>
+                                    </div>
+                                    <span className="shrink-0 rounded-full bg-white px-3 py-1 text-[10px] font-black uppercase tracking-widest text-slate-400">
+                                        Required
+                                    </span>
                                 </div>
                                 
-                                <div className="flex flex-wrap items-center gap-6">
-                                    <div className="flex items-center gap-2 bg-slate-50 p-2 rounded-2xl border border-slate-100">
+                                <div className="flex flex-wrap items-start gap-5">
+                                    <div className="flex items-center gap-2 bg-white p-2 rounded-2xl border border-slate-100 shadow-sm">
                                         {Array.from({ length: maxRating }, (_, i) => i + 1).map(num => (
                                             <button
                                                 key={num}
@@ -793,7 +858,7 @@ export function GiveFeedbackPage() {
                                             placeholder="Add specific comments or observations..."
                                             value={comments[String(criteria.id)] || ''}
                                             onChange={(e) => setValue(`comments.${criteria.id}`, e.target.value, { shouldDirty: true, shouldTouch: true })}
-                                            className="w-full bg-slate-50 border-2 border-slate-100 rounded-2xl px-5 py-3 text-sm font-bold outline-none focus:border-blue-500 transition-all h-20 resize-none"
+                                            className="w-full bg-white border-2 border-slate-100 rounded-2xl px-5 py-3 text-sm font-bold outline-none focus:border-blue-500 transition-all h-24 resize-none"
                                         />
                                     </div>
                                 </div>
@@ -851,7 +916,7 @@ export function GiveFeedbackPage() {
                         </div>
                     </div>
 
-                    <div className="p-8 bg-slate-50/50 border-t border-slate-100 flex flex-col md:flex-row items-center justify-between gap-6">
+                    <div className="p-8 bg-slate-50/80 border-t border-slate-100 flex flex-col md:flex-row items-center justify-between gap-6">
                         <div className="flex items-center gap-4">
                             {Object.keys(ratings).length > 0 && (
                                 <div className={`px-6 py-3 rounded-2xl border-2 flex items-center gap-4 transition-all animate-in zoom-in duration-300 ${getLiveRemarkColor(liveResult.remark)}`}>
@@ -868,13 +933,13 @@ export function GiveFeedbackPage() {
                             )}
                         </div>
                         
-                        <div className="flex items-center gap-3">
+                        <div className="flex w-full flex-col gap-3 sm:w-auto sm:flex-row sm:items-center">
                             <button
                                 onClick={() => {
                                     reset({ ratings: {}, comments: {}, additionalComments: '', anonymous: false });
                                     toast.success('Form cleared');
                                 }}
-                                className="px-8 py-5 bg-white border-2 border-slate-200 text-slate-500 rounded-2xl font-black text-sm hover:bg-slate-50 hover:text-slate-800 transition-all"
+                                className="px-7 py-4 bg-white border-2 border-slate-200 text-slate-500 rounded-2xl font-black text-sm hover:bg-slate-50 hover:text-slate-800 transition-all"
                             >
                                 RESET CHOICE
                             </button>
@@ -882,7 +947,7 @@ export function GiveFeedbackPage() {
                                 type="button"
                                 onClick={handleSaveDraft}
                                 disabled={isSavingDraft || !selectedEvaluatee}
-                                className="flex items-center gap-3 px-8 py-5 bg-blue-600 text-white rounded-2xl font-black text-sm hover:bg-blue-700 transition-all shadow-xl shadow-blue-100 disabled:opacity-50"
+                                className="flex items-center justify-center gap-3 px-7 py-4 bg-blue-600 text-white rounded-2xl font-black text-sm hover:bg-blue-700 transition-all shadow-xl shadow-blue-100 disabled:opacity-50"
                             >
                                 {isSavingDraft ? <CheckCircle2 size={20} className="animate-spin" /> : <Save size={20} />}
                                 SAVE DRAFT
@@ -890,7 +955,7 @@ export function GiveFeedbackPage() {
                             <button
                                 onClick={handleSubmit}
                                 disabled={!isAllRatedTotal || isSubmitting || !selectedEvaluatee}
-                                className="flex items-center gap-3 px-10 py-5 bg-emerald-600 text-white rounded-2xl font-black text-sm hover:bg-emerald-700 transition-all shadow-xl shadow-emerald-100 disabled:opacity-50"
+                                className="flex items-center justify-center gap-3 px-9 py-4 bg-emerald-600 text-white rounded-2xl font-black text-sm hover:bg-emerald-700 transition-all shadow-xl shadow-emerald-100 disabled:opacity-50"
                             >
                                 {isSubmitting ? <CheckCircle2 size={20} className="animate-spin" /> : <Send size={20} />} 
                                 SUBMIT FEEDBACK
@@ -903,7 +968,7 @@ export function GiveFeedbackPage() {
             {/* Success Confirmation Modal */}
             {showSuccessModal && (
                 <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 animate-in fade-in duration-300">
-                    <div className="absolute inset-0 bg-slate-900/60 backdrop-blur-md" />
+                    <div className="absolute inset-0 bg-blue-50/80 backdrop-blur-md" />
                     <div className="bg-white rounded-[2.5rem] shadow-2xl w-full max-w-sm relative z-10 overflow-hidden animate-in zoom-in-95 duration-300">
                         <div className="p-10 text-center space-y-6">
                             <div className="w-20 h-20 bg-emerald-50 text-emerald-600 rounded-3xl flex items-center justify-center mx-auto scale-110 shadow-inner">
@@ -927,7 +992,7 @@ export function GiveFeedbackPage() {
             )}
             {isDraftModalOpen && (
                 <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 animate-in fade-in duration-300">
-                    <div className="absolute inset-0 bg-slate-900/50 backdrop-blur-sm" onClick={() => setIsDraftModalOpen(false)} />
+                    <div className="absolute inset-0 bg-blue-50/80 backdrop-blur-sm" onClick={() => setIsDraftModalOpen(false)} />
                     <div className="relative z-10 w-full max-w-2xl bg-white rounded-[2rem] shadow-2xl border border-slate-100 overflow-hidden animate-in zoom-in-95 duration-300">
                         <div className="p-6 border-b border-slate-100 flex items-center justify-between gap-4">
                             <div>

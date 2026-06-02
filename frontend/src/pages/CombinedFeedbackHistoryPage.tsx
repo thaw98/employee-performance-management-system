@@ -6,6 +6,7 @@ import jsPDF from 'jspdf';
 import autoTable from 'jspdf-autotable';
 import axios from '../app/axiosInstance';
 import { PaginationBar } from '../components/common/PaginationBar';
+import { ViewModeToggle, type ViewMode } from '../components/common/ViewModeToggle';
 import { useGetProfileQuery } from '../features/user/userApi';
 import { addFeedbackScorePerformanceSection } from '../utils/feedbackScorePdf';
 import { addPdfProfessionalHeader, addPdfProfessionalFooter, addPdfSectionHeader, addPdfInfoTable, loadPdfLogo } from '../utils/pdfBranding';
@@ -61,6 +62,11 @@ const tabs: { label: string; value: FeedbackDirection }[] = [
   { label: 'Received', value: 'RECEIVED' },
 ];
 
+const getDirectionParam = (value: string | null): FeedbackDirection | null => {
+  const normalized = value?.toUpperCase();
+  return normalized === 'GIVEN' || normalized === 'RECEIVED' || normalized === 'ALL' ? normalized : null;
+};
+
 const formatDate = (value?: string | null) => {
   if (!value) return '-';
   const parsed = new Date(value);
@@ -111,8 +117,9 @@ export function CombinedFeedbackHistoryPage() {
   const [totalPages, setTotalPages] = useState(0);
   const [totalItems, setTotalItems] = useState(0);
   const [reviewCycles, setReviewCycles] = useState<any[]>([]);
+  const [viewMode, setViewMode] = useState<ViewMode>('table');
   const [filters, setFilters] = useState({
-    direction: restoredState.filters?.direction ?? 'ALL' as FeedbackDirection,
+    direction: restoredState.filters?.direction ?? getDirectionParam(searchParams.get('direction')) ?? 'ALL' as FeedbackDirection,
     reviewCycleId: restoredState.filters?.reviewCycleId ?? '',
     feedbackType: restoredState.filters?.feedbackType ?? '',
     fromDate: restoredState.filters?.fromDate ?? '',
@@ -271,19 +278,22 @@ export function CombinedFeedbackHistoryPage() {
     <div className="space-y-6 animate-in fade-in duration-500">
       <div className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
         <h2 className="text-2xl font-black text-slate-800 tracking-tight">FEEDBACK HISTORY</h2>
-        <div className="inline-flex rounded-2xl border border-slate-200 bg-white p-1 shadow-sm" role="tablist" aria-label="Feedback direction">
-          {tabs.map(tab => (
-            <button
-              key={tab.value}
-              type="button"
-              role="tab"
-              aria-selected={filters.direction === tab.value}
-              onClick={() => updateFilter('direction', tab.value)}
-              className={`px-5 py-2 rounded-xl text-xs font-black uppercase transition-all ${filters.direction === tab.value ? 'bg-blue-600 text-white shadow-sm' : 'text-slate-500 hover:bg-slate-50'}`}
-            >
-              {tab.label}
-            </button>
-          ))}
+        <div className="flex flex-wrap items-center gap-3">
+          <ViewModeToggle value={viewMode} onChange={setViewMode} />
+          <div className="inline-flex rounded-2xl border border-slate-200 bg-white p-1 shadow-sm" role="tablist" aria-label="Feedback direction">
+            {tabs.map(tab => (
+              <button
+                key={tab.value}
+                type="button"
+                role="tab"
+                aria-selected={filters.direction === tab.value}
+                onClick={() => updateFilter('direction', tab.value)}
+                className={`px-5 py-2 rounded-xl text-xs font-black uppercase transition-all ${filters.direction === tab.value ? 'bg-blue-600 text-white shadow-sm' : 'text-slate-500 hover:bg-slate-50'}`}
+              >
+                {tab.label}
+              </button>
+            ))}
+          </div>
         </div>
       </div>
 
@@ -313,6 +323,7 @@ export function CombinedFeedbackHistoryPage() {
         <input aria-label="To date" type="date" value={filters.toDate} onChange={(e) => updateFilter('toDate', e.target.value)} className="min-w-0 border-2 border-slate-100 rounded-2xl px-3 py-2 text-xs font-bold text-slate-500 outline-none" />
       </div>
 
+      {viewMode === 'table' ? (
       <div className="bg-white rounded-3xl border border-slate-100 shadow-sm overflow-hidden flex flex-col">
         <div className="overflow-x-auto">
           <table className="w-full text-left border-collapse">
@@ -357,6 +368,73 @@ export function CombinedFeedbackHistoryPage() {
           <PaginationBar pageIndex={page} pageSize={pageSize} pageCount={Math.max(1, totalPages || Math.ceil(totalItems / pageSize))} totalItems={totalItems} itemLabel="records" rowsPerPageOptions={[5, 10, 20, 50]} onPageIndexChange={setPage} onPageSizeChange={(nextSize) => { setPageSize(nextSize); setPage(0); }} className="mt-0 rounded-none border-x-0 border-b-0 border-t border-slate-200/70 shadow-none" />
         )}
       </div>
+      ) : (
+        <div className="flex flex-col gap-4">
+          <div className="grid grid-cols-1 gap-5 md:grid-cols-2 xl:grid-cols-3">
+            {loading ? (
+              Array.from({ length: 6 }).map((_, index) => (
+                <div key={index} className="h-64 animate-pulse rounded-3xl bg-white shadow-sm ring-1 ring-slate-100" />
+              ))
+            ) : history.length === 0 ? (
+              <div className="col-span-full rounded-3xl border border-dashed border-slate-200 bg-white p-16 text-center text-slate-300">
+                <FileText size={48} className="mx-auto mb-4" />
+                <p className="text-lg font-black uppercase">No feedback history found</p>
+              </div>
+            ) : history.map((item) => {
+              const evaluator = evaluatorDisplay(item);
+              return (
+                <article key={item.id} className="rounded-3xl border border-slate-100 bg-white p-5 shadow-sm transition hover:-translate-y-0.5 hover:shadow-lg">
+                  <div className="flex items-start justify-between gap-4">
+                    <div className="min-w-0">
+                      <span className={`inline-flex rounded-lg px-3 py-1 text-[10px] font-black uppercase ${item.direction === 'RECEIVED' ? 'bg-violet-50 text-violet-700' : 'bg-emerald-50 text-emerald-700'}`}>
+                        {item.direction === 'RECEIVED' ? 'Received' : 'Given'}
+                      </span>
+                      <h3 className="mt-3 truncate text-base font-black text-slate-800">
+                        {item.direction === 'RECEIVED' ? evaluator.name : item.evaluateeName || '-'}
+                      </h3>
+                      <p className="text-[11px] font-bold uppercase text-slate-400">{feedbackRoleDisplay(item)}</p>
+                    </div>
+                    <div className="flex shrink-0 gap-2">
+                      <button onClick={() => generatePDF(item)} className="flex h-10 w-10 items-center justify-center rounded-xl bg-blue-50 text-blue-600 transition hover:bg-blue-600 hover:text-white" title="Download PDF Report">
+                        <Download size={18} />
+                      </button>
+                      <button onClick={() => viewDetails(item)} className="flex h-10 w-10 items-center justify-center rounded-xl border border-slate-100 bg-slate-50 text-slate-400 transition hover:bg-white hover:text-slate-900" title="View details">
+                        <Eye size={18} />
+                      </button>
+                    </div>
+                  </div>
+
+                  <div className="mt-5 grid grid-cols-2 gap-3">
+                    <div className="rounded-2xl bg-slate-50 p-3">
+                      <p className="text-[10px] font-black uppercase tracking-widest text-slate-400">Date</p>
+                      <p className="mt-1 text-sm font-black text-slate-700">{formatDate(item.date)}</p>
+                    </div>
+                    <div className="rounded-2xl bg-blue-50 p-3">
+                      <p className="text-[10px] font-black uppercase tracking-widest text-blue-400">Score</p>
+                      <p className="mt-1 text-sm font-black text-blue-700">{scoreText(item.score)}</p>
+                    </div>
+                  </div>
+
+                  <div className="mt-4 space-y-2">
+                    <p className="text-xs font-bold text-slate-500">Cycle: <span className="font-black text-slate-700">{item.reviewCycleName || 'N/A'}</span></p>
+                    <p className="text-xs font-bold text-slate-500">Evaluatee: <span className="font-black text-slate-700">{item.evaluateeName || '-'}</span></p>
+                  </div>
+
+                  <div className="mt-4 flex flex-wrap items-center justify-between gap-3">
+                    <span className={`inline-flex rounded-full border px-3 py-1 text-[10px] font-black uppercase ${getRemarkColor(item.remark)}`}>{item.remark || '-'}</span>
+                    <span className="text-[10px] font-bold uppercase tracking-widest text-slate-400">
+                      {new Date(item.date).toLocaleTimeString('en-US', { hour12: timeFormat === '12h', hour: '2-digit', minute: '2-digit' })}
+                    </span>
+                  </div>
+                </article>
+              );
+            })}
+          </div>
+          {!loading && totalItems > 0 && (
+            <PaginationBar pageIndex={page} pageSize={pageSize} pageCount={Math.max(1, totalPages || Math.ceil(totalItems / pageSize))} totalItems={totalItems} itemLabel="records" rowsPerPageOptions={[5, 10, 20, 50]} onPageIndexChange={setPage} onPageSizeChange={(nextSize) => { setPageSize(nextSize); setPage(0); }} />
+          )}
+        </div>
+      )}
 
     </div>
   );
