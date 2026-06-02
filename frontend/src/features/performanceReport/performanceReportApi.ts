@@ -66,6 +66,14 @@ export interface PromotionProposalResponse {
   updatedAt: string | null;
 }
 
+interface PromotionRequestPayload {
+  employeeId: number;
+  newPositionId: number;
+  effectiveDate: string;
+  remarks?: string;
+  targetDepartmentId?: number;
+}
+
 export const performanceReportApi = baseApi.injectEndpoints({
   endpoints: (builder) => ({
     getPerformanceSummaries: builder.query<PerformanceReportSummary[], void>({
@@ -82,7 +90,7 @@ export const performanceReportApi = baseApi.injectEndpoints({
       query: (employeeId) => `/promotions/employee/${employeeId}/available-positions`,
       transformResponse: (response: any) => response.data || [],
     }),
-    executePromotion: builder.mutation<void, { employeeId: number; newPositionId: number; effectiveDate: string; remarks?: string }>({
+    executePromotion: builder.mutation<void, PromotionRequestPayload>({
       query: ({ employeeId, ...body }) => ({
         url: `/promotions/employee/${employeeId}/execute`,
         method: 'POST',
@@ -93,7 +101,7 @@ export const performanceReportApi = baseApi.injectEndpoints({
         { type: 'PerformanceReport', id: employeeId },
       ],
     }),
-    proposePromotion: builder.mutation<void, { employeeId: number; newPositionId: number; effectiveDate: string; remarks?: string }>({
+    proposePromotion: builder.mutation<void, PromotionRequestPayload>({
       query: ({ employeeId, ...body }) => ({
         url: `/promotions/employee/${employeeId}/propose`,
         method: 'POST',
