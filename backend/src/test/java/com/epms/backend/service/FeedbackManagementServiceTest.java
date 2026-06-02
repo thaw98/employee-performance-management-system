@@ -127,6 +127,31 @@ class FeedbackManagementServiceTest {
     }
 
     @Test
+    void q1_2026_semiAnnual_returnsAllEligibleCoveredEvenWithoutTemplates() {
+        ReviewCycle semiAnnualQ1 = new ReviewCycle();
+        semiAnnualQ1.setId(4L);
+        semiAnnualQ1.setName("Q1 2026-2027");
+        semiAnnualQ1.setCode("H-2026-2027-1");
+        semiAnnualQ1.setCycleType(ReviewCycle.CycleType.SEMI_ANNUAL);
+        semiAnnualQ1.setSequenceNo(1);
+        semiAnnualQ1.setYearLabel("2026-2027");
+        semiAnnualQ1.setStartDate(LocalDate.of(2026, 4, 1));
+        semiAnnualQ1.setEndDate(LocalDate.of(2026, 9, 30));
+
+        when(reviewCycleRepository.findById(4L)).thenReturn(Optional.of(semiAnnualQ1));
+        when(employeeRepository.findAllActiveWithUserAccount()).thenReturn(List.of(alice, bob));
+
+        FeedbackCoverageDto result = service.getCoverage(4L);
+
+        assertEquals(2, result.eligibleCount());
+        assertEquals(2, result.coveredCount());
+        assertEquals(0, result.uncoveredCount());
+        assertEquals(100.0, result.coveragePercent(), 0.001);
+        assertEquals(2, result.coveredEmployees().size());
+        assertTrue(result.uncoveredEmployees().isEmpty());
+    }
+
+    @Test
     void q1_2026_noEligibleEmployees_returnsZeroPercent() {
         when(reviewCycleRepository.findById(1L)).thenReturn(Optional.of(q12026));
         when(employeeRepository.findAllActiveWithUserAccount()).thenReturn(List.of());

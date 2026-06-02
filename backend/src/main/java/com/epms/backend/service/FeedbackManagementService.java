@@ -553,8 +553,12 @@ public class FeedbackManagementService {
     }
 
     private boolean isQ1_2026DemoCycle(ReviewCycle cycle) {
+        String name = cycle.getName();
+        if (name != null && name.matches("(?i)Q1\\s+2026.*")) {
+            return true;
+        }
         return cycle.getCycleType() == ReviewCycle.CycleType.QUARTERLY
-                && cycle.getSequenceNo() == 1
+                && Integer.valueOf(1).equals(cycle.getSequenceNo())
                 && cycle.getYearLabel() != null
                 && cycle.getYearLabel().startsWith("2026");
     }
