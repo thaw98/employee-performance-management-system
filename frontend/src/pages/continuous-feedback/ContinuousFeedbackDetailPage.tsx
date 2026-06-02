@@ -35,6 +35,7 @@ export default function ContinuousFeedbackDetailPage() {
   const [showAiForm, setShowAiForm] = useState(false);
   const [showPipWarning, setShowPipWarning] = useState(false);
   const [pipCount, setPipCount] = useState(0);
+  const [activePipId, setActivePipId] = useState<number | null>(null);
   const [meetingDesc, setMeetingDesc] = useState('');
   const [showConfirmModal, setShowConfirmModal] = useState(false);
   const [isCreatingMeeting, setIsCreatingMeeting] = useState(false);
@@ -73,10 +74,11 @@ export default function ContinuousFeedbackDetailPage() {
         setEditScheduledTime(d.toISOString().slice(11, 16));
       }
 
-      if (resp.data.pipSuggested) {
+      if (resp.data.pipSuggested || canManagePipCreation) {
         const pipResp = await continuousFeedbackApi.getPipWarning(resp.data.employeeId);
         setShowPipWarning(pipResp.data.warningActive);
         setPipCount(pipResp.data.negativeFeedbackCount);
+        setActivePipId(pipResp.data.activePipId ?? null);
       }
     } catch {
       toast.error('Failed to load feedback');
@@ -218,8 +220,9 @@ export default function ContinuousFeedbackDetailPage() {
       } else {
         navigate(rolePath === '/hr' ? '/hr/pip-monitoring' : '/manager/pip');
       }
-    } catch {
-      toast.error('Failed to create PIP');
+    } catch (err: unknown) {
+      const message = (err as { response?: { data?: { message?: string } } }).response?.data?.message;
+      toast.error(message || 'Failed to create PIP');
     } finally {
       setIsCreatingPip(false);
     }
@@ -533,14 +536,27 @@ export default function ContinuousFeedbackDetailPage() {
               <p className="text-sm font-bold text-rose-600 mt-1">
                 This employee has received {pipCount} improvement/performance-risk feedback records within 30 days.
               </p>
-              {canManagePipCreation && (
+              {canManagePipCreation && activePipId ? (
                 <button
+                  type="button"
+                  onClick={() => {
+                    const rolePath = window.location.pathname.startsWith('/hr') ? '/hr' : '/manager';
+                    const pipPath = rolePath === '/hr' ? `/hr/pip-monitoring/${activePipId}` : `/manager/pip/${activePipId}`;
+                    navigate(pipPath);
+                  }}
+                  className="mt-4 px-5 py-2.5 bg-slate-700 hover:bg-slate-800 text-white rounded-xl font-bold text-xs uppercase tracking-widest transition-all shadow-lg active:scale-95"
+                >
+                  View Active PIP
+                </button>
+              ) : canManagePipCreation ? (
+                <button
+                  type="button"
                   onClick={handleCreatePip}
                   className="mt-4 px-5 py-2.5 bg-rose-600 hover:bg-rose-700 text-white rounded-xl font-bold text-xs uppercase tracking-widest transition-all shadow-lg shadow-rose-200 active:scale-95"
                 >
                   Create PIP
                 </button>
-              )}
+              ) : null}
             </div>
           </div>
         </div>

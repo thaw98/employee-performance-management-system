@@ -664,6 +664,8 @@ public class ContinuousFeedbackService {
             }
         }
 
+        pipService.findOpenPipIdForEmployee(employeeId).ifPresent(dto::setActivePipId);
+
         return dto;
     }
 

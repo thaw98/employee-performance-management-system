@@ -14,4 +14,5 @@ public class ContinuousFeedbackPipWarningDto {
     private long negativeFeedbackCount;
     private String message;
     private Long latestFeedbackId;
+    private Long activePipId;
 }

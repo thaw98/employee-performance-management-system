@@ -92,6 +92,22 @@ const isLockedCycle = (cycle?: ReviewCycleDto | null) => Boolean(cycle && (cycle
 const cycleDate = (value?: string) => value ? new Date(`${value}T00:00:00`).toLocaleDateString('en-GB') : '-'
 const cycleDateRange = (cycle?: ReviewCycleDto | null) => `${cycleDate(cycle?.startDate)} - ${cycleDate(cycle?.endDate)}`
 const isCurrentCycle = (cycle?: ReviewCycleDto | null) => Boolean(cycle && (cycle.isActive || cycle.status?.toUpperCase() === 'ACTIVE'))
+const cycleSearchText = (cycle: ReviewCycleDto) =>
+  `${cycle.cycleType ?? ''} ${cycle.name ?? ''} ${cycle.code ?? ''}`.toUpperCase()
+const isQ2Cycle = (cycle: ReviewCycleDto) => /\bQ2\b/.test(cycleSearchText(cycle))
+
+function pickDefaultCoverageReviewCycle(cycles: ReviewCycleDto[]): ReviewCycleDto | undefined {
+  if (cycles.length === 0) return undefined
+  const q2Cycles = cycles.filter(isQ2Cycle)
+  if (q2Cycles.length > 0) {
+    const activeQ2 = q2Cycles.find((cycle) => cycle.isActive || cycle.status?.toUpperCase() === 'ACTIVE')
+    if (activeQ2) return activeQ2
+    const upcomingQ2 = q2Cycles.find((cycle) => cycle.status?.toUpperCase() === 'UPCOMING')
+    if (upcomingQ2) return upcomingQ2
+    return [...q2Cycles].sort((a, b) => b.startDate.localeCompare(a.startDate))[0]
+  }
+  return cycles.find((cycle) => cycle.isActive || cycle.status?.toUpperCase() === 'ACTIVE') ?? cycles[0]
+}
 
 function CurrentInUseBadge() {
   return (
@@ -1539,8 +1555,8 @@ function CoverageTab() {
 
   useEffect(() => {
     if (selectedReviewCycleId != null || reviewCycles.length === 0) return
-    const activeFirst = reviewCycles.find((cycle) => cycle.isActive || cycle.status?.toUpperCase() === 'ACTIVE') ?? reviewCycles[0]
-    setSelectedReviewCycleId(activeFirst.id)
+    const defaultCycle = pickDefaultCoverageReviewCycle(reviewCycles)
+    if (defaultCycle) setSelectedReviewCycleId(defaultCycle.id)
   }, [reviewCycles, selectedReviewCycleId])
 
   const departments = useMemo(() => {
