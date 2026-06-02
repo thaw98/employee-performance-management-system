@@ -29,6 +29,7 @@ import {
   type LucideIcon,
 } from 'lucide-react'
 import axios from '../../app/axiosInstance'
+import { PaginationBar } from '../../components/common/PaginationBar'
 import { CriteriaPage } from './CriteriaPage'
 import { formatDateTime } from '../../utils/dateUtils'
 import {
@@ -1552,6 +1553,8 @@ function CoverageTab() {
   const [deptFilter, setDeptFilter] = useState('ALL')
   const [posFilter, setPosFilter] = useState('ALL')
   const [levelCodeFilter, setLevelCodeFilter] = useState('ALL')
+  const [pageIndex, setPageIndex] = useState(0)
+  const [pageSize, setPageSize] = useState(10)
 
   useEffect(() => {
     if (selectedReviewCycleId != null || reviewCycles.length === 0) return
@@ -1604,6 +1607,20 @@ function CoverageTab() {
       return text.includes(query)
     })
   }, [coverage, searchQuery, deptFilter, posFilter, levelCodeFilter])
+
+  const pageCount = useMemo(
+    () => Math.max(1, Math.ceil(filteredRows.length / pageSize)),
+    [filteredRows.length, pageSize],
+  )
+
+  const paginatedRows = useMemo(() => {
+    const start = pageIndex * pageSize
+    return filteredRows.slice(start, start + pageSize)
+  }, [filteredRows, pageIndex, pageSize])
+
+  useEffect(() => {
+    setPageIndex(0)
+  }, [selectedReviewCycleId, searchQuery, deptFilter, posFilter, levelCodeFilter])
 
   return (
     <section className="space-y-6">
@@ -1739,7 +1756,7 @@ function CoverageTab() {
                         <td colSpan={6} className="px-4 py-10 text-center text-sm text-slate-500">No uncovered employees match the current filters.</td>
                       </tr>
                     ) : (
-                      filteredRows.map((row) => (
+                      paginatedRows.map((row) => (
                         <tr key={row.employeeId} className="transition hover:bg-slate-50">
                           <td className="px-4 py-3">
                             <p className="font-bold text-slate-900">{row.employeeName}</p>
@@ -1760,6 +1777,22 @@ function CoverageTab() {
                   </tbody>
                 </table>
               </div>
+            </div>
+            <div className="border-t border-slate-100 px-5 py-4">
+              <PaginationBar
+                className="mt-0 rounded-none border-0 shadow-none"
+                pageIndex={pageIndex}
+                pageSize={pageSize}
+                pageCount={pageCount}
+                totalItems={filteredRows.length}
+                itemLabel="employees"
+                rowsPerPageOptions={[5, 10, 20, 50]}
+                onPageIndexChange={setPageIndex}
+                onPageSizeChange={(nextSize) => {
+                  setPageSize(nextSize)
+                  setPageIndex(0)
+                }}
+              />
             </div>
           </div>
         </div>
