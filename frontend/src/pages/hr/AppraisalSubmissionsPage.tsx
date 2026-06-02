@@ -2,7 +2,7 @@ import { useState, useEffect, useRef, useMemo } from 'react';
 import { useSearchParams, useLocation } from 'react-router-dom';
 import axios from '../../app/axiosInstance';
 import { toast } from 'react-hot-toast';
-import { Search, Eye, CheckCircle, CheckCircle2, XCircle, RotateCcw, Lock, Unlock, LockOpen, FileText, User, Loader2, Building2, ChevronDown, Award, MessageSquare, Target, Download } from 'lucide-react';
+import { Search, Eye, CheckCircle, CheckCircle2, XCircle, RotateCcw, Lock, Unlock, LockOpen, FileText, User, Loader2, Building2, ChevronDown, Award, MessageSquare, Target, Download, Calendar } from 'lucide-react';
 import { formatDate } from '../../utils/dateUtils';
 import { formatRatingCategory } from '../../utils/formatRatingCategory';
 import SignatureCanvas from 'react-signature-canvas';
@@ -90,6 +90,16 @@ interface Submission {
     hrSignedAt?: string;
 }
 
+const parsePeriodName = (name: string) => {
+    const yearMatch = name.match(/\d{4}-\d{4}|\d{4}/);
+    if (yearMatch) {
+        const year = yearMatch[0];
+        const cycle = name.replace(year, '').trim();
+        return { cycle, year };
+    }
+    return { cycle: name, year: 'Other' };
+};
+
 export function AppraisalSubmissionsPage() {
     const [searchParams] = useSearchParams();
     const location = useLocation();
@@ -98,11 +108,35 @@ export function AppraisalSubmissionsPage() {
     const [searchTerm, setSearchTerm] = useState('');
     const [filterDept, setFilterDept] = useState<string | number>('ALL');
     const [filterPos, setFilterPos] = useState<string | number>('ALL');
+    const [filterCycle, setFilterCycle] = useState<string>('ALL');
+    const [filterYear, setFilterYear] = useState<string>('ALL');
     const [activeTab, setActiveTab] = useState('ALL');
     const [currentPage, setCurrentPage] = useState(1);
     const itemsPerPage = 8;
     const [departments, setDepartments] = useState<any[]>([]);
     const [positions, setPositions] = useState<any[]>([]);
+
+    const uniqueCycles = useMemo(() => {
+        const cycles = new Set<string>();
+        submissions.forEach(s => {
+            if (s.period?.name) {
+                const { cycle } = parsePeriodName(s.period.name);
+                if (cycle) cycles.add(cycle);
+            }
+        });
+        return Array.from(cycles).sort();
+    }, [submissions]);
+
+    const uniqueYears = useMemo(() => {
+        const years = new Set<string>();
+        submissions.forEach(s => {
+            if (s.period?.name) {
+                const { year } = parsePeriodName(s.period.name);
+                if (year) years.add(year);
+            }
+        });
+        return Array.from(years).sort().reverse();
+    }, [submissions]);
     const [selectedAsmt, setSelectedAsmt] = useState<Submission | null>(null);
     const [history, setHistory] = useState<any[]>([]);
     const [kpiHistory, setKpiHistory] = useState<any[]>([]);
@@ -631,7 +665,18 @@ export function AppraisalSubmissionsPage() {
         
         const matchesStatus = activeTab === 'ALL' || s.status === activeTab;
         
-        return matchesSearch && matchesDept && matchesPos && matchesStatus;
+        let matchesCycle = true;
+        let matchesYear = true;
+        if (s.period?.name) {
+            const { cycle, year } = parsePeriodName(s.period.name);
+            matchesCycle = filterCycle === 'ALL' || cycle === filterCycle;
+            matchesYear = filterYear === 'ALL' || year === filterYear;
+        } else {
+            matchesCycle = filterCycle === 'ALL';
+            matchesYear = filterYear === 'ALL';
+        }
+        
+        return matchesSearch && matchesDept && matchesPos && matchesStatus && matchesCycle && matchesYear;
     }).sort((a, b) => {
         const scoreA = a.totalScore ?? 0;
         const scoreB = b.totalScore ?? 0;
@@ -816,6 +861,44 @@ export function AppraisalSubmissionsPage() {
                                 <option value="ALL">All Positions</option>
                                 {positions.map(p => (
                                     <option key={p.id} value={p.positionName}>{p.positionName}</option>
+                                ))}
+                            </select>
+                            <ChevronDown className="absolute right-4 top-1/2 -translate-y-1/2 text-slate-400 pointer-events-none" size={16} />
+                        </div>
+
+                        {/* Cycle Filter */}
+                        <div className="relative min-w-[180px]">
+                            <Target className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400 pointer-events-none" size={16} />
+                            <select
+                                value={filterCycle}
+                                onChange={(e) => {
+                                    setFilterCycle(e.target.value);
+                                    setCurrentPage(1);
+                                }}
+                                className="w-full pl-11 pr-10 py-3 bg-slate-50 border border-slate-200 rounded-2xl focus:ring-2 focus:ring-[#2463eb] outline-none transition-all font-bold text-[11px] uppercase tracking-widest appearance-none text-slate-600 cursor-pointer hover:bg-slate-100"
+                            >
+                                <option value="ALL">All Cycles</option>
+                                {uniqueCycles.map(c => (
+                                    <option key={c} value={c}>{c}</option>
+                                ))}
+                            </select>
+                            <ChevronDown className="absolute right-4 top-1/2 -translate-y-1/2 text-slate-400 pointer-events-none" size={16} />
+                        </div>
+
+                        {/* Year Filter */}
+                        <div className="relative min-w-[180px]">
+                            <Calendar className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400 pointer-events-none" size={16} />
+                            <select
+                                value={filterYear}
+                                onChange={(e) => {
+                                    setFilterYear(e.target.value);
+                                    setCurrentPage(1);
+                                }}
+                                className="w-full pl-11 pr-10 py-3 bg-slate-50 border border-slate-200 rounded-2xl focus:ring-2 focus:ring-[#2463eb] outline-none transition-all font-bold text-[11px] uppercase tracking-widest appearance-none text-slate-600 cursor-pointer hover:bg-slate-100"
+                            >
+                                <option value="ALL">All Years</option>
+                                {uniqueYears.map(y => (
+                                    <option key={y} value={y}>{y}</option>
                                 ))}
                             </select>
                             <ChevronDown className="absolute right-4 top-1/2 -translate-y-1/2 text-slate-400 pointer-events-none" size={16} />

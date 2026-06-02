@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import { Link } from 'react-router-dom';
 import axios from '../../app/axiosInstance';
 import { toast } from 'react-hot-toast';
@@ -15,7 +15,8 @@ import {
     Building2,
     Calendar,
     FileText,
-    Download
+    Download,
+    Target
 } from 'lucide-react';
 import { formatCycleDate } from '../self-assessment-form/SelfAssessmentReviewCycleInfo';
 import { exportAppraisalPdf } from '../../utils/exportAppraisalPdf';
@@ -46,12 +47,24 @@ interface AppraisalAssignment {
     updatedAt: string;
 }
 
+const parsePeriodName = (name: string) => {
+    const yearMatch = name.match(/\d{4}-\d{4}|\d{4}/);
+    if (yearMatch) {
+        const year = yearMatch[0];
+        const cycle = name.replace(year, '').trim();
+        return { cycle, year };
+    }
+    return { cycle: name, year: 'Other' };
+};
+
 export const ManagerAppraisalsPage: React.FC = () => {
     const [assignments, setAssignments] = useState<AppraisalAssignment[]>([]);
     const [loading, setLoading] = useState(true);
     const [searchTerm, setSearchTerm] = useState('');
     const [filterStatus, setFilterStatus] = useState('ALL');
     const [filterPosition, setFilterPosition] = useState('ALL');
+    const [filterCycle, setFilterCycle] = useState('ALL');
+    const [filterYear, setFilterYear] = useState('ALL');
     const [allDepartmentPositions, setAllDepartmentPositions] = useState<string[]>([]);
     const [showTopOnly, setShowTopOnly] = useState(false);
     const [showBottomOnly, setShowBottomOnly] = useState(false);
@@ -60,6 +73,28 @@ export const ManagerAppraisalsPage: React.FC = () => {
     // Pagination
     const [currentPage, setCurrentPage] = useState(1);
     const itemsPerPage = 6;
+
+    const uniqueCycles = useMemo(() => {
+        const cycles = new Set<string>();
+        assignments.forEach(a => {
+            if (a.period?.name) {
+                const { cycle } = parsePeriodName(a.period.name);
+                if (cycle) cycles.add(cycle);
+            }
+        });
+        return Array.from(cycles).sort();
+    }, [assignments]);
+
+    const uniqueYears = useMemo(() => {
+        const years = new Set<string>();
+        assignments.forEach(a => {
+            if (a.period?.name) {
+                const { year } = parsePeriodName(a.period.name);
+                if (year) years.add(year);
+            }
+        });
+        return Array.from(years).sort().reverse();
+    }, [assignments]);
 
     useEffect(() => {
         fetchAssignments();
@@ -259,8 +294,19 @@ export const ManagerAppraisalsPage: React.FC = () => {
         } else if (filterAction === 'COMPLETED') {
             matchesAction = a.status === 'SUBMITTED' || a.status === 'HR_APPROVED' || a.status === 'LOCKED' || a.status === 'REJECTED';
         }
+
+        let matchesCycle = true;
+        let matchesYear = true;
+        if (a.period?.name) {
+            const { cycle, year } = parsePeriodName(a.period.name);
+            matchesCycle = filterCycle === 'ALL' || cycle === filterCycle;
+            matchesYear = filterYear === 'ALL' || year === filterYear;
+        } else {
+            matchesCycle = filterCycle === 'ALL';
+            matchesYear = filterYear === 'ALL';
+        }
         
-        return matchesSearch && matchesStatus && matchesPosition && matchesAction;
+        return matchesSearch && matchesStatus && matchesPosition && matchesAction && matchesCycle && matchesYear;
     }).sort((a, b) => {
         const scoreA = a.totalScore ?? 0;
         const scoreB = b.totalScore ?? 0;
@@ -290,7 +336,7 @@ export const ManagerAppraisalsPage: React.FC = () => {
     // Reset pagination when filters change
     useEffect(() => {
         setCurrentPage(1);
-    }, [searchTerm, filterStatus, filterPosition, filterAction]);
+    }, [searchTerm, filterStatus, filterPosition, filterAction, filterCycle, filterYear]);
 
     return (
         <div className="space-y-8 animate-in fade-in slide-in-from-bottom-4 duration-700">
@@ -308,7 +354,7 @@ export const ManagerAppraisalsPage: React.FC = () => {
                     </p>
                 </div>
 
-                <div className="flex items-center gap-3 w-full md:w-auto">
+                <div className="flex flex-wrap items-center gap-3 w-full md:w-auto">
                     <div className="relative flex-1 md:w-64">
                         <Search className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400" size={18} />
                         <input 
@@ -392,11 +438,43 @@ export const ManagerAppraisalsPage: React.FC = () => {
                         <select
                             value={filterPosition}
                             onChange={(e) => setFilterPosition(e.target.value)}
-                            className="pl-10 pr-10 py-3 bg-white border border-slate-200 rounded-2xl focus:ring-2 focus:ring-[#2463eb] focus:border-[#2463eb] outline-none transition-all font-black text-[10px] uppercase tracking-widest appearance-none min-w-[160px] text-slate-600"
+                            className="pl-10 pr-10 py-3 bg-white border border-slate-200 rounded-2xl focus:ring-2 focus:ring-[#2463eb] focus:border-[#2463eb] outline-none transition-all font-black text-[10px] uppercase tracking-widest appearance-none min-w-[160px] text-slate-600 cursor-pointer hover:bg-slate-50"
                         >
                             <option value="ALL">All Positions</option>
                             {uniquePositions.map(pos => (
                                 <option key={pos} value={pos}>{pos}</option>
+                            ))}
+                        </select>
+                        <ChevronDown className="absolute right-4 top-1/2 -translate-y-1/2 text-slate-400 pointer-events-none" size={16} />
+                    </div>
+
+                    {/* Cycle Filter */}
+                    <div className="relative">
+                        <Target className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400 pointer-events-none" size={16} />
+                        <select
+                            value={filterCycle}
+                            onChange={(e) => setFilterCycle(e.target.value)}
+                            className="pl-10 pr-10 py-3 bg-white border border-slate-200 rounded-2xl focus:ring-2 focus:ring-[#2463eb] focus:border-[#2463eb] outline-none transition-all font-black text-[10px] uppercase tracking-widest appearance-none min-w-[160px] text-slate-600 cursor-pointer hover:bg-slate-50"
+                        >
+                            <option value="ALL">All Cycles</option>
+                            {uniqueCycles.map(c => (
+                                <option key={c} value={c}>{c}</option>
+                            ))}
+                        </select>
+                        <ChevronDown className="absolute right-4 top-1/2 -translate-y-1/2 text-slate-400 pointer-events-none" size={16} />
+                    </div>
+
+                    {/* Year Filter */}
+                    <div className="relative">
+                        <Calendar className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400 pointer-events-none" size={16} />
+                        <select
+                            value={filterYear}
+                            onChange={(e) => setFilterYear(e.target.value)}
+                            className="pl-10 pr-10 py-3 bg-white border border-slate-200 rounded-2xl focus:ring-2 focus:ring-[#2463eb] focus:border-[#2463eb] outline-none transition-all font-black text-[10px] uppercase tracking-widest appearance-none min-w-[160px] text-slate-600 cursor-pointer hover:bg-slate-50"
+                        >
+                            <option value="ALL">All Years</option>
+                            {uniqueYears.map(y => (
+                                <option key={y} value={y}>{y}</option>
                             ))}
                         </select>
                         <ChevronDown className="absolute right-4 top-1/2 -translate-y-1/2 text-slate-400 pointer-events-none" size={16} />
