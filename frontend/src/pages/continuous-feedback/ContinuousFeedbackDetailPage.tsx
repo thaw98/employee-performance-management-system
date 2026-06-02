@@ -204,6 +204,12 @@ export default function ContinuousFeedbackDetailPage() {
   };
 
   const handleCreatePip = () => {
+    if (activePipId) {
+      const rolePath = window.location.pathname.startsWith('/hr') ? '/hr' : '/manager';
+      const pipPath = rolePath === '/hr' ? `/hr/pip-monitoring/${activePipId}` : `/manager/pip/${activePipId}`;
+      navigate(pipPath);
+      return;
+    }
     setShowPipConfirmModal(true);
   };
 
@@ -536,6 +542,11 @@ export default function ContinuousFeedbackDetailPage() {
               <p className="text-sm font-bold text-rose-600 mt-1">
                 This employee has received {pipCount} improvement/performance-risk feedback records within 30 days.
               </p>
+              {activePipId && (
+                <p className="text-sm font-bold text-rose-700 mt-2">
+                  An active PIP already exists for this employee. Open it below instead of creating a new one.
+                </p>
+              )}
               {canManagePipCreation && activePipId ? (
                 <button
                   type="button"
