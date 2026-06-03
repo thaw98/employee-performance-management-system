@@ -192,6 +192,8 @@ class SelfAssessmentFormHrRejectArchiveTest {
         assertEquals(retakeDeadline, savedSnapshot.getRetakeDeadline());
         assertNotNull(savedSnapshot.getArchivedAt());
         assertNotNull(savedSnapshot.getFormSnapshot());
+        assertTrue(savedSnapshot.getFormSnapshot().contains("\"managerProposedRating\":4"));
+        assertTrue(savedSnapshot.getFormSnapshot().contains("\"managerProposedComment\":\"Good\""));
     }
 
     @Test

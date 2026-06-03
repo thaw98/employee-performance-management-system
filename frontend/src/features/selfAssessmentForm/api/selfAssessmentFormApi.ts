@@ -1006,10 +1006,11 @@ const normalizeFormList = (form: unknown): FormListDto => {
 
 const normalizeArchiveSnapshot = (snapshot: unknown): SelfAssessmentArchiveSnapshotDto => {
   const source = isRecord(snapshot) ? snapshot : {}
+  const employeeRecord = getRecord(source, 'employee')
   return {
     id: getNumber(source.id),
     originalFormId: getNumber(source.originalFormId),
-    employeeId: getNumber(source.employeeId),
+    employeeId: getNumber(source.employeeId ?? employeeRecord?.id),
     employeeName: getString(source.employeeName),
     employeeStaffNo: getOptionalString(source.employeeStaffNo) ?? null,
     departmentId: source.departmentId != null ? getNumber(source.departmentId) : null,

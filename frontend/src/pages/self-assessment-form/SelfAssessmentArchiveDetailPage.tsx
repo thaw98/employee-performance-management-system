@@ -35,6 +35,7 @@ interface ArchiveDetailPageProps {
 
 export const SelfAssessmentArchiveDetailPage: React.FC<ArchiveDetailPageProps> = ({ basePath }) => {
   const navigate = useNavigate();
+  const archiveListPath = `${basePath}/archive`;
   const { archiveId } = useParams<{ archiveId: string }>();
   const numericId = Number(archiveId);
 
@@ -73,7 +74,7 @@ export const SelfAssessmentArchiveDetailPage: React.FC<ArchiveDetailPageProps> =
         <p className="text-lg font-semibold text-slate-900 dark:text-white">Archive Not Found</p>
         <p className="text-sm text-slate-500 dark:text-slate-400">The requested archive snapshot could not be loaded.</p>
         <button
-          onClick={() => navigate(basePath)}
+          onClick={() => navigate(archiveListPath)}
           className="mt-4 inline-flex items-center gap-2 rounded-xl bg-slate-100 px-4 py-2 text-sm font-medium text-slate-700 hover:bg-slate-200 dark:bg-slate-700 dark:text-slate-300 dark:hover:bg-slate-600"
         >
           <ArrowLeft size={16} />
@@ -87,7 +88,7 @@ export const SelfAssessmentArchiveDetailPage: React.FC<ArchiveDetailPageProps> =
     <div className="space-y-6">
       <div className="flex items-center gap-3">
         <button
-          onClick={() => navigate(basePath)}
+          onClick={() => navigate(archiveListPath)}
           className="flex h-10 w-10 items-center justify-center rounded-xl bg-slate-100 text-slate-600 hover:bg-slate-200 dark:bg-slate-700 dark:text-slate-300 dark:hover:bg-slate-600 transition-all"
         >
           <ArrowLeft size={20} />
