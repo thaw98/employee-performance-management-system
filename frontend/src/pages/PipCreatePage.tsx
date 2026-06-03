@@ -1,6 +1,6 @@
 import { zodResolver } from '@hookform/resolvers/zod'
 import { Alert, Autocomplete, Box, Button, IconButton, InputAdornment, Stack, TextField, Typography } from '@mui/material'
-import type { ClipboardEvent, HTMLAttributes, Key, KeyboardEvent } from 'react'
+import type { ClipboardEvent, FormEvent, HTMLAttributes, Key, KeyboardEvent } from 'react'
 import { Controller, useFieldArray, useForm, useWatch, type Resolver } from 'react-hook-form'
 import { useEffect, useMemo, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
@@ -274,11 +274,29 @@ export function PipCreateForm({ embedded = false, onCreated, onCancel }: PipCrea
     const fields = EMBEDDED_STEP_FIELDS[embeddedStep] ?? []
     const valid = await trigger(fields as Parameters<typeof trigger>[0])
     if (!valid) return
-    setEmbeddedStep((prev) => Math.min(prev + 1, EMBEDDED_STEPS.length))
+    // Defer so the Continue click fully finishes before a submit button appears in the same spot.
+    window.setTimeout(() => {
+      setEmbeddedStep((prev) => Math.min(prev + 1, EMBEDDED_STEPS.length))
+    }, 0)
   }
 
   const goToPreviousEmbeddedStep = () => {
     setEmbeddedStep((prev) => Math.max(prev - 1, 1))
+  }
+
+  const handleFormSubmit = (event: FormEvent<HTMLFormElement>) => {
+    event.preventDefault()
+    if (embedded && embeddedStep < EMBEDDED_STEPS.length) {
+      void goToNextEmbeddedStep()
+      return
+    }
+    void handleSubmit(onSubmit)(event)
+  }
+
+  const handleEmbeddedFormKeyDown = (event: KeyboardEvent<HTMLFormElement>) => {
+    if (!embedded || embeddedStep >= EMBEDDED_STEPS.length) return
+    if (event.key !== 'Enter' || event.target instanceof HTMLTextAreaElement) return
+    event.preventDefault()
   }
 
   const onSubmit = async (values: PipCreateFormValues) => {
@@ -423,7 +441,8 @@ export function PipCreateForm({ embedded = false, onCreated, onCancel }: PipCrea
 
       <Box
         component="form"
-        onSubmit={handleSubmit(onSubmit)}
+        onSubmit={handleFormSubmit}
+        onKeyDown={handleEmbeddedFormKeyDown}
         className={embedded ? 'space-y-0' : 'rounded-3xl border border-slate-200 bg-white p-5 shadow-sm lg:p-6'}
       >
         {submitError ? <Alert severity="error" className="mb-5">{submitError}</Alert> : null}
@@ -712,6 +731,15 @@ export function PipCreateForm({ embedded = false, onCreated, onCancel }: PipCrea
             {embedded && embeddedStep < EMBEDDED_STEPS.length ? (
               <Button type="button" variant="contained" onClick={() => void goToNextEmbeddedStep()}>
                 Continue
+              </Button>
+            ) : embedded ? (
+              <Button
+                type="button"
+                disabled={isCreating}
+                variant="contained"
+                onClick={() => void handleSubmit(onSubmit)()}
+              >
+                {isCreating ? 'Creating...' : 'Create PIP'}
               </Button>
             ) : (
               <Button type="submit" disabled={isCreating} variant="contained">
