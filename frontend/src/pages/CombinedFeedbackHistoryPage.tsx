@@ -12,7 +12,7 @@ import { addFeedbackScorePerformanceSection } from '../utils/feedbackScorePdf';
 import { addPdfProfessionalHeader, addPdfProfessionalFooter, addPdfSectionHeader, addPdfInfoTable, loadPdfLogo } from '../utils/pdfBranding';
 import { isReceivedAnonymous, feedbackRoleDisplay } from '../utils/feedbackAnonymity';
 
-type FeedbackDirection = 'ALL' | 'GIVEN' | 'RECEIVED';
+type FeedbackDirection = 'ALL' | 'GIVEN' | 'RECEIVED' | 'SELF';
 
 interface CombinedHistoryItem {
   id: number;
@@ -60,11 +60,12 @@ const tabs: { label: string; value: FeedbackDirection }[] = [
   { label: 'All', value: 'ALL' },
   { label: 'Given', value: 'GIVEN' },
   { label: 'Received', value: 'RECEIVED' },
+  { label: 'Self', value: 'SELF' },
 ];
 
 const getDirectionParam = (value: string | null): FeedbackDirection | null => {
   const normalized = value?.toUpperCase();
-  return normalized === 'GIVEN' || normalized === 'RECEIVED' || normalized === 'ALL' ? normalized : null;
+  return normalized === 'GIVEN' || normalized === 'RECEIVED' || normalized === 'ALL' || normalized === 'SELF' ? normalized : null;
 };
 
 const formatDate = (value?: string | null) => {
@@ -92,6 +93,20 @@ const isStartedOrPastCycle = (cycle: { startDate?: string | null; status?: strin
   if (cycle.startDate) return cycle.startDate <= todayIso();
   return true;
 };
+
+const isSelfItem = (item: CombinedHistoryItem) => item.role === 'SELF';
+
+const displayCategory = (item: CombinedHistoryItem) => {
+  if (isSelfItem(item)) return 'Self';
+  return item.direction === 'RECEIVED' ? 'Received' : 'Given';
+};
+
+const selfEmployeeDisplay = (item: CombinedHistoryItem) => ({
+  name: item.evaluateeName || '-',
+  staffNo: item.evaluateeStaffNo || '',
+  position: item.evaluateePosition || item.position || '-',
+  department: item.evaluateeDepartment || '-',
+});
 
 const evaluatorDisplay = (item: CombinedHistoryItem) => {
   if (isReceivedAnonymous(item)) {
@@ -147,7 +162,9 @@ export function CombinedFeedbackHistoryPage() {
         setLoading(true);
         const params = new URLSearchParams({ page: String(page), size: String(pageSize) });
         Object.entries(filters).forEach(([key, value]) => {
-          if (value && !(key === 'direction' && value === 'ALL')) params.set(key, value);
+          if (!value) return;
+          if (key === 'direction' && (value === 'ALL' || value === 'SELF')) return;
+          params.set(key, value);
         });
         const resp = await axios.get(`/feedback/combined-history?${params.toString()}`);
         setHistory(resp.data.data.content || []);
@@ -164,6 +181,16 @@ export function CombinedFeedbackHistoryPage() {
 
   const updateFilter = (key: keyof typeof filters, value: string) => {
     setPage(0);
+    if (key === 'direction') {
+      if (value === 'SELF') {
+        setFilters(prev => ({ ...prev, direction: 'SELF', feedbackType: 'SELF' }));
+        return;
+      }
+      if (filters.direction === 'SELF') {
+        setFilters(prev => ({ ...prev, direction: value as FeedbackDirection, feedbackType: '' }));
+        return;
+      }
+    }
     setFilters(prev => ({ ...prev, [key]: value }));
   };
 
@@ -192,29 +219,40 @@ export function CombinedFeedbackHistoryPage() {
     try {
       const resp = await axios.get(`/feedback/${item.id}/details`);
       const pdfDetails: FeedbackDetail[] = resp.data.data || [];
+      const isSelf = isSelfItem(item);
       const evaluator = evaluatorDisplay(item);
+      const employee = isSelf ? selfEmployeeDisplay(item) : null;
       const doc = new jsPDF();
       const margin = 14;
 
       const logoDataUrl = await loadPdfLogo();
       const genDateTime = new Date().toLocaleString('en-GB', { day: '2-digit', month: 'short', year: 'numeric', hour: '2-digit', minute: '2-digit', hour12: true });
-      const directionLabel = item.direction === 'RECEIVED' ? 'Received Feedback' : 'Given Feedback';
+      const directionLabel = isSelf ? 'Self Feedback' : (item.direction === 'RECEIVED' ? 'Received Feedback' : 'Given Feedback');
       addPdfProfessionalHeader(doc, '360° Feedback Assessment Report', `${directionLabel}  |  Generated: ${genDateTime}`, { margin, logoDataUrl });
 
       let currentY = 42;
-      currentY = addPdfSectionHeader(doc, margin, currentY, 'Evaluator Information', { width: 182 });
-      currentY = addPdfInfoTable(doc, currentY + 2, [
-        ['Employee Name', evaluator.name, 'Staff ID', evaluator.staffNo || '-'],
-        ['Position', evaluator.position || '-', 'Department', evaluator.department || '-'],
-        ['Feedback Type', feedbackRoleDisplay(item), '', ''],
-      ], { marginLeft: margin, marginRight: margin }) + 8;
+      if (isSelf) {
+        currentY = addPdfSectionHeader(doc, margin, currentY, 'Employee Information', { width: 182 });
+        currentY = addPdfInfoTable(doc, currentY + 2, [
+          ['Employee Name', employee!.name, 'Staff ID', employee!.staffNo || '-'],
+          ['Position', employee!.position, 'Department', employee!.department],
+          ['Assessment Date', formatPdfDate(item.date), 'Cycle', item.reviewCycleName || '-'],
+        ], { marginLeft: margin, marginRight: margin }) + 10;
+      } else {
+        currentY = addPdfSectionHeader(doc, margin, currentY, 'Evaluator Information', { width: 182 });
+        currentY = addPdfInfoTable(doc, currentY + 2, [
+          ['Employee Name', evaluator.name, 'Staff ID', evaluator.staffNo || '-'],
+          ['Position', evaluator.position || '-', 'Department', evaluator.department || '-'],
+          ['Feedback Type', feedbackRoleDisplay(item), '', ''],
+        ], { marginLeft: margin, marginRight: margin }) + 8;
 
-      currentY = addPdfSectionHeader(doc, margin, currentY, 'Evaluatee Information', { width: 182 });
-      currentY = addPdfInfoTable(doc, currentY + 2, [
-        ['Employee Name', item.evaluateeName || '-', 'Staff ID', item.evaluateeStaffNo || '-'],
-        ['Position', item.evaluateePosition || item.position || '-', 'Department', item.evaluateeDepartment || '-'],
-        ['Assessment Date', formatPdfDate(item.date), 'Cycle', item.reviewCycleName || '-'],
-      ], { marginLeft: margin, marginRight: margin }) + 10;
+        currentY = addPdfSectionHeader(doc, margin, currentY, 'Evaluatee Information', { width: 182 });
+        currentY = addPdfInfoTable(doc, currentY + 2, [
+          ['Employee Name', item.evaluateeName || '-', 'Staff ID', item.evaluateeStaffNo || '-'],
+          ['Position', item.evaluateePosition || item.position || '-', 'Department', item.evaluateeDepartment || '-'],
+          ['Assessment Date', formatPdfDate(item.date), 'Cycle', item.reviewCycleName || '-'],
+        ], { marginLeft: margin, marginRight: margin }) + 10;
+      }
 
       currentY = addPdfSectionHeader(doc, margin, currentY, 'Evaluation Result', { width: 182 });
       autoTable(doc, {
@@ -326,7 +364,7 @@ export function CombinedFeedbackHistoryPage() {
       {viewMode === 'table' ? (
       <div className="bg-white rounded-3xl border border-slate-100 shadow-sm overflow-hidden flex flex-col">
         <div className="overflow-x-auto">
-          <table className="w-full text-left border-collapse">
+              <table className="w-full text-left border-collapse">
             <thead>
               <tr className="bg-slate-50 text-[10px] font-black uppercase text-slate-400 border-b border-slate-100">
                 <th className="p-5">Date</th>
@@ -346,13 +384,15 @@ export function CombinedFeedbackHistoryPage() {
               ) : history.length === 0 ? (
                 <tr><td colSpan={9} className="p-20 text-center"><div className="flex flex-col items-center gap-4 text-slate-300"><FileText size={48} /><p className="text-lg font-black uppercase">No feedback history found</p></div></td></tr>
               ) : history.map(item => {
+                const isSelf = isSelfItem(item);
                 const evaluator = evaluatorDisplay(item);
+                const employee = isSelf ? selfEmployeeDisplay(item) : null;
                 return (
                   <tr key={item.id} className="hover:bg-slate-50/50 transition-colors">
                     <td className="p-5"><div className="text-sm font-bold text-slate-700">{formatDate(item.date)}</div><div className="text-[10px] font-bold text-slate-400 uppercase">{new Date(item.date).toLocaleTimeString('en-US', { hour12: timeFormat === '12h', hour: '2-digit', minute: '2-digit' })}</div></td>
-                    <td className="p-5"><span className={`px-3 py-1 rounded-lg text-[10px] font-black uppercase ${item.direction === 'RECEIVED' ? 'bg-violet-50 text-violet-700' : 'bg-emerald-50 text-emerald-700'}`}>{item.direction === 'RECEIVED' ? 'Received' : 'Given'}</span></td>
-                    <td className="p-5"><div className="font-black text-slate-800">{evaluator.name}</div><div className="text-[11px] font-bold text-slate-500">{evaluator.position || '-'}</div><div className="text-[10px] font-bold text-slate-400 uppercase">{evaluator.department || ''}</div></td>
-                    <td className="p-5"><div className="font-black text-slate-800">{item.evaluateeName || '-'}</div><div className="text-[11px] font-bold text-slate-500 uppercase">{item.evaluateeStaffNo || '-'}</div></td>
+                    <td className="p-5"><span className={`px-3 py-1 rounded-lg text-[10px] font-black uppercase ${isSelf ? 'bg-cyan-50 text-cyan-700' : item.direction === 'RECEIVED' ? 'bg-violet-50 text-violet-700' : 'bg-emerald-50 text-emerald-700'}`}>{displayCategory(item)}</span></td>
+                    <td className="p-5">{isSelf ? (<><div className="font-black text-slate-800">{employee!.name}</div><div className="text-[11px] font-bold text-slate-500">{employee!.position}</div><div className="text-[10px] font-bold text-slate-400 uppercase">{employee!.department}</div></>) : (<><div className="font-black text-slate-800">{evaluator.name}</div><div className="text-[11px] font-bold text-slate-500">{evaluator.position || '-'}</div><div className="text-[10px] font-bold text-slate-400 uppercase">{evaluator.department || ''}</div></>)}</td>
+                    <td className="p-5">{isSelf ? <span className="text-[11px] font-bold text-slate-400 italic">Self</span> : <><div className="font-black text-slate-800">{item.evaluateeName || '-'}</div><div className="text-[11px] font-bold text-slate-500 uppercase">{item.evaluateeStaffNo || '-'}</div></>}</td>
                     <td className="p-5"><span className="px-3 py-1 bg-slate-100 rounded-lg text-[10px] font-black text-slate-500 uppercase">{feedbackRoleDisplay(item)}</span></td>
                     <td className="p-5"><div className="text-xs font-black text-slate-600">{item.reviewCycleName || 'N/A'}</div></td>
                     <td className="p-5 text-center"><div className="text-base font-black text-blue-600">{scoreText(item.score)}</div></td>
@@ -381,16 +421,18 @@ export function CombinedFeedbackHistoryPage() {
                 <p className="text-lg font-black uppercase">No feedback history found</p>
               </div>
             ) : history.map((item) => {
+              const isSelf = isSelfItem(item);
               const evaluator = evaluatorDisplay(item);
+              const employee = isSelf ? selfEmployeeDisplay(item) : null;
               return (
                 <article key={item.id} className="rounded-3xl border border-slate-100 bg-white p-5 shadow-sm transition hover:-translate-y-0.5 hover:shadow-lg">
                   <div className="flex items-start justify-between gap-4">
                     <div className="min-w-0">
-                      <span className={`inline-flex rounded-lg px-3 py-1 text-[10px] font-black uppercase ${item.direction === 'RECEIVED' ? 'bg-violet-50 text-violet-700' : 'bg-emerald-50 text-emerald-700'}`}>
-                        {item.direction === 'RECEIVED' ? 'Received' : 'Given'}
+                      <span className={`inline-flex rounded-lg px-3 py-1 text-[10px] font-black uppercase ${isSelf ? 'bg-cyan-50 text-cyan-700' : item.direction === 'RECEIVED' ? 'bg-violet-50 text-violet-700' : 'bg-emerald-50 text-emerald-700'}`}>
+                        {displayCategory(item)}
                       </span>
                       <h3 className="mt-3 truncate text-base font-black text-slate-800">
-                        {item.direction === 'RECEIVED' ? evaluator.name : item.evaluateeName || '-'}
+                        {isSelf ? employee!.name : (item.direction === 'RECEIVED' ? evaluator.name : item.evaluateeName || '-')}
                       </h3>
                       <p className="text-[11px] font-bold uppercase text-slate-400">{feedbackRoleDisplay(item)}</p>
                     </div>
@@ -417,7 +459,11 @@ export function CombinedFeedbackHistoryPage() {
 
                   <div className="mt-4 space-y-2">
                     <p className="text-xs font-bold text-slate-500">Cycle: <span className="font-black text-slate-700">{item.reviewCycleName || 'N/A'}</span></p>
-                    <p className="text-xs font-bold text-slate-500">Evaluatee: <span className="font-black text-slate-700">{item.evaluateeName || '-'}</span></p>
+                    {isSelf ? (
+                      <p className="text-xs font-bold text-slate-500">Employee: <span className="font-black text-slate-700">{employee!.name}</span></p>
+                    ) : (
+                      <p className="text-xs font-bold text-slate-500">Evaluatee: <span className="font-black text-slate-700">{item.evaluateeName || '-'}</span></p>
+                    )}
                   </div>
 
                   <div className="mt-4 flex flex-wrap items-center justify-between gap-3">

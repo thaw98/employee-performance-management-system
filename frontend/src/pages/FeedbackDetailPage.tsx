@@ -289,27 +289,37 @@ export function FeedbackDetailPage() {
         return;
       }
 
+      const isSelf = data.role === 'SELF';
       const pdfEvaluator = isReceivedAnonymous(data)
         ? { name: 'Anonymous', staffNo: '', position: '-', department: '-' }
         : { name: data.evaluatorName || '-', staffNo: data.evaluatorStaffNo || '', position: data.evaluatorPosition || '-', department: data.evaluatorDepartment || '-' };
       const genDateTime = new Date().toLocaleString('en-GB', { day: '2-digit', month: 'short', year: 'numeric', hour: '2-digit', minute: '2-digit', hour12: true });
-      const directionLabel = data.direction === 'RECEIVED' ? 'Received Feedback' : 'Given Feedback';
+      const directionLabel = isSelf ? 'Self Feedback' : (data.direction === 'RECEIVED' ? 'Received Feedback' : 'Given Feedback');
       addPdfProfessionalHeader(doc, '360 Feedback Assessment Report', `${directionLabel}  |  Generated: ${genDateTime}`, { margin, logoDataUrl });
 
       let currentY = 42;
-      currentY = addPdfSectionHeader(doc, margin, currentY, 'Evaluator Information', { width: 182 });
-      currentY = addPdfInfoTable(doc, currentY + 2, [
-        ['Employee Name', pdfEvaluator.name, 'Staff ID', pdfEvaluator.staffNo || '-'],
-        ['Position', pdfEvaluator.position || '-', 'Department', pdfEvaluator.department || '-'],
-        ['Feedback Type', feedbackRoleDisplay(data), '', ''],
-      ], { marginLeft: margin, marginRight: margin }) + 8;
+      if (isSelf) {
+        currentY = addPdfSectionHeader(doc, margin, currentY, 'Employee Information', { width: 182 });
+        currentY = addPdfInfoTable(doc, currentY + 2, [
+          ['Employee Name', data.evaluateeName || '-', 'Staff ID', data.evaluateeStaffNo || '-'],
+          ['Position', data.evaluateePosition || data.position || '-', 'Department', data.evaluateeDepartment || '-'],
+          ['Assessment Date', formatPdfDate(data.date), 'Cycle', data.reviewCycleName || '-'],
+        ], { marginLeft: margin, marginRight: margin }) + 10;
+      } else {
+        currentY = addPdfSectionHeader(doc, margin, currentY, 'Evaluator Information', { width: 182 });
+        currentY = addPdfInfoTable(doc, currentY + 2, [
+          ['Employee Name', pdfEvaluator.name, 'Staff ID', pdfEvaluator.staffNo || '-'],
+          ['Position', pdfEvaluator.position || '-', 'Department', pdfEvaluator.department || '-'],
+          ['Feedback Type', feedbackRoleDisplay(data), '', ''],
+        ], { marginLeft: margin, marginRight: margin }) + 8;
 
-      currentY = addPdfSectionHeader(doc, margin, currentY, 'Evaluatee Information', { width: 182 });
-      currentY = addPdfInfoTable(doc, currentY + 2, [
-        ['Employee Name', data.evaluateeName || '-', 'Staff ID', data.evaluateeStaffNo || '-'],
-        ['Position', data.evaluateePosition || data.position || '-', 'Department', data.evaluateeDepartment || '-'],
-        ['Assessment Date', formatPdfDate(data.date), 'Cycle', data.reviewCycleName || '-'],
-      ], { marginLeft: margin, marginRight: margin }) + 10;
+        currentY = addPdfSectionHeader(doc, margin, currentY, 'Evaluatee Information', { width: 182 });
+        currentY = addPdfInfoTable(doc, currentY + 2, [
+          ['Employee Name', data.evaluateeName || '-', 'Staff ID', data.evaluateeStaffNo || '-'],
+          ['Position', data.evaluateePosition || data.position || '-', 'Department', data.evaluateeDepartment || '-'],
+          ['Assessment Date', formatPdfDate(data.date), 'Cycle', data.reviewCycleName || '-'],
+        ], { marginLeft: margin, marginRight: margin }) + 10;
+      }
 
       currentY = addPdfSectionHeader(doc, margin, currentY, 'Evaluation Result', { width: 182 });
       autoTable(doc, {
@@ -432,6 +442,17 @@ export function FeedbackDetailPage() {
 
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
         <div className="lg:col-span-2 space-y-6">
+          {data.role === 'SELF' ? (
+            <div className="grid grid-cols-1 sm:grid-cols-1 gap-4">
+              <EmployeeAvatarBadge
+                name={data.evaluateeName}
+                staffNo={data.evaluateeStaffNo}
+                position={data.evaluateePosition || data.position}
+                department={data.evaluateeDepartment}
+                label="Employee"
+              />
+            </div>
+          ) : (
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
             <EmployeeAvatarBadge
               name={evaluator?.name}
@@ -448,6 +469,7 @@ export function FeedbackDetailPage() {
               label="Evaluatee"
             />
           </div>
+          )}
 
           <div className="bg-white rounded-2xl border border-slate-100 shadow-sm overflow-hidden">
             <div className="border-b border-slate-100 bg-gradient-to-r from-slate-50/80 to-white px-6 py-4">

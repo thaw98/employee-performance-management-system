@@ -1380,8 +1380,10 @@ public class FeedbackService {
             if (filter != null && hasText(filter.getDirection())) {
                 if ("GIVEN".equalsIgnoreCase(filter.getDirection())) {
                     predicates.add(given);
+                    predicates.add(cb.notEqual(cb.upper(root.get("role")), "SELF"));
                 } else if ("RECEIVED".equalsIgnoreCase(filter.getDirection())) {
                     predicates.add(received);
+                    predicates.add(cb.notEqual(cb.upper(root.get("role")), "SELF"));
                 } else {
                     predicates.add(cb.or(given, received));
                 }
