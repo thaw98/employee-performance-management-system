@@ -267,8 +267,8 @@ export function AuditFeedbackHistoryPage() {
             </div>
           </div>
           <div className="flex flex-wrap gap-2">
-            <button type="button" onClick={exportExcel} className="inline-flex items-center gap-2 rounded-xl bg-white/10 px-4 py-2.5 text-xs font-black text-white backdrop-blur-sm transition hover:bg-white/20"><FileSpreadsheet size={16} /> EXCEL</button>
-            <button type="button" onClick={exportPdf} className="inline-flex items-center gap-2 rounded-xl bg-white/10 px-4 py-2.5 text-xs font-black text-white backdrop-blur-sm transition hover:bg-white/20"><FileText size={16} /> PDF</button>
+            <button type="button" onClick={exportExcel} className="inline-flex items-center gap-2 rounded-xl bg-emerald-500 px-4 py-2.5 text-xs font-black text-white shadow-lg shadow-emerald-900/25 ring-1 ring-white/20 transition hover:bg-emerald-400"><FileSpreadsheet size={16} /> EXCEL</button>
+            <button type="button" onClick={exportPdf} className="inline-flex items-center gap-2 rounded-xl bg-red-500 px-4 py-2.5 text-xs font-black text-white shadow-lg shadow-red-900/25 ring-1 ring-white/20 transition hover:bg-red-400"><FileText size={16} /> PDF</button>
           </div>
         </div>
       </div>
