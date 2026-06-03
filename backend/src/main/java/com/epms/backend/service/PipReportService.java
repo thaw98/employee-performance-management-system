@@ -75,6 +75,9 @@ public class PipReportService {
     @Value("${epms.reports.template-path:classpath:reports/}")
     private String reportTemplatePath;
 
+    @Value("${epms.upload.signatures-dir:uploads/signatures}")
+    private String signatureUploadDir;
+
     @Transactional(readOnly = true)
     public PipIndividualReportDto getIndividualPipReport(Long pipId, User actor) {
         Pip pip = pipService.getPipById(pipId, actor);
@@ -963,18 +966,41 @@ public class PipReportService {
 
     private String convertFilePathToBase64(String filePath) {
         try {
-            String normalizedPath = filePath.startsWith("/") ? filePath.substring(1) : filePath;
-            Path path = Path.of(normalizedPath).toAbsolutePath().normalize();
+            Path path = resolveSignaturePath(filePath);
             if (!Files.exists(path)) {
                 log.warn("Signature file not found: {}", path);
                 return null;
             }
             byte[] bytes = Files.readAllBytes(path);
-            return "data:image/png;base64," + Base64.getEncoder().encodeToString(bytes);
+            return "data:" + mimeTypeFor(path) + ";base64," + Base64.getEncoder().encodeToString(bytes);
         } catch (IOException e) {
             log.error("Failed to read signature file: {}", filePath, e);
             return null;
         }
+    }
+
+    private Path resolveSignaturePath(String filePath) {
+        String normalizedPath = filePath.startsWith("/") ? filePath.substring(1) : filePath;
+        String publicPrefix = "uploads/signatures/";
+        if (normalizedPath.startsWith(publicPrefix)) {
+            String filename = normalizedPath.substring(publicPrefix.length());
+            return Path.of(signatureUploadDir).toAbsolutePath().normalize().resolve(filename).normalize();
+        }
+        return Path.of(normalizedPath).toAbsolutePath().normalize();
+    }
+
+    private String mimeTypeFor(Path path) throws IOException {
+        String detected = Files.probeContentType(path);
+        if (detected != null && !detected.isBlank()) {
+            return detected;
+        }
+        String filename = path.getFileName() == null ? "" : path.getFileName().toString().toLowerCase(Locale.ENGLISH);
+        if (filename.endsWith(".jpg") || filename.endsWith(".jpeg")) return "image/jpeg";
+        if (filename.endsWith(".gif")) return "image/gif";
+        if (filename.endsWith(".webp")) return "image/webp";
+        if (filename.endsWith(".bmp")) return "image/bmp";
+        if (filename.endsWith(".svg")) return "image/svg+xml";
+        return "image/png";
     }
 
     private String nullSafe(Integer value) {
