@@ -514,6 +514,11 @@ export interface HrApproveManagerReviewRequest {
   signatureId?: number | null
 }
 
+export interface HrRejectManagerReviewResponse {
+  form: SelfAssessmentFormDto
+  archiveSnapshotId: number
+}
+
 export interface HrRejectManagerReviewRequest {
   rejectionReason: string
   retakeDeadline: string
@@ -1453,14 +1458,22 @@ export const selfAssessmentFormApi = baseApi.injectEndpoints({
       transformResponse: (response: unknown) => normalizeForm(getResponseData(response)),
     }),
 
-    hrRejectManagerReview: builder.mutation<SelfAssessmentFormDto, { formId: number; request: HrRejectManagerReviewRequest }>({
+    hrRejectManagerReview: builder.mutation<HrRejectManagerReviewResponse, { formId: number; request: HrRejectManagerReviewRequest }>({
       query: ({ formId, request }) => ({
         url: `/self-assessment-forms/${formId}/hr-reject-manager-review`,
         method: 'POST',
         body: request,
       }),
       invalidatesTags: ['SelfAssessmentForm'],
-      transformResponse: (response: unknown) => normalizeForm(getResponseData(response)),
+      transformResponse: (response: unknown) => {
+        const data = getResponseData(response)
+        const source = isRecord(data) ? data : {}
+        const formSource = getRecord(source, 'form') ?? source
+        return {
+          form: normalizeForm(formSource),
+          archiveSnapshotId: getNumber(source.archiveSnapshotId),
+        }
+      },
     }),
 
     hrReturnDisputedReview: builder.mutation<SelfAssessmentFormDto, { formId: number; request: HrReturnDisputedReviewRequest }>({

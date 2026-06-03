@@ -1,7 +1,7 @@
 package com.epms.backend.service;
 
 import com.epms.backend.dto.selfassessmentform.HrRejectManagerReviewRequest;
-import com.epms.backend.dto.selfassessmentform.SelfAssessmentFormDto;
+import com.epms.backend.dto.selfassessmentform.HrRejectManagerReviewResponse;
 import com.epms.backend.entity.*;
 import com.epms.backend.repository.*;
 import org.junit.jupiter.api.BeforeEach;
@@ -264,10 +264,11 @@ class SelfAssessmentFormHrRejectArchiveTest {
                 retakeDeadline,
                 null);
 
-        SelfAssessmentFormDto result = service.hrRejectManagerReview(formId, request, hrUserId);
+        HrRejectManagerReviewResponse result = service.hrRejectManagerReview(formId, request, hrUserId);
 
-        assertEquals(SelfAssessmentFormStatus.DRAFT.name(), result.status());
-        assertEquals(retakeDeadline, result.deadlineDate());
+        assertEquals(1L, result.archiveSnapshotId());
+        assertEquals(SelfAssessmentFormStatus.DRAFT.name(), result.form().status());
+        assertEquals(retakeDeadline, result.form().deadlineDate());
 
         ArgumentCaptor<SelfAssessmentForm> formCaptor = ArgumentCaptor.forClass(SelfAssessmentForm.class);
         verify(formRepository).save(formCaptor.capture());

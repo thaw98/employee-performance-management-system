@@ -1846,7 +1846,7 @@ Instant now = Instant.now();
     }
 
     @Transactional
-    public SelfAssessmentFormDto hrRejectManagerReview(Long formId, HrRejectManagerReviewRequest request, Long hrUserId) {
+    public HrRejectManagerReviewResponse hrRejectManagerReview(Long formId, HrRejectManagerReviewRequest request, Long hrUserId) {
         SelfAssessmentForm form = formRepository.findById(formId)
                 .orElseThrow(() -> new RuntimeException("Form not found"));
 
@@ -1900,7 +1900,7 @@ Instant now = Instant.now();
         archive.setRatingCategory(form.getRatingCategory());
         archive.setFormSnapshot(snapshotAnswers(form));
 
-        archiveSnapshotRepository.save(archive);
+        SelfAssessmentArchiveSnapshot savedArchive = archiveSnapshotRepository.save(archive);
 
         // Now reset the form to DRAFT for full retake
         form.setHrAdjustmentSignatureId(defaultSig.getId());
@@ -2000,7 +2000,7 @@ Instant now = Instant.now();
                         + ". Retake deadline: " + request.retakeDeadline(),
                 null);
 
-        return toFormDto(saved);
+        return new HrRejectManagerReviewResponse(toFormDto(saved), savedArchive.getId());
     }
 
     @Transactional

@@ -443,13 +443,13 @@ public class SelfAssessmentFormController {
 
     @PostMapping("/{id}/hr-reject-manager-review")
     @PreAuthorize("principal.roleId == 1")
-    public ResponseEntity<ApiResponse<SelfAssessmentFormDto>> hrRejectManagerReview(
+    public ResponseEntity<ApiResponse<HrRejectManagerReviewResponse>> hrRejectManagerReview(
             @PathVariable Long id,
             @Valid @RequestBody HrRejectManagerReviewRequest request,
             @AuthenticationPrincipal UserPrincipal principal) {
         try {
-            SelfAssessmentFormDto form = selfAssessmentFormService.hrRejectManagerReview(id, request, principal.getId());
-            return ResponseEntity.ok(ApiResponse.ok("Manager review rejected", form));
+            HrRejectManagerReviewResponse result = selfAssessmentFormService.hrRejectManagerReview(id, request, principal.getId());
+            return ResponseEntity.ok(ApiResponse.ok("Manager review rejected", result));
         } catch (RuntimeException ex) {
             return ResponseEntity.badRequest().body(ApiResponse.fail(ex.getMessage()));
         }
