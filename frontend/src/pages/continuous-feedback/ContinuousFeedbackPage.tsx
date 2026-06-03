@@ -9,7 +9,7 @@ import {
   CheckCircle, Lock, AlertTriangle, BarChart3
 } from 'lucide-react';
 import jsPDF from 'jspdf';
-import 'jspdf-autotable';
+import autoTable from 'jspdf-autotable';
 import * as XLSX from 'xlsx';
 import { continuousFeedbackApi } from '../../features/continuousFeedback/continuousFeedbackApi';
 import type { ContinuousFeedback } from '../../features/continuousFeedback/types';
@@ -165,7 +165,7 @@ export default function ContinuousFeedbackPage() {
       fb.acknowledgedAt ? new Date(fb.acknowledgedAt).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric', hour: '2-digit', minute: '2-digit' }) : '',
       fb.pipSuggested ? 'Yes' : 'No',
     ]);
-    (doc as any).autoTable({
+    autoTable(doc, {
       head: [tableColumn],
       body: tableRows,
       startY: filterParts.length > 0 ? 40 : 34,
