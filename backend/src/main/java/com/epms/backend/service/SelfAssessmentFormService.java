@@ -1854,6 +1854,13 @@ Instant now = Instant.now();
         if (request.retakeDeadline() == null) {
             throw new RuntimeException("Retake deadline is required");
         }
+        if (request.retakeDeadline().isBefore(LocalDate.now())) {
+            throw new RuntimeException("Retake deadline cannot be in the past");
+        }
+        ReviewCycle cycle = form.getCycle();
+        if (cycle != null && cycle.getEndDate() != null && request.retakeDeadline().isAfter(cycle.getEndDate())) {
+            throw new RuntimeException("Retake deadline cannot be after the review cycle end date");
+        }
 
         User hrUser = findHrUser(hrUserId);
 

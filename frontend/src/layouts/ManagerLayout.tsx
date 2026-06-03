@@ -50,9 +50,8 @@ const ManagerLayout: React.FC = () => {
     permission: { moduleKey: 'SELF_ASSESSMENT', actionKey: 'view' },
   };
   const selfAssessmentSubItems = [
-    ...(authUser?.roleId === 2
-      ? [selfAssessmentMyFormItem, selfAssessmentTemplatesItem]
-      : [selfAssessmentTemplatesItem, selfAssessmentMyFormItem]),
+    selfAssessmentTemplatesItem,
+    selfAssessmentMyFormItem,
     { label: 'Assigned Forms', path: '/manager/self-assessment/forms', icon: <ClipboardList size={16} />, permission: { moduleKey: 'SELF_ASSESSMENT', actionKey: 'view' } },
     { label: 'Review Submissions', path: '/manager/self-assessment-forms/review-queue', icon: <ListChecks size={16} />, permission: { moduleKey: 'SELF_ASSESSMENT', actionKey: 'review' } },
     { label: 'History', path: '/manager/self-assessment-forms/history', icon: <History size={16} />, permission: { moduleKey: 'SELF_ASSESSMENT', actionKey: 'history' } },

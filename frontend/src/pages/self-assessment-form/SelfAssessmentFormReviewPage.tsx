@@ -470,6 +470,7 @@ export const SelfAssessmentFormReviewPage: React.FC<SelfAssessmentFormReviewPage
   const [approveRetakeHasPadDrawing, setApproveRetakeHasPadDrawing] = useState(false);
   const [isSavingApproveRetakeInlineSignature, setIsSavingApproveRetakeInlineSignature] = useState(false);
   const approveRetakeInlineSignaturePadRef = useRef<InlineDefaultSignaturePadHandle>(null);
+  const hrReturnBackInFlightRef = useRef(false);
   const { data: defaultSigResponse, isLoading: isDefaultSigLoading, refetch: refetchDefaultSig } = useGetDefaultSignatureQuery(undefined, {
     skip: isEmployeeDetail || isReadOnly,
   });
@@ -873,7 +874,11 @@ export const SelfAssessmentFormReviewPage: React.FC<SelfAssessmentFormReviewPage
       );
       return;
     }
+    if (hrReturnBackInFlightRef.current || isHrReturningBack) {
+      return;
+    }
 
+    hrReturnBackInFlightRef.current = true;
     try {
       await hrReturnBack({
         formId: selectedFormId,
@@ -883,11 +888,19 @@ export const SelfAssessmentFormReviewPage: React.FC<SelfAssessmentFormReviewPage
       }).unwrap();
       toast.success('Form returned to manager');
       resetHrReturnModal();
-      refetchForm();
-      void refetchHrForms();
+      void refetchForm();
       void refetchAllForms();
     } catch (error: any) {
+      const refreshed = await refetchForm();
+      if (refreshed.data?.status === 'RETURNED_BY_HR') {
+        resetHrReturnModal();
+        toast.success('Form returned to manager');
+        void refetchAllForms();
+        return;
+      }
       toast.error(error?.data?.message || 'Failed to return form to manager');
+    } finally {
+      hrReturnBackInFlightRef.current = false;
     }
   };
 
@@ -917,6 +930,16 @@ export const SelfAssessmentFormReviewPage: React.FC<SelfAssessmentFormReviewPage
     setShowRejectModal(false);
   };
 
+  const openRejectModal = () => {
+    setRejectReasonType(HR_ADJUSTMENT_REJECTION_REASONS[0]);
+    setRejectReason('');
+    setRetakeDeadline(selectedForm?.managerReviewDeadlineDate ?? '');
+    setShowRejectModal(true);
+  };
+
+  const rejectRetakeMinDate = new Date().toISOString().split('T')[0];
+  const rejectRetakeMaxDate = selectedForm?.cycleEndDate ?? undefined;
+
   const resolvedRejectReason =
     rejectReasonType === HR_ADJUSTMENT_REJECTION_OTHER ? rejectReason.trim() : rejectReasonType;
 
@@ -929,6 +952,15 @@ export const SelfAssessmentFormReviewPage: React.FC<SelfAssessmentFormReviewPage
             ? 'Enter a custom rejection reason and set a default signature in Signature Settings.'
             : 'Select a rejection reason and set a default signature in Signature Settings.',
       );
+      return;
+    }
+
+    if (retakeDeadline < rejectRetakeMinDate) {
+      toast.error('Retake deadline cannot be in the past.');
+      return;
+    }
+    if (rejectRetakeMaxDate && retakeDeadline > rejectRetakeMaxDate) {
+      toast.error('Retake deadline must be on or before the review cycle end date.');
       return;
     }
 
@@ -2249,11 +2281,7 @@ Review Submissions
                         {canHrReject && (
                           <button
                             type="button"
-                            onClick={() => {
-                              setRejectReasonType(HR_ADJUSTMENT_REJECTION_REASONS[0]);
-                              setRejectReason('');
-                              setShowRejectModal(true);
-                            }}
+                            onClick={openRejectModal}
                             disabled={isDefaultSigLoading || !hasDefaultSignature || showAdjustments}
                             title={showAdjustments ? 'Turn off Request Retake to reject' : 'Reject and require full retake'}
                             className="inline-flex items-center gap-2 px-5 py-2.5 text-sm font-bold text-white rounded-xl bg-gradient-to-r from-red-600 to-rose-600 shadow-md shadow-red-500/20 hover:shadow-lg disabled:opacity-50 disabled:cursor-not-allowed transition-all"
@@ -3003,11 +3031,15 @@ Review Submissions
                   type="date"
                   value={retakeDeadline}
                   onChange={(e) => setRetakeDeadline(e.target.value)}
-                  min={new Date().toISOString().split('T')[0]}
+                  min={rejectRetakeMinDate}
+                  max={rejectRetakeMaxDate}
                   className={filterControlClass}
                 />
                 <p className="mt-1 text-xs text-slate-500 dark:text-slate-400">
                   New deadline for the employee to complete the full retake.
+                  {rejectRetakeMaxDate
+                    ? ` Must be on or before the review cycle end (${formatDateDayMonthYear(rejectRetakeMaxDate)}).`
+                    : ''}
                 </p>
               </div>
               <div className="rounded-xl border border-slate-200/80 bg-slate-50/50 p-3 dark:border-slate-700/60 dark:bg-slate-700/20">

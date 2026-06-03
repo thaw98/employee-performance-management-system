@@ -1,8 +1,12 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useMemo } from 'react';
 import { toast } from 'react-hot-toast';
-import { ClipboardList, AlertTriangle, Clock, MessageSquare, BarChart } from 'lucide-react';
+import { useLocation, useNavigate } from 'react-router-dom';
+import {
+  ClipboardList, AlertTriangle, Clock, MessageSquare, BarChart,
+  Eye, ChevronDown, ChevronRight, XCircle, Lock, CheckCircle,
+} from 'lucide-react';
 import { continuousFeedbackApi } from '../../features/continuousFeedback/continuousFeedbackApi';
-import type { ContinuousFeedbackDashboard } from '../../features/continuousFeedback/types';
+import type { ContinuousFeedbackDashboard, ContinuousFeedback } from '../../features/continuousFeedback/types';
 import { FEEDBACK_CATEGORY_LABELS } from '../../features/continuousFeedback/types';
 
 const statConfigs = [
@@ -36,6 +40,13 @@ const statConfigs = [
   },
 ];
 
+const statusBadgeConfig: Record<string, { bg: string; text: string; border: string; icon: typeof CheckCircle }> = {
+  SHARED: { bg: 'bg-emerald-50', text: 'text-emerald-700', border: 'border-emerald-200', icon: CheckCircle },
+  SCHEDULED: { bg: 'bg-violet-50', text: 'text-violet-700', border: 'border-violet-200', icon: Clock },
+  PRIVATE_NOTE: { bg: 'bg-amber-50', text: 'text-amber-800', border: 'border-amber-200', icon: Lock },
+  CANCELLED: { bg: 'bg-rose-50', text: 'text-rose-700', border: 'border-rose-200', icon: XCircle },
+};
+
 const categoryBarColors: Record<string, string> = {
   PRAISE: 'bg-emerald-500',
   COACHING: 'bg-blue-500',
@@ -49,8 +60,21 @@ const categoryBarColors: Record<string, string> = {
 };
 
 export default function ContinuousFeedbackDashboardPage() {
+  const navigate = useNavigate();
+  const { pathname } = useLocation();
+
+  const feedbackBasePath = useMemo(() => {
+    const match = pathname.match(/^\/(hr|manager|audit)\/continuous-feedback/);
+    return match ? `/${match[1]}/continuous-feedback` : '/manager/continuous-feedback';
+  }, [pathname]);
+
   const [dashboard, setDashboard] = useState<ContinuousFeedbackDashboard | null>(null);
   const [loading, setLoading] = useState(true);
+
+  const [selectedCategory, setSelectedCategory] = useState<string | null>(null);
+  const [teamFeedback, setTeamFeedback] = useState<ContinuousFeedback[] | null>(null);
+  const [loadingEmployees, setLoadingEmployees] = useState(false);
+  const [employeeError, setEmployeeError] = useState<string | null>(null);
 
   useEffect(() => {
     loadDashboard();
@@ -67,6 +91,59 @@ export default function ContinuousFeedbackDashboardPage() {
       setLoading(false);
     }
   };
+
+  const loadTeamFeedback = async () => {
+    if (teamFeedback !== null) return;
+    try {
+      setLoadingEmployees(true);
+      setEmployeeError(null);
+      const resp = await continuousFeedbackApi.getTeamFeedback();
+      setTeamFeedback(resp.data);
+    } catch {
+      setEmployeeError('Failed to load employee data');
+    } finally {
+      setLoadingEmployees(false);
+    }
+  };
+
+  const handleCategoryClick = async (category: string) => {
+    if (selectedCategory === category) {
+      setSelectedCategory(null);
+      return;
+    }
+    setSelectedCategory(category);
+    if (teamFeedback === null) {
+      await loadTeamFeedback();
+    }
+  };
+
+  const categoryEmployees = useMemo(() => {
+    if (!selectedCategory || !teamFeedback) return [];
+    const filtered = teamFeedback.filter((fb) => fb.category === selectedCategory);
+    const map = new Map<number, { feedbacks: ContinuousFeedback[] }>();
+    for (const fb of filtered) {
+      if (!map.has(fb.employeeId)) {
+        map.set(fb.employeeId, { feedbacks: [] });
+      }
+      map.get(fb.employeeId)!.feedbacks.push(fb);
+    }
+    return Array.from(map.entries()).map(([employeeId, { feedbacks }]) => {
+      const latest = feedbacks.reduce((a, b) =>
+        new Date(a.createdAt) > new Date(b.createdAt) ? a : b
+      );
+      const statuses = new Set(feedbacks.map((fb) => fb.visibilityStatus));
+      return {
+        employeeId,
+        employeeName: latest.employeeName,
+        employeeBusinessId: latest.employeeBusinessId,
+        managerName: latest.managerName,
+        managerId: latest.managerId,
+        feedbackCount: feedbacks.length,
+        latestFeedback: latest,
+        statuses,
+      };
+    }).sort((a, b) => b.feedbackCount - a.feedbackCount);
+  }, [selectedCategory, teamFeedback]);
 
   if (loading) {
     return (
@@ -159,20 +236,103 @@ export default function ContinuousFeedbackDashboardPage() {
                 const percentage = dashboard.totalFeedbackRecords > 0
                   ? (count / dashboard.totalFeedbackRecords) * 100
                   : 0;
+                const isSelected = selectedCategory === category;
                 return (
                   <div key={category} className="animate-fade-in-up" style={{ animationDelay: `${index * 50}ms` }}>
-                    <div className="flex items-center justify-between mb-1.5">
-                      <span className="text-xs font-bold text-slate-600">
-                        {FEEDBACK_CATEGORY_LABELS[category as keyof typeof FEEDBACK_CATEGORY_LABELS] || category}
-                      </span>
-                      <span className="text-xs font-black text-slate-500">{count}</span>
-                    </div>
-                    <div className="relative h-3 bg-slate-100 rounded-full overflow-hidden">
-                      <div
-                        className={`absolute left-0 top-0 h-full rounded-full ${barColor} transition-all duration-700 ease-out`}
-                        style={{ width: `${percentage}%` }}
-                      />
-                    </div>
+                    <button
+                      type="button"
+                      onClick={() => handleCategoryClick(category)}
+                      onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); handleCategoryClick(category); } }}
+                      className={`w-full text-left transition-colors rounded-xl p-2 -mx-2 ${
+                        isSelected ? 'bg-[#eef2ff] ring-1 ring-[#2463eb]/20' : 'hover:bg-slate-50'
+                      }`}
+                    >
+                      <div className="flex items-center justify-between mb-1.5">
+                        <span className="text-xs font-bold text-slate-600 flex items-center gap-1.5">
+                          {isSelected ? <ChevronDown size={12} className="text-[#2463eb]" /> : <ChevronRight size={12} className="text-slate-300" />}
+                          {FEEDBACK_CATEGORY_LABELS[category as keyof typeof FEEDBACK_CATEGORY_LABELS] || category}
+                        </span>
+                        <span className="text-xs font-black text-slate-500">{count}</span>
+                      </div>
+                      <div className="relative h-3 bg-slate-100 rounded-full overflow-hidden">
+                        <div
+                          className={`absolute left-0 top-0 h-full rounded-full ${barColor} transition-all duration-700 ease-out`}
+                          style={{ width: `${percentage}%` }}
+                        />
+                      </div>
+                    </button>
+
+                    {isSelected && (
+                      <div className="mt-3 ml-2 border-l-2 border-[#2463eb]/20 pl-4 space-y-2">
+                        {loadingEmployees && (
+                          <div className="flex items-center gap-2 py-3 text-sm font-semibold text-slate-400">
+                            <div className="w-4 h-4 border-2 border-slate-200 border-t-[#2463eb] rounded-full animate-spin" />
+                            Loading employees...
+                          </div>
+                        )}
+                        {employeeError && (
+                          <p className="text-sm font-semibold text-rose-500 py-2">{employeeError}</p>
+                        )}
+                        {!loadingEmployees && !employeeError && categoryEmployees.length === 0 && (
+                          <div className="py-4 flex flex-col items-center gap-2">
+                            <BarChart size={24} className="text-slate-200" />
+                            <p className="text-xs font-bold text-slate-400">No employees found in this category</p>
+                          </div>
+                        )}
+                        {!loadingEmployees && !employeeError && categoryEmployees.length > 0 && (
+                          <div className="divide-y divide-slate-50">
+                            {categoryEmployees.map((emp) => {
+                              const latest = emp.latestFeedback;
+                              return (
+                                <div
+                                  key={emp.employeeId}
+                                  className="py-2.5 flex items-center justify-between gap-3 hover:bg-slate-50/60 rounded-lg px-2 -mx-2 transition-colors cursor-pointer group"
+                                  onClick={() => navigate(`${feedbackBasePath}/${latest.feedbackId}`)}
+                                  onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); navigate(`${feedbackBasePath}/${latest.feedbackId}`); } }}
+                                  role="button"
+                                  tabIndex={0}
+                                >
+                                  <div className="flex-1 min-w-0">
+                                    <div className="flex items-center gap-2">
+                                      <div className="w-6 h-6 rounded-md bg-[#eef2ff] flex items-center justify-center text-[9px] font-black text-[#2463eb] shrink-0">
+                                        {emp.employeeName.charAt(0).toUpperCase()}
+                                      </div>
+                                      <span className="text-sm font-bold text-slate-800 truncate">{emp.employeeName}</span>
+                                    </div>
+                                    <div className="flex items-center gap-2 mt-0.5 text-[11px] font-semibold text-slate-400">
+                                      <span>{emp.employeeBusinessId}</span>
+                                      <span>&middot;</span>
+                                      <span>{emp.managerName}</span>
+                                      <span>&middot;</span>
+                                      <span>{emp.feedbackCount} feedback{emp.feedbackCount !== 1 ? 's' : ''}</span>
+                                    </div>
+                                    <div className="flex items-center gap-2 mt-1">
+                                      <span className="text-[10px] font-bold text-slate-400">
+                                        Latest: {new Date(latest.createdAt).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}
+                                      </span>
+                                      {Array.from(emp.statuses).map((s) => {
+                                        const cfg = statusBadgeConfig[s];
+                                        const StatusIcon = cfg?.icon || MessageSquare;
+                                        return (
+                                          <span
+                                            key={s}
+                                            className={`inline-flex items-center gap-0.5 px-1.5 py-0.5 rounded text-[8px] font-black uppercase tracking-wider ${cfg?.bg || 'bg-slate-100'} ${cfg?.text || 'text-slate-600'} ${cfg?.border || 'border-slate-200'} border`}
+                                          >
+                                            <StatusIcon size={7} />
+                                            {s === 'PRIVATE_NOTE' ? 'Private' : s.charAt(0) + s.slice(1).toLowerCase()}
+                                          </span>
+                                        );
+                                      })}
+                                    </div>
+                                  </div>
+                                  <Eye size={15} className="text-slate-300 group-hover:text-[#2463eb] transition-colors shrink-0" />
+                                </div>
+                              );
+                            })}
+                          </div>
+                        )}
+                      </div>
+                    )}
                   </div>
                 );
               })}
