@@ -514,6 +514,11 @@ export interface HrApproveManagerReviewRequest {
   signatureId?: number | null
 }
 
+export interface HrRejectManagerReviewResponse {
+  form: SelfAssessmentFormDto
+  archiveSnapshotId: number
+}
+
 export interface HrRejectManagerReviewRequest {
   rejectionReason: string
   retakeDeadline: string
@@ -1006,10 +1011,11 @@ const normalizeFormList = (form: unknown): FormListDto => {
 
 const normalizeArchiveSnapshot = (snapshot: unknown): SelfAssessmentArchiveSnapshotDto => {
   const source = isRecord(snapshot) ? snapshot : {}
+  const employeeRecord = getRecord(source, 'employee')
   return {
     id: getNumber(source.id),
     originalFormId: getNumber(source.originalFormId),
-    employeeId: getNumber(source.employeeId),
+    employeeId: getNumber(source.employeeId ?? employeeRecord?.id),
     employeeName: getString(source.employeeName),
     employeeStaffNo: getOptionalString(source.employeeStaffNo) ?? null,
     departmentId: source.departmentId != null ? getNumber(source.departmentId) : null,
@@ -1452,14 +1458,22 @@ export const selfAssessmentFormApi = baseApi.injectEndpoints({
       transformResponse: (response: unknown) => normalizeForm(getResponseData(response)),
     }),
 
-    hrRejectManagerReview: builder.mutation<SelfAssessmentFormDto, { formId: number; request: HrRejectManagerReviewRequest }>({
+    hrRejectManagerReview: builder.mutation<HrRejectManagerReviewResponse, { formId: number; request: HrRejectManagerReviewRequest }>({
       query: ({ formId, request }) => ({
         url: `/self-assessment-forms/${formId}/hr-reject-manager-review`,
         method: 'POST',
         body: request,
       }),
       invalidatesTags: ['SelfAssessmentForm'],
-      transformResponse: (response: unknown) => normalizeForm(getResponseData(response)),
+      transformResponse: (response: unknown) => {
+        const data = getResponseData(response)
+        const source = isRecord(data) ? data : {}
+        const formSource = getRecord(source, 'form') ?? source
+        return {
+          form: normalizeForm(formSource),
+          archiveSnapshotId: getNumber(source.archiveSnapshotId),
+        }
+      },
     }),
 
     hrReturnDisputedReview: builder.mutation<SelfAssessmentFormDto, { formId: number; request: HrReturnDisputedReviewRequest }>({

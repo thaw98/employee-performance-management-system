@@ -180,7 +180,7 @@ export function FeedbackDetailPage() {
   const { feedbackId } = useParams();
   const navigate = useNavigate();
   const location = useLocation();
-  const isAuditView = location.pathname.includes('/audit/');
+  const isAuditView = location.pathname.includes('/audit/') || location.pathname.includes('/hr/360-feedback/company-history');
   const routeState = (location.state || {}) as FeedbackDetailLocationState;
   const [data, setData] = useState<FeedbackDetailPageData | null>(() => {
     if (!routeState.feedback) return null;

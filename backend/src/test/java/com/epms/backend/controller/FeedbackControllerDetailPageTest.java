@@ -3,6 +3,7 @@ package com.epms.backend.controller;
 import com.epms.backend.common.ApiResponse;
 import com.epms.backend.dto.FeedbackDetailPageDto;
 import com.epms.backend.entity.Employee;
+import com.epms.backend.entity.Role;
 import com.epms.backend.entity.User;
 import com.epms.backend.repository.DepartmentRepository;
 import com.epms.backend.repository.UserRepository;
@@ -12,6 +13,7 @@ import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.Test;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.authentication.TestingAuthenticationToken;
+import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
 import org.springframework.security.core.context.SecurityContextHolder;
 
 import java.util.List;
@@ -75,6 +77,38 @@ class FeedbackControllerDetailPageTest {
         assertThat(response.getStatusCode().value()).isEqualTo(403);
         assertThat(response.getBody()).isNotNull();
         assertThat(response.getBody().isSuccess()).isFalse();
+    }
+
+    @Test
+    void hrRoleCanAccessAuditStyleDetailPage() {
+        FeedbackService feedbackService = mock(FeedbackService.class);
+        UserRepository userRepository = mock(UserRepository.class);
+        FeedbackController controller = new FeedbackController(
+                feedbackService,
+                mock(TimeSettingService.class),
+                userRepository,
+                mock(DepartmentRepository.class));
+        Role role = new Role();
+        role.setId(1L);
+        role.setName("HR");
+        User user = new User();
+        user.setId(1L);
+        user.setRole(role);
+        FeedbackDetailPageDto dto = new FeedbackDetailPageDto();
+        dto.setId(1L);
+        dto.setEvaluatorName("Evaluator");
+        dto.setDetails(List.of());
+
+        SecurityContextHolder.getContext().setAuthentication(new UsernamePasswordAuthenticationToken("1", null));
+        when(userRepository.findById(1L)).thenReturn(Optional.of(user));
+        when(feedbackService.getAuditFeedbackDetailPage(1L)).thenReturn(dto);
+
+        ResponseEntity<ApiResponse<FeedbackDetailPageDto>> response = controller.getDetailPage(1L);
+
+        assertThat(response.getStatusCode().value()).isEqualTo(200);
+        assertThat(response.getBody()).isNotNull();
+        assertThat(response.getBody().isSuccess()).isTrue();
+        assertThat(response.getBody().getData().getId()).isEqualTo(1L);
     }
 
     private static User currentUser(Long userId, Long employeeId) {

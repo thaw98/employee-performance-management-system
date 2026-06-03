@@ -352,6 +352,7 @@ export const SelfAssessmentFormReviewPage: React.FC<SelfAssessmentFormReviewPage
     : isEmployeeDetail
       ? '/employee/self-assessment-forms/history'
       : '/manager/self-assessment-forms/review-queue';
+  const selfAssessmentArchiveBasePath = isAudit ? '/audit/self-assessment' : '/hr/self-assessment';
   const pageTitle = isReadOnly ? 'Self Assessment Detail' : isEmployeeDetail ? 'Self Assessment Detail' : isHr ? 'HR Compliance Review' : 'Manager Review';
   const pageDescription = isReadOnly
     ? 'View self-assessment details and review history.'
@@ -965,11 +966,31 @@ export const SelfAssessmentFormReviewPage: React.FC<SelfAssessmentFormReviewPage
     }
 
     try {
-      await hrRejectManagerReview({
+      const result = await hrRejectManagerReview({
         formId: selectedFormId,
         request: { rejectionReason: resolvedRejectReason, retakeDeadline },
       }).unwrap();
-      toast.success('Self-assessment rejected; full retake required');
+      const archiveDetailPath = `${selfAssessmentArchiveBasePath}/archive/${result.archiveSnapshotId}`;
+      toast.success(
+        (t) => (
+          <span className="flex flex-wrap items-center gap-x-2 gap-y-1">
+            <span>Self-assessment rejected; full retake required.</span>
+            {result.archiveSnapshotId > 0 && (
+              <button
+                type="button"
+                onClick={() => {
+                  toast.dismiss(t.id);
+                  navigate(archiveDetailPath);
+                }}
+                className="font-semibold text-[#2463eb] underline underline-offset-2 hover:text-[#1d4ed8] dark:text-blue-300 dark:hover:text-blue-200"
+              >
+                View archived snapshot
+              </button>
+            )}
+          </span>
+        ),
+        { duration: 10000 },
+      );
       resetRejectModal();
       refetchForm();
     } catch (error: any) {

@@ -121,7 +121,7 @@ function AuditSummaryStats({ totals }: { totals: AuditTotals }) {
   );
 }
 
-export function AuditFeedbackHistoryPage() {
+export function AuditFeedbackHistoryPage({ basePath = '/audit/360-feedback/history' }: { basePath?: string }) {
   const navigate = useNavigate();
   const [rows, setRows] = useState<AuditSummaryRow[]>([]);
   const [totals, setTotals] = useState<AuditTotals>(emptyTotals);
@@ -330,7 +330,7 @@ export function AuditFeedbackHistoryPage() {
                         if (value && key !== 'search') drilldownParams.set(key, value);
                       });
                       const suffix = drilldownParams.toString();
-                      navigate(`/audit/360-feedback/history/${row.employeeId}${suffix ? `?${suffix}` : ''}`);
+                      navigate(`${basePath}/${row.employeeId}${suffix ? `?${suffix}` : ''}`);
                     }} className="text-left font-black text-blue-600 transition hover:text-blue-800">{row.employeeName || '-'}</button>
                     <div className="text-[11px] font-bold uppercase text-slate-400">{row.staffNo || '-'}</div>
                   </td>
@@ -354,7 +354,7 @@ export function AuditFeedbackHistoryPage() {
   );
 }
 
-export function AuditFeedbackEvaluateeHistoryPage() {
+export function AuditFeedbackEvaluateeHistoryPage({ basePath = '/audit/360-feedback/history' }: { basePath?: string }) {
   const { employeeId } = useParams();
   const [searchParams] = useSearchParams();
   const navigate = useNavigate();
@@ -394,10 +394,10 @@ export function AuditFeedbackEvaluateeHistoryPage() {
   const viewDetails = (item: AuditHistoryItem) => {
     const suffix = searchParams.toString();
     const query = suffix ? `?${suffix}` : '';
-    navigate(`/audit/360-feedback/history/${employeeId}/${item.id}${query}`, {
+    navigate(`${basePath}/${employeeId}/${item.id}${query}`, {
       state: {
         feedback: item,
-        sourcePath: `/audit/360-feedback/history/${employeeId}${query}`,
+        sourcePath: `${basePath}/${employeeId}${query}`,
         listState: { page, pageSize },
       },
     });
@@ -468,7 +468,7 @@ export function AuditFeedbackEvaluateeHistoryPage() {
         <div className="absolute -bottom-8 -left-8 h-32 w-32 rounded-full bg-white/5 blur-3xl" />
         <div className="relative flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
           <div className="flex items-center gap-4">
-            <button type="button" onClick={() => navigate('/audit/360-feedback/history')} className="flex h-10 w-10 items-center justify-center rounded-xl bg-white/10 text-white/70 backdrop-blur-sm transition hover:bg-white/20 hover:text-white">
+            <button type="button" onClick={() => navigate(basePath)} className="flex h-10 w-10 items-center justify-center rounded-xl bg-white/10 text-white/70 backdrop-blur-sm transition hover:bg-white/20 hover:text-white">
               <ArrowLeft size={18} />
             </button>
             <div className="h-10 w-px bg-white/10" />

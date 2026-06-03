@@ -1,7 +1,7 @@
 package com.epms.backend.service;
 
 import com.epms.backend.dto.selfassessmentform.HrRejectManagerReviewRequest;
-import com.epms.backend.dto.selfassessmentform.SelfAssessmentFormDto;
+import com.epms.backend.dto.selfassessmentform.HrRejectManagerReviewResponse;
 import com.epms.backend.entity.*;
 import com.epms.backend.repository.*;
 import org.junit.jupiter.api.BeforeEach;
@@ -192,6 +192,8 @@ class SelfAssessmentFormHrRejectArchiveTest {
         assertEquals(retakeDeadline, savedSnapshot.getRetakeDeadline());
         assertNotNull(savedSnapshot.getArchivedAt());
         assertNotNull(savedSnapshot.getFormSnapshot());
+        assertTrue(savedSnapshot.getFormSnapshot().contains("\"managerProposedRating\":4"));
+        assertTrue(savedSnapshot.getFormSnapshot().contains("\"managerProposedComment\":\"Good\""));
     }
 
     @Test
@@ -262,10 +264,11 @@ class SelfAssessmentFormHrRejectArchiveTest {
                 retakeDeadline,
                 null);
 
-        SelfAssessmentFormDto result = service.hrRejectManagerReview(formId, request, hrUserId);
+        HrRejectManagerReviewResponse result = service.hrRejectManagerReview(formId, request, hrUserId);
 
-        assertEquals(SelfAssessmentFormStatus.DRAFT.name(), result.status());
-        assertEquals(retakeDeadline, result.deadlineDate());
+        assertEquals(1L, result.archiveSnapshotId());
+        assertEquals(SelfAssessmentFormStatus.DRAFT.name(), result.form().status());
+        assertEquals(retakeDeadline, result.form().deadlineDate());
 
         ArgumentCaptor<SelfAssessmentForm> formCaptor = ArgumentCaptor.forClass(SelfAssessmentForm.class);
         verify(formRepository).save(formCaptor.capture());
@@ -430,6 +433,145 @@ class SelfAssessmentFormHrRejectArchiveTest {
         RuntimeException ex = assertThrows(RuntimeException.class,
                 () -> service.hrRejectManagerReview(formId, request, hrUserId));
         assertTrue(ex.getMessage().contains("pending final approval"));
+    }
+
+    @Test
+    void hrRejectManagerReview_sendsNotificationToManager() {
+        Long formId = 10L;
+        Long hrUserId = 1L;
+        LocalDate retakeDeadline = LocalDate.of(2026, 6, 15);
+
+        Employee manager = new Employee();
+        manager.setId(300L);
+        manager.setEmployeeName("Manager One");
+        User managerUser = new User();
+        managerUser.setId(400L);
+        managerUser.setActive(true);
+        manager.setUserAccount(managerUser);
+
+        Employee employee = new Employee();
+        employee.setId(100L);
+        employee.setEmployeeName("John Doe");
+        employee.setManager(manager);
+
+        User employeeUser = new User();
+        employeeUser.setId(200L);
+        employeeUser.setActive(true);
+        employee.setUserAccount(employeeUser);
+
+        SelfAssessmentFormTemplate template = new SelfAssessmentFormTemplate();
+        template.setId(50L);
+        template.setTitle("Q1 Review Template");
+
+        SelfAssessmentForm form = new SelfAssessmentForm();
+        form.setId(formId);
+        form.setEmployee(employee);
+        form.setTemplate(template);
+        form.setStatus(SelfAssessmentFormStatus.PENDING_FINAL_APPROVAL);
+        form.setDeadlineDate(LocalDate.of(2026, 5, 30));
+
+        User hrUser = hrUser(hrUserId);
+
+        Signature sig = new Signature();
+        sig.setId(99L);
+
+        when(formRepository.findById(formId)).thenReturn(Optional.of(form));
+        when(userRepository.findByIdWithEmployeeDepartment(hrUserId)).thenReturn(Optional.of(hrUser));
+        when(signatureRepository.findByUserAndIsDefaultTrue(hrUser)).thenReturn(Optional.of(sig));
+        when(reportingManagerResolver.resolve(employee)).thenReturn(manager);
+        when(archiveSnapshotRepository.save(any())).thenAnswer(invocation -> {
+            SelfAssessmentArchiveSnapshot snapshot = invocation.getArgument(0);
+            snapshot.setId(1L);
+            return snapshot;
+        });
+        when(formRepository.save(any(SelfAssessmentForm.class))).thenAnswer(invocation -> invocation.getArgument(0));
+
+        HrRejectManagerReviewRequest request = new HrRejectManagerReviewRequest(
+                "Needs complete redo",
+                retakeDeadline,
+                null);
+
+        service.hrRejectManagerReview(formId, request, hrUserId);
+
+        verify(notificationService).send(
+                eq(managerUser),
+                eq("Employee Self-Assessment Rejected by HR"),
+                contains("John Doe"),
+                eq("SELF_ASSESSMENT_FORM"),
+                eq(formId));
+    }
+
+    @Test
+    void hrRejectManagerReview_sendsNotificationsToBothEmployeeAndManager() {
+        Long formId = 10L;
+        Long hrUserId = 1L;
+        LocalDate retakeDeadline = LocalDate.of(2026, 6, 15);
+
+        Employee manager = new Employee();
+        manager.setId(300L);
+        manager.setEmployeeName("Manager One");
+        User managerUser = new User();
+        managerUser.setId(400L);
+        managerUser.setActive(true);
+        manager.setUserAccount(managerUser);
+
+        Employee employee = new Employee();
+        employee.setId(100L);
+        employee.setEmployeeName("John Doe");
+        employee.setManager(manager);
+
+        User employeeUser = new User();
+        employeeUser.setId(200L);
+        employeeUser.setActive(true);
+        employee.setUserAccount(employeeUser);
+
+        SelfAssessmentFormTemplate template = new SelfAssessmentFormTemplate();
+        template.setId(50L);
+        template.setTitle("Q1 Review Template");
+
+        SelfAssessmentForm form = new SelfAssessmentForm();
+        form.setId(formId);
+        form.setEmployee(employee);
+        form.setTemplate(template);
+        form.setStatus(SelfAssessmentFormStatus.PENDING_FINAL_APPROVAL);
+        form.setDeadlineDate(LocalDate.of(2026, 5, 30));
+
+        User hrUser = hrUser(hrUserId);
+
+        Signature sig = new Signature();
+        sig.setId(99L);
+
+        when(formRepository.findById(formId)).thenReturn(Optional.of(form));
+        when(userRepository.findByIdWithEmployeeDepartment(hrUserId)).thenReturn(Optional.of(hrUser));
+        when(signatureRepository.findByUserAndIsDefaultTrue(hrUser)).thenReturn(Optional.of(sig));
+        when(reportingManagerResolver.resolve(employee)).thenReturn(manager);
+        when(archiveSnapshotRepository.save(any())).thenAnswer(invocation -> {
+            SelfAssessmentArchiveSnapshot snapshot = invocation.getArgument(0);
+            snapshot.setId(1L);
+            return snapshot;
+        });
+        when(formRepository.save(any(SelfAssessmentForm.class))).thenAnswer(invocation -> invocation.getArgument(0));
+
+        HrRejectManagerReviewRequest request = new HrRejectManagerReviewRequest(
+                "Needs complete redo",
+                retakeDeadline,
+                null);
+
+        service.hrRejectManagerReview(formId, request, hrUserId);
+
+        verify(notificationService).send(
+                eq(employeeUser),
+                eq("Self-Assessment Rejected - Full Retake Required"),
+                contains("rejected"),
+                eq("SELF_ASSESSMENT_FORM"),
+                eq(formId));
+
+        verify(notificationService).send(
+                eq(managerUser),
+                eq("Employee Self-Assessment Rejected by HR"),
+                contains("John Doe"),
+                eq("SELF_ASSESSMENT_FORM"),
+                eq(formId));
     }
 
     @Test

@@ -8,6 +8,9 @@ import com.epms.backend.dto.score.ScoreExplanationDto;
 import com.epms.backend.entity.*;
 import com.epms.backend.repository.*;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.PageRequest;
+import org.springframework.data.domain.Sort;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -1843,7 +1846,7 @@ Instant now = Instant.now();
     }
 
     @Transactional
-    public SelfAssessmentFormDto hrRejectManagerReview(Long formId, HrRejectManagerReviewRequest request, Long hrUserId) {
+    public HrRejectManagerReviewResponse hrRejectManagerReview(Long formId, HrRejectManagerReviewRequest request, Long hrUserId) {
         SelfAssessmentForm form = formRepository.findById(formId)
                 .orElseThrow(() -> new RuntimeException("Form not found"));
 
@@ -1897,7 +1900,7 @@ Instant now = Instant.now();
         archive.setRatingCategory(form.getRatingCategory());
         archive.setFormSnapshot(snapshotAnswers(form));
 
-        archiveSnapshotRepository.save(archive);
+        SelfAssessmentArchiveSnapshot savedArchive = archiveSnapshotRepository.save(archive);
 
         // Now reset the form to DRAFT for full retake
         form.setHrAdjustmentSignatureId(defaultSig.getId());
@@ -1984,6 +1987,9 @@ Instant now = Instant.now();
         // Notify employee
         sendHrRejectionRetakeNotification(saved);
 
+        // Notify manager
+        sendHrRejectionRetakeManagerNotification(saved);
+
         auditService.record(
                 AuditActionType.SELF_ASSESSMENT_FORM_HR_REJECTED_ADJUSTMENT,
                 AuditTargetType.SELF_ASSESSMENT_FORM,
@@ -1994,7 +2000,7 @@ Instant now = Instant.now();
                         + ". Retake deadline: " + request.retakeDeadline(),
                 null);
 
-        return toFormDto(saved);
+        return new HrRejectManagerReviewResponse(toFormDto(saved), savedArchive.getId());
     }
 
     @Transactional
@@ -3341,6 +3347,20 @@ Instant now = Instant.now();
                 form.getId()));
     }
 
+    private void sendHrRejectionRetakeManagerNotification(SelfAssessmentForm form) {
+        Employee employee = form.getEmployee();
+        resolveManagerRecipient(employee)
+                .ifPresent(manager -> notificationService.send(
+                        manager.getUserAccount(),
+                        "Employee Self-Assessment Rejected by HR",
+                        (employee != null ? employee.getEmployeeName() : "An employee")
+                                + "'s self-assessment for "
+                                + resolveFormDisplayTitle(form)
+                                + " was rejected by HR. A full retake is required.",
+                        "SELF_ASSESSMENT_FORM",
+                        form.getId()));
+    }
+
     private void sendHrUnlockRequestedNotification(SelfAssessmentUnlockRequest request) {
         SelfAssessmentForm form = request.getForm();
         Employee employee = request.getEmployee();
@@ -4133,6 +4153,53 @@ Instant now = Instant.now();
         }
     }
 
+    @Transactional(readOnly = true)
+    public Page<SelfAssessmentArchiveSnapshotDto> getArchiveSnapshots(int page, int size, String search) {
+        PageRequest pageRequest = PageRequest.of(page, size, Sort.by(Sort.Direction.DESC, "archivedAt"));
+        Page<SelfAssessmentArchiveSnapshot> result;
+        if (search != null && !search.trim().isEmpty()) {
+            result = archiveSnapshotRepository.searchByKeyword(search.trim(), pageRequest);
+        } else {
+            result = archiveSnapshotRepository.findByOrderByArchivedAtDesc(pageRequest);
+        }
+        return result.map(this::toArchiveSnapshotDto);
+    }
+
+    @Transactional(readOnly = true)
+    public SelfAssessmentArchiveSnapshotDto getArchiveSnapshot(Long archiveId) {
+        SelfAssessmentArchiveSnapshot snapshot = archiveSnapshotRepository.findById(archiveId)
+                .orElseThrow(() -> new RuntimeException("Archive snapshot not found"));
+        return toArchiveSnapshotDto(snapshot);
+    }
+
+    private SelfAssessmentArchiveSnapshotDto toArchiveSnapshotDto(SelfAssessmentArchiveSnapshot snapshot) {
+        return new SelfAssessmentArchiveSnapshotDto(
+                snapshot.getId(),
+                snapshot.getOriginalFormId(),
+                snapshot.getEmployee() != null ? snapshot.getEmployee().getId() : null,
+                snapshot.getEmployeeName(),
+                snapshot.getEmployeeStaffNo(),
+                snapshot.getDepartmentId(),
+                snapshot.getDepartmentName(),
+                snapshot.getPositionId(),
+                snapshot.getPositionName(),
+                snapshot.getTemplate() != null ? snapshot.getTemplate().getId() : null,
+                snapshot.getTemplateTitle(),
+                snapshot.getCycle() != null ? snapshot.getCycle().getId() : null,
+                snapshot.getCycleName(),
+                snapshot.getArchivedStatus() != null ? snapshot.getArchivedStatus().name() : null,
+                snapshot.getRejectionReason(),
+                snapshot.getHrUserId(),
+                snapshot.getHrUserName(),
+                snapshot.getArchivedAt(),
+                snapshot.getRetakeDeadline(),
+                snapshot.getTotalScore(),
+                snapshot.getManagerRevisedTotalScore(),
+                snapshot.getFinalApprovedTotalScore(),
+                snapshot.getRatingCategory(),
+                snapshot.getFormSnapshot());
+    }
+
     private String snapshotAnswers(SelfAssessmentForm form) {
         StringBuilder json = new StringBuilder();
         json.append("{\"formId\":").append(form.getId())
@@ -4140,6 +4207,12 @@ Instant now = Instant.now();
                 .append(",\"submittedDate\":").append(jsonString(form.getSubmittedDate()))
                 .append(",\"assessmentDate\":").append(jsonString(form.getAssessmentDate()))
                 .append(",\"deadlineDate\":").append(jsonString(form.getDeadlineDate()))
+                .append(",\"employeeRemarks\":").append(jsonString(form.getEmployeeRemarks()))
+                .append(",\"overallRemarks\":").append(jsonString(form.getOverallRemarks()))
+                .append(",\"managerComments\":").append(jsonString(form.getManagerComments()))
+                .append(",\"totalScore\":").append(form.getTotalScore())
+                .append(",\"managerRevisedTotalScore\":").append(form.getManagerRevisedTotalScore())
+                .append(",\"finalApprovedTotalScore\":").append(form.getFinalApprovedTotalScore())
                 .append(",\"answers\":[");
         List<SelfAssessmentFormAnswer> sortedAnswers = form.getAnswers().stream()
                 .sorted(Comparator.comparing(SelfAssessmentFormAnswer::getSortOrder))
@@ -4155,9 +4228,15 @@ Instant now = Instant.now();
                     .append(",\"yesNoAnswer\":").append(jsonString(answer.getYesNoAnswer()))
                     .append(",\"rating\":").append(answer.getRating())
                     .append(",\"remarks\":").append(jsonString(answer.getRemarks()))
+                    .append(",\"managerProposedYesNo\":").append(jsonString(answer.getManagerProposedYesNo()))
+                    .append(",\"managerProposedRating\":").append(answer.getManagerProposedRating())
+                    .append(",\"managerProposedComment\":").append(jsonString(answer.getManagerProposedComment()))
+                    .append(",\"hrAdjustmentApproved\":").append(answer.getHrAdjustmentApproved())
                     .append(",\"retakeRequested\":").append(Boolean.TRUE.equals(answer.getRetakeRequested()))
+                    .append(",\"retakeRequestComment\":").append(jsonString(answer.getRetakeRequestComment()))
                     .append(",\"retakeYesNoAnswer\":").append(jsonString(answer.getRetakeYesNoAnswer()))
                     .append(",\"retakeRating\":").append(answer.getRetakeRating())
+                    .append(",\"retakeReason\":").append(jsonString(answer.getRetakeReason()))
                     .append(",\"finalApprovedYesNo\":").append(jsonString(answer.getFinalApprovedYesNo()))
                     .append(",\"finalApprovedRating\":").append(answer.getFinalApprovedRating())
                     .append(",\"managerForceChanged\":").append(Boolean.TRUE.equals(answer.getManagerForceChanged()))
