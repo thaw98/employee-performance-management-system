@@ -334,6 +334,7 @@ export function PipCreateForm({ embedded = false, onCreated, onCancel }: PipCrea
         })
 
         if (existingPip) {
+          onCancel?.()
           navigate(`${routeBase}/${existingPip.id}`, {
             replace: true,
             state: {
