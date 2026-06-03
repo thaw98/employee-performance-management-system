@@ -55,6 +55,31 @@ class FeedbackAuditControllerAccessTest {
     }
 
     @Test
+    void hrRoleCanAccessAuditSummaryEndpoint() {
+        FeedbackService feedbackService = mock(FeedbackService.class);
+        UserRepository userRepository = mock(UserRepository.class);
+        FeedbackController controller = new FeedbackController(
+                feedbackService,
+                mock(TimeSettingService.class),
+                userRepository,
+                mock(DepartmentRepository.class));
+
+        SecurityContextHolder.getContext().setAuthentication(new UsernamePasswordAuthenticationToken("1", null));
+        when(userRepository.findById(1L)).thenReturn(Optional.of(user(1L, "HR")));
+        when(feedbackService.getAuditHistorySummary(any(), any())).thenReturn(new FeedbackAuditSummaryPageDto(
+                List.of(),
+                0,
+                10,
+                0,
+                0L,
+                new FeedbackAuditTotalsDto(0L, 0L, 0L, 0L, 0d)));
+
+        ResponseEntity<?> response = controller.getAuditHistorySummary(0, 10, null, null, null, null, null, null);
+
+        assertThat(response.getStatusCode().value()).isEqualTo(200);
+    }
+
+    @Test
     void nonAuditRoleReceivesForbiddenForAuditSummaryEndpoint() {
         UserRepository userRepository = mock(UserRepository.class);
         FeedbackController controller = new FeedbackController(

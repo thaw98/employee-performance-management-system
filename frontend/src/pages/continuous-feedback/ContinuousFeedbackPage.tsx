@@ -2,11 +2,15 @@ import { useEffect, useMemo, useState, useCallback } from 'react';
 import { Link, useLocation, useNavigate } from 'react-router-dom';
 import { toast } from 'react-hot-toast';
 import { usePermissionState } from '../../features/permission/usePermission';
+import { FileText, Table } from 'lucide-react';
 import {
   Eye, Plus, Send, MessageSquare, Clock, XCircle,
   Calendar, Search, ChevronLeft, ChevronRight, ChevronDown,
   CheckCircle, Lock, AlertTriangle, BarChart3
 } from 'lucide-react';
+import jsPDF from 'jspdf';
+import 'jspdf-autotable';
+import * as XLSX from 'xlsx';
 import { continuousFeedbackApi } from '../../features/continuousFeedback/continuousFeedbackApi';
 import type { ContinuousFeedback } from '../../features/continuousFeedback/types';
 import { FEEDBACK_CATEGORY_LABELS } from '../../features/continuousFeedback/types';
@@ -120,6 +124,93 @@ export default function ContinuousFeedbackPage() {
   const resetPage = useCallback(() => setCurrentPage(1), []);
 
   useEffect(() => { resetPage(); }, [searchQuery, categoryFilter, statusFilter]);
+
+  const handleExportPdf = useCallback(() => {
+    if (filteredFeedbacks.length === 0) {
+      toast.error('No feedback records to export');
+      return;
+    }
+    const doc = new jsPDF({ orientation: 'landscape' });
+    doc.setFontSize(16);
+    doc.text('Continuous Feedback Export', 14, 20);
+    doc.setFontSize(9);
+    doc.text(`Generated: ${new Date().toLocaleString('en-US', { dateStyle: 'long', timeStyle: 'short' })}`, 14, 28);
+    const filterParts = [];
+    if (categoryFilter !== 'ALL') filterParts.push(`Category: ${FEEDBACK_CATEGORY_LABELS[categoryFilter as keyof typeof FEEDBACK_CATEGORY_LABELS] || categoryFilter}`);
+    if (statusFilter !== 'ALL') filterParts.push(`Status: ${statusFilter === 'PRIVATE_NOTE' ? 'Private' : statusFilter.charAt(0) + statusFilter.slice(1).toLowerCase()}`);
+    if (startDate) filterParts.push(`From: ${startDate}`);
+    if (endDate) filterParts.push(`To: ${endDate}`);
+    if (searchQuery) filterParts.push(`Search: "${searchQuery}"`);
+    if (filterParts.length > 0) {
+      doc.text(`Filters: ${filterParts.join(' | ')}`, 14, 34);
+    }
+    const tableColumn = [
+      'Employee Name', 'Employee ID', 'Manager', 'Category', 'Status',
+      'Feedback Message', 'Private Manager Note', 'Shared', 'Acknowledged',
+      'Created At', 'Scheduled Publish At', 'Shared At', 'Acknowledged At', 'PIP Suggested',
+    ];
+    const tableRows = filteredFeedbacks.map((fb) => [
+      fb.employeeName,
+      fb.employeeBusinessId,
+      fb.managerName,
+      FEEDBACK_CATEGORY_LABELS[fb.category] || fb.category,
+      fb.visibilityStatus === 'PRIVATE_NOTE' ? 'Private' : fb.visibilityStatus.charAt(0) + fb.visibilityStatus.slice(1).toLowerCase(),
+      fb.feedbackMessage || '',
+      fb.privateManagerNote || '',
+      fb.shared ? 'Yes' : 'No',
+      fb.acknowledged ? 'Yes' : 'No',
+      new Date(fb.createdAt).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric', hour: '2-digit', minute: '2-digit' }),
+      fb.scheduledPublishAt ? new Date(fb.scheduledPublishAt).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric', hour: '2-digit', minute: '2-digit' }) : '',
+      fb.sharedAt ? new Date(fb.sharedAt).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric', hour: '2-digit', minute: '2-digit' }) : '',
+      fb.acknowledgedAt ? new Date(fb.acknowledgedAt).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric', hour: '2-digit', minute: '2-digit' }) : '',
+      fb.pipSuggested ? 'Yes' : 'No',
+    ]);
+    (doc as any).autoTable({
+      head: [tableColumn],
+      body: tableRows,
+      startY: filterParts.length > 0 ? 40 : 34,
+      styles: { fontSize: 7, cellPadding: 2 },
+      headStyles: { fillColor: [36, 99, 235], fontSize: 7, fontStyle: 'bold' },
+      columnStyles: { 5: { cellWidth: 50 }, 6: { cellWidth: 40 } },
+    });
+    const dateStr = new Date().toISOString().split('T')[0];
+    doc.save(`continuous-feedback-export-${dateStr}.pdf`);
+  }, [filteredFeedbacks, categoryFilter, statusFilter, startDate, endDate, searchQuery]);
+
+  const handleExportExcel = useCallback(() => {
+    if (filteredFeedbacks.length === 0) {
+      toast.error('No feedback records to export');
+      return;
+    }
+    const rows = filteredFeedbacks.map((fb) => ({
+      'Employee Name': fb.employeeName,
+      'Employee ID': fb.employeeBusinessId,
+      Manager: fb.managerName,
+      Category: FEEDBACK_CATEGORY_LABELS[fb.category] || fb.category,
+      Status: fb.visibilityStatus === 'PRIVATE_NOTE' ? 'Private' : fb.visibilityStatus.charAt(0) + fb.visibilityStatus.slice(1).toLowerCase(),
+      'Feedback Message': fb.feedbackMessage || '',
+      'Private Manager Note': fb.privateManagerNote || '',
+      Shared: fb.shared ? 'Yes' : 'No',
+      Acknowledged: fb.acknowledged ? 'Yes' : 'No',
+      'Created At': new Date(fb.createdAt).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric', hour: '2-digit', minute: '2-digit' }),
+      'Scheduled Publish At': fb.scheduledPublishAt ? new Date(fb.scheduledPublishAt).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric', hour: '2-digit', minute: '2-digit' }) : '',
+      'Shared At': fb.sharedAt ? new Date(fb.sharedAt).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric', hour: '2-digit', minute: '2-digit' }) : '',
+      'Acknowledged At': fb.acknowledgedAt ? new Date(fb.acknowledgedAt).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric', hour: '2-digit', minute: '2-digit' }) : '',
+      'PIP Suggested': fb.pipSuggested ? 'Yes' : 'No',
+    }));
+    const wb = XLSX.utils.book_new();
+    const ws = XLSX.utils.json_to_sheet(rows);
+    const colWidths = Object.keys(rows[0]).map((key) => ({
+      wch: Math.min(
+        Math.max(key.length, ...rows.map((r) => String(r[key as keyof typeof r]).length)) + 2,
+        60
+      ),
+    }));
+    ws['!cols'] = colWidths;
+    XLSX.utils.book_append_sheet(wb, ws, 'Continuous Feedback');
+    const dateStr = new Date().toISOString().split('T')[0];
+    XLSX.writeFile(wb, `continuous-feedback-export-${dateStr}.xlsx`);
+  }, [filteredFeedbacks]);
 
   const stats = useMemo(() => ({
     total: feedbacks.length,
@@ -274,11 +365,31 @@ export default function ContinuousFeedbackPage() {
               {canCreateFeedback ? 'Team Feedback' : 'Organization Feedback'}
             </h2>
           </div>
-          {!loading && (
-            <span className="text-[10px] font-bold text-slate-500 bg-slate-100 px-3 py-1 rounded-full">
-              {filteredFeedbacks.length} result{filteredFeedbacks.length !== 1 ? 's' : ''}
-            </span>
-          )}
+          <div className="flex items-center gap-2">
+            {!loading && (
+              <span className="text-[10px] font-bold text-slate-500 bg-slate-100 px-3 py-1 rounded-full">
+                {filteredFeedbacks.length} result{filteredFeedbacks.length !== 1 ? 's' : ''}
+              </span>
+            )}
+            <button
+              type="button"
+              onClick={handleExportPdf}
+              disabled={loading}
+              className="px-3 py-1.5 rounded-xl text-[10px] font-black uppercase tracking-widest bg-rose-50 text-rose-700 border border-rose-200 hover:bg-rose-100 transition-all active:scale-95 disabled:opacity-40 disabled:cursor-not-allowed flex items-center gap-1.5"
+            >
+              <FileText size={12} />
+              Export PDF
+            </button>
+            <button
+              type="button"
+              onClick={handleExportExcel}
+              disabled={loading}
+              className="px-3 py-1.5 rounded-xl text-[10px] font-black uppercase tracking-widest bg-emerald-50 text-emerald-700 border border-emerald-200 hover:bg-emerald-100 transition-all active:scale-95 disabled:opacity-40 disabled:cursor-not-allowed flex items-center gap-1.5"
+            >
+              <Table size={12} />
+              Export Excel
+            </button>
+          </div>
         </div>
 
         {loading ? (

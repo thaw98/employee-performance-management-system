@@ -665,7 +665,8 @@ public class FeedbackController {
         Long roleId = user.getRole().getId();
         String roleName = user.getRole().getName();
         return Long.valueOf(5L).equals(roleId)
-                || (roleName != null && roleName.equalsIgnoreCase("AUDIT"));
+                || Long.valueOf(1L).equals(roleId)
+                || (roleName != null && (roleName.equalsIgnoreCase("AUDIT") || roleName.equalsIgnoreCase("HR")));
     }
 
     private boolean isManager(User user) {

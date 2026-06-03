@@ -219,6 +219,9 @@ function App() {
             <Route path="360-feedback/history" element={gated('360_FEEDBACK', 'review_history', <CombinedFeedbackHistoryPage />)} />
             <Route path="360-feedback/history/:feedbackId" element={<FeedbackDetailPage />} />
             <Route path="360-feedback/combined-history" element={<Navigate to="/hr/360-feedback/history" replace />} />
+            <Route path="360-feedback/company-history" element={gated('360_FEEDBACK', 'review_history', <AuditFeedbackHistoryPage basePath="/hr/360-feedback/company-history" />)} />
+            <Route path="360-feedback/company-history/:employeeId" element={<AuditFeedbackEvaluateeHistoryPage basePath="/hr/360-feedback/company-history" />} />
+            <Route path="360-feedback/company-history/:employeeId/:feedbackId" element={<FeedbackDetailPage />} />
             <Route path="appraisals" element={<AppraisalsPage />} />
             <Route path="appraisals/submissions" element={<AppraisalSubmissionsPage />} />
             <Route path="appraisals/history" element={<AppraisalHistoryPage mode="hr" />} />
