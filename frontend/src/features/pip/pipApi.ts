@@ -81,6 +81,7 @@ export interface Pip {
   autoCloseDate?: string
   extendedEndDate?: string
   finalCloseDate?: string
+  closedDate?: string
   reopenReason?: string
   reviewReason?: string
   reopenDecision?: string
@@ -463,6 +464,7 @@ const normalizePip = (pip: unknown): Pip => {
     autoCloseDate: getOptionalString(source.autoCloseDate),
     extendedEndDate: getOptionalString(source.extendedEndDate),
     finalCloseDate: getOptionalString(source.finalCloseDate),
+    closedDate: getOptionalString(source.closedDate),
     reopenReason: getOptionalString(source.reopenReason),
     reviewReason: getOptionalString(source.reviewReason),
     reopenDecision: getOptionalString(source.reopenDecision),
