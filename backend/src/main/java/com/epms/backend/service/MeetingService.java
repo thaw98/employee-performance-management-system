@@ -6,6 +6,7 @@ import com.epms.backend.repository.EmployeeRepository;
 import com.epms.backend.repository.MeetingNoteRepository;
 import com.epms.backend.repository.MeetingRepository;
 import com.epms.backend.repository.PipCommunicationNoteRepository;
+import com.epms.backend.repository.PipRepository;
 import com.epms.backend.repository.UserRepository;
 import lombok.RequiredArgsConstructor;
 import jakarta.persistence.criteria.Predicate;
@@ -38,6 +39,7 @@ public class MeetingService {
     private final MeetingRepository meetingRepository;
     private final MeetingNoteRepository meetingNoteRepository;
     private final PipCommunicationNoteRepository pipCommunicationNoteRepository;
+    private final PipRepository pipRepository;
     private final EmployeeRepository employeeRepository;
     private final UserRepository userRepository;
     private final NotificationService notificationService;
@@ -91,6 +93,7 @@ public class MeetingService {
         meeting.setScheduledTime(request.scheduledTime());
         meeting.setDurationMinutes(request.durationMinutes());
         meeting.setStatus(MeetingStatus.PENDING);
+        validatePipMeetingWindow(meeting, request.description());
 
         meeting = meetingRepository.save(meeting);
         copyPipNotesToMeetingIfNeeded(meeting, request.description());
@@ -181,6 +184,30 @@ public class MeetingService {
         if (tagged.find()) return Long.parseLong(tagged.group(1));
         Matcher labeled = Pattern.compile("PIP\\s+#(\\d+)", Pattern.CASE_INSENSITIVE).matcher(description);
         return labeled.find() ? Long.parseLong(labeled.group(1)) : null;
+    }
+
+    private void validatePipMeetingWindow(Meeting meeting, String description) {
+        Long pipId = extractPipId(description);
+        if (pipId == null) return;
+
+        Pip pip = pipRepository.findById(pipId)
+                .orElseThrow(() -> new RuntimeException("PIP not found"));
+        if (meeting.getScheduledTime() == null) {
+            throw new RuntimeException("Scheduled time is required");
+        }
+        int durationMinutes = meeting.getDurationMinutes() == null ? 0 : meeting.getDurationMinutes();
+        Instant meetingEnd = meeting.getScheduledTime().plus(Math.max(durationMinutes, 0), ChronoUnit.MINUTES);
+        LocalDate meetingStartDate = meeting.getScheduledTime().atZone(ZoneId.systemDefault()).toLocalDate();
+        LocalDate meetingEndDate = meetingEnd.atZone(ZoneId.systemDefault()).toLocalDate();
+        LocalDate pipEndDate = pip.getExtendedEndDate() != null ? pip.getExtendedEndDate() : pip.getEndDate();
+
+        if (pip.getStartDate() == null || pipEndDate == null
+                || meetingStartDate.isBefore(pip.getStartDate())
+                || meetingStartDate.isAfter(pipEndDate)
+                || meetingEndDate.isBefore(pip.getStartDate())
+                || meetingEndDate.isAfter(pipEndDate)) {
+            throw new RuntimeException("PIP meetings must be scheduled within the PIP duration");
+        }
     }
 
     @Transactional(readOnly = true)

@@ -379,6 +379,8 @@ export default function PipDetailPage() {
       action: 'schedule',
       source: 'pip',
       pipId: String(pip.id),
+      pipStartDate: pip.startDate,
+      pipEndDate: effectiveEndDate || pip.endDate,
       meetingTitle: 'PIP follow up meeting',
       meetingDescription: description,
     })

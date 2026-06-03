@@ -43,6 +43,16 @@ const toDisplayDateTimeFromLocal = (value: string) => {
     return `${day}/${month}/${year} ${hour}:${minute}`;
 };
 
+const toLocalDateTimeAtBoundary = (dateValue: string | null, boundary: 'start' | 'end') => {
+    if (!dateValue || !/^\d{4}-\d{2}-\d{2}$/.test(dateValue)) return '';
+    return `${dateValue}T${boundary === 'start' ? '00:00' : '23:59'}`;
+};
+
+const maxLocalDateTimeValue = (...values: string[]) => {
+    const sortedValues = values.filter(Boolean).sort();
+    return sortedValues.length > 0 ? sortedValues[sortedValues.length - 1] : '';
+};
+
 type MeetingCardRow = {
     id: number | string;
     meetingGroupKey?: string | null;
@@ -68,6 +78,8 @@ export function MeetingsPage() {
     const hrSection = (searchParams.get('section') || 'schedule') as 'schedule' | 'history';
     const isFaqHrMeeting = searchParams.get('target') === 'hr';
     const isPipSchedule = searchParams.get('source') === 'pip' || Boolean(searchParams.get('pipId')) || (searchParams.get('meetingDescription') || '').includes('[PIP_ID:');
+    const pipStartDate = searchParams.get('pipStartDate');
+    const pipEndDate = searchParams.get('pipEndDate');
     const activeTab = (searchParams.get('tab') || 'UPCOMING') as 'UPCOMING' | 'ONGOING' | 'COMPLETED';
     const emptyMeetingLabel = isHistoryOnlyView ? 'meeting history' : `${activeTab.toLowerCase()} meetings`;
     const setActiveTab = (tab: string) => {
@@ -147,6 +159,10 @@ export function MeetingsPage() {
 
     const now = new Date();
     const minDateTime = new Date(now.getTime() - now.getTimezoneOffset() * 60000).toISOString().slice(0, 16);
+    const pipStartDateTime = toLocalDateTimeAtBoundary(pipStartDate, 'start');
+    const pipEndDateTime = toLocalDateTimeAtBoundary(pipEndDate, 'end');
+    const scheduleMinDateTime = isPipSchedule ? maxLocalDateTimeValue(minDateTime, pipStartDateTime) : minDateTime;
+    const scheduleMaxDateTime = isPipSchedule ? pipEndDateTime : '';
     const openDateTimePicker = (input: HTMLInputElement | null) => {
         if (!input) return;
         if (typeof input.showPicker === 'function') input.showPicker();
@@ -305,6 +321,8 @@ export function MeetingsPage() {
         nextParams.delete('meetingDescription');
         nextParams.delete('source');
         nextParams.delete('pipId');
+        nextParams.delete('pipStartDate');
+        nextParams.delete('pipEndDate');
         setSearchParams(nextParams);
         setIsModalOpen(false);
     };
@@ -323,6 +341,16 @@ export function MeetingsPage() {
         if ((isPipSchedule || !departmentMeeting) && !employeeId) {
             toast.error('Please select an employee');
             return;
+        }
+        if (isPipSchedule && (pipStartDateTime || pipEndDateTime)) {
+            const scheduledStart = new Date(scheduledTimeValue);
+            const scheduledEnd = new Date(scheduledStart.getTime() + durationMinutes * 60000);
+            const pipStart = pipStartDateTime ? new Date(pipStartDateTime) : null;
+            const pipEnd = pipEndDateTime ? new Date(pipEndDateTime) : null;
+            if ((pipStart && scheduledStart < pipStart) || (pipEnd && scheduledEnd > pipEnd)) {
+                toast.error('PIP meetings must be scheduled within the PIP duration');
+                return;
+            }
         }
         try {
             const payload = {
@@ -954,7 +982,8 @@ export function MeetingsPage() {
                                         <input
                                             ref={schedulePickerRef}
                                             type="datetime-local"
-                                            min={minDateTime}
+                                            min={scheduleMinDateTime}
+                                            max={scheduleMaxDateTime || undefined}
                                             value={toLocalDateTimeValue(scheduledTime)}
                                             onChange={(e) => setScheduledTime(toDisplayDateTimeFromLocal(e.target.value))}
                                             className="pointer-events-none absolute h-px w-px opacity-0"
