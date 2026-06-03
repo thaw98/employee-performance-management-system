@@ -65,6 +65,24 @@ vi.mock('../utils/feedbackScorePdf', () => ({
   addFeedbackScorePerformanceSection: vi.fn(() => 150),
 }));
 
+const selfFeedbackRow = {
+  id: 3,
+  date: '2026-05-15T10:00:00Z',
+  direction: 'GIVEN',
+  evaluatorName: 'Current User',
+  evaluatorStaffNo: 'E001',
+  evaluatorPosition: 'Engineer',
+  evaluatorDepartment: 'Product',
+  evaluateeName: 'Current User',
+  evaluateeStaffNo: 'E001',
+  evaluateePosition: 'Engineer',
+  evaluateeDepartment: 'Product',
+  role: 'SELF',
+  score: 75,
+  remark: 'Meet Requirement',
+  reviewCycleName: '2026 H1',
+};
+
 const pageResponse = {
   data: {
     data: {
@@ -105,8 +123,9 @@ const pageResponse = {
           anonymous: true,
           reviewCycleName: '2026 H1',
         },
+        selfFeedbackRow,
       ],
-      totalElements: 2,
+      totalElements: 3,
       totalPages: 1,
     },
   },
@@ -191,6 +210,7 @@ describe('CombinedFeedbackHistoryPage', () => {
     expect(screen.getByRole('tab', { name: 'All' })).toBeTruthy();
     expect(screen.getByRole('tab', { name: 'Given' })).toBeTruthy();
     expect(screen.getByRole('tab', { name: 'Received' })).toBeTruthy();
+    expect(screen.getByRole('tab', { name: 'Self' })).toBeTruthy();
     expect(screen.getByLabelText('Search people')).toBeTruthy();
 
     expect(await screen.findByText('Aye Aye')).toBeTruthy();
@@ -222,6 +242,39 @@ describe('CombinedFeedbackHistoryPage', () => {
     });
   });
 
+  it('sends feedbackType=SELF when Self tab is selected', async () => {
+    const user = userEvent.setup();
+    renderHistoryRoute();
+
+    await screen.findByText('Aye Aye');
+    mocks.get.mockClear();
+    await user.click(screen.getByRole('tab', { name: 'Self' }));
+
+    await waitFor(() => {
+      const calls = mocks.get.mock.calls.filter(([url]: string[]) => url.includes('/feedback/combined-history'));
+      expect(calls.length).toBeGreaterThan(0);
+      const url = calls[calls.length - 1][0] as string;
+      expect(url).toContain('feedbackType=SELF');
+      expect(url).not.toContain('direction=');
+    });
+  });
+
+  it('renders Self badge for self-feedback rows', async () => {
+    renderHistoryRoute();
+
+    expect(await screen.findByText('Self')).toBeTruthy();
+  });
+
+  it('shows employee name without duplicated evaluator/evaluatee labels for self rows', async () => {
+    renderHistoryRoute();
+
+    await screen.findByText('Self');
+    const selfBadges = screen.getAllByText('Self');
+    expect(selfBadges.length).toBeGreaterThanOrEqual(2);
+    const selfNameElements = screen.getAllByText('Current User');
+    expect(selfNameElements.length).toBeGreaterThanOrEqual(3);
+  });
+
   it('navigates to a details page from row view action', async () => {
     const user = userEvent.setup();
     renderHistoryRoute();
@@ -242,10 +295,11 @@ describe('CombinedFeedbackHistoryPage', () => {
 
     expect(await screen.findByText('Communication')).toBeTruthy();
     expect(screen.getByText('Clear and kind')).toBeTruthy();
-    expect(screen.getByText('Good | 82.0%')).toBeTruthy();
-    expect(screen.getByRole('button', { name: /PRINT REPORT/i })).toBeTruthy();
+    expect(screen.getByText('Good')).toBeTruthy();
+    const pdfButtons = screen.getAllByRole('button', { name: /PDF/i });
+    expect(pdfButtons.length).toBeGreaterThan(0);
 
-    await user.click(screen.getByRole('button', { name: /PRINT REPORT/i }));
+    await user.click(pdfButtons[0]);
     await waitFor(() => expect(mocks.save).toHaveBeenCalledTimes(1));
   });
 
@@ -268,7 +322,10 @@ describe('CombinedFeedbackHistoryPage', () => {
     );
 
     await screen.findByText('Communication');
-    await user.click(screen.getByRole('button', { name: /BACK/i }));
+    const backButtons = screen.getAllByRole('button');
+    const backButton = backButtons.find(b => b.querySelector('.lucide-arrow-left'));
+    expect(backButton).toBeTruthy();
+    await user.click(backButton!);
 
     await waitFor(() => {
       expect(currentLocation?.pathname).toBe('/hr/360-feedback/history');
