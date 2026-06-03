@@ -324,8 +324,9 @@ export const ManagerAppraisalsPage: React.FC = () => {
         }
     }
 
-    const maxScoreAcrossFiltered = filteredAssignments.length > 0 ? Math.max(...filteredAssignments.map(a => a.totalScore ?? 0)) : 0;
-    const minScoreAcrossFiltered = filteredAssignments.length > 0 ? Math.min(...filteredAssignments.map(a => a.totalScore ?? 0).filter(s => s > 0)) : 0;
+    const completedAssignments = filteredAssignments.filter(a => !isEditableStatus(a.status));
+    const maxScoreAcrossFiltered = completedAssignments.length > 0 ? Math.max(...completedAssignments.map(a => a.totalScore ?? 0)) : 0;
+    const minScoreAcrossFiltered = completedAssignments.length > 0 ? Math.min(...completedAssignments.map(a => a.totalScore ?? 0).filter(s => s > 0)) : 0;
 
     // Pagination Logic
     const totalPages = Math.ceil(finalAssignments.length / itemsPerPage);
@@ -537,12 +538,12 @@ export const ManagerAppraisalsPage: React.FC = () => {
                                             ID: {assignment.employee.employeeId}
                                         </p>
                                         <div className="flex gap-2 mt-2">
-                                            {assignment.totalScore !== undefined && assignment.totalScore > 0 && assignment.totalScore === maxScoreAcrossFiltered && (
+                                            {assignment.totalScore !== undefined && assignment.totalScore > 0 && !isEditableStatus(assignment.status) && assignment.totalScore === maxScoreAcrossFiltered && (
                                                 <span className="px-2 py-0.5 bg-amber-100 text-amber-700 text-[8px] font-black rounded-md border border-amber-200 animate-bounce shadow-sm">
                                                     🏆 TOP PERFORMER
                                                 </span>
                                             )}
-                                            {assignment.totalScore !== undefined && assignment.totalScore > 0 && assignment.totalScore === minScoreAcrossFiltered && (
+                                            {assignment.totalScore !== undefined && assignment.totalScore > 0 && !isEditableStatus(assignment.status) && assignment.totalScore === minScoreAcrossFiltered && maxScoreAcrossFiltered !== minScoreAcrossFiltered && (
                                                 <span className="px-2 py-0.5 bg-red-100 text-red-700 text-[8px] font-black rounded-md border border-red-200 shadow-sm">
                                                     ⚠️ NEEDS SUPPORT
                                                 </span>
