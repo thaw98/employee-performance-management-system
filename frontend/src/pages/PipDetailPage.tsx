@@ -149,6 +149,12 @@ export default function PipDetailPage() {
   const allowedPipHours = pipDurationDays * 5
   const summedObjectiveHours = pip?.objectives.reduce((sum, objective) => sum + Number(objective.totalHours ?? 0), 0) ?? 0
   const summaryAutoCloseDate = addDaysToIsoDate(pip?.extendedEndDate || pip?.originalEndDate || pip?.endDate)
+  const manualCloseDate = pip?.status === 'AUTO_CLOSED'
+    && pip?.finalCloseDate
+    && summaryAutoCloseDate
+    && pip.finalCloseDate < summaryAutoCloseDate
+    ? pip.finalCloseDate
+    : undefined
 
   useEffect(() => {
     if (!hasActivePipTimer) return
@@ -350,11 +356,6 @@ export default function PipDetailPage() {
     && pip.status === 'AUTO_CLOSED'
     && !pip.finalOutcome
     && (!pip.reopenReason || isApprovedReopenedPip)
-    && !pip.employeeSignatureDate
-  const canEmployeeRequestReopen = isEmployee
-    && pip.status === 'AUTO_CLOSED'
-    && !pip.finalOutcome
-    && !pip.reopenReason
     && !pip.employeeSignatureDate
   const canManagerSign = isDirectManager
     && pip.status === 'AUTO_CLOSED'
@@ -686,14 +687,6 @@ export default function PipDetailPage() {
               className="inline-flex items-center gap-2 rounded-2xl bg-emerald-600 px-5 py-2.5 text-xs font-black text-white shadow-sm transition-all hover:bg-emerald-700 disabled:cursor-not-allowed disabled:opacity-50"
             >
               <i className="bi bi-check2-circle" /> {isMarkingCompleted ? 'Marking...' : 'Mark Completed'}
-            </button>
-          )}
-          {canEmployeeRequestReopen && (
-            <button
-              onClick={() => setShowReopenModal(true)}
-              className="inline-flex items-center gap-2 rounded-2xl bg-orange-600 px-5 py-2.5 text-xs font-black text-white shadow-sm transition-all hover:bg-orange-700 active:scale-95"
-            >
-              <i className="bi bi-arrow-counterclockwise" /> Request More Time
             </button>
           )}
           {isDirectManager && pip.status === 'REOPEN_REQUESTED' && (
@@ -1046,6 +1039,12 @@ export default function PipDetailPage() {
                   <div className="flex justify-between items-center">
                     <span className="text-xs font-bold text-slate-400">Auto-Close Date</span>
                     <span className="text-sm font-black text-amber-700">{formatDate(summaryAutoCloseDate)}</span>
+                  </div>
+                )}
+                {manualCloseDate && (
+                  <div className="flex justify-between items-center">
+                    <span className="text-xs font-bold text-slate-400">Manual Close Date</span>
+                    <span className="text-sm font-black text-amber-700">{formatDate(manualCloseDate)}</span>
                   </div>
                 )}
                 {pip.finalCloseDate && (
