@@ -64,8 +64,8 @@ function NumericScaleWireframe({
         Selected: {value != null && allowed.includes(value) ? `${value}/${max}` : '—'}
       </span>
       <div className="mt-3 flex justify-between border-t border-slate-200 pt-3 text-xs font-medium text-slate-500 dark:border-slate-600 dark:text-slate-400">
-        <span>Poor</span>
         <span>Excellent</span>
+        <span>Poor</span>
       </div>
     </div>
   );
