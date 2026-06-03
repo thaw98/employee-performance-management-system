@@ -11,6 +11,7 @@ import {
 import jsPDF from 'jspdf';
 import autoTable from 'jspdf-autotable';
 import * as XLSX from 'xlsx';
+import { loadPdfLogo, addPdfHeaderLogo } from '../../utils/pdfBranding';
 import { continuousFeedbackApi } from '../../features/continuousFeedback/continuousFeedbackApi';
 import type { ContinuousFeedback } from '../../features/continuousFeedback/types';
 import { FEEDBACK_CATEGORY_LABELS } from '../../features/continuousFeedback/types';
@@ -125,54 +126,189 @@ export default function ContinuousFeedbackPage() {
 
   useEffect(() => { resetPage(); }, [searchQuery, categoryFilter, statusFilter]);
 
-  const handleExportPdf = useCallback(() => {
+  const handleExportPdf = useCallback(async () => {
     if (filteredFeedbacks.length === 0) {
       toast.error('No feedback records to export');
       return;
     }
-    const doc = new jsPDF({ orientation: 'landscape' });
-    doc.setFontSize(16);
-    doc.text('Continuous Feedback Export', 14, 20);
+
+    const MARGIN = 12.7;
+    const doc = new jsPDF({ orientation: 'landscape', unit: 'mm', format: 'a4' });
+    const pageWidth = doc.internal.pageSize.getWidth();
+    const pageHeight = doc.internal.pageSize.getHeight();
+    const usableWidth = pageWidth - MARGIN * 2;
+
+    const logoDataUrl = await loadPdfLogo();
+    const logoWidth = 26;
+    const logoHeight = 13;
+
+    doc.setFillColor(37, 99, 235);
+    doc.rect(0, 0, pageWidth, 4, 'F');
+
+    doc.setFont('helvetica', 'bold');
+    doc.setFontSize(18);
+    doc.setTextColor(30, 41, 59);
+    doc.text('Continuous Feedback Report', MARGIN, 18);
+
+    doc.setFont('helvetica', 'normal');
+    doc.setFontSize(8);
+    doc.setTextColor(100, 116, 139);
+    doc.text(
+      `Generated: ${new Date().toLocaleString('en-US', { dateStyle: 'long', timeStyle: 'short' })}`,
+      MARGIN,
+      25,
+    );
+
+    if (logoDataUrl) {
+      addPdfHeaderLogo(doc, logoDataUrl, {
+        x: pageWidth - MARGIN - logoWidth,
+        y: 8,
+        width: logoWidth,
+        height: logoHeight,
+      });
+    }
+    doc.setFont('helvetica', 'bold');
     doc.setFontSize(9);
-    doc.text(`Generated: ${new Date().toLocaleString('en-US', { dateStyle: 'long', timeStyle: 'short' })}`, 14, 28);
-    const filterParts = [];
-    if (categoryFilter !== 'ALL') filterParts.push(`Category: ${FEEDBACK_CATEGORY_LABELS[categoryFilter as keyof typeof FEEDBACK_CATEGORY_LABELS] || categoryFilter}`);
-    if (statusFilter !== 'ALL') filterParts.push(`Status: ${statusFilter === 'PRIVATE_NOTE' ? 'Private' : statusFilter.charAt(0) + statusFilter.slice(1).toLowerCase()}`);
+    doc.setTextColor(37, 99, 235);
+    doc.text(`Total Entry: ${filteredFeedbacks.length}`, pageWidth - MARGIN, 26, { align: 'right' });
+
+    let currentY = 32;
+    const filterParts: string[] = [];
+    if (categoryFilter !== 'ALL')
+      filterParts.push(
+        `Category: ${FEEDBACK_CATEGORY_LABELS[categoryFilter as keyof typeof FEEDBACK_CATEGORY_LABELS] || categoryFilter}`,
+      );
+    if (statusFilter !== 'ALL')
+      filterParts.push(
+        `Status: ${statusFilter === 'PRIVATE_NOTE' ? 'Private' : statusFilter.charAt(0) + statusFilter.slice(1).toLowerCase()}`,
+      );
     if (startDate) filterParts.push(`From: ${startDate}`);
     if (endDate) filterParts.push(`To: ${endDate}`);
     if (searchQuery) filterParts.push(`Search: "${searchQuery}"`);
     if (filterParts.length > 0) {
-      doc.text(`Filters: ${filterParts.join(' | ')}`, 14, 34);
+      doc.setFont('helvetica', 'italic');
+      doc.setFontSize(7);
+      doc.setTextColor(148, 163, 184);
+      const filterText = `Filters: ${filterParts.join(' | ')}`;
+      const splitFilters = doc.splitTextToSize(filterText, usableWidth);
+      doc.text(splitFilters, MARGIN, currentY);
+      currentY += splitFilters.length * 3.5 + 3;
     }
+
+    doc.setDrawColor(226, 232, 240);
+    doc.line(MARGIN, currentY, pageWidth - MARGIN, currentY);
+    currentY += 5;
+
     const tableColumn = [
-      'Employee Name', 'Employee ID', 'Manager', 'Category', 'Status',
-      'Feedback Message', 'Private Manager Note', 'Shared', 'Acknowledged',
-      'Created At', 'Scheduled Publish At', 'Shared At', 'Acknowledged At', 'PIP Suggested',
+      'Employee Name',
+      'Employee ID',
+      'Manager',
+      'Category',
+      'Status',
+      'Feedback Message',
+      'Private Manager Note',
+      'Shared',
+      'Acknowledged',
+      'Created At',
+      'Scheduled Publish At',
+      'Shared At',
+      'Acknowledged At',
+      'PIP Suggested',
     ];
     const tableRows = filteredFeedbacks.map((fb) => [
       fb.employeeName,
       fb.employeeBusinessId,
       fb.managerName,
       FEEDBACK_CATEGORY_LABELS[fb.category] || fb.category,
-      fb.visibilityStatus === 'PRIVATE_NOTE' ? 'Private' : fb.visibilityStatus.charAt(0) + fb.visibilityStatus.slice(1).toLowerCase(),
+      fb.visibilityStatus === 'PRIVATE_NOTE'
+        ? 'Private'
+        : fb.visibilityStatus.charAt(0) + fb.visibilityStatus.slice(1).toLowerCase(),
       fb.feedbackMessage || '',
       fb.privateManagerNote || '',
       fb.shared ? 'Yes' : 'No',
       fb.acknowledged ? 'Yes' : 'No',
-      new Date(fb.createdAt).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric', hour: '2-digit', minute: '2-digit' }),
-      fb.scheduledPublishAt ? new Date(fb.scheduledPublishAt).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric', hour: '2-digit', minute: '2-digit' }) : '',
-      fb.sharedAt ? new Date(fb.sharedAt).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric', hour: '2-digit', minute: '2-digit' }) : '',
-      fb.acknowledgedAt ? new Date(fb.acknowledgedAt).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric', hour: '2-digit', minute: '2-digit' }) : '',
+      new Date(fb.createdAt).toLocaleDateString('en-US', {
+        month: 'short',
+        day: 'numeric',
+        year: 'numeric',
+        hour: '2-digit',
+        minute: '2-digit',
+      }),
+      fb.scheduledPublishAt
+        ? new Date(fb.scheduledPublishAt).toLocaleDateString('en-US', {
+            month: 'short',
+            day: 'numeric',
+            year: 'numeric',
+            hour: '2-digit',
+            minute: '2-digit',
+          })
+        : '',
+      fb.sharedAt
+        ? new Date(fb.sharedAt).toLocaleDateString('en-US', {
+            month: 'short',
+            day: 'numeric',
+            year: 'numeric',
+            hour: '2-digit',
+            minute: '2-digit',
+          })
+        : '',
+      fb.acknowledgedAt
+        ? new Date(fb.acknowledgedAt).toLocaleDateString('en-US', {
+            month: 'short',
+            day: 'numeric',
+            year: 'numeric',
+            hour: '2-digit',
+            minute: '2-digit',
+          })
+        : '',
       fb.pipSuggested ? 'Yes' : 'No',
     ]);
+
     autoTable(doc, {
       head: [tableColumn],
       body: tableRows,
-      startY: filterParts.length > 0 ? 40 : 34,
-      styles: { fontSize: 7, cellPadding: 2 },
-      headStyles: { fillColor: [36, 99, 235], fontSize: 7, fontStyle: 'bold' },
-      columnStyles: { 5: { cellWidth: 50 }, 6: { cellWidth: 40 } },
+      startY: currentY,
+      theme: 'grid',
+      styles: {
+        fontSize: 6.5,
+        cellPadding: 2,
+        lineColor: [226, 232, 240],
+        lineWidth: 0.1,
+        textColor: [51, 65, 85],
+        overflow: 'linebreak',
+      },
+      headStyles: {
+        fillColor: [37, 99, 235],
+        textColor: [255, 255, 255],
+        fontStyle: 'bold',
+        halign: 'center',
+      },
+      alternateRowStyles: {
+        fillColor: [248, 250, 252],
+      },
+      columnStyles: {
+        5: { cellWidth: 42 },
+        6: { cellWidth: 32 },
+      },
+      margin: { left: MARGIN, right: MARGIN, bottom: 15 },
+      tableWidth: usableWidth,
     });
+
+    const pageCount = doc.getNumberOfPages();
+    for (let i = 1; i <= pageCount; i++) {
+      doc.setPage(i);
+
+      doc.setDrawColor(226, 232, 240);
+      doc.line(MARGIN, pageHeight - 12, pageWidth - MARGIN, pageHeight - 12);
+
+      doc.setFont('helvetica', 'normal');
+      doc.setFontSize(6.5);
+      doc.setTextColor(148, 163, 184);
+      doc.text('Ace Data Systems Ltd. | CONFIDENTIAL', MARGIN, pageHeight - 7);
+
+      doc.text(`Page ${i} of ${pageCount}`, pageWidth - MARGIN, pageHeight - 7, { align: 'right' });
+    }
+
     const dateStr = new Date().toISOString().split('T')[0];
     doc.save(`continuous-feedback-export-${dateStr}.pdf`);
   }, [filteredFeedbacks, categoryFilter, statusFilter, startDate, endDate, searchQuery]);
