@@ -73,9 +73,8 @@ export function LoginForm() {
       const dashboardPath = getDashboardPath(user);
       navigate(dashboardPath, { replace: true });
 
-    } catch (err: any) {
-      const errorMessage = err?.data?.message || err?.message || 'Invalid email or password';
-      toast.error(errorMessage, { id: LOGIN_CREDENTIALS_TOAST_ID });
+    } catch {
+      toast.error('Invalid email or password', { id: LOGIN_CREDENTIALS_TOAST_ID });
     }
   };
 

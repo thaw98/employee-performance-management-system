@@ -16,6 +16,11 @@ const rawBaseQuery = fetchBaseQuery({
   },
 });
 
+function isAuthLoginRequest(args: string | FetchArgs): boolean {
+  const url = typeof args === 'string' ? args : args.url;
+  return typeof url === 'string' && url.includes('/auth/login');
+}
+
 const baseQueryWithAuthGuard: BaseQueryFn<string | FetchArgs, unknown, FetchBaseQueryError> = async (
   args,
   api,
@@ -23,7 +28,7 @@ const baseQueryWithAuthGuard: BaseQueryFn<string | FetchArgs, unknown, FetchBase
 ) => {
   const result = await rawBaseQuery(args, api, extraOptions);
 
-  if (result.error?.status === 401) {
+  if (result.error?.status === 401 && !isAuthLoginRequest(args)) {
     api.dispatch(logout());
     if (typeof window !== 'undefined' && window.location.pathname !== '/login') {
       window.location.href = '/login';

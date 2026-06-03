@@ -705,13 +705,14 @@ export default function PipMonitoringPage() {
         </div>
       </div>
 
-      <PipCreateModal
-        isOpen={isCreateModalOpen}
-        onClose={() => setIsCreateModalOpen(false)}
-        onCreated={() => {
-          if (!invalidDateRange) void refetch()
-        }}
-      />
+      {isCreateModalOpen ? (
+        <PipCreateModal
+          onClose={() => setIsCreateModalOpen(false)}
+          onCreated={() => {
+            if (!invalidDateRange) void refetch()
+          }}
+        />
+      ) : null}
 
       {exportError && (
         <div className="mb-8 rounded-2xl border border-red-100 bg-red-50 p-5 text-sm font-bold text-red-700">
