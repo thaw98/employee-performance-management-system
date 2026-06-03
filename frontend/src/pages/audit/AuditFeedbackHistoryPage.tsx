@@ -253,17 +253,17 @@ export function AuditFeedbackHistoryPage() {
 
   return (
     <div className="space-y-6 animate-in fade-in duration-500">
-      <div className="relative overflow-hidden rounded-2xl bg-gradient-to-br from-slate-900 via-slate-800 to-slate-700 px-6 py-5 text-white shadow-xl">
-        <div className="absolute -right-8 -top-8 h-32 w-32 rounded-full bg-white/5 blur-3xl" />
-        <div className="absolute -bottom-6 -left-6 h-24 w-24 rounded-full bg-blue-500/10 blur-3xl" />
+      <div className="relative overflow-hidden rounded-2xl bg-gradient-to-br from-[#2463eb] via-[#1d4ed8] to-[#1e40af] px-6 py-5 text-white shadow-xl shadow-[#2463eb]/25">
+        <div className="absolute -right-8 -top-8 h-32 w-32 rounded-full bg-white/10 blur-3xl" />
+        <div className="absolute -bottom-6 -left-6 h-24 w-24 rounded-full bg-white/5 blur-3xl" />
         <div className="relative flex flex-col gap-4 xl:flex-row xl:items-center xl:justify-between">
           <div className="flex items-center gap-4">
-            <div className="flex h-12 w-12 items-center justify-center rounded-xl bg-gradient-to-br from-blue-500 to-blue-600 text-white shadow-lg shadow-blue-500/30">
+            <div className="flex h-12 w-12 items-center justify-center rounded-xl bg-white/20 text-white shadow-lg ring-1 ring-white/30 backdrop-blur-sm">
               <RefreshCcw size={22} />
             </div>
             <div>
               <h2 className="text-2xl font-black tracking-tight">360 Feedback History</h2>
-              <p className="text-sm font-medium text-slate-300">Company-wide evaluatee summary</p>
+              <p className="text-sm font-medium text-blue-100">Company-wide evaluatee summary</p>
             </div>
           </div>
           <div className="flex flex-wrap gap-2">
@@ -463,9 +463,9 @@ export function AuditFeedbackEvaluateeHistoryPage() {
 
   return (
     <div className="space-y-6 animate-in fade-in duration-500">
-      <div className="relative overflow-hidden rounded-2xl bg-gradient-to-br from-slate-900 via-slate-800 to-slate-700 p-6 text-white shadow-xl">
-        <div className="absolute -right-10 -top-10 h-40 w-40 rounded-full bg-white/5 blur-3xl" />
-        <div className="absolute -bottom-8 -left-8 h-32 w-32 rounded-full bg-blue-500/10 blur-3xl" />
+      <div className="relative overflow-hidden rounded-2xl bg-gradient-to-br from-[#2463eb] via-[#1d4ed8] to-[#1e40af] p-6 text-white shadow-xl shadow-[#2463eb]/25">
+        <div className="absolute -right-10 -top-10 h-40 w-40 rounded-full bg-white/10 blur-3xl" />
+        <div className="absolute -bottom-8 -left-8 h-32 w-32 rounded-full bg-white/5 blur-3xl" />
         <div className="relative flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
           <div className="flex items-center gap-4">
             <button type="button" onClick={() => navigate('/audit/360-feedback/history')} className="flex h-10 w-10 items-center justify-center rounded-xl bg-white/10 text-white/70 backdrop-blur-sm transition hover:bg-white/20 hover:text-white">
@@ -474,12 +474,12 @@ export function AuditFeedbackEvaluateeHistoryPage() {
             <div className="h-10 w-px bg-white/10" />
             <div>
               <div className="flex items-center gap-3">
-                <div className="flex h-11 w-11 items-center justify-center rounded-xl bg-gradient-to-br from-blue-500 to-blue-600 text-white shadow-lg shadow-blue-500/30">
+                <div className="flex h-11 w-11 items-center justify-center rounded-xl bg-white/20 text-white shadow-lg ring-1 ring-white/30 backdrop-blur-sm">
                   <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>
                 </div>
                 <div>
                   <h2 className="text-xl font-black tracking-tight">{evaluatee?.employeeName || 'Evaluatee History'}</h2>
-                  <p className="text-sm font-medium text-slate-300">
+                  <p className="text-sm font-medium text-blue-100">
                     {evaluatee?.staffNo || ''}{evaluatee?.staffNo && evaluatee?.position ? ' · ' : ''}{evaluatee?.position || ''}{evaluatee?.position && evaluatee?.department ? ' · ' : ''}{evaluatee?.department || ''}
                   </p>
                 </div>
