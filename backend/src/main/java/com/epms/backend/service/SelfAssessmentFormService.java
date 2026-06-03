@@ -1984,6 +1984,9 @@ Instant now = Instant.now();
         // Notify employee
         sendHrRejectionRetakeNotification(saved);
 
+        // Notify manager
+        sendHrRejectionRetakeManagerNotification(saved);
+
         auditService.record(
                 AuditActionType.SELF_ASSESSMENT_FORM_HR_REJECTED_ADJUSTMENT,
                 AuditTargetType.SELF_ASSESSMENT_FORM,
@@ -3339,6 +3342,20 @@ Instant now = Instant.now();
                         + ".",
                 "SELF_ASSESSMENT_FORM",
                 form.getId()));
+    }
+
+    private void sendHrRejectionRetakeManagerNotification(SelfAssessmentForm form) {
+        Employee employee = form.getEmployee();
+        resolveManagerRecipient(employee)
+                .ifPresent(manager -> notificationService.send(
+                        manager.getUserAccount(),
+                        "Employee Self-Assessment Rejected by HR",
+                        (employee != null ? employee.getEmployeeName() : "An employee")
+                                + "'s self-assessment for "
+                                + resolveFormDisplayTitle(form)
+                                + " was rejected by HR. A full retake is required.",
+                        "SELF_ASSESSMENT_FORM",
+                        form.getId()));
     }
 
     private void sendHrUnlockRequestedNotification(SelfAssessmentUnlockRequest request) {
